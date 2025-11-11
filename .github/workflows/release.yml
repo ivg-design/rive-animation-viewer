@@ -45,6 +45,8 @@ jobs:
     needs: check-release
     if: needs.check-release.outputs.should-release == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
       new-version: ${{ steps.bump.outputs.new-version }}
     steps:
@@ -53,6 +55,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
+          persist-credentials: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
