@@ -62,11 +62,15 @@
                     </button>
                 </div>
             </div>
-            <div class="toolbar-group demo-group">
+            <div class="toolbar-group demo-group" aria-label="Demo bundle control">
                 <label for="demo-bundle-btn">Demo Bundle</label>
                 <button type="button" id="demo-bundle-btn" class="primary demo-button" onclick="createDemoBundle()">
                     Make Demo File
                 </button>
+            </div>
+            <div class="toolbar-group color-group">
+                <label for="canvas-color-input">Canvas Color</label>
+                <input type="color" id="canvas-color-input" value="#0d1117">
             </div>
             <div class="toolbar-group config-toggle-group">
                 <label for="config-toggle">Config Panel</label>
@@ -78,14 +82,14 @@
                     aria-controls="config-panel"
                     title="Hide initialization config panel"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" aria-hidden="true" focusable="false" class="config-icon config-icon-hide">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" aria-hidden="true" focusable="false" class="config-icon config-icon-show">
                         <rect width="256" height="256" fill="none"></rect>
                         <line x1="120" y1="128" x2="216" y2="128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
                         <line x1="120" y1="64" x2="216" y2="64" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
                         <line x1="40" y1="192" x2="216" y2="192" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
                         <polyline points="72 56 32 96 72 136" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></polyline>
                     </svg>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" aria-hidden="true" focusable="false" class="config-icon config-icon-show">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" aria-hidden="true" focusable="false" class="config-icon config-icon-hide">
                         <rect width="256" height="256" fill="none"></rect>
                         <line x1="120" y1="128" x2="216" y2="128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
                         <line x1="120" y1="64" x2="216" y2="64" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>

@@ -33,7 +33,7 @@ body {
     background: #161b22;
     border: 1px solid #30363d;
     border-radius: 6px;
-    padding: 20px;
+    padding: 5px;
     display: flex;
     flex-wrap: wrap;
     gap: 16px;
@@ -44,13 +44,17 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    flex: 1 1 200px;
+    flex: 1 1 180px;
     min-width: 180px;
 }
 
 .toolbar-group.config-toggle-group {
     flex: 0 1 120px;
     align-items: flex-start;
+}
+
+.toolbar-group.color-group {
+    flex: 0 1 130px;
 }
 
 .toolbar-group.playback-group {
@@ -63,6 +67,14 @@ body {
 }
 
 .toolbar-label {
+    font-weight: 600;
+    color: #8b949e;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.demo-btn-label {
     font-weight: 600;
     color: #8b949e;
     font-size: 12px;
@@ -145,6 +157,15 @@ body {
 .demo-button--disabled {
     opacity: 0.45;
     pointer-events: none;
+}
+
+.color-group input[type="color"] {
+    width: 100%;
+    height: 42px;
+    border-radius: 6px;
+    border: 1px solid #30363d;
+    background: #0d1117;
+    cursor: pointer;
 }
 
 .main-grid {
@@ -254,8 +275,8 @@ button.primary:hover {
 }
 
 .icon-button {
-    width: 42px;
-    height: 42px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     padding: 0;
     display: flex;

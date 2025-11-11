@@ -36,7 +36,6 @@ async function build() {
     'index.html',
     'style.css',
     'app.js',
-    'tauri.js',
     'manifest.webmanifest',
     'service-worker.js',
     'README.md'

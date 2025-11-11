@@ -15,6 +15,8 @@ struct DemoBundlePayload {
     autoplay: bool,
     layout_fit: String,
     state_machines: Vec<String>,
+    artboard_name: Option<String>,
+    canvas_color: Option<String>,
 }
 
 #[tauri::command]
@@ -53,6 +55,11 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       "autoplay": payload.autoplay,
       "layoutFit": payload.layout_fit,
       "stateMachines": payload.state_machines,
+      "artboardName": payload.artboard_name,
+      "canvasColor": payload
+        .canvas_color
+        .clone()
+        .unwrap_or_else(|| "#0d1117".into())
     });
     let config_json = serde_json::to_string(&config)?;
     let escaped_runtime = payload.runtime_script.replace("</script", "<\\/script");
@@ -65,33 +72,44 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Rive Demo Viewer</title>
   <style>
+    :root {{
+      color-scheme: dark;
+    }}
+    *, *::before, *::after {{
+      box-sizing: border-box;
+    }}
     body {{
-      background: #0d1117;
-      color: #c9d1d9;
-      font-family: 'Monaco','Menlo','Ubuntu Mono',monospace;
+      margin: 0;
       min-height: 100vh;
+      background: #050608;
+      color: #c9d1d9;
+      font-family: "Monaco","Menlo","Ubuntu Mono",monospace;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      margin: 0;
-      padding: 20px;
     }}
-    #rive-canvas {{
-      width: 80vw;
-      max-width: 900px;
-      height: 60vh;
-      background: #111;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-    }}
-    .controls {{
-      margin-top: 16px;
+    main {{
+      flex: 1;
       display: flex;
+      flex-direction: column;
+      padding: 20px;
       gap: 12px;
     }}
+    #rive-canvas {{
+      width: 100%;
+      flex: 1;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      background: var(--canvas-color, #0d1117);
+      display: block;
+    }}
+    .controls {{
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }}
     button {{
-      padding: 8px 20px;
+      padding: 8px 18px;
       border-radius: 6px;
       border: 1px solid #30363d;
       background: #21262d;
@@ -102,30 +120,59 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
     button:hover {{
       background: #30363d;
     }}
+    label {{
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }}
+    input[type="color"] {{
+      width: 48px;
+      height: 48px;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+    }}
     footer {{
-      margin-top: 20px;
+      padding: 12px 20px;
       font-size: 12px;
       color: #8b949e;
+      border-top: 1px solid #30363d;
     }}
   </style>
 </head>
 <body>
-  <canvas id="rive-canvas" width="800" height="600"></canvas>
-  <div class="controls">
-    <button id="play-btn">Play</button>
-    <button id="pause-btn">Pause</button>
-    <button id="reset-btn">Reset</button>
-  </div>
-  <footer>
-    © 2025 IVG Design · MIT License · Rive runtime © Rive
-  </footer>
+  <main>
+    <canvas id="rive-canvas"></canvas>
+    <div class="controls">
+      <button id="play-btn">Play</button>
+      <button id="pause-btn">Pause</button>
+      <button id="reset-btn">Reset</button>
+      <label>Canvas color<input type="color" id="bg-color-input" value="{canvas_color}"></label>
+    </div>
+  </main>
+  <footer>© 2025 IVG Design · MIT License · Rive runtime © Rive</footer>
   <script>window.__DEMO_CONFIG__ = {config_json};</script>
   <script>{escaped_runtime}</script>
   <script>
     (function() {{
       const config = window.__DEMO_CONFIG__;
       const canvas = document.getElementById('rive-canvas');
-      const layout = new window.rive.Layout({{ fit: config.layoutFit || 'contain', alignment: 'center' }});
+      const layout = new window.rive.Layout({{ fit: 'contain', alignment: 'center' }});
+
+      function applyCanvasColor(color) {{
+        document.documentElement.style.setProperty('--canvas-color', color);
+      }}
+
+      const colorInput = document.getElementById('bg-color-input');
+      const startColor = config.canvasColor || '#0d1117';
+      colorInput.value = startColor;
+      applyCanvasColor(startColor);
+      colorInput.addEventListener('input', (event) => {{
+        applyCanvasColor(event.target.value);
+      }});
 
       function base64ToUrl(base64) {{
         const binary = atob(base64);
@@ -141,6 +188,12 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       const animationUrl = base64ToUrl(config.animationBase64);
       let riveInstance;
 
+      function resizeCanvas() {{
+        const ratio = window.devicePixelRatio || 1;
+        canvas.width = canvas.clientWidth * ratio;
+        canvas.height = canvas.clientHeight * ratio;
+      }}
+
       function initRive() {{
         if (riveInstance) {{
           riveInstance.cleanup?.();
@@ -151,8 +204,12 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
           canvas,
           autoplay: config.autoplay !== false,
           stateMachines: config.stateMachines || [],
+          artboard: config.artboardName || undefined,
           layout,
-          onLoad: () => riveInstance?.resizeDrawingSurfaceToCanvas()
+          onLoad: () => {{
+            resizeCanvas();
+            riveInstance?.resizeDrawingSurfaceToCanvas();
+          }}
         }});
       }}
 
@@ -161,6 +218,7 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       document.getElementById('reset-btn').addEventListener('click', () => riveInstance?.reset());
 
       window.addEventListener('resize', () => {{
+        resizeCanvas();
         riveInstance?.resizeDrawingSurfaceToCanvas();
       }});
 
@@ -168,7 +226,8 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
     }})();
   </script>
 </body>
-</html>"#
+</html>"#,
+        canvas_color = config["canvasColor"].as_str().unwrap_or("#0d1117")
     );
 
     Ok(html)

@@ -27,7 +27,8 @@ let currentFileMimeType = 'application/octet-stream';
 let lastInitConfig = {};
 let configDirty = false;
 let errorTimeoutId = null;
-let tauriBridgePromise = null;
+let currentArtboardName = null;
+let currentCanvasColor = '#0d1117';
 const runtimeMeta = loadRuntimeMeta();
 
 const elements = {
@@ -39,6 +40,7 @@ const elements = {
     info: document.getElementById('info'),
     error: document.getElementById('error-message'),
     canvasContainer: document.getElementById('canvas-container'),
+    canvasColorInput: document.getElementById('canvas-color-input'),
     mainGrid: document.getElementById('main-grid'),
     configPanel: document.getElementById('config-panel'),
     configToggle: document.getElementById('config-toggle'),
@@ -55,6 +57,7 @@ function init() {
     setupDragAndDrop();
     setupConfigToggle();
     setupCodeEditor();
+    setupCanvasColor();
     setupDemoButton();
     registerServiceWorker();
     window.addEventListener('resize', handleResize);
@@ -251,6 +254,19 @@ function setupCodeEditor() {
     });
 }
 
+function setupCanvasColor() {
+    const input = elements.canvasColorInput;
+    if (!input) {
+        return;
+    }
+    input.value = currentCanvasColor;
+    input.addEventListener('input', (event) => {
+        currentCanvasColor = event.target.value || '#0d1117';
+        updateCanvasBackground();
+    });
+    updateCanvasBackground();
+}
+
 function setupDemoButton() {
     const button = document.getElementById('demo-bundle-btn');
     if (!button) {
@@ -265,47 +281,33 @@ function setupDemoButton() {
             : 'Available in the desktop app';
     };
 
-    const attemptEnable = () => {
-        ensureTauriInvokeAvailable().then((available) => {
-            if (available) {
-                setButtonState(true);
-            }
-        });
+    const refreshState = () => {
+        setButtonState(Boolean(getTauriInvoker()));
     };
 
-    if (hasTauriInvoke()) {
-        setButtonState(true);
-        return;
-    }
-
-    setButtonState(false);
-
-    attemptEnable();
+    refreshState();
 
     let attempts = 0;
     const maxAttempts = 20;
     const interval = setInterval(() => {
-        attempts += 1;
-        if (hasTauriInvoke()) {
-            setButtonState(true);
+        refreshState();
+        if (getTauriInvoker()) {
             clearInterval(interval);
             return;
         }
-        attemptEnable();
+        attempts += 1;
         if (attempts >= maxAttempts) {
             clearInterval(interval);
         }
-    }, 400);
+    }, 300);
 
-    const readyHandler = () => {
-        attemptEnable();
-        if (hasTauriInvoke()) {
-            setButtonState(true);
-            clearInterval(interval);
-            window.removeEventListener('tauri://ready', readyHandler);
-        }
-    };
-    window.addEventListener('tauri://ready', readyHandler, { once: true });
+    window.addEventListener(
+        'tauri://ready',
+        () => {
+            refreshState();
+        },
+        { once: true },
+    );
 }
 
 function preventDefaults(event) {
@@ -391,6 +393,7 @@ async function loadRiveAnimation(fileUrl, fileName) {
             riveInstance?.resizeDrawingSurfaceToCanvas();
             const names = Array.isArray(riveInstance?.stateMachineNames) ? riveInstance.stateMachineNames : [];
             autoFillConfigStateMachine(names);
+            currentArtboardName = riveInstance?.artboard?.name || currentArtboardName;
         };
 
         config.onLoadError = (error) => {
@@ -443,7 +446,8 @@ function reset() {
 }
 
 async function createDemoBundle() {
-    if (!(await ensureTauriInvokeAvailable())) {
+    const invoke = getTauriInvoker();
+    if (!invoke) {
         showError('Demo bundles can only be created inside the desktop app.');
         return;
     }
@@ -466,19 +470,21 @@ async function createDemoBundle() {
             : [];
 
     const payload = {
-        fileName: currentFileName,
-        animationBase64: arrayBufferToBase64(currentFileBuffer),
-        runtimeName: currentRuntime,
-        runtimeVersion: runtimeAsset.version,
-        runtimeScript: runtimeAsset.text,
+        file_name: currentFileName,
+        animation_base64: arrayBufferToBase64(currentFileBuffer),
+        runtime_name: currentRuntime,
+        runtime_version: runtimeAsset.version,
+        runtime_script: runtimeAsset.text,
         autoplay: typeof lastInitConfig.autoplay === 'boolean' ? lastInitConfig.autoplay : true,
-        layoutFit: currentLayoutFit,
-        stateMachines,
+        layout_fit: currentLayoutFit,
+        state_machines: stateMachines,
+        artboard_name: currentArtboardName,
+        canvas_color: currentCanvasColor,
     };
 
     updateInfo('Building demo bundle...');
     try {
-        const outputPath = await window.__TAURI__.invoke('make_demo_bundle', payload);
+        const outputPath = await invoke('make_demo_bundle', { payload });
         updateInfo(`Demo bundle saved to: ${outputPath}`);
     } catch (error) {
         showError(`Failed to create demo bundle: ${error.message || error}`);
@@ -567,6 +573,12 @@ function revokeLastObjectUrl() {
     if (lastObjectUrl) {
         URL.revokeObjectURL(lastObjectUrl);
         lastObjectUrl = null;
+    }
+}
+
+function updateCanvasBackground() {
+    if (elements.canvasContainer) {
+        elements.canvasContainer.style.background = currentCanvasColor;
     }
 }
 
@@ -776,87 +788,45 @@ function autoFillConfigStateMachine(names) {
     configDirty = false;
 }
 
-function hasTauriInvoke() {
-    return typeof window.__TAURI__ !== 'undefined' && typeof window.__TAURI__.invoke === 'function';
+function getTauriInvoker() {
+    if (window.__TAURI__?.invoke) {
+        return window.__TAURI__.invoke.bind(window.__TAURI__);
+    }
+    if (typeof window.__TAURI_IPC__ === 'function') {
+        return (cmd, args = {}) =>
+            new Promise((resolve, reject) => {
+                const successId = makeCallbackId('tauri_cb');
+                const errorId = makeCallbackId('tauri_err');
+
+                window[successId] = (data) => {
+                    cleanupBridgeCallbacks(successId, errorId);
+                    resolve(data);
+                };
+                window[errorId] = (error) => {
+                    cleanupBridgeCallbacks(successId, errorId);
+                    reject(error);
+                };
+
+                window.__TAURI_IPC__({
+                    cmd,
+                    callback: successId,
+                    error: errorId,
+                    ...args,
+                });
+            });
+    }
+    return null;
 }
 
-function loadTauriBridge() {
-    if (hasTauriInvoke()) {
-        return Promise.resolve(true);
-    }
-
-    if (tauriBridgePromise) {
-        return tauriBridgePromise;
-    }
-
-    tauriBridgePromise = new Promise((resolve) => {
-        const existing = document.querySelector('script[data-tauri-bridge="true"]');
-        const wireEvents = (scriptEl) => {
-            scriptEl.addEventListener(
-                'load',
-                () => {
-                    scriptEl.dataset.loaded = 'true';
-                    resolve(true);
-                },
-                { once: true },
-            );
-            scriptEl.addEventListener('error', () => resolve(false), { once: true });
-        };
-
-        if (existing) {
-            if (existing.dataset.loaded === 'true') {
-                resolve(true);
-            } else {
-                wireEvents(existing);
-            }
-            return;
-        }
-
-        const script = document.createElement('script');
-        script.src = 'tauri.js';
-        script.defer = true;
-        script.dataset.tauriBridge = 'true';
-        wireEvents(script);
-        document.head.appendChild(script);
-    });
-
-    return tauriBridgePromise;
+function cleanupBridgeCallbacks(...ids) {
+    ids.forEach((id) => Reflect.deleteProperty(window, id));
 }
 
-async function ensureTauriInvokeAvailable() {
-    if (hasTauriInvoke()) {
-        return true;
+function makeCallbackId(prefix) {
+    if (window.crypto?.randomUUID) {
+        return `_${prefix}_${window.crypto.randomUUID()}`;
     }
-
-    const hasIpc = await waitForTauriIpc();
-    if (!hasIpc) {
-        return false;
-    }
-
-    const loaded = await loadTauriBridge();
-    return loaded && hasTauriInvoke();
-}
-
-function waitForTauriIpc(timeoutMs = 5000) {
-    if (typeof window.__TAURI_IPC__ !== 'undefined') {
-        return Promise.resolve(true);
-    }
-
-    return new Promise((resolve) => {
-        const deadline = Date.now() + timeoutMs;
-        const check = () => {
-            if (typeof window.__TAURI_IPC__ !== 'undefined') {
-                resolve(true);
-                return;
-            }
-            if (Date.now() >= deadline) {
-                resolve(false);
-                return;
-            }
-            setTimeout(check, 200);
-        };
-        check();
-    });
+    return `_${prefix}_${Math.random().toString(36).slice(2)}${Date.now()}`;
 }
 
 function loadRuntimeMeta() {
