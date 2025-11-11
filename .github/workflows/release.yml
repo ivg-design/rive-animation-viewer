@@ -130,14 +130,42 @@ jobs:
           releaseBody: |
             ## Rive Animation Viewer v${{ steps.version.outputs.version }}
 
-            ### Downloads
-            - **macOS**: Universal binary (Apple Silicon + Intel)
-            - **Windows**: Installer (.msi)
+            Desktop app for previewing Rive animations with one-click demo bundle generation.
 
-            ### Changes
-            See commit history for details.
+            ### 📦 Downloads
 
-            © 2025 IVG Design · MIT License
+            **macOS - Disk Images (.dmg)** ⭐ Recommended
+            - `*_aarch64_darwin.dmg` → **Apple Silicon** (M1/M2/M3/M4 Macs) - ~7 MB
+            - `*_x64_darwin.dmg` → **Intel Macs** (older Macs) - ~7 MB
+
+            **macOS - App Bundles (.app.tar.gz)** - Advanced users
+            - `*_darwin_aarch64.app.tar.gz` → Apple Silicon (extract and run)
+            - `*_darwin_x64.app.tar.gz` → Intel (extract and run)
+
+            **Windows - Installer (.msi)** ⭐ Recommended
+            - `*.msi` → Windows x64 installer
+
+            **Not sure which to download?**
+            - **Mac with M1/M2/M3/M4**: Download the `aarch64_darwin.dmg`
+            - **Mac with Intel processor**: Download the `x64_darwin.dmg`
+            - **Windows PC**: Download the `.msi` file
+
+            ### ✨ Features
+            - Native desktop preview of .riv animations
+            - Live parameter editing with JSON config editor
+            - One-click demo bundle generation (self-contained HTML)
+            - Canvas/WebGL2 runtime switching
+            - 7 layout fit modes
+            - Optimized binaries (~7 MB per architecture)
+
+            ### 🚀 Installation
+            1. Download the appropriate file for your system
+            2. **macOS**: Open the .dmg and drag to Applications
+            3. **Windows**: Run the .msi installer
+
+            ---
+
+            © 2025 IVG Design · MIT License · [GitHub](https://github.com/ivg-design/rive-animation-viewer)
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
