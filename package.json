@@ -1,0 +1,20 @@
+{
+  "name": "rive-animation-viewer",
+  "version": "1.0.0",
+  "description": "Simple local server to preview Rive animations",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server . -p 8080 -o",
+    "serve": "npx http-server . -p 8080",
+    "build": "node scripts/build-dist.mjs",
+    "tauri": "tauri",
+    "build:full": "npm run build && npm run tauri build"
+  },
+  "keywords": ["rive", "animation", "preview"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.6.1",
+    "http-server": "^14.1.1"
+  }
+}

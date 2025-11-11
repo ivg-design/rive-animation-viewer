@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rive Animation Viewer</title>
+    <meta name="theme-color" content="#0d1117">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="toolbar" role="toolbar" aria-label="Animation controls">
+            <div class="toolbar-group">
+                <label for="file-input">Upload Rive File (.riv)</label>
+                <input type="file" id="file-input" accept=".riv">
+            </div>
+            <div class="toolbar-group">
+                <label for="runtime-select">Runtime</label>
+                <select id="runtime-select">
+                    <option value="canvas">Canvas</option>
+                    <option value="webgl2" selected>WebGL2 (Default)</option>
+                </select>
+            </div>
+            <div class="toolbar-group">
+                <label for="layout-select">Layout Fit</label>
+                <select id="layout-select">
+                    <option value="contain" selected>Contain</option>
+                    <option value="cover">Cover</option>
+                    <option value="fill">Fill</option>
+                    <option value="fitWidth">Fit Width</option>
+                    <option value="fitHeight">Fit Height</option>
+                    <option value="scaleDown">Scale Down</option>
+                    <option value="scaleUp">Scale Up</option>
+                </select>
+            </div>
+            <div class="toolbar-group playback-group" aria-label="Playback controls">
+                <span class="toolbar-label">Playback</span>
+                <div class="playback-buttons">
+                    <button type="button" class="icon-button" onclick="play()" title="Play" aria-label="Play">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M8 5v14l11-7z"></path>
+                        </svg>
+                        <span class="sr-only">Play</span>
+                    </button>
+                    <button type="button" class="icon-button" onclick="pause()" title="Pause" aria-label="Pause">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M6 5h4v14H6zM14 5h4v14h-4z"></path>
+                        </svg>
+                        <span class="sr-only">Pause</span>
+                    </button>
+                    <button type="button" class="icon-button" onclick="reset()" title="Reset" aria-label="Reset">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" aria-hidden="true" focusable="false">
+                            <rect width="256" height="256" fill="none"></rect>
+                            <polyline points="88 96 40 96 40 48" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></polyline>
+                            <path d="M40,96,68.28,67.72A88,88,0,0,1,192,67" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></path>
+                            <polyline points="168 160 216 160 216 208" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></polyline>
+                            <path d="M216,160l-28.28,28.28A88,88,0,0,1,64,189" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></path>
+                        </svg>
+                        <span class="sr-only">Reset</span>
+                    </button>
+                </div>
+            </div>
+            <div class="toolbar-group demo-group">
+                <label for="demo-bundle-btn">Demo Bundle</label>
+                <button type="button" id="demo-bundle-btn" class="primary demo-button" onclick="createDemoBundle()">
+                    Make Demo File
+                </button>
+            </div>
+            <div class="toolbar-group config-toggle-group">
+                <label for="config-toggle">Config Panel</label>
+                <button
+                    type="button"
+                    class="icon-button config-toggle-btn"
+                    id="config-toggle"
+                    aria-expanded="true"
+                    aria-controls="config-panel"
+                    title="Hide initialization config panel"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" aria-hidden="true" focusable="false" class="config-icon config-icon-hide">
+                        <rect width="256" height="256" fill="none"></rect>
+                        <line x1="120" y1="128" x2="216" y2="128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
+                        <line x1="120" y1="64" x2="216" y2="64" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
+                        <line x1="40" y1="192" x2="216" y2="192" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
+                        <polyline points="72 56 32 96 72 136" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></polyline>
+                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" aria-hidden="true" focusable="false" class="config-icon config-icon-show">
+                        <rect width="256" height="256" fill="none"></rect>
+                        <line x1="120" y1="128" x2="216" y2="128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
+                        <line x1="120" y1="64" x2="216" y2="64" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
+                        <line x1="40" y1="192" x2="216" y2="192" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
+                        <polyline points="40 56 80 96 40 136" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></polyline>
+                    </svg>
+                    <span class="sr-only">Hide initialization config panel</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="error" id="error-message"></div>
+
+        <div class="main-grid" id="main-grid">
+            <div class="viewer-container">
+                <div id="canvas-container" class="canvas-drop-target" aria-label="Rive canvas drop zone">
+                    <div class="placeholder">
+                        <p>Upload a .riv file</p>
+                        <p style="font-size: 11px; margin-top: 10px; opacity: 0.6;">Use the runtime & layout controls above</p>
+                    </div>
+                </div>
+
+                <div class="info" id="info">
+                    Ready to load animation
+                </div>
+            </div>
+
+            <div class="code-editor-container" id="config-panel">
+                <div class="code-editor-header">
+                    <h3>Initialization Config (JSON)</h3>
+                </div>
+                <div class="code-editor-body" id="config-content">
+                    <textarea id="code-editor" spellcheck="false">{
+  "autoplay": true,
+  "autoBind": true,
+  "stateMachines": ["State Machine 1"]
+}</textarea>
+                    <button type="button" onclick="applyCodeAndReload()" class="primary apply-code-btn">Apply & Reload</button>
+                    <div class="version-info" id="version-info">
+                        Loading runtime versions...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
