@@ -9,7 +9,7 @@
   },
   "package": {
     "productName": "Rive Animation Viewer",
-    "version": "1.2.1"
+    "version": "1.2.2"
   },
   "tauri": {
     "allowlist": {
