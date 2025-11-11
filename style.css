@@ -111,7 +111,7 @@ body {
 
 .toolbar select {
     width: 100%;
-    padding: 10px;
+    padding: 14.25px;
     background: #0d1117;
     border: 1px solid #30363d;
     border-radius: 6px;
@@ -143,7 +143,8 @@ body {
 }
 
 .demo-button--disabled {
-    opacity: 0.5;
+    opacity: 0.45;
+    pointer-events: none;
 }
 
 .main-grid {
@@ -216,7 +217,7 @@ body {
 }
 
 button {
-    padding: 8px 16px;
+    padding: 13.5px 16px;
     border: 1px solid #30363d;
     border-radius: 6px;
     background: #21262d;
@@ -309,14 +310,27 @@ button.primary:hover {
 }
 
 .error {
-    background: #2d1519;
+    position: fixed;
+    top: 90px;
+    right: 20px;
+    width: 320px;
+    background: rgba(45, 21, 25, 0.95);
     border: 1px solid #f85149;
     color: #f85149;
-    padding: 12px;
+    padding: 12px 14px;
     border-radius: 6px;
-    margin-bottom: 20px;
-    display: none;
     font-size: 13px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 3000;
+}
+
+.error.visible {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .code-editor-container {

@@ -25,6 +25,9 @@ let currentLayoutFit = DEFAULT_LAYOUT_FIT;
 let currentFileBuffer = null;
 let currentFileMimeType = 'application/octet-stream';
 let lastInitConfig = {};
+let configDirty = false;
+let errorTimeoutId = null;
+let tauriBridgePromise = null;
 const runtimeMeta = loadRuntimeMeta();
 
 const elements = {
@@ -51,6 +54,7 @@ function init() {
     setupLayoutSelect();
     setupDragAndDrop();
     setupConfigToggle();
+    setupCodeEditor();
     setupDemoButton();
     registerServiceWorker();
     window.addEventListener('resize', handleResize);
@@ -237,36 +241,71 @@ function setupConfigToggle() {
     setCollapsed(panel.classList.contains('collapsed'));
 }
 
+function setupCodeEditor() {
+    const editor = elements.codeEditor;
+    if (!editor) {
+        return;
+    }
+    editor.addEventListener('input', () => {
+        configDirty = true;
+    });
+}
+
 function setupDemoButton() {
     const button = document.getElementById('demo-bundle-btn');
     if (!button) {
         return;
     }
-    const enable = () => {
-        button.disabled = false;
-        button.classList.remove('demo-button--disabled');
-        button.title = 'Package the current animation into a demo executable';
-    };
-    const disable = () => {
-        button.disabled = true;
-        button.classList.add('demo-button--disabled');
-        button.title = 'Available in the desktop app';
+
+    const setButtonState = (enabled) => {
+        button.disabled = !enabled;
+        button.classList.toggle('demo-button--disabled', !enabled);
+        button.title = enabled
+            ? 'Package the current animation into a demo executable'
+            : 'Available in the desktop app';
     };
 
-    const hasInvoke = () => typeof window.__TAURI__?.invoke === 'function';
+    const attemptEnable = () => {
+        ensureTauriInvokeAvailable().then((available) => {
+            if (available) {
+                setButtonState(true);
+            }
+        });
+    };
 
-    if (hasInvoke()) {
-        enable();
+    if (hasTauriInvoke()) {
+        setButtonState(true);
         return;
     }
 
-    disable();
+    setButtonState(false);
 
-    window.addEventListener('tauri://ready', () => {
-        if (hasInvoke()) {
-            enable();
+    attemptEnable();
+
+    let attempts = 0;
+    const maxAttempts = 20;
+    const interval = setInterval(() => {
+        attempts += 1;
+        if (hasTauriInvoke()) {
+            setButtonState(true);
+            clearInterval(interval);
+            return;
         }
-    }, { once: true });
+        attemptEnable();
+        if (attempts >= maxAttempts) {
+            clearInterval(interval);
+        }
+    }, 400);
+
+    const readyHandler = () => {
+        attemptEnable();
+        if (hasTauriInvoke()) {
+            setButtonState(true);
+            clearInterval(interval);
+            window.removeEventListener('tauri://ready', readyHandler);
+        }
+    };
+    window.addEventListener('tauri://ready', readyHandler, { once: true });
 }
 
 function preventDefaults(event) {
@@ -350,6 +389,8 @@ async function loadRiveAnimation(fileUrl, fileName) {
             resizeCanvas(canvas);
             updateInfo(`Loaded: ${fileName} (${currentRuntime})`);
             riveInstance?.resizeDrawingSurfaceToCanvas();
+            const names = Array.isArray(riveInstance?.stateMachineNames) ? riveInstance.stateMachineNames : [];
+            autoFillConfigStateMachine(names);
         };
 
         config.onLoadError = (error) => {
@@ -402,7 +443,7 @@ function reset() {
 }
 
 async function createDemoBundle() {
-    if (!window.__TAURI__?.invoke) {
+    if (!(await ensureTauriInvokeAvailable())) {
         showError('Demo bundles can only be created inside the desktop app.');
         return;
     }
@@ -453,14 +494,24 @@ function updateInfo(message) {
 function showError(message) {
     if (elements.error) {
         elements.error.textContent = message;
-        elements.error.style.display = 'block';
+        elements.error.classList.add('visible');
+        if (errorTimeoutId) {
+            clearTimeout(errorTimeoutId);
+        }
+        errorTimeoutId = setTimeout(() => {
+            hideError();
+        }, 6000);
     }
 }
 
 function hideError() {
     if (elements.error) {
         elements.error.textContent = '';
-        elements.error.style.display = 'none';
+        elements.error.classList.remove('visible');
+    }
+    if (errorTimeoutId) {
+        clearTimeout(errorTimeoutId);
+        errorTimeoutId = null;
     }
 }
 
@@ -692,6 +743,120 @@ function arrayBufferToBase64(buffer) {
         binary += String.fromCharCode.apply(null, chunk);
     }
     return btoa(binary);
+}
+
+function autoFillConfigStateMachine(names) {
+    const editor = elements.codeEditor;
+    if (!editor || configDirty || !Array.isArray(names) || !names.length) {
+        return;
+    }
+    const current = editor.value.trim();
+    let parsed;
+    if (!current) {
+        parsed = {};
+    } else {
+        try {
+            parsed = JSON.parse(current);
+        } catch {
+            return;
+        }
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return;
+        }
+    }
+
+    const primary = names[0];
+    if (Array.isArray(parsed.stateMachines) && parsed.stateMachines[0] === primary) {
+        return;
+    }
+
+    parsed.stateMachines = [primary];
+    editor.value = JSON.stringify(parsed, null, 2);
+    lastInitConfig = { ...parsed };
+    configDirty = false;
+}
+
+function hasTauriInvoke() {
+    return typeof window.__TAURI__ !== 'undefined' && typeof window.__TAURI__.invoke === 'function';
+}
+
+function loadTauriBridge() {
+    if (hasTauriInvoke()) {
+        return Promise.resolve(true);
+    }
+
+    if (tauriBridgePromise) {
+        return tauriBridgePromise;
+    }
+
+    tauriBridgePromise = new Promise((resolve) => {
+        const existing = document.querySelector('script[data-tauri-bridge="true"]');
+        const wireEvents = (scriptEl) => {
+            scriptEl.addEventListener(
+                'load',
+                () => {
+                    scriptEl.dataset.loaded = 'true';
+                    resolve(true);
+                },
+                { once: true },
+            );
+            scriptEl.addEventListener('error', () => resolve(false), { once: true });
+        };
+
+        if (existing) {
+            if (existing.dataset.loaded === 'true') {
+                resolve(true);
+            } else {
+                wireEvents(existing);
+            }
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'tauri.js';
+        script.defer = true;
+        script.dataset.tauriBridge = 'true';
+        wireEvents(script);
+        document.head.appendChild(script);
+    });
+
+    return tauriBridgePromise;
+}
+
+async function ensureTauriInvokeAvailable() {
+    if (hasTauriInvoke()) {
+        return true;
+    }
+
+    const hasIpc = await waitForTauriIpc();
+    if (!hasIpc) {
+        return false;
+    }
+
+    const loaded = await loadTauriBridge();
+    return loaded && hasTauriInvoke();
+}
+
+function waitForTauriIpc(timeoutMs = 5000) {
+    if (typeof window.__TAURI_IPC__ !== 'undefined') {
+        return Promise.resolve(true);
+    }
+
+    return new Promise((resolve) => {
+        const deadline = Date.now() + timeoutMs;
+        const check = () => {
+            if (typeof window.__TAURI_IPC__ !== 'undefined') {
+                resolve(true);
+                return;
+            }
+            if (Date.now() >= deadline) {
+                resolve(false);
+                return;
+            }
+            setTimeout(check, 200);
+        };
+        check();
+    });
 }
 
 function loadRuntimeMeta() {

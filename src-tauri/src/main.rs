@@ -3,6 +3,7 @@
 
 use serde::Deserialize;
 use std::fs;
+use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 
 #[derive(Deserialize)]
 struct DemoBundlePayload {
@@ -173,8 +174,72 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
     Ok(html)
 }
 
+fn build_menu(about_item: &CustomMenuItem) -> Menu {
+    let app_menu = Submenu::new(
+        "Rive Animation Viewer",
+        Menu::new()
+            .add_item(about_item.clone())
+            .add_native_item(MenuItem::Separator)
+            .add_native_item(MenuItem::Services)
+            .add_native_item(MenuItem::Separator)
+            .add_native_item(MenuItem::Hide)
+            .add_native_item(MenuItem::HideOthers)
+            .add_native_item(MenuItem::ShowAll)
+            .add_native_item(MenuItem::Separator)
+            .add_native_item(MenuItem::Quit),
+    );
+
+    let edit_menu = Submenu::new(
+        "Edit",
+        Menu::new()
+            .add_native_item(MenuItem::Undo)
+            .add_native_item(MenuItem::Redo)
+            .add_native_item(MenuItem::Separator)
+            .add_native_item(MenuItem::Cut)
+            .add_native_item(MenuItem::Copy)
+            .add_native_item(MenuItem::Paste)
+            .add_native_item(MenuItem::SelectAll),
+    );
+
+    let view_menu = Submenu::new(
+        "View",
+        Menu::new().add_native_item(MenuItem::EnterFullScreen),
+    );
+
+    let window_menu = Submenu::new(
+        "Window",
+        Menu::new()
+            .add_native_item(MenuItem::Minimize)
+            .add_native_item(MenuItem::Zoom)
+            .add_native_item(MenuItem::Separator)
+            .add_native_item(MenuItem::CloseWindow),
+    );
+
+    Menu::new()
+        .add_submenu(app_menu)
+        .add_submenu(edit_menu)
+        .add_submenu(view_menu)
+        .add_submenu(window_menu)
+}
+
 fn main() {
+    let about_item = CustomMenuItem::new("about_ivg", "About Rive Animation Viewer");
+
     tauri::Builder::default()
+        .menu(build_menu(&about_item))
+        .on_menu_event(move |event| {
+            if event.menu_item_id() == "about_ivg" {
+                let message = format!(
+          "Rive Animation Viewer v{}\n© 2025 IVG Design · MIT License\nRive runtime © Rive",
+          env!("CARGO_PKG_VERSION")
+        );
+                tauri::api::dialog::message(
+                    Some(event.window()),
+                    "About Rive Animation Viewer",
+                    message,
+                );
+            }
+        })
         .invoke_handler(tauri::generate_handler![make_demo_bundle])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
