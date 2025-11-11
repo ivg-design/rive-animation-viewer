@@ -1,4 +1,5 @@
-const CACHE_VERSION = '__CACHE_VERSION__';
+const RAW_CACHE_VERSION = '__CACHE_VERSION__';
+const CACHE_VERSION = RAW_CACHE_VERSION.includes('__CACHE_VERSION__') ? `dev-${Date.now()}` : RAW_CACHE_VERSION;
 const CACHE_NAME = `rive-viewer-cache-${CACHE_VERSION}`;
 const ASSETS = [
   './index.html',

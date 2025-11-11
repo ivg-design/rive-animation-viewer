@@ -11,6 +11,8 @@ const runtimeResolvedUrls = {};
 const runtimeSourceTexts = {};
 const runtimeBlobUrls = {};
 const runtimeAssets = {};
+const APP_VERSION = '__APP_VERSION__';
+let resolvedAppVersion = APP_VERSION;
 const DEFAULT_LAYOUT_FIT = 'contain';
 const LAYOUT_FITS = ['cover', 'contain', 'fill', 'fitWidth', 'fitHeight', 'scaleDown', 'scaleUp'];
 const RUNTIME_CACHE_NAME = 'rive-runtime-cache-v1';
@@ -44,19 +46,19 @@ const elements = {
     canvasColorInput: document.getElementById('canvas-color-input'),
     mainGrid: document.getElementById('main-grid'),
     configPanel: document.getElementById('config-panel'),
-    configShowBtn: document.getElementById('config-show-btn'),
-    configHideBtn: document.getElementById('config-hide-btn'),
+    configToggle: document.getElementById('config-toggle'),
     configContent: document.getElementById('config-content'),
 };
 
 init();
 
 function init() {
+    resolveAppVersion();
     updateVersionInfo('Loading runtime...');
     setupFileInput();
+    updateFileTriggerButton('empty');
     setupRuntimeSelect();
     setupLayoutSelect();
-    setupDragAndDrop();
     setupConfigToggle();
     setupCodeEditor();
     setupCanvasColor();
@@ -74,29 +76,26 @@ function setupFileInput() {
         return;
     }
     elements.fileInput.addEventListener('change', async (event) => {
-        const file = event.target.files?.[0];
-        if (!file) {
+        const selectedFile = event.target.files?.[0];
+        if (!selectedFile) {
+            updateFileTriggerButton('empty');
             return;
         }
-        if (!file.name.toLowerCase().endsWith('.riv')) {
+        if (!selectedFile.name.toLowerCase().endsWith('.riv')) {
             showError('Please select a .riv file');
             event.target.value = '';
+            updateFileTriggerButton('empty');
             return;
         }
 
-        const file = event.target.files?.[0];
-        if (file) {
-            updateFileTriggerButton('loaded', file.name);
-        } else {
-            updateFileTriggerButton('empty');
-        }
+        updateFileTriggerButton('loaded', selectedFile.name);
 
-        const buffer = await file.arrayBuffer();
-        const fileUrl = URL.createObjectURL(file);
-        setCurrentFile(fileUrl, file.name, true, buffer, file.type);
+        const buffer = await selectedFile.arrayBuffer();
+        const fileUrl = URL.createObjectURL(selectedFile);
+        setCurrentFile(fileUrl, selectedFile.name, true, buffer, selectedFile.type);
         hideError();
         try {
-            await loadRiveAnimation(fileUrl, file.name);
+            await loadRiveAnimation(fileUrl, selectedFile.name);
         } catch {
             // loadRiveAnimation already surfaced the error
         } finally {
@@ -160,74 +159,30 @@ function setupLayoutSelect() {
     });
 }
 
-function setupDragAndDrop() {
-    const dropZone = elements.canvasContainer;
-    if (!dropZone) {
-        return;
-    }
-
-    ['dragenter', 'dragover'].forEach((eventName) => {
-        dropZone.addEventListener(eventName, (event) => {
-            preventDefaults(event);
-            dropZone.classList.add('drag-over');
-        });
-    });
-
-    ['dragleave', 'drop'].forEach((eventName) => {
-        dropZone.addEventListener(eventName, (event) => {
-            preventDefaults(event);
-            if (eventName === 'dragleave') {
-                const related = event.relatedTarget;
-                if (related && dropZone.contains(related)) {
-                    return;
-                }
-            }
-            dropZone.classList.remove('drag-over');
-        });
-    });
-
-    dropZone.addEventListener('drop', async (event) => {
-        preventDefaults(event);
-        dropZone.classList.remove('drag-over');
-        const file = event.dataTransfer?.files?.[0];
-        if (!file) {
-            return;
-        }
-
-        if (!file.name.toLowerCase().endsWith('.riv')) {
-            showError('Please drop a .riv file');
-            return;
-        }
-
-        const buffer = await file.arrayBuffer();
-        const fileUrl = URL.createObjectURL(file);
-        setCurrentFile(fileUrl, file.name, true, buffer, file.type);
-        hideError();
-        try {
-            await loadRiveAnimation(fileUrl, file.name);
-        } catch {
-            // error already shown
-        }
-    });
-
-    window.addEventListener('dragover', preventWindowFileDrop);
-    window.addEventListener('drop', preventWindowFileDrop);
-}
-
 function setupConfigToggle() {
     const panel = elements.configPanel;
-    if (!panel) {
+    const toggle = elements.configToggle;
+    if (!panel || !toggle) {
+        console.warn('setupConfigToggle: missing panel or toggle');
         return;
     }
-    const isVisible = !panel.classList.contains('collapsed');
-    setConfigPanelVisible(isVisible);
+    toggle.addEventListener('click', () => {
+        applyConfigPanelState(panel.classList.contains('collapsed'));
+    });
+    applyConfigPanelState(!panel.classList.contains('collapsed'));
 }
 
-function setConfigPanelVisible(visible) {
+function applyConfigPanelState(visible) {
     const panel = elements.configPanel;
     const content = elements.configContent;
     const grid = elements.mainGrid;
-    if (!panel || !grid) {
+    const toggle = elements.configToggle;
+    if (!panel || !grid || !toggle) {
+        console.warn('applyConfigPanelState: missing element', {
+            panel: !!panel,
+            grid: !!grid,
+            toggle: !!toggle,
+        });
         return;
     }
     panel.hidden = !visible;
@@ -236,19 +191,16 @@ function setConfigPanelVisible(visible) {
         content.hidden = !visible;
     }
     grid.classList.toggle('config-collapsed', !visible);
-    updateConfigToggleButtons(visible);
+    const label = visible ? 'Hide settings panel' : 'Show settings panel';
+    toggle.setAttribute('aria-expanded', String(visible));
+    toggle.setAttribute('aria-label', label);
+    toggle.setAttribute('title', label);
+    toggle.classList.toggle('collapsed', !visible);
     handleResize();
 }
 
-function updateConfigToggleButtons(isVisible) {
-    const showBtn = elements.configShowBtn;
-    const hideBtn = elements.configHideBtn;
-    if (showBtn) {
-        showBtn.disabled = isVisible;
-    }
-    if (hideBtn) {
-        hideBtn.disabled = !isVisible;
-    }
+function toggleConfigPanel() {
+    applyConfigPanelState(elements.configPanel?.classList.contains('collapsed'));
 }
 
 function setupCodeEditor() {
@@ -315,23 +267,6 @@ function setupDemoButton() {
         },
         { once: true },
     );
-}
-
-function preventDefaults(event) {
-    event.preventDefault();
-    event.stopPropagation();
-}
-
-function preventWindowFileDrop(event) {
-    const types = event.dataTransfer?.types;
-    if (!types) {
-        return;
-    }
-
-    const hasFiles = Array.from(types).includes('Files');
-    if (hasFiles) {
-        event.preventDefault();
-    }
 }
 
 function setCurrentFile(url, name, isObjectUrl = false, buffer, mimeType) {
@@ -598,24 +533,29 @@ function updateVersionInfo(statusMessage) {
         return;
     }
 
+    const appVersion = resolvedAppVersion || 'dev';
+    const releaseLine = `Release: v${appVersion}`;
+    const footer = '<div class="version-footer">© 2025 IVG Design · MIT License · Runtime © Rive</div>';
+
     if (statusMessage) {
-        elements.versionInfo.innerHTML = `${statusMessage}<div class="version-footer">© 2025 IVG Design · MIT License · Runtime © Rive</div>`;
+        elements.versionInfo.innerHTML = `${releaseLine}<br>${statusMessage}${footer}`;
         return;
     }
 
     const runtime = runtimeRegistry[currentRuntime];
     if (!runtime) {
-        elements.versionInfo.textContent = `Runtime ${currentRuntime} is loading...`;
+        elements.versionInfo.innerHTML = `${releaseLine}<br>Runtime ${currentRuntime} is loading...${footer}`;
         return;
     }
 
     const version = runtimeVersions[currentRuntime] || runtime.version || 'resolving...';
     const source = runtimeResolvedUrls[currentRuntime] || runtimeSources[currentRuntime];
     elements.versionInfo.innerHTML = `
+        ${releaseLine}<br>
         Runtime: ${currentRuntime}<br>
         Version: ${version}<br>
         Source: ${source}
-        <div class="version-footer">© 2025 IVG Design · MIT License · Runtime © Rive</div>
+        ${footer}
     `;
 }
 
@@ -745,7 +685,7 @@ window.pause = pause;
 window.reset = reset;
 window.createDemoBundle = createDemoBundle;
 window.handleFileButtonClick = handleFileButtonClick;
-window.setConfigPanelVisible = setConfigPanelVisible;
+window.toggleConfigPanel = toggleConfigPanel;
 window.__riveRuntimeCache = {
     getRuntimeSourceText: (runtimeName) => runtimeSourceTexts[runtimeName] || null,
     getRuntimeVersion: (runtimeName) => runtimeVersions[runtimeName] || null,
@@ -924,6 +864,7 @@ function clearCurrentFile() {
     currentFileName = null;
     currentFileBuffer = null;
     currentArtboardName = null;
+    updateFileTriggerButton('empty');
     elements.canvasContainer.innerHTML = `
         <div class="placeholder">
             <p>Upload a .riv file</p>
@@ -941,9 +882,28 @@ function updateFileTriggerButton(state, fileName) {
         button.classList.remove('primary');
         button.classList.add('loaded');
         button.textContent = fileName;
+        button.title = fileName;
     } else {
         button.classList.remove('loaded');
         button.classList.add('primary');
         button.textContent = 'Choose File';
+        button.title = 'Choose File';
+    }
+}
+async function resolveAppVersion() {
+    if (resolvedAppVersion && resolvedAppVersion !== '__APP_VERSION__') {
+        return;
+    }
+    try {
+        const response = await fetch('package.json', { cache: 'no-store' });
+        if (response.ok) {
+            const data = await response.json();
+            if (data?.version) {
+                resolvedAppVersion = data.version;
+                updateVersionInfo();
+            }
+        }
+    } catch {
+        resolvedAppVersion = 'dev';
     }
 }

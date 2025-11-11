@@ -26,6 +26,7 @@ body {
 }
 
 .container {
+    position: relative;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -54,19 +55,22 @@ body {
     min-width: 0;
 }
 
+.toolbar-group.file-picker-group {
+    flex: 0 1 220px;
+    position: relative;
+}
+
+.file-picker-group input[type='file'] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
 .toolbar-group.config-toggle-group {
-    flex: 0 1 110px;
+    flex: 0 0 auto;
     align-items: flex-start;
-}
-
-.config-toggle-wrapper {
-    display: flex;
-    gap: 6px;
-    width: 100%;
-}
-
-.config-toggle-btn {
-    flex: 1;
 }
 
 .toolbar-group.playback-group {
@@ -75,11 +79,13 @@ body {
 
 .toolbar-group.demo-group,
 .toolbar-group.color-group {
-    flex: 0 1 140px;
+    flex: 0 1 120px;
 }
 
 .color-group input[type='color'] {
-    width: 100%;
+    width: 50px;
+    min-width: 50px;
+    padding: 0;
 }
 
 .toolbar-label,
@@ -89,9 +95,9 @@ body {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.4px;
+    white-space: nowrap;
 }
 
-.toolbar input[type='file'],
 .toolbar select,
 .toolbar button,
 .toolbar input[type='color'] {
@@ -103,10 +109,9 @@ body {
     font-size: 14px;
     font-family: inherit;
     cursor: pointer;
-}
-
-.toolbar input[type='file'] {
-    display: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .toolbar select {
@@ -161,6 +166,11 @@ body {
     width: 18px;
     height: 18px;
     fill: currentColor;
+    transition: transform 0.2s ease;
+}
+
+.config-toggle-btn.collapsed svg {
+    transform: rotate(180deg);
 }
 
 .demo-button {
@@ -172,9 +182,12 @@ body {
     pointer-events: none;
 }
 
-.config-toggle-wrapper {
-    display: flex;
-    gap: 6px;
+.config-toggle-btn {
+    width: var(--control-height);
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 button {
@@ -187,6 +200,9 @@ button {
     cursor: pointer;
     transition: background 0.2s;
     font-family: inherit;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
 }
 
 button:hover {
@@ -310,6 +326,7 @@ button.primary:hover {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    min-height: 0;
 }
 
 .code-editor-header {
@@ -333,6 +350,8 @@ button.primary:hover {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    flex: 1;
+    min-height: 0;
 }
 
 #code-editor {
@@ -361,19 +380,15 @@ button.primary:hover {
 }
 
 .version-info {
-    position: fixed;
-    bottom: 10px;
-    right: 10px;
-    background: #161b22;
+    margin-top: auto;
+    background: #0d1117;
     border: 1px solid #30363d;
     border-radius: 6px;
-    padding: 8px 12px;
-    font-size: 10px;
+    padding: 10px 12px;
+    font-size: 11px;
     color: #8b949e;
     font-family: inherit;
-    max-width: 300px;
     line-height: 1.4;
-    z-index: 1000;
 }
 
 .version-footer {
@@ -403,12 +418,14 @@ button.primary:hover {
     }
 
     .toolbar {
-        flex-wrap: wrap;
-        gap: 12px;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-auto-rows: auto;
+        gap: 10px;
     }
 
     .toolbar-group {
-        min-width: calc(50% - 12px);
+        min-width: 0;
     }
 
     .main-grid {

@@ -46,11 +46,17 @@ async function build() {
   for (const file of filesToCopy) {
     const src = path.join(root, file);
     try {
-      if (file === 'service-worker.js') {
+      if (file === 'service-worker.js' || file === 'app.js') {
         let content = await fs.readFile(src, 'utf8');
-        content = content.replace(/__CACHE_VERSION__/g, cacheVersion);
-        await ensureDir(path.dirname(path.join(distDir, file)));
-        await fs.writeFile(path.join(distDir, file), content);
+        if (file === 'service-worker.js') {
+          content = content.replace(/__CACHE_VERSION__/g, cacheVersion);
+        }
+        if (file === 'app.js') {
+          content = content.replace(/__APP_VERSION__/g, pkg.version);
+        }
+        const destPath = path.join(distDir, file);
+        await ensureDir(path.dirname(destPath));
+        await fs.writeFile(destPath, content);
       } else {
         await copyFile(src, path.join(distDir, file));
       }
