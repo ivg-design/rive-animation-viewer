@@ -40,48 +40,26 @@ jobs:
             echo "No release flag found - skipping release"
           fi
 
-  # Bump version and commit changes
-  bump-version:
+  # Extract version (already bumped by local pre-push hook)
+  extract-version:
     needs: check-release
     if: needs.check-release.outputs.should-release == 'true'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     outputs:
-      new-version: ${{ steps.bump.outputs.new-version }}
+      new-version: ${{ steps.version.outputs.new-version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-          persist-credentials: true
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Bump version
-        id: bump
+      - name: Extract version from package.json
+        id: version
         run: |
-          node scripts/bump-version.mjs ${{ needs.check-release.outputs.bump-type }}
           NEW_VERSION=$(node -p "require('./package.json').version")
           echo "new-version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "Bumped to version: $NEW_VERSION"
-
-      - name: Commit version bump
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
-          git add src-tauri/Cargo.lock 2>/dev/null || true
-          git commit -m "chore: bump version to ${{ steps.bump.outputs.new-version }} [skip ci]" || echo "No changes to commit"
-          git push
+          echo "Building version: $NEW_VERSION"
 
   release:
-    needs: [check-release, bump-version]
+    needs: [check-release, extract-version]
     if: needs.check-release.outputs.should-release == 'true'
     permissions:
       contents: write
@@ -132,12 +110,12 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Use bumped version
+      - name: Use extracted version
         id: version
         shell: bash
         run: |
-          echo "version=${{ needs.bump-version.outputs.new-version }}" >> $GITHUB_OUTPUT
-          echo "Building version: ${{ needs.bump-version.outputs.new-version }}"
+          echo "version=${{ needs.extract-version.outputs.new-version }}" >> $GITHUB_OUTPUT
+          echo "Building version: ${{ needs.extract-version.outputs.new-version }}"
 
       - name: Install Tauri CLI
         run: npm install -g @tauri-apps/cli

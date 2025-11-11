@@ -6,30 +6,34 @@ This repository uses GitHub Actions to automatically build and release the Tauri
 
 ### How to Trigger a Release
 
-**Simply commit with a release flag** - the workflow will automatically bump the version:
+**Simply commit with a release flag** - the pre-push hook will automatically bump the version locally:
 
 ```bash
 # Patch version bump (1.1.2 → 1.1.3)
 git commit -m "Fix animation playback bug release:patch"
-git push origin main
+git push origin main  # Version bumped automatically before push!
 
 # Minor version bump (1.1.2 → 1.2.0)
 git commit -m "Add new export feature release:minor"
-git push origin main
+git push origin main  # Version bumped automatically before push!
 
 # Major version bump (1.1.2 → 2.0.0)
 git commit -m "Complete UI redesign release:major"
-git push origin main
+git push origin main  # Version bumped automatically before push!
 ```
 
-The workflow will automatically:
-1. **Parse** the release flag (`release:major`, `release:minor`, or `release:patch`)
+The pre-push hook will automatically:
+1. **Detect** the release flag (`release:major`, `release:minor`, or `release:patch`)
 2. **Bump** version in all files (package.json, tauri.conf.json, Cargo.toml)
-3. **Commit** the version changes back to main (with `[skip ci]` to avoid loops)
-4. **Build** for macOS (Universal binary - Intel + Apple Silicon)
-5. **Build** for Windows (.msi installer)
-6. **Create** a GitHub Release with version tag
-7. **Upload** the built binaries to the release
+3. **Amend** your commit to include the version changes
+4. **Push** the updated commit to GitHub
+
+Then GitHub Actions will:
+1. **Build** for macOS Apple Silicon (ARM64)
+2. **Build** for macOS Intel (x86_64)
+3. **Build** for Windows (.msi installer)
+4. **Create** a GitHub Release with version tag
+5. **Upload** the built binaries to the release
 
 ### Semantic Versioning
 
@@ -50,20 +54,18 @@ The workflow automatically updates versions in:
 
 You don't need to manually edit these files anymore.
 
-### Keeping Local Workspace Synchronized
+### Version Synchronization
 
-After a release is published, sync your local workspace:
+**Good news:** With the pre-push hook, your local workspace is always synchronized! The version bump happens locally before pushing, so you never need to pull version changes from GitHub.
+
+If you ever need to verify or manually sync:
 
 ```bash
-# Option 1: Use the sync script (recommended)
 npm run sync
-
-# Option 2: Manual pull
-git pull origin main
 ```
 
-The sync script will:
-- Pull latest changes from remote
+This will:
+- Pull any remote changes
 - Verify all version files match
 - Update Cargo.lock automatically
 - Report any version mismatches
