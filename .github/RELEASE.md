@@ -39,7 +39,7 @@ Use the appropriate flag based on your changes:
 - **`release:minor`** - New features, backwards-compatible (1.1.2 → 1.2.0)
 - **`release:major`** - Breaking changes, major updates (1.1.2 → 2.0.0)
 
-Current version: **1.1.2**
+Current version: **1.1.2** (testing CI/CD pipeline)
 
 ### No Manual Version Updates Needed!
 
