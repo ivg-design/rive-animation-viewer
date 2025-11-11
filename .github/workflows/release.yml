@@ -125,6 +125,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          tauriScript: npm run tauri
           tagName: v${{ steps.version.outputs.version }}
           releaseName: 'Rive Animation Viewer v${{ steps.version.outputs.version }}'
           releaseBody: |
@@ -159,9 +160,19 @@ jobs:
             - Optimized binaries (~7 MB per architecture)
 
             ### 🚀 Installation
-            1. Download the appropriate file for your system
-            2. **macOS**: Open the .dmg and drag to Applications
-            3. **Windows**: Run the .msi installer
+
+            **macOS:**
+            1. Download the .dmg file for your architecture
+            2. Open the .dmg and drag to Applications folder
+            3. **First launch:** Right-click the app → "Open" → "Open" (bypasses Gatekeeper)
+               - Or run in Terminal: `xattr -cr "/Applications/Rive Animation Viewer.app"`
+            4. Future launches work normally with double-click
+
+            **Note:** App is not code-signed yet, requiring the workaround above on first launch.
+
+            **Windows:**
+            1. Download the .msi file
+            2. Run the installer and follow prompts
 
             ---
 
