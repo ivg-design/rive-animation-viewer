@@ -12,9 +12,12 @@
 <body>
     <div class="container">
         <div class="toolbar" role="toolbar" aria-label="Animation controls">
-            <div class="toolbar-group">
-                <label for="file-input">Upload Rive File (.riv)</label>
+            <div class="toolbar-group file-picker-group">
+                <label for="file-input">Load .riv file</label>
                 <input type="file" id="file-input" accept=".riv">
+                <button type="button" id="file-trigger-btn" class="primary file-trigger-btn" onclick="handleFileButtonClick()">
+                    Choose File
+                </button>
             </div>
             <div class="toolbar-group">
                 <label for="runtime-select">Runtime</label>
@@ -69,35 +72,45 @@
                 </button>
             </div>
             <div class="toolbar-group color-group">
-                <label for="canvas-color-input">Canvas Color</label>
+                <label for="canvas-color-input">BG Color</label>
                 <input type="color" id="canvas-color-input" value="#0d1117">
             </div>
             <div class="toolbar-group config-toggle-group">
-                <label for="config-toggle">Config Panel</label>
-                <button
-                    type="button"
-                    class="icon-button config-toggle-btn"
-                    id="config-toggle"
-                    aria-expanded="true"
-                    aria-controls="config-panel"
-                    title="Hide initialization config panel"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" aria-hidden="true" focusable="false" class="config-icon config-icon-show">
-                        <rect width="256" height="256" fill="none"></rect>
-                        <line x1="120" y1="128" x2="216" y2="128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
-                        <line x1="120" y1="64" x2="216" y2="64" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
-                        <line x1="40" y1="192" x2="216" y2="192" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
-                        <polyline points="72 56 32 96 72 136" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></polyline>
-                    </svg>
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" aria-hidden="true" focusable="false" class="config-icon config-icon-hide">
-                        <rect width="256" height="256" fill="none"></rect>
-                        <line x1="120" y1="128" x2="216" y2="128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
-                        <line x1="120" y1="64" x2="216" y2="64" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
-                        <line x1="40" y1="192" x2="216" y2="192" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
-                        <polyline points="40 56 80 96 40 136" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></polyline>
-                    </svg>
-                    <span class="sr-only">Hide initialization config panel</span>
-                </button>
+                <label>Config Panel</label>
+                <div class="config-toggle-wrapper">
+                    <button
+                        type="button"
+                        class="icon-button config-toggle-btn show-btn"
+                        id="config-show-btn"
+                        onclick="setConfigPanelVisible(true)"
+                        title="Show initialization config panel"
+                        aria-label="Show initialization config panel"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" aria-hidden="true" focusable="false">
+                            <rect width="256" height="256" fill="none"></rect>
+                            <line x1="120" y1="128" x2="216" y2="128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
+                            <line x1="120" y1="64" x2="216" y2="64" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
+                            <line x1="40" y1="192" x2="216" y2="192" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
+                            <polyline points="40 56 80 96 40 136" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></polyline>
+                        </svg>
+                    </button>
+                    <button
+                        type="button"
+                        class="icon-button config-toggle-btn hide-btn"
+                        id="config-hide-btn"
+                        onclick="setConfigPanelVisible(false)"
+                        title="Hide initialization config panel"
+                        aria-label="Hide initialization config panel"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" aria-hidden="true" focusable="false">
+                            <rect width="256" height="256" fill="none"></rect>
+                            <line x1="120" y1="128" x2="216" y2="128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
+                            <line x1="120" y1="64" x2="216" y2="64" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
+                            <line x1="40" y1="192" x2="216" y2="192" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
+                            <polyline points="72 56 32 96 72 136" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></polyline>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
 

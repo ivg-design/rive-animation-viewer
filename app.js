@@ -34,6 +34,7 @@ const runtimeMeta = loadRuntimeMeta();
 const elements = {
     versionInfo: document.getElementById('version-info'),
     fileInput: document.getElementById('file-input'),
+    fileTriggerButton: document.getElementById('file-trigger-btn'),
     runtimeSelect: document.getElementById('runtime-select'),
     layoutSelect: document.getElementById('layout-select'),
     codeEditor: document.getElementById('code-editor'),
@@ -43,7 +44,8 @@ const elements = {
     canvasColorInput: document.getElementById('canvas-color-input'),
     mainGrid: document.getElementById('main-grid'),
     configPanel: document.getElementById('config-panel'),
-    configToggle: document.getElementById('config-toggle'),
+    configShowBtn: document.getElementById('config-show-btn'),
+    configHideBtn: document.getElementById('config-hide-btn'),
     configContent: document.getElementById('config-content'),
 };
 
@@ -80,6 +82,13 @@ function setupFileInput() {
             showError('Please select a .riv file');
             event.target.value = '';
             return;
+        }
+
+        const file = event.target.files?.[0];
+        if (file) {
+            updateFileTriggerButton('loaded', file.name);
+        } else {
+            updateFileTriggerButton('empty');
         }
 
         const buffer = await file.arrayBuffer();
@@ -207,41 +216,39 @@ function setupDragAndDrop() {
 
 function setupConfigToggle() {
     const panel = elements.configPanel;
-    const toggle = elements.configToggle;
-    const content = elements.configContent;
-    const grid = elements.mainGrid;
-    if (!panel || !toggle) {
+    if (!panel) {
         return;
     }
+    const isVisible = !panel.classList.contains('collapsed');
+    setConfigPanelVisible(isVisible);
+}
 
-    const srText = toggle.querySelector('.sr-only');
+function setConfigPanelVisible(visible) {
+    const panel = elements.configPanel;
+    const content = elements.configContent;
+    const grid = elements.mainGrid;
+    if (!panel || !grid) {
+        return;
+    }
+    panel.hidden = !visible;
+    panel.classList.toggle('collapsed', !visible);
+    if (content) {
+        content.hidden = !visible;
+    }
+    grid.classList.toggle('config-collapsed', !visible);
+    updateConfigToggleButtons(visible);
+    handleResize();
+}
 
-    const setCollapsed = (collapsed) => {
-        panel.classList.toggle('collapsed', collapsed);
-        panel.hidden = collapsed;
-        if (content) {
-            content.hidden = collapsed;
-        }
-        if (grid) {
-            grid.classList.toggle('config-collapsed', collapsed);
-        }
-        toggle.classList.toggle('collapsed', collapsed);
-        const label = collapsed ? 'Show initialization config panel' : 'Hide initialization config panel';
-        toggle.setAttribute('aria-expanded', (!collapsed).toString());
-        toggle.setAttribute('aria-label', label);
-        toggle.setAttribute('title', label);
-        if (srText) {
-            srText.textContent = label;
-        }
-        handleResize();
-    };
-
-    toggle.addEventListener('click', () => {
-        const collapsed = panel.classList.contains('collapsed');
-        setCollapsed(!collapsed);
-    });
-
-    setCollapsed(panel.classList.contains('collapsed'));
+function updateConfigToggleButtons(isVisible) {
+    const showBtn = elements.configShowBtn;
+    const hideBtn = elements.configHideBtn;
+    if (showBtn) {
+        showBtn.disabled = isVisible;
+    }
+    if (hideBtn) {
+        hideBtn.disabled = !isVisible;
+    }
 }
 
 function setupCodeEditor() {
@@ -345,6 +352,7 @@ function setCurrentFile(url, name, isObjectUrl = false, buffer, mimeType) {
     if (mimeType) {
         currentFileMimeType = mimeType;
     }
+    updateFileTriggerButton(name ? 'loaded' : 'empty', name);
 }
 
 async function loadRiveAnimation(fileUrl, fileName) {
@@ -373,6 +381,9 @@ async function loadRiveAnimation(fileUrl, fileName) {
         const userConfig = getEditorConfig();
         lastInitConfig = { ...userConfig };
         const config = { ...userConfig };
+        if (config.artboard) {
+            currentArtboardName = config.artboard;
+        }
         config.src = fileUrl;
         config.canvas = canvas;
         if (typeof config.autoBind === 'undefined') {
@@ -393,7 +404,7 @@ async function loadRiveAnimation(fileUrl, fileName) {
             riveInstance?.resizeDrawingSurfaceToCanvas();
             const names = Array.isArray(riveInstance?.stateMachineNames) ? riveInstance.stateMachineNames : [];
             autoFillConfigStateMachine(names);
-            currentArtboardName = riveInstance?.artboard?.name || currentArtboardName;
+            currentArtboardName = riveInstance?.artboard?.name || currentArtboardName || config.artboard || null;
         };
 
         config.onLoadError = (error) => {
@@ -733,6 +744,8 @@ window.play = play;
 window.pause = pause;
 window.reset = reset;
 window.createDemoBundle = createDemoBundle;
+window.handleFileButtonClick = handleFileButtonClick;
+window.setConfigPanelVisible = setConfigPanelVisible;
 window.__riveRuntimeCache = {
     getRuntimeSourceText: (runtimeName) => runtimeSourceTexts[runtimeName] || null,
     getRuntimeVersion: (runtimeName) => runtimeVersions[runtimeName] || null,
@@ -888,4 +901,49 @@ function registerServiceWorker() {
             .register('service-worker.js')
             .catch((error) => console.warn('Service worker registration failed', error));
     });
+}
+function handleFileButtonClick() {
+    if (!elements.fileInput) {
+        return;
+    }
+    if (currentFileUrl) {
+        clearCurrentFile();
+        updateFileTriggerButton('empty');
+        elements.fileInput.value = '';
+    }
+    elements.fileInput.click();
+}
+
+function clearCurrentFile() {
+    cleanupInstance();
+    if (lastObjectUrl) {
+        URL.revokeObjectURL(lastObjectUrl);
+        lastObjectUrl = null;
+    }
+    currentFileUrl = null;
+    currentFileName = null;
+    currentFileBuffer = null;
+    currentArtboardName = null;
+    elements.canvasContainer.innerHTML = `
+        <div class="placeholder">
+            <p>Upload a .riv file</p>
+            <p style="font-size: 11px; margin-top: 10px; opacity: 0.6;">Use the runtime & layout controls above</p>
+        </div>
+    `;
+}
+
+function updateFileTriggerButton(state, fileName) {
+    const button = elements.fileTriggerButton || document.getElementById('file-trigger-btn');
+    if (!button) {
+        return;
+    }
+    if (state === 'loaded' && fileName) {
+        button.classList.remove('primary');
+        button.classList.add('loaded');
+        button.textContent = fileName;
+    } else {
+        button.classList.remove('loaded');
+        button.classList.add('primary');
+        button.textContent = 'Choose File';
+    }
 }

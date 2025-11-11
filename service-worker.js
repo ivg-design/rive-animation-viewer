@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = '__CACHE_VERSION__';
 const CACHE_NAME = `rive-viewer-cache-${CACHE_VERSION}`;
 const ASSETS = [
   './index.html',

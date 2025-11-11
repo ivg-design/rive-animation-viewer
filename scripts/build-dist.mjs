@@ -4,6 +4,8 @@ import path from 'path';
 
 const root = process.cwd();
 const distDir = path.join(root, 'dist');
+const pkg = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
+const cacheVersion = `${pkg.version}-${Date.now()}`;
 
 async function ensureDir(dir) {
   await fs.mkdir(dir, { recursive: true });
@@ -44,7 +46,14 @@ async function build() {
   for (const file of filesToCopy) {
     const src = path.join(root, file);
     try {
-      await copyFile(src, path.join(distDir, file));
+      if (file === 'service-worker.js') {
+        let content = await fs.readFile(src, 'utf8');
+        content = content.replace(/__CACHE_VERSION__/g, cacheVersion);
+        await ensureDir(path.dirname(path.join(distDir, file)));
+        await fs.writeFile(path.join(distDir, file), content);
+      } else {
+        await copyFile(src, path.join(distDir, file));
+      }
     } catch (error) {
       if (error.code === 'ENOENT') {
         console.warn(`Skipping missing file: ${file}`);

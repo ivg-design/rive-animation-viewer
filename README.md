@@ -20,8 +20,8 @@ Need a headless server for tooling (e.g., Tauri dev)? Use `npm run serve` instea
 ## Usage
 
 ### Toolbar & file loading
-- Use the unified toolbar to pick a `.riv` file, switch runtimes (Canvas/WebGL2), change layout fit, and access playback icons.
-- Toggle the "Config Panel" button in the toolbar to collapse or expand the initialization JSON panel and version info card.
+- Use the unified toolbar to pick a `.riv` file (the button turns green and shows the file name once loaded), switch runtimes (Canvas/WebGL2), change layout fit, and access playback icons.
+- Toggle the dedicated **Show/Hide Config** buttons to collapse or expand the initialization JSON panel and version info card.
 - On the desktop build, use **Make Demo File** to package the currently loaded animation into a standalone viewer (experimental).
 
 ### Upload or drag & drop
@@ -47,7 +47,7 @@ Need a headless server for tooling (e.g., Tauri dev)? Use `npm run serve` instea
 - Runtime toggle between Canvas and WebGL2 (always pulled from the latest CDN build)
 - Layout-fit dropdown that maps to Rive's built-in Layout options
 - Icon-based playback controls inline with the main toolbar
-- Responsive design with automatic canvas resizing and collapsible config/version panel
+- Responsive design with automatic canvas resizing, collapsible config/version panel, compact mode below 800 px, and a live background-color picker shared with demo bundles
 - Installable Progressive Web App (PWA) with offline shell caching
 - Desktop wrapper powered by Tauri (macOS-ready `.app` / `.dmg`)
 
@@ -104,6 +104,7 @@ rive-local/
 
 - The viewer always loads the latest official Rive runtimes from the CDN for both Canvas and WebGL2 modes (`@rive-app/...@latest`). No runtime code is bundled, so you always get the newest build at launch.
 - Sample `.riv` files in `animations/` are for local reference only and are intentionally excluded from `dist/` and packaged apps to keep bundles lean.
+- Each build stamps the service worker cache with a unique version, so you never need to clear browser caches manually—the app will always pull the latest assets after a rebuild.
 - Animations are played using the HTML canvas element with dynamic resizing.
 - The server runs on port 8080 by default.
 - The desktop app caches the resolved runtime scripts locally so it can launch offline and reuse those scripts when producing demo bundles.
