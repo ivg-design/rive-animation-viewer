@@ -68,17 +68,9 @@ jobs:
       matrix:
         include:
           - platform: 'macos-latest'
-            args: '--target aarch64-apple-darwin'
-            rust_target: 'aarch64-apple-darwin'
-            arch: 'Apple Silicon'
-          - platform: 'macos-latest'
-            args: '--target x86_64-apple-darwin'
-            rust_target: 'x86_64-apple-darwin'
-            arch: 'Intel'
+            args: '--target universal-apple-darwin'
           - platform: 'windows-latest'
             args: ''
-            rust_target: ''
-            arch: 'x64'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -96,7 +88,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.rust_target }}
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Install dependencies (Ubuntu)
         if: matrix.platform == 'ubuntu-latest'
@@ -133,46 +125,32 @@ jobs:
 
             Desktop app for previewing Rive animations with one-click demo bundle generation.
 
-            ### 📦 Downloads
+            ### Downloads
 
-            **macOS - Disk Images (.dmg)** ⭐ Recommended
-            - `*_aarch64_darwin.dmg` → **Apple Silicon** (M1/M2/M3/M4 Macs) - ~7 MB
-            - `*_x64_darwin.dmg` → **Intel Macs** (older Macs) - ~7 MB
+            **macOS**
+            - Universal binary (.dmg) - Works on both Apple Silicon and Intel Macs
 
-            **macOS - App Bundles (.app.tar.gz)** - Advanced users
-            - `*_darwin_aarch64.app.tar.gz` → Apple Silicon (extract and run)
-            - `*_darwin_x64.app.tar.gz` → Intel (extract and run)
+            **Windows**
+            - Installer (.msi) - x64
 
-            **Windows - Installer (.msi)** ⭐ Recommended
-            - `*.msi` → Windows x64 installer
-
-            **Not sure which to download?**
-            - **Mac with M1/M2/M3/M4**: Download the `aarch64_darwin.dmg`
-            - **Mac with Intel processor**: Download the `x64_darwin.dmg`
-            - **Windows PC**: Download the `.msi` file
-
-            ### ✨ Features
+            ### Features
             - Native desktop preview of .riv animations
             - Live parameter editing with JSON config editor
             - One-click demo bundle generation (self-contained HTML)
             - Canvas/WebGL2 runtime switching
-            - 7 layout fit modes
-            - Optimized binaries (~7 MB per architecture)
+            - Multiple layout fit modes
+            - Compact binary size
 
-            ### 🚀 Installation
+            ### Installation
 
             **macOS:**
-            1. Download the .dmg file for your architecture
-            2. Open the .dmg and drag to Applications folder
-            3. **First launch:** Right-click the app → "Open" → "Open" (bypasses Gatekeeper)
-               - Or run in Terminal: `xattr -cr "/Applications/Rive Animation Viewer.app"`
-            4. Future launches work normally with double-click
-
-            **Note:** App is not code-signed yet, requiring the workaround above on first launch.
+            1. Download and open the .dmg file
+            2. Drag to Applications folder
+            3. Right-click the app and select "Open" (first launch only)
 
             **Windows:**
-            1. Download the .msi file
-            2. Run the installer and follow prompts
+            1. Download and run the .msi installer
+            2. Follow the installation prompts
 
             ---
 
