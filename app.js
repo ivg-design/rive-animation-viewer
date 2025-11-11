@@ -63,7 +63,6 @@ function init() {
     setupCodeEditor();
     setupCanvasColor();
     setupDemoButton();
-    registerServiceWorker();
     window.addEventListener('resize', handleResize);
     window.addEventListener('beforeunload', revokeLastObjectUrl);
     ensureRuntime(currentRuntime)
@@ -831,17 +830,6 @@ function extractVersionFromUrl(url) {
     return match ? match[1] : null;
 }
 
-function registerServiceWorker() {
-    if (!('serviceWorker' in navigator)) {
-        return;
-    }
-
-    window.addEventListener('load', () => {
-        navigator.serviceWorker
-            .register('service-worker.js')
-            .catch((error) => console.warn('Service worker registration failed', error));
-    });
-}
 function handleFileButtonClick() {
     if (!elements.fileInput) {
         return;

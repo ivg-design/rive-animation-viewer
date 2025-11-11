@@ -5,7 +5,6 @@ import path from 'path';
 const root = process.cwd();
 const distDir = path.join(root, 'dist');
 const pkg = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
-const cacheVersion = `${pkg.version}-${Date.now()}`;
 
 async function ensureDir(dir) {
   await fs.mkdir(dir, { recursive: true });
@@ -34,26 +33,14 @@ async function build() {
   await fs.rm(distDir, { recursive: true, force: true });
   await ensureDir(distDir);
 
-  const filesToCopy = [
-    'index.html',
-    'style.css',
-    'app.js',
-    'manifest.webmanifest',
-    'service-worker.js',
-    'README.md'
-  ];
+  const filesToCopy = ['index.html', 'style.css', 'app.js', 'README.md'];
 
   for (const file of filesToCopy) {
     const src = path.join(root, file);
     try {
-      if (file === 'service-worker.js' || file === 'app.js') {
+      if (file === 'app.js') {
         let content = await fs.readFile(src, 'utf8');
-        if (file === 'service-worker.js') {
-          content = content.replace(/__CACHE_VERSION__/g, cacheVersion);
-        }
-        if (file === 'app.js') {
-          content = content.replace(/__APP_VERSION__/g, pkg.version);
-        }
+        content = content.replace(/__APP_VERSION__/g, pkg.version);
         const destPath = path.join(distDir, file);
         await ensureDir(path.dirname(destPath));
         await fs.writeFile(destPath, content);

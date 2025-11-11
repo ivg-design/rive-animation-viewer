@@ -4,8 +4,9 @@
   "description": "Simple local server to preview Rive animations",
   "main": "index.html",
   "scripts": {
-    "start": "npx http-server . -p 8080 -o",
-    "serve": "npx http-server . -p 8080",
+    "start": "vite --host 0.0.0.0 --port 8080 --open",
+    "serve": "vite --host 0.0.0.0 --port 8080",
+    "dev": "vite",
     "build": "node scripts/build-dist.mjs",
     "tauri": "tauri",
     "build:full": "npm run build && npm run tauri build"
@@ -19,6 +20,6 @@
   "license": "MIT",
   "devDependencies": {
     "@tauri-apps/cli": "^1.6.1",
-    "http-server": "^14.1.1"
+    "vite": "^7.2.2"
   }
 }

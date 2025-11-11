@@ -9,25 +9,25 @@ A responsive local + desktop viewer for `.riv` files with runtime/layout control
 npm install
 ```
 
-2. Start the server:
+2. Start the Vite dev server (hot reload + auto-open):
 ```bash
 npm start
 ```
 
-The browser will automatically open at `http://localhost:8080`.  
-Need a headless server for tooling (e.g., Tauri dev)? Use `npm run serve` instead, which skips auto-opening a tab.
+The browser will automatically open at `http://localhost:8080` with live reload.  
+Need a headless server for tooling (e.g., when Tauri spawns its own window)? Use `npm run serve`, which skips auto-opening a tab.
 
 ## Usage
 
 ### Toolbar & file loading
-- Use the unified toolbar to pick a `.riv` file (the button turns green and shows the file name once loaded), switch runtimes (Canvas/WebGL2), change layout fit, and access playback icons.
-- Toggle the dedicated **Show/Hide Config** buttons to collapse or expand the initialization JSON panel and version info card.
-- On the desktop build, use **Make Demo File** to package the currently loaded animation into a standalone viewer (experimental).
+- Use the unified toolbar to pick a `.riv` file. The button stays blue until a file is loaded, then turns green and displays the file name (click again to clear and pick another file).
+- Switch runtimes (Canvas/WebGL2), change layout fit, pick a background color swatch, and access the playback icons from the same row.
+- Tap the square **Settings** toggle to collapse/expand the JSON editor panel; the version card lives at the bottom of that panel.
+- On the desktop build, **Make Demo File** packages the currently loaded animation into a self-contained viewer (HTML export today; native bundle via CI is recommended).
 
-### Upload or drag & drop
-- Click "Choose File" and select a `.riv` file from your computer **or** drag & drop it onto the canvas area.
-- Pick the runtime (Canvas/WebGL2) and layout fit (`contain`, `cover`, `scaleDown`, etc.) from the dropdowns before or after loading.
-- The viewer reloads automatically any time you change runtime or layout.
+### Uploading files
+- Click the `Choose File` button and select a `.riv` file from your computer.
+- Adjust runtime/layout/background color either before or after loading; the viewer reloads automatically whenever you change runtime/layout.
 
 ### Initialization config
 
@@ -43,19 +43,14 @@ Need a headless server for tooling (e.g., Tauri dev)? Use `npm run serve` instea
 
 ## Features
 
-- Drag & drop file upload support plus file-picker input
-- Runtime toggle between Canvas and WebGL2 (always pulled from the latest CDN build)
-- Layout-fit dropdown that maps to Rive's built-in Layout options
+- Custom file picker with clear/load behavior
+- Runtime toggle between Canvas and WebGL2 (always pulled from the official CDN)
+- Layout-fit dropdown that mirrors Rive’s built-in layout options
 - Icon-based playback controls inline with the main toolbar
-- Responsive design with automatic canvas resizing, collapsible config/version panel, compact mode below 800 px, and a live background-color picker shared with demo bundles
-- Installable Progressive Web App (PWA) with offline shell caching
+- Responsive design with a square Settings toggle, compact mode (≤800 px) that fits all controls in two rows, and a live background-color picker shared with demo bundles
+- Version card pinned to the Settings panel showing release + runtime info
 - Desktop wrapper powered by Tauri (macOS-ready `.app` / `.dmg`)
-
-## PWA / standalone usage
-
-- The project now ships a `manifest.webmanifest` and `service-worker.js`, so when it's served over HTTPS (or `http://localhost`) modern browsers will offer an _Install_ button.
-- To try it locally, run `npm start`, open the app, and use the browser's install prompt (e.g., Chrome's menu → "Install Rive Animation Viewer").
-- For production, deploy the static files (`index.html`, `app.js`, `style.css`, `manifest.webmanifest`, `service-worker.js`, `icons/`) to any HTTPS host (GitHub Pages, Netlify, etc.). The service worker will cache the app shell for offline use, while Rive runtimes continue to stream from the CDN so you're always on the latest build.
+- Vite-based dev server for instant feedback—no more cache-clearing scripts or manual reloads
 
 ## Desktop app (Tauri)
 
@@ -75,22 +70,21 @@ The Tauri CLI automatically runs `npm run serve` in dev mode and `npm run build`
 
 ### Demo bundle workflow (desktop-only)
 - Load your `.riv` file, configure the desired runtime/layout/state machines, and verify playback.
-- Hit **Make Demo File** in the toolbar to bundle the current animation alongside the cached runtime. The tool uses the cached CDN runtime (Canvas/WebGL2) so once fetched it can produce offline demos.
-- The generated mini-viewer is a single self-contained HTML file with embedded runtime + animation that you can double-click to preview; it only exposes the canvas and playback controls, omitting file inputs or config editing.
+- Hit **Make Demo File** in the toolbar to bundle the current animation alongside the cached runtime.
+- The generated mini-viewer is a self-contained HTML file with embedded runtime + animation that you can double-click to preview; it only exposes the canvas and playback controls, omitting file inputs or config editing.
+- Our GitHub CI/CD workflow publishes three binaries per release: macOS (Apple Silicon), macOS (Intel), and Windows. Grab the latest installers from the [Releases](../../releases) tab if you just need the desktop builds.
 
 ## Folder Structure
 
 ```
 rive-local/
-├── animations/          # Optional local assets (not copied into dist/)
-├── dist/                # Build artifact consumed by Tauri packaging
-├── icons/               # PWA icon assets
-├── index.html          # Main viewer page
-├── manifest.webmanifest # PWA manifest
-├── package.json        # Dependencies and scripts
-├── scripts/             # Utility scripts (e.g., build-dist.mjs)
-├── service-worker.js   # Caches the app shell for offline/PWA usage
-├── src-tauri/           # Tauri Rust project & bundler config
+├── animations/        # Optional local assets (not copied into dist/)
+├── dist/              # Build artifact consumed by Tauri packaging
+├── icons/             # Shared app icons (favicon + desktop)
+├── index.html         # Main viewer page
+├── package.json       # Dependencies and scripts
+├── scripts/           # Utility scripts (e.g., build-dist.mjs)
+├── src-tauri/         # Tauri Rust project & bundler config
 └── README.md          # This file
 ```
 
@@ -104,9 +98,9 @@ rive-local/
 
 - The viewer always loads the latest official Rive runtimes from the CDN for both Canvas and WebGL2 modes (`@rive-app/...@latest`). No runtime code is bundled, so you always get the newest build at launch.
 - Sample `.riv` files in `animations/` are for local reference only and are intentionally excluded from `dist/` and packaged apps to keep bundles lean.
-- Each build stamps the service worker cache with a unique version, so you never need to clear browser caches manually—the app will always pull the latest assets after a rebuild.
 - Animations are played using the HTML canvas element with dynamic resizing.
-- The server runs on port 8080 by default.
+- The server runs on port 8080 by default (configurable via Vite flags).
+- There is no service worker/PWA shell anymore, so dev builds never get stuck behind stale caches.
 - The desktop app caches the resolved runtime scripts locally so it can launch offline and reuse those scripts when producing demo bundles.
 
 ## License & attribution
