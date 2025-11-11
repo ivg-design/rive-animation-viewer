@@ -892,6 +892,8 @@ async function resolveAppVersion() {
             }
         }
     } catch {
-        resolvedAppVersion = 'dev';
+        if (!resolvedAppVersion || resolvedAppVersion === '__APP_VERSION__') {
+            resolvedAppVersion = 'dev';
+        }
     }
 }
