@@ -203,6 +203,7 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
           src: animationUrl,
           canvas,
           autoplay: config.autoplay !== false,
+          autoBind: true,
           stateMachines: config.stateMachines || [],
           artboard: config.artboardName || undefined,
           layout,
