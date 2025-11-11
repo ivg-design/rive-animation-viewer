@@ -41,9 +41,7 @@
       },
       "resources": [],
       "shortDescription": "",
-      "targets": [
-        "app"
-      ],
+      "targets": "all",
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
