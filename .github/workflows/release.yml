@@ -83,6 +83,8 @@ jobs:
   release:
     needs: [check-release, bump-version]
     if: needs.check-release.outputs.should-release == 'true'
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
