@@ -24,3 +24,9 @@ tauri = { version = "1.8.1", features = ["dialog"] }
 # If you use cargo directly instead of tauri's cli you can use this feature flag to switch between tauri's `dev` and `build` modes.
 # DO NOT REMOVE!!
 custom-protocol = [ "tauri/custom-protocol" ]
+
+[profile.release]
+strip = true        # Strip debug symbols
+opt-level = "z"     # Optimize for size
+lto = true          # Enable Link Time Optimization
+codegen-units = 1   # Better optimization (slower compile, smaller binary)

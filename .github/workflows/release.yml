@@ -90,9 +90,17 @@ jobs:
       matrix:
         include:
           - platform: 'macos-latest'
-            args: '--target universal-apple-darwin'
+            args: '--target aarch64-apple-darwin'
+            rust_target: 'aarch64-apple-darwin'
+            arch: 'Apple Silicon'
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+            rust_target: 'x86_64-apple-darwin'
+            arch: 'Intel'
           - platform: 'windows-latest'
             args: ''
+            rust_target: ''
+            arch: 'x64'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -110,7 +118,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.rust_target }}
 
       - name: Install dependencies (Ubuntu)
         if: matrix.platform == 'ubuntu-latest'
