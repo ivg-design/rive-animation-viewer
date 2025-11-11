@@ -68,9 +68,14 @@ jobs:
       matrix:
         include:
           - platform: 'macos-latest'
-            args: '--target universal-apple-darwin'
+            args: '--target aarch64-apple-darwin'
+            rust_target: 'aarch64-apple-darwin'
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+            rust_target: 'x86_64-apple-darwin'
           - platform: 'windows-latest'
             args: ''
+            rust_target: ''
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -88,7 +93,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.rust_target }}
 
       - name: Install dependencies (Ubuntu)
         if: matrix.platform == 'ubuntu-latest'
@@ -128,10 +133,11 @@ jobs:
             ### Downloads
 
             **macOS**
-            - Universal binary (.dmg) - Works on both Apple Silicon and Intel Macs
+            - aarch64_darwin.dmg - Apple Silicon (M1/M2/M3/M4)
+            - x64_darwin.dmg - Intel Macs
 
             **Windows**
-            - Installer (.msi) - x64
+            - .msi installer - x64
 
             ### Features
             - Native desktop preview of .riv animations
