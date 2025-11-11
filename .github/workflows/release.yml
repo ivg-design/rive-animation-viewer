@@ -1,0 +1,150 @@
+name: Release Tauri App
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'README.md'
+      - '.gitignore'
+  workflow_dispatch:
+
+jobs:
+  # Parse release type from commit message
+  check-release:
+    runs-on: ubuntu-latest
+    outputs:
+      should-release: ${{ steps.check.outputs.should-release }}
+      bump-type: ${{ steps.check.outputs.bump-type }}
+    steps:
+      - name: Check commit message for release flag
+        id: check
+        run: |
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
+
+          if [[ "$COMMIT_MSG" =~ release:major ]]; then
+            echo "should-release=true" >> $GITHUB_OUTPUT
+            echo "bump-type=major" >> $GITHUB_OUTPUT
+            echo "Found release:major - will bump major version"
+          elif [[ "$COMMIT_MSG" =~ release:minor ]]; then
+            echo "should-release=true" >> $GITHUB_OUTPUT
+            echo "bump-type=minor" >> $GITHUB_OUTPUT
+            echo "Found release:minor - will bump minor version"
+          elif [[ "$COMMIT_MSG" =~ release:patch ]]; then
+            echo "should-release=true" >> $GITHUB_OUTPUT
+            echo "bump-type=patch" >> $GITHUB_OUTPUT
+            echo "Found release:patch - will bump patch version"
+          else
+            echo "should-release=false" >> $GITHUB_OUTPUT
+            echo "bump-type=none" >> $GITHUB_OUTPUT
+            echo "No release flag found - skipping release"
+          fi
+
+  # Bump version and commit changes
+  bump-version:
+    needs: check-release
+    if: needs.check-release.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      new-version: ${{ steps.bump.outputs.new-version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Bump version
+        id: bump
+        run: |
+          node scripts/bump-version.mjs ${{ needs.check-release.outputs.bump-type }}
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "new-version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Bumped to version: $NEW_VERSION"
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
+          git commit -m "chore: bump version to ${{ steps.bump.outputs.new-version }} [skip ci]" || echo "No changes to commit"
+          git push
+
+  release:
+    needs: [check-release, bump-version]
+    if: needs.check-release.outputs.should-release == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target universal-apple-darwin'
+          - platform: 'windows-latest'
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Use bumped version
+        id: version
+        shell: bash
+        run: |
+          echo "version=${{ needs.bump-version.outputs.new-version }}" >> $GITHUB_OUTPUT
+          echo "Building version: ${{ needs.bump-version.outputs.new-version }}"
+
+      - name: Install Tauri CLI
+        run: npm install -g @tauri-apps/cli
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v${{ steps.version.outputs.version }}
+          releaseName: 'Rive Animation Viewer v${{ steps.version.outputs.version }}'
+          releaseBody: |
+            ## Rive Animation Viewer v${{ steps.version.outputs.version }}
+
+            ### Downloads
+            - **macOS**: Universal binary (Apple Silicon + Intel)
+            - **Windows**: Installer (.msi)
+
+            ### Changes
+            See commit history for details.
+
+            © 2025 IVG Design · MIT License
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
