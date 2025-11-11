@@ -9,7 +9,8 @@
     "dev": "vite",
     "build": "node scripts/build-dist.mjs",
     "tauri": "tauri",
-    "build:full": "npm run build && npm run tauri build"
+    "build:full": "npm run build && npm run tauri build",
+    "sync": "node scripts/sync-version.mjs"
   },
   "keywords": [
     "rive",

@@ -50,6 +50,24 @@ The workflow automatically updates versions in:
 
 You don't need to manually edit these files anymore.
 
+### Keeping Local Workspace Synchronized
+
+After a release is published, sync your local workspace:
+
+```bash
+# Option 1: Use the sync script (recommended)
+npm run sync
+
+# Option 2: Manual pull
+git pull origin main
+```
+
+The sync script will:
+- Pull latest changes from remote
+- Verify all version files match
+- Update Cargo.lock automatically
+- Report any version mismatches
+
 ### Manual Release (Local Build)
 
 To build locally without the CI/CD pipeline:
