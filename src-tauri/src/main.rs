@@ -141,6 +141,65 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       color: #8b949e;
       border-top: 1px solid #30363d;
     }}
+    /* Fullscreen mode styles */
+    body.fullscreen-mode main {{
+      padding: 0;
+      gap: 0;
+    }}
+    body.fullscreen-mode #rive-canvas {{
+      border: none;
+      border-radius: 0;
+    }}
+    body.fullscreen-mode .controls,
+    body.fullscreen-mode footer {{
+      display: none;
+    }}
+    /* Hover trigger for bottom-right corner */
+    #fullscreen-trigger {{
+      position: fixed;
+      bottom: 0;
+      right: 0;
+      width: 120px;
+      height: 120px;
+      display: none;
+      pointer-events: all;
+      z-index: 10;
+    }}
+    body.fullscreen-mode #fullscreen-trigger {{
+      display: block;
+    }}
+    /* Expand icon */
+    #expand-icon {{
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 48px;
+      height: 48px;
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+      opacity: 0;
+      transform: scale(0.8);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      pointer-events: none;
+      z-index: 11;
+    }}
+    #expand-icon.visible {{
+      opacity: 1;
+      transform: scale(1);
+      pointer-events: all;
+    }}
+    #expand-icon:hover {{
+      background: #30363d;
+      transform: scale(1.05);
+    }}
+    #expand-icon svg {{
+      width: 100%;
+      height: 100%;
+      display: block;
+    }}
   </style>
 </head>
 <body>
@@ -150,10 +209,20 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       <button id="play-btn">Play</button>
       <button id="pause-btn">Pause</button>
       <button id="reset-btn">Reset</button>
+      <button id="fullscreen-btn">Fullscreen</button>
       <label>Canvas color<input type="color" id="bg-color-input" value="{canvas_color}"></label>
     </div>
   </main>
   <footer>© 2025 IVG Design · MIT License · Rive runtime © Rive</footer>
+  <div id="fullscreen-trigger"></div>
+  <div id="expand-icon">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+      <rect width="256" height="256" fill="none"/>
+      <polyline points="160 80 192 80 192 112" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/>
+      <polyline points="96 176 64 176 64 144" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/>
+      <rect x="32" y="48" width="192" height="160" rx="8" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="16"/>
+    </svg>
+  </div>
   <script>window.__DEMO_CONFIG__ = {config_json};</script>
   <script>{escaped_runtime}</script>
   <script>
@@ -217,6 +286,46 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       document.getElementById('play-btn').addEventListener('click', () => riveInstance?.play());
       document.getElementById('pause-btn').addEventListener('click', () => riveInstance?.pause());
       document.getElementById('reset-btn').addEventListener('click', () => riveInstance?.reset());
+
+      // Fullscreen functionality
+      let hoverTimeout = null;
+      const fullscreenBtn = document.getElementById('fullscreen-btn');
+      const fullscreenTrigger = document.getElementById('fullscreen-trigger');
+      const expandIcon = document.getElementById('expand-icon');
+
+      function enterFullscreenMode() {{
+        document.body.classList.add('fullscreen-mode');
+      }}
+
+      function exitFullscreenMode() {{
+        document.body.classList.remove('fullscreen-mode');
+        expandIcon.classList.remove('visible');
+        if (hoverTimeout) {{
+          clearTimeout(hoverTimeout);
+          hoverTimeout = null;
+        }}
+      }}
+
+      fullscreenBtn.addEventListener('click', enterFullscreenMode);
+
+      fullscreenTrigger.addEventListener('mouseenter', () => {{
+        if (hoverTimeout) {{
+          clearTimeout(hoverTimeout);
+        }}
+        hoverTimeout = setTimeout(() => {{
+          expandIcon.classList.add('visible');
+        }}, 1000);
+      }});
+
+      fullscreenTrigger.addEventListener('mouseleave', () => {{
+        if (hoverTimeout) {{
+          clearTimeout(hoverTimeout);
+          hoverTimeout = null;
+        }}
+        expandIcon.classList.remove('visible');
+      }});
+
+      expandIcon.addEventListener('click', exitFullscreenMode);
 
       window.addEventListener('resize', () => {{
         resizeCanvas();
