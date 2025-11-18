@@ -51,6 +51,7 @@ Need a headless server for tooling (e.g., when Tauri spawns its own window)? Use
 - Version card pinned to the Settings panel showing release + runtime info
 - Desktop wrapper powered by Tauri (macOS-ready `.app` / `.dmg`)
 - Vite-based dev server for instant feedback—no more cache-clearing scripts or manual reloads
+- **Fullscreen mode** in demo bundles with hover-activated UI restore for distraction-free animation viewing
 
 ## Desktop app (Tauri)
 
@@ -72,6 +73,7 @@ The Tauri CLI automatically runs `npm run serve` in dev mode and `npm run build`
 - Load your `.riv` file, configure the desired runtime/layout/state machines, and verify playback.
 - Hit **Make Demo File** in the toolbar to bundle the current animation alongside the cached runtime.
 - The generated mini-viewer is a self-contained HTML file with embedded runtime + animation that you can double-click to preview; it only exposes the canvas and playback controls, omitting file inputs or config editing.
+- **Fullscreen mode**: Demo bundles include a fullscreen button that hides all UI controls for an immersive viewing experience. To restore the UI, hover your mouse in the bottom-right corner for 1 second to reveal the expand icon, then click it to return to normal view.
 - Our GitHub CI/CD workflow publishes three binaries per release: macOS (Apple Silicon), macOS (Intel), and Windows. Grab the latest installers from the [Releases](../../releases) tab if you just need the desktop builds.
 
 ## Folder Structure

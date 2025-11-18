@@ -322,7 +322,29 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
           clearTimeout(hoverTimeout);
           hoverTimeout = null;
         }}
-        expandIcon.classList.remove('visible');
+        // Only hide if not hovering over the icon itself
+        setTimeout(() => {{
+          if (!expandIcon.matches(':hover')) {{
+            expandIcon.classList.remove('visible');
+          }}
+        }}, 50);
+      }});
+
+      // Keep icon visible when hovering over it
+      expandIcon.addEventListener('mouseenter', () => {{
+        if (hoverTimeout) {{
+          clearTimeout(hoverTimeout);
+          hoverTimeout = null;
+        }}
+      }});
+
+      // Hide icon when leaving it (and not over trigger area)
+      expandIcon.addEventListener('mouseleave', () => {{
+        setTimeout(() => {{
+          if (!fullscreenTrigger.matches(':hover')) {{
+            expandIcon.classList.remove('visible');
+          }}
+        }}, 50);
       }});
 
       expandIcon.addEventListener('click', exitFullscreenMode);
