@@ -25,6 +25,7 @@ npm start  # Opens browser at http://localhost:8080
 - **Apply & Reload**: Button to apply configuration and reload animation
 - **Tab Support**: Tab inserts 2 spaces, Shift+Tab removes indentation
 - **Error Display**: Shows errors in red banner when configuration fails
+- **Resizable Panel**: Drag to resize panel to any width for comfortable editing
 
 **Important**: The editor accepts JavaScript code, not JSON. You can use JavaScript features like comments, trailing commas, and unquoted keys:
 
@@ -127,7 +128,8 @@ The editor intercepts Tab key events when focused:
 - Manually inserts/removes spaces at cursor position
 
 ### VM Explorer Architecture
-- Loaded as external module from `vm-explorer-snippet.js`
+- Loaded as external module from `vm-explorer-snippet.js` (contains only functional code)
+- Usage guide displayed when injecting, not in the snippet itself
 - Walks ViewModelInstance property trees recursively
 - Builds path references for direct access
 - Uses Rive runtime's path resolution for get/set operations

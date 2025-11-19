@@ -118,33 +118,8 @@ onLoad: () => {
 		// Build once on load
 		buildTree(rootVM, '', vmTree);
 
-		// Display comprehensive usage guide
-		console.log('%cRive VM Explorer Loaded Successfully', 'color: #4CAF50; font-size: 16px; font-weight: bold');
-		console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #666');
-		console.log('%cAvailable Commands:', 'color: #2196F3; font-weight: bold');
-		console.log('  %cvmExplore()%c or %cvmExplore("path")%c', 'color: #4CAF50; font-family: monospace', 'color: #888', 'color: #4CAF50; font-family: monospace', 'color: #888');
-		console.log('    → Show interactive table of properties at root or specified path');
-		console.log('    → Example: vmExplore("myGroup/subItem")');
-		console.log('  %cvmGet("path")%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
-		console.log('    → Get current value at path');
-		console.log('    → Example: vmGet("settings/volume")');
-		console.log('  %cvmSet("path", value)%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
-		console.log('    → Update value at path');
-		console.log('    → Example: vmSet("settings/volume", 0.8)');
-		console.log('');
-		console.log('%cAvailable Data Structures:', 'color: #FF9800; font-weight: bold');
-		console.log('  %cvmTree%c         - Full hierarchical structure of all ViewModels', 'color: #4CAF50; font-family: monospace', 'color: #888');
-		console.log('  %cvmPaths%c        - Array of all scalar property paths (ready for get/set)', 'color: #4CAF50; font-family: monospace', 'color: #888');
-		console.log('  %cvmRootInstance%c - The root ViewModelInstance object', 'color: #4CAF50; font-family: monospace', 'color: #888');
-		console.log('');
-		console.log('%cQuick Start:', 'color: #9C27B0; font-weight: bold');
-		console.log('  1. Run %cvmExplore()%c to see all available properties', 'color: #4CAF50; font-family: monospace', 'color: #888');
-		console.log('  2. Navigate deeper with %cvmExplore("path/to/item")%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
-		console.log('  3. Read values with %cvmGet("path")%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
-		console.log('  4. Modify values with %cvmSet("path", newValue)%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
-		console.log('');
-		console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #666');
-		console.log('Found %c' + scalarPaths.length + '%c scalar properties in the VM tree', 'color: #4CAF50; font-weight: bold', 'color: #888');
+		// Simple status message
+		console.log('VM Explorer loaded. Found', scalarPaths.length, 'scalar properties.');
 
 		// ------------- explorer: show a table at a given prefix ----------------------
 

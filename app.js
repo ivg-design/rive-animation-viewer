@@ -468,7 +468,7 @@ function setupResizeHandle() {
         if (!isResizing) return;
 
         const diff = startX - e.clientX;
-        const newWidth = Math.max(280, Math.min(800, startWidth + diff));
+        const newWidth = Math.max(280, startWidth + diff);
 
         // Update grid template
         mainGrid.style.gridTemplateColumns = `minmax(0, 1fr) 4px ${newWidth}px`;
@@ -821,7 +821,32 @@ ${props.join(',\n')}
             console.log('VM explorer removed. Default onLoad restored.');
         } else {
             updateInfo('VM explorer code injected - Apply & Reload');
-            console.log('VM explorer injected. After reload, use: vmExplore("path"), vmGet("path"), vmSet("path", value)');
+            // Display comprehensive usage guide
+            console.log('%cRive VM Explorer Injected Successfully', 'color: #4CAF50; font-size: 16px; font-weight: bold');
+            console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #666');
+            console.log('%cAvailable Commands (after reload):', 'color: #2196F3; font-weight: bold');
+            console.log('  %cvmExplore()%c or %cvmExplore("path")%c', 'color: #4CAF50; font-family: monospace', 'color: #888', 'color: #4CAF50; font-family: monospace', 'color: #888');
+            console.log('    → Show interactive table of properties at root or specified path');
+            console.log('    → Example: vmExplore("myGroup/subItem")');
+            console.log('  %cvmGet("path")%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
+            console.log('    → Get current value at path');
+            console.log('    → Example: vmGet("settings/volume")');
+            console.log('  %cvmSet("path", value)%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
+            console.log('    → Update value at path');
+            console.log('    → Example: vmSet("settings/volume", 0.8)');
+            console.log('');
+            console.log('%cAvailable Data Structures:', 'color: #FF9800; font-weight: bold');
+            console.log('  %cvmTree%c         - Full hierarchical structure of all ViewModels', 'color: #4CAF50; font-family: monospace', 'color: #888');
+            console.log('  %cvmPaths%c        - Array of all scalar property paths (ready for get/set)', 'color: #4CAF50; font-family: monospace', 'color: #888');
+            console.log('  %cvmRootInstance%c - The root ViewModelInstance object', 'color: #4CAF50; font-family: monospace', 'color: #888');
+            console.log('');
+            console.log('%cQuick Start:', 'color: #9C27B0; font-weight: bold');
+            console.log('  1. Click "Apply & Reload" to load with VM explorer');
+            console.log('  2. Run %cvmExplore()%c to see all available properties', 'color: #4CAF50; font-family: monospace', 'color: #888');
+            console.log('  3. Navigate deeper with %cvmExplore("path/to/item")%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
+            console.log('  4. Read values with %cvmGet("path")%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
+            console.log('  5. Modify values with %cvmSet("path", newValue)%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
+            console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #666');
         }
     } catch (error) {
         showError(`Failed to modify code: ${error.message}`);
