@@ -222,8 +222,8 @@ button.primary:hover {
 .main-grid {
     flex: 1;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
-    gap: var(--panel-gap);
+    grid-template-columns: minmax(0, 1fr) 4px minmax(280px, 420px);
+    gap: 0;
     min-height: 0;
     height: 100%;
 }
@@ -234,6 +234,43 @@ button.primary:hover {
 
 .main-grid.config-collapsed #config-panel {
     display: none;
+}
+
+.main-grid.config-collapsed .resize-handle {
+    display: none;
+}
+
+@keyframes pulse-resize {
+    0%, 100% {
+        background: rgba(46, 160, 67, 0.1);
+    }
+    50% {
+        background: rgba(46, 160, 67, 0.3);
+    }
+}
+
+.resize-handle {
+    width: 4px;
+    background: transparent;
+    cursor: col-resize;
+    position: relative;
+    transition: background 0.2s;
+    animation: pulse-resize 3s ease-in-out infinite;
+}
+
+.resize-handle:hover,
+.resize-handle.resizing {
+    background: #58a6ff;
+    animation: none;
+}
+
+.resize-handle::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -4px;
+    right: -4px;
 }
 
 .viewer-container {
@@ -265,16 +302,6 @@ button.primary:hover {
 #canvas-container .placeholder {
     color: #484f58;
     text-align: center;
-}
-
-.canvas-drop-target.drag-over {
-    border-color: #58a6ff;
-    border-style: dashed;
-    background: #111827;
-}
-
-.canvas-drop-target.drag-over .placeholder {
-    color: #58a6ff;
 }
 
 #rive-canvas {
@@ -327,6 +354,8 @@ button.primary:hover {
     flex-direction: column;
     gap: 12px;
     min-height: 0;
+    height: 100%;
+    overflow: hidden;
 }
 
 .code-editor-header {
@@ -336,6 +365,7 @@ button.primary:hover {
     margin-bottom: 10px;
     padding-bottom: 10px;
     border-bottom: 1px solid #30363d;
+    position: relative;
 }
 
 .code-editor-header h3 {
@@ -352,31 +382,50 @@ button.primary:hover {
     gap: 12px;
     flex: 1;
     min-height: 0;
+    overflow: hidden;
 }
 
+/* Simple CodeMirror Editor Container - NO CUSTOMIZATIONS */
 #code-editor {
-    width: 100%;
-    min-height: 320px;
-    background: #0d1117;
+    flex: 1;
+    min-height: 0;
     border: 1px solid #30363d;
     border-radius: 6px;
-    color: #c9d1d9;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 13px;
-    padding: 15px;
-    resize: vertical;
-    line-height: 1.6;
-    tab-size: 2;
+    overflow: hidden;
 }
 
-#code-editor:focus {
-    outline: none;
-    border-color: #58a6ff;
+/* Let CodeMirror handle ALL its own styling */
+#code-editor .cm-editor {
+    height: 100%;
 }
 
 .apply-code-btn {
     margin-top: 10px;
     width: 100%;
+}
+
+.inject-code-btn {
+    padding: 6px;
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    color: #8b949e;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.inject-code-btn:hover {
+    background: #30363d;
+    border-color: #58a6ff;
+    color: #c9d1d9;
+}
+
+.inject-code-btn svg {
+    width: 18px;
+    height: 18px;
 }
 
 .version-info {

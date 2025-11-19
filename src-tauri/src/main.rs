@@ -19,6 +19,20 @@ struct DemoBundlePayload {
     canvas_color: Option<String>,
 }
 
+#[cfg(debug_assertions)]
+#[tauri::command]
+fn open_devtools(window: tauri::Window) {
+    // DevTools are only available in debug builds
+    window.open_devtools();
+}
+
+#[cfg(not(debug_assertions))]
+#[tauri::command]
+fn open_devtools(_window: tauri::Window) {
+    // In release builds, this is a no-op
+    println!("DevTools are only available in debug builds");
+}
+
 #[tauri::command]
 async fn make_demo_bundle(payload: DemoBundlePayload) -> Result<String, String> {
     let suggested = format!(
@@ -208,7 +222,6 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
     <div class="controls">
       <button id="play-btn">Play</button>
       <button id="pause-btn">Pause</button>
-      <button id="reset-btn">Reset</button>
       <button id="fullscreen-btn">Fullscreen</button>
       <label>Canvas color<input type="color" id="bg-color-input" value="{canvas_color}"></label>
     </div>
@@ -285,7 +298,6 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
 
       document.getElementById('play-btn').addEventListener('click', () => riveInstance?.play());
       document.getElementById('pause-btn').addEventListener('click', () => riveInstance?.pause());
-      document.getElementById('reset-btn').addEventListener('click', () => riveInstance?.reset());
 
       // Fullscreen functionality
       let hoverTimeout = null;
@@ -431,7 +443,7 @@ fn main() {
                 );
             }
         })
-        .invoke_handler(tauri::generate_handler![make_demo_bundle])
+        .invoke_handler(tauri::generate_handler![make_demo_bundle, open_devtools])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

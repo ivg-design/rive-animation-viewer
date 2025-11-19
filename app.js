@@ -1,3 +1,37 @@
+// CodeMirror will be loaded dynamically if available
+let CodeMirrorModules = null;
+
+// Try to load CodeMirror modules
+async function loadCodeMirror() {
+    try {
+        let modules;
+
+        if (window.__TAURI__) {
+            // Desktop app - load from bundled single file
+            modules = await import('/vendor/codemirror-bundle.js');
+        } else {
+            // Web version - load from node_modules
+            const [cm, js, theme] = await Promise.all([
+                import('/node_modules/codemirror/dist/index.js'),
+                import('/node_modules/@codemirror/lang-javascript/dist/index.js'),
+                import('/node_modules/@codemirror/theme-one-dark/dist/index.js')
+            ]);
+            modules = {
+                basicSetup: cm.basicSetup,
+                EditorView: cm.EditorView,
+                javascript: js.javascript,
+                oneDark: theme.oneDark
+            };
+        }
+
+        CodeMirrorModules = modules;
+        return true;
+    } catch (error) {
+        console.warn('CodeMirror not available, using fallback textarea', error);
+        return false;
+    }
+}
+
 const RIVE_VERSION = 'latest';
 const runtimeSources = {
     canvas: `https://cdn.jsdelivr.net/npm/@rive-app/canvas@${RIVE_VERSION}`,
@@ -32,6 +66,9 @@ let errorTimeoutId = null;
 let currentArtboardName = null;
 let currentCanvasColor = '#0d1117';
 const runtimeMeta = loadRuntimeMeta();
+let editorView = null;
+let isAutoFilling = false;
+let hasAutoReloaded = false;
 
 const elements = {
     versionInfo: document.getElementById('version-info'),
@@ -52,7 +89,7 @@ const elements = {
 
 init();
 
-function init() {
+async function init() {
     resolveAppVersion();
     updateVersionInfo('Loading runtime...');
     setupFileInput();
@@ -60,9 +97,10 @@ function init() {
     setupRuntimeSelect();
     setupLayoutSelect();
     setupConfigToggle();
-    setupCodeEditor();
+    await setupCodeEditor();
     setupCanvasColor();
     setupDemoButton();
+    setupResizeHandle();
     window.addEventListener('resize', handleResize);
     window.addEventListener('beforeunload', revokeLastObjectUrl);
     ensureRuntime(currentRuntime)
@@ -190,6 +228,12 @@ function applyConfigPanelState(visible) {
         content.hidden = !visible;
     }
     grid.classList.toggle('config-collapsed', !visible);
+
+    // Clear inline style so CSS class can take effect
+    if (!visible) {
+        grid.style.gridTemplateColumns = '';
+    }
+
     const label = visible ? 'Hide settings panel' : 'Show settings panel';
     toggle.setAttribute('aria-expanded', String(visible));
     toggle.setAttribute('aria-label', label);
@@ -198,18 +242,146 @@ function applyConfigPanelState(visible) {
     handleResize();
 }
 
-function toggleConfigPanel() {
-    applyConfigPanelState(elements.configPanel?.classList.contains('collapsed'));
-}
-
-function setupCodeEditor() {
-    const editor = elements.codeEditor;
-    if (!editor) {
+async function setupCodeEditor() {
+    const editorEl = document.getElementById('code-editor');
+    if (!editorEl) {
         return;
     }
-    editor.addEventListener('input', () => {
-        configDirty = true;
-    });
+
+    // Set initial code
+    const initialCode = `// You can define functions and helpers here
+// riveInst is available as a global variable
+
+({
+  autoplay: true,
+  autoBind: true,
+  onLoad: () => {
+    riveInst.resizeDrawingSurfaceToCanvas();
+  }
+})`;
+
+    // Try to load CodeMirror
+    const hasCodeMirror = await loadCodeMirror();
+
+    if (hasCodeMirror && CodeMirrorModules) {
+        // Use CodeMirror if available
+        const { EditorView, basicSetup, javascript, oneDark } = CodeMirrorModules;
+        editorView = new EditorView({
+            doc: initialCode,
+            extensions: [
+                basicSetup,
+                javascript(),
+                oneDark,
+                EditorView.lineWrapping,
+                EditorView.updateListener.of((update) => {
+                    if (update.docChanged && !isAutoFilling) {
+                        configDirty = true;
+                    }
+                })
+            ],
+            parent: editorEl
+        });
+
+        // Prevent default tab behavior when editor is focused
+        editorEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab' && (e.target.classList.contains('cm-content') || editorEl.contains(e.target))) {
+                // Prevent default browser tab behavior
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Get current selection
+                const state = editorView.state;
+                const selection = state.selection;
+
+                if (e.shiftKey) {
+                    // Shift+Tab: Remove indentation
+                    const changes = [];
+                    const newRanges = [];
+
+                    for (const range of selection.ranges) {
+                        const line = state.doc.lineAt(range.from);
+                        const lineText = line.text;
+                        let spaces = 0;
+
+                        // Count spaces at beginning of line (up to 2)
+                        for (let i = 0; i < Math.min(2, lineText.length); i++) {
+                            if (lineText[i] === ' ') spaces++;
+                            else break;
+                        }
+
+                        if (spaces > 0) {
+                            changes.push({ from: line.from, to: line.from + spaces, insert: '' });
+                            newRanges.push({
+                                anchor: range.anchor - spaces,
+                                head: range.head - spaces
+                            });
+                        } else {
+                            newRanges.push({ anchor: range.anchor, head: range.head });
+                        }
+                    }
+
+                    if (changes.length > 0) {
+                        editorView.dispatch({
+                            changes,
+                            selection: { anchor: newRanges[0].anchor, head: newRanges[0].head }
+                        });
+                    }
+                } else {
+                    // Tab: Add indentation
+                    const changes = [];
+                    const newRanges = [];
+
+                    for (const range of selection.ranges) {
+                        changes.push({ from: range.from, insert: '  ' });
+                        newRanges.push({
+                            anchor: range.anchor + 2,
+                            head: range.head + 2
+                        });
+                    }
+
+                    editorView.dispatch({
+                        changes,
+                        selection: { anchor: newRanges[0].anchor, head: newRanges[0].head }
+                    });
+                }
+            }
+        }, true);
+    } else {
+        // Fallback to textarea
+        const textarea = document.createElement('textarea');
+        textarea.value = initialCode;
+        textarea.style.width = '100%';
+        textarea.style.height = '100%';
+        textarea.style.background = '#1e1e1e';
+        textarea.style.color = '#d4d4d4';
+        textarea.style.fontFamily = 'Monaco, Menlo, monospace';
+        textarea.style.fontSize = '13px';
+        textarea.style.border = 'none';
+        textarea.style.outline = 'none';
+        textarea.style.padding = '10px';
+        textarea.style.resize = 'none';
+        textarea.addEventListener('input', () => {
+            if (!isAutoFilling) {
+                configDirty = true;
+            }
+        });
+        editorEl.appendChild(textarea);
+
+        // Create a simple API to match CodeMirror
+        editorView = {
+            dom: textarea,
+            state: { doc: { toString: () => textarea.value } },
+            dispatch: () => {}
+        };
+    }
+
+    // CRITICAL: Reset dirty flag after initial setup
+    configDirty = false;
+    isAutoFilling = false;
+
+    setTimeout(() => {
+        configDirty = false;
+    }, 100);
 }
 
 function setupCanvasColor() {
@@ -268,6 +440,56 @@ function setupDemoButton() {
     );
 }
 
+function setupResizeHandle() {
+    const handle = document.getElementById('resize-handle');
+    const mainGrid = elements.mainGrid;
+    if (!handle || !mainGrid) {
+        return;
+    }
+
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    handle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        const configPanel = document.getElementById('config-panel');
+        if (configPanel) {
+            startWidth = configPanel.offsetWidth;
+        }
+        handle.classList.add('resizing');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+
+        const diff = startX - e.clientX;
+        const newWidth = Math.max(280, Math.min(800, startWidth + diff));
+
+        // Update grid template
+        mainGrid.style.gridTemplateColumns = `minmax(0, 1fr) 4px ${newWidth}px`;
+
+        // Resize canvas to match new container size
+        handleResize();
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            handle.classList.remove('resizing');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+
+            // Final resize when done dragging
+            handleResize();
+        }
+    });
+}
+
 function setCurrentFile(url, name, isObjectUrl = false, buffer, mimeType) {
     if (lastObjectUrl && lastObjectUrl !== url) {
         URL.revokeObjectURL(lastObjectUrl);
@@ -315,6 +537,10 @@ async function loadRiveAnimation(fileUrl, fileName) {
         const userConfig = getEditorConfig();
         lastInitConfig = { ...userConfig };
         const config = { ...userConfig };
+
+        // Save user's onLoad callback
+        const userOnLoad = config.onLoad;
+
         if (config.artboard) {
             currentArtboardName = config.artboard;
         }
@@ -334,15 +560,53 @@ async function loadRiveAnimation(fileUrl, fileName) {
         config.onLoad = () => {
             hideError();
             resizeCanvas(canvas);
-            updateInfo(`Loaded: ${fileName} (${currentRuntime})`);
             riveInstance?.resizeDrawingSurfaceToCanvas();
+
+            // Get state machine names from instance (same as v1.2.6)
             const names = Array.isArray(riveInstance?.stateMachineNames) ? riveInstance.stateMachineNames : [];
-            autoFillConfigStateMachine(names);
+
+            // Auto-fill and reload with correct config
+            const didAutoFill = autoFillConfigStateMachine(names);
+            if (didAutoFill && !hasAutoReloaded) {
+                hasAutoReloaded = true;
+                updateInfo(`Auto-reloading with correct state machine...`);
+                setTimeout(() => {
+                    loadRiveAnimation(currentFileUrl, currentFileName);
+                }, 50);
+                return;
+            }
+
+            // Show which state machine is initialized
+            // Handle both string and array formats for stateMachines
+            let activeStateMachine = 'none';
+            if (config.stateMachines) {
+                activeStateMachine = Array.isArray(config.stateMachines)
+                    ? config.stateMachines[0]
+                    : config.stateMachines;
+            } else if (names.length > 0) {
+                activeStateMachine = names[0];
+            }
+
+            const statusMsg = names.length > 0
+                ? `Loaded: ${fileName} (${currentRuntime}) - default state machine (${activeStateMachine}) initialized`
+                : `Loaded: ${fileName} (${currentRuntime}) - no state machines`;
+            updateInfo(statusMsg);
             currentArtboardName = riveInstance?.artboard?.name || currentArtboardName || config.artboard || null;
+            hasAutoReloaded = false;
+
+            // Call user's onLoad callback if provided
+            if (typeof userOnLoad === 'function') {
+                try {
+                    userOnLoad();
+                } catch (e) {
+                    console.warn('Error in user onLoad:', e);
+                }
+            }
         };
 
         config.onLoadError = (error) => {
-            showError(`Error loading animation: ${error}`);
+            const errorMsg = error?.message || error?.toString() || String(error);
+            showError(`Error loading animation: ${errorMsg}`);
         };
 
         const instanceConfig = currentRuntime === 'webgl2'
@@ -350,6 +614,8 @@ async function loadRiveAnimation(fileUrl, fileName) {
             : config;
 
         riveInstance = new runtime.Rive(instanceConfig);
+        // Expose globally for code editor access
+        window.riveInst = riveInstance;
     } catch (error) {
         showError(`Error initializing Rive: ${error.message}`);
         throw error;
@@ -387,6 +653,178 @@ function reset() {
     if (riveInstance) {
         riveInstance.reset();
         updateInfo('Reset');
+    }
+}
+
+let devToolsEnabled = false;
+
+async function injectCodeSnippet() {
+    // Clear console first
+    console.clear();
+
+    // Open dev tools in Tauri desktop app (only if not already enabled)
+    if (window.__TAURI__ && !devToolsEnabled) {
+        try {
+            // Enable dev tools and mark as enabled
+            devToolsEnabled = true;
+            await window.__TAURI__.invoke('open_devtools');
+            console.log('Dev tools opened. You can now use the console to explore the Rive instance.');
+        } catch (error) {
+            console.warn('Could not open dev tools programmatically:', error);
+            console.log('You may need to right-click and select "Inspect Element" to open dev tools manually.');
+        }
+    } else if (!window.__TAURI__) {
+        // For web version, clear console
+        console.clear();
+    }
+
+    // Default onLoad snippet
+    const defaultSnippet = `onLoad: () => {
+    riveInst.resizeDrawingSurfaceToCanvas();
+  }`;
+
+    // Load VM exploration snippet from external file
+    let vmExplorerSnippet;
+    try {
+        // Try to load from external file
+        const response = await fetch('/vm-explorer-snippet.js');
+        const text = await response.text();
+        // Extract the snippet from the file
+        const match = text.match(/const vmExplorerSnippet = `([\s\S]*?)`;/);
+        vmExplorerSnippet = match ? match[1] : null;
+    } catch (error) {
+        console.warn('Could not load VM explorer snippet from file, using fallback');
+        vmExplorerSnippet = null;
+    }
+
+    // Fallback to default if external file not available
+    if (!vmExplorerSnippet) {
+        vmExplorerSnippet = `
+  onLoad: () => {
+    riveInst.resizeDrawingSurfaceToCanvas();
+    console.log("VM explorer snippet not loaded - using basic onLoad");
+  }`;
+    }
+
+    if (!editorView) {
+        showError('Code editor is not available');
+        return;
+    }
+
+    try {
+        // Get current code
+        const currentCode = editorView.state.doc.toString();
+
+        // Check if VM explorer is already present
+        const hasVmExplorer = currentCode.includes('viewModelInstance') || currentCode.includes('vmExplore');
+
+        // Parse the current config to preserve other properties like stateMachines
+        let currentConfig = {};
+        try {
+            const wrappedCode = `(function() { return (${currentCode}); })()`;
+            currentConfig = eval(wrappedCode);
+        } catch (e) {
+            // If parsing fails, we'll just work with the string
+        }
+
+        // Decide which snippet to use
+        const targetSnippet = hasVmExplorer ? defaultSnippet : vmExplorerSnippet;
+        const isRemoving = hasVmExplorer;
+
+        // Find and replace the onLoad section while preserving other properties
+        const hasOnLoad = currentCode.includes('onLoad:');
+
+        let newCode;
+        if (hasOnLoad && typeof currentConfig === 'object' && currentConfig !== null) {
+            // Build new config preserving all properties except onLoad
+            const props = [];
+
+            // Preserve all non-onLoad properties
+            for (const key in currentConfig) {
+                if (key !== 'onLoad') {
+                    if (key === 'stateMachines' && Array.isArray(currentConfig[key])) {
+                        props.push(`  ${key}: ${JSON.stringify(currentConfig[key])}`);
+                    } else if (typeof currentConfig[key] === 'boolean' || typeof currentConfig[key] === 'number') {
+                        props.push(`  ${key}: ${currentConfig[key]}`);
+                    } else if (typeof currentConfig[key] === 'string') {
+                        props.push(`  ${key}: "${currentConfig[key]}"`);
+                    }
+                }
+            }
+
+            // Add the target onLoad
+            props.push(`  ${targetSnippet.trim()}`);
+
+            newCode = `// You can define functions and helpers here
+// riveInst is available as a global variable
+
+({
+${props.join(',\n')}
+})`;
+        } else if (hasOnLoad) {
+            // Fallback to regex replacement if parsing failed
+            // Replace existing onLoad with target version
+            // Match onLoad: () => { ... } including multi-line content
+            newCode = currentCode.replace(/onLoad:\s*\(\)\s*=>\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)?\}/g, targetSnippet.trim());
+
+            // If the regex didn't work, try a simpler approach
+            if (newCode === currentCode) {
+                // Find the start of onLoad
+                const onLoadStart = currentCode.indexOf('onLoad:');
+                if (onLoadStart !== -1) {
+                    // Find the matching closing brace
+                    let braceCount = 0;
+                    let i = currentCode.indexOf('{', onLoadStart);
+                    let start = i;
+                    while (i < currentCode.length) {
+                        if (currentCode[i] === '{') braceCount++;
+                        if (currentCode[i] === '}') {
+                            braceCount--;
+                            if (braceCount === 0) {
+                                // Found the matching closing brace
+                                newCode = currentCode.substring(0, onLoadStart) + targetSnippet.trim() + currentCode.substring(i + 1);
+                                break;
+                            }
+                        }
+                        i++;
+                    }
+                }
+            }
+        } else {
+            // Insert snippet before the closing })
+            const beforeClosing = currentCode.lastIndexOf('})');
+            if (beforeClosing === -1) {
+                showError('Could not find closing }) in the code');
+                return;
+            }
+            newCode = currentCode.slice(0, beforeClosing - 1) + ',' + targetSnippet + '\n' + currentCode.slice(beforeClosing - 1);
+        }
+
+        // Update the editor based on whether it's CodeMirror or textarea
+        if (editorView.dispatch) {
+            // CodeMirror
+            editorView.dispatch({
+                changes: {
+                    from: 0,
+                    to: editorView.state.doc.length,
+                    insert: newCode
+                }
+            });
+        } else if (editorView.dom) {
+            // Textarea fallback
+            editorView.dom.value = newCode;
+        }
+
+        // Show appropriate message
+        if (isRemoving) {
+            updateInfo('VM explorer removed - restored default');
+            console.log('VM explorer removed. Default onLoad restored.');
+        } else {
+            updateInfo('VM explorer code injected - Apply & Reload');
+            console.log('VM explorer injected. After reload, use: vmExplore("path"), vmGet("path"), vmSet("path", value)');
+        }
+    } catch (error) {
+        showError(`Failed to modify code: ${error.message}`);
     }
 }
 
@@ -467,23 +905,34 @@ function hideError() {
 }
 
 function getEditorConfig() {
-    const code = elements.codeEditor?.value.trim();
+    if (!editorView) {
+        return {};
+    }
+
+    const code = editorView.state.doc.toString().trim();
     if (!code) {
         return {};
     }
 
-    let parsed;
+    let result;
     try {
-        parsed = JSON.parse(code);
+        // Evaluate JavaScript code with access to global scope
+        // Wrap in parentheses to handle leading comments
+        const wrappedCode = `(function() {
+            return (
+                ${code}
+            );
+        })()`;
+        result = eval(wrappedCode);
     } catch (error) {
-        throw new Error(`Invalid JSON config: ${error.message}`);
+        throw new Error(`Invalid JavaScript config: ${error.message}`);
     }
 
-    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
-        throw new Error('Initialization config must be a JSON object');
+    if (!result || Array.isArray(result) || typeof result !== 'object') {
+        throw new Error('Initialization config must return an object');
     }
 
-    return parsed;
+    return result;
 }
 
 function resizeCanvas(canvas) {
@@ -683,8 +1132,8 @@ window.play = play;
 window.pause = pause;
 window.reset = reset;
 window.createDemoBundle = createDemoBundle;
+window.injectCodeSnippet = injectCodeSnippet;
 window.handleFileButtonClick = handleFileButtonClick;
-window.toggleConfigPanel = toggleConfigPanel;
 window.__riveRuntimeCache = {
     getRuntimeSourceText: (runtimeName) => runtimeSourceTexts[runtimeName] || null,
     getRuntimeVersion: (runtimeName) => runtimeVersions[runtimeName] || null,
@@ -710,18 +1159,30 @@ function arrayBufferToBase64(buffer) {
 }
 
 function autoFillConfigStateMachine(names) {
-    const editor = elements.codeEditor;
-    if (!editor || configDirty || !Array.isArray(names) || !names.length) {
-        return;
+    if (!editorView) {
+        return false;
     }
-    const current = editor.value.trim();
+    if (configDirty) {
+        return false;
+    }
+    if (!Array.isArray(names) || !names.length) {
+        return false;
+    }
+    const current = editorView.state.doc.toString().trim();
     let parsed;
     if (!current) {
         parsed = {};
     } else {
         try {
-            parsed = JSON.parse(current);
-        } catch {
+            // Try to evaluate the current code
+            const wrappedCode = `(function() {
+                return (
+                    ${current}
+                );
+            })()`;
+            parsed = eval(wrappedCode);
+        } catch (e) {
+            console.warn('Failed to parse config for auto-fill:', e);
             return;
         }
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
@@ -730,14 +1191,41 @@ function autoFillConfigStateMachine(names) {
     }
 
     const primary = names[0];
-    if (Array.isArray(parsed.stateMachines) && parsed.stateMachines[0] === primary) {
-        return;
+
+    // Check if already set to the correct state machine
+    if (parsed.stateMachines === primary ||
+        (Array.isArray(parsed.stateMachines) && parsed.stateMachines[0] === primary)) {
+        return false;
     }
 
-    parsed.stateMachines = [primary];
-    editor.value = JSON.stringify(parsed, null, 2);
+    // Build new config preserving other user settings
+    const hasOnLoad = typeof parsed.onLoad === 'function';
+    const autoplay = typeof parsed.autoplay === 'boolean' ? parsed.autoplay : true;
+    const autoBind = typeof parsed.autoBind === 'boolean' ? parsed.autoBind : true;
+
+    const onLoadCode = `onLoad: () => {\n    riveInst.resizeDrawingSurfaceToCanvas();\n  }`;
+
+    const newCode = `// You can define functions and helpers here
+// riveInst is available as a global variable
+
+({
+  autoplay: ${autoplay},
+  autoBind: ${autoBind},
+  stateMachines: ${JSON.stringify(primary)},
+  ${onLoadCode}
+})`;
+
+    isAutoFilling = true;
+    editorView.dispatch({
+        changes: { from: 0, to: editorView.state.doc.length, insert: newCode }
+    });
+    isAutoFilling = false;
+
+    parsed.stateMachines = primary;
     lastInitConfig = { ...parsed };
     configDirty = false;
+
+    return true;
 }
 
 function getTauriInvoker() {

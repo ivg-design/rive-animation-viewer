@@ -1,112 +1,172 @@
 # Rive Animation Viewer
 
-A responsive local + desktop viewer for `.riv` files with runtime/layout controls, inline JSON config editing, and Tauri packaging.
+A local and desktop viewer for `.riv` files with runtime controls, JavaScript configuration editing, and ViewModelInstance debugging tools.
 
 ## Quick Start
 
-1. Install dependencies:
 ```bash
 npm install
+npm start  # Opens browser at http://localhost:8080
 ```
-
-2. Start the Vite dev server (hot reload + auto-open):
-```bash
-npm start
-```
-
-The browser will automatically open at `http://localhost:8080` with live reload.  
-Need a headless server for tooling (e.g., when Tauri spawns its own window)? Use `npm run serve`, which skips auto-opening a tab.
-
-## Usage
-
-### Toolbar & file loading
-- Use the unified toolbar to pick a `.riv` file. The button stays blue until a file is loaded, then turns green and displays the file name (click again to clear and pick another file).
-- Switch runtimes (Canvas/WebGL2), change layout fit, pick a background color swatch, and access the playback icons from the same row.
-- Tap the square **Settings** toggle to collapse/expand the JSON editor panel; the version card lives at the bottom of that panel.
-- On the desktop build, **Make Demo File** packages the currently loaded animation into a self-contained viewer (HTML export today; native bundle via CI is recommended).
-
-### Uploading files
-- Click the `Choose File` button and select a `.riv` file from your computer.
-- Adjust runtime/layout/background color either before or after loading; the viewer reloads automatically whenever you change runtime/layout.
-
-### Initialization config
-
-- The panel on the right accepts **valid JSON** that is merged into the Rive initialization options (e.g., `artboard`, `stateMachines`, `autoBind`).
-- Invalid JSON is rejected up front so it cannot crash the viewer.
-- Use `Apply & Reload` after editing to reinitialize the currently loaded file.
-
-## Controls
-
-- **Play**: Start/resume the animation
-- **Pause**: Pause the animation
-- **Reset**: Reset the animation to the beginning
 
 ## Features
 
-- Custom file picker with clear/load behavior
-- Runtime toggle between Canvas and WebGL2 (always pulled from the official CDN)
-- Layout-fit dropdown that mirrors Rive’s built-in layout options
-- Icon-based playback controls inline with the main toolbar
-- Responsive design with a square Settings toggle, compact mode (≤800 px) that fits all controls in two rows, and a live background-color picker shared with demo bundles
-- Version card pinned to the Settings panel showing release + runtime info
-- Desktop wrapper powered by Tauri (macOS-ready `.app` / `.dmg`)
-- Vite-based dev server for instant feedback—no more cache-clearing scripts or manual reloads
-- **Fullscreen mode** in demo bundles with hover-activated UI restore for distraction-free animation viewing
+### Core Viewer
+- **File Loading**: Standard file input to load `.riv` files
+- **Runtime Selection**: Toggle between Canvas and WebGL2 renderers
+- **Layout Options**: Choose from contain, cover, fill, fit-width, fit-height, scale-down, scale-up
+- **Background Color**: Color picker to change canvas background
+- **Playback Controls**: Play, pause, and reset animation buttons
+- **State Machine Detection**: Automatically detects and initializes available state machines
 
-## Desktop app (Tauri)
+### Code Editor Panel
+- **CodeMirror 6 Editor**: JavaScript syntax highlighting with One Dark theme
+- **JavaScript Configuration**: Write JavaScript objects (NOT JSON) for Rive initialization
+- **Apply & Reload**: Button to apply configuration and reload animation
+- **Tab Support**: Tab inserts 2 spaces, Shift+Tab removes indentation
+- **Error Display**: Shows errors in red banner when configuration fails
 
-Tauri lets you run the viewer as a first-class macOS app (and build installers) without changing the front-end.
+**Important**: The editor accepts JavaScript code, not JSON. You can use JavaScript features like comments, trailing commas, and unquoted keys:
 
-### Prerequisites
-- Rust toolchain (`rustup` + `cargo`), Xcode Command Line Tools
-- Node.js (already required for the web workflow)
-
-### Commands
-```bash
-npm run tauri dev   # launches the Tauri shell + local http-server
-npm run tauri build # produces a signed-release bundle in src-tauri/target/
+```javascript
+{
+  // This is a valid comment
+  artboard: "MyArtboard",
+  stateMachines: ["StateMachine1"],
+  autoplay: true,
+}
 ```
 
-The Tauri CLI automatically runs `npm run serve` in dev mode and `npm run build` before packaging, so your static assets stay in sync.
+### ViewModelInstance Explorer
+Developer tool for debugging Rive files with ViewModelInstances.
 
-### Demo bundle workflow (desktop-only)
-- Load your `.riv` file, configure the desired runtime/layout/state machines, and verify playback.
-- Hit **Make Demo File** in the toolbar to bundle the current animation alongside the cached runtime.
-- The generated mini-viewer is a self-contained HTML file with embedded runtime + animation that you can double-click to preview; it only exposes the canvas and playback controls, omitting file inputs or config editing.
-- **Fullscreen mode**: Demo bundles include a fullscreen button that hides all UI controls for an immersive viewing experience. To restore the UI, hover your mouse in the bottom-right corner for 1 second to reveal the expand icon, then click it to return to normal view.
-- Our GitHub CI/CD workflow publishes three binaries per release: macOS (Apple Silicon), macOS (Intel), and Windows. Grab the latest installers from the [Releases](../../releases) tab if you just need the desktop builds.
+#### How to Use
+1. Load a Rive file
+2. Click "Inject VM Explorer" button in toolbar
+3. Open browser console (F12 or Cmd+Option+I)
+4. Use the following commands:
 
-## Folder Structure
+```javascript
+vmExplore()                  // Show root properties
+vmExplore("path/to/prop")    // Navigate to specific path
+vmGet("settings/volume")     // Get value
+vmSet("settings/volume", 0.5) // Set value
+vmTree                       // View full hierarchy
+vmPaths                      // List all property paths
+```
+
+The explorer displays a comprehensive usage guide in the console when injected.
+
+### Desktop Features (Tauri)
+- **Native App**: Runs as a desktop application on macOS/Windows/Linux
+- **Demo Bundle Export**: Create self-contained HTML files with embedded animations
+- **Offline Support**: Caches runtime scripts for offline use
+- **Dev Tools Access**: Programmatic DevTools opening via inject button to access console
+
+## Project Structure
 
 ```
 rive-local/
-├── animations/        # Optional local assets (not copied into dist/)
-├── dist/              # Build artifact consumed by Tauri packaging
-├── icons/             # Shared app icons (favicon + desktop)
-├── index.html         # Main viewer page
-├── package.json       # Dependencies and scripts
-├── scripts/           # Utility scripts (e.g., build-dist.mjs)
-├── src-tauri/         # Tauri Rust project & bundler config
-└── README.md          # This file
+├── app.js                    # Main application logic
+├── vm-explorer-snippet.js   # ViewModelInstance explorer tool
+├── index.html               # Main UI
+├── style.css                # Styles
+├── vendor/
+│   └── codemirror-bundle.js # Bundled CodeMirror
+├── scripts/
+│   ├── build-dist.mjs       # Production build
+│   └── bundle-codemirror.mjs # CodeMirror bundler
+└── src-tauri/               # Rust/Tauri desktop wrapper
 ```
 
-## Requirements
+## Desktop Development
 
-- Node.js (for running the local server)
-- Modern web browser with canvas support
-- Rust toolchain + Xcode CLT (only if you plan to build the Tauri desktop app)
+### Prerequisites
+- Rust toolchain (`rustup`)
+- Node.js 16+
+- Xcode Command Line Tools (macOS)
 
-## Notes
+### Build Commands
+```bash
+npm run tauri dev   # Development mode
+npm run tauri build # Production build
+```
 
-- The viewer always loads the latest official Rive runtimes from the CDN for both Canvas and WebGL2 modes (`@rive-app/...@latest`). No runtime code is bundled, so you always get the newest build at launch.
-- Sample `.riv` files in `animations/` are for local reference only and are intentionally excluded from `dist/` and packaged apps to keep bundles lean.
-- Animations are played using the HTML canvas element with dynamic resizing.
-- The server runs on port 8080 by default (configurable via Vite flags).
-- There is no service worker/PWA shell anymore, so dev builds never get stuck behind stale caches.
-- The desktop app caches the resolved runtime scripts locally so it can launch offline and reuse those scripts when producing demo bundles.
+## Technical Details
 
-## License & attribution
+### Configuration Format
+The editor uses `eval()` to evaluate JavaScript code, allowing full JavaScript syntax:
 
-Copyright © IVG Design. Released under the [MIT License](./LICENSE).
+```javascript
+{
+  artboard: "Main",
+  stateMachines: ["State Machine 1"],
+  autoplay: true,
+  layout: {
+    fit: "contain",
+    alignment: "center"
+  },
+  // Custom onLoad callback
+  onLoad: () => {
+    console.log("Animation loaded!");
+    riveInst.resizeDrawingSurfaceToCanvas();
+  }
+}
+```
 
-Rive runtimes and related assets are provided by [Rive](https://rive.app/) and remain subject to Rive's licensing.
+### Error Handling
+- Configuration errors display in a red error banner
+- Errors auto-dismiss after 5 seconds
+- Invalid JavaScript shows syntax errors
+- File loading errors display detailed messages
+
+### Tab Key Implementation
+The editor intercepts Tab key events when focused:
+- Captures keydown events in capture phase
+- Prevents default browser tab behavior
+- Manually inserts/removes spaces at cursor position
+
+### VM Explorer Architecture
+- Loaded as external module from `vm-explorer-snippet.js`
+- Walks ViewModelInstance property trees recursively
+- Builds path references for direct access
+- Uses Rive runtime's path resolution for get/set operations
+
+## Known Issues
+
+### CSP Warnings (Desktop)
+The desktop app shows harmless CSP warnings about `blob://` URLs. These are WebKit quirks and don't affect functionality.
+
+### DMG Creation
+DMG bundling may fail on some systems. The `.app` bundle in `src-tauri/target/release/bundle/macos/` works regardless.
+
+### Tab Key
+Tab indentation only works when the editor has focus. Click in the editor area before using Tab.
+
+## Troubleshooting
+
+**Animation won't load**
+- Check browser console for errors
+- Verify the .riv file is valid
+- Try a different runtime (Canvas vs WebGL2)
+
+**Configuration won't apply**
+- Ensure you're writing valid JavaScript (not JSON)
+- Check for syntax errors in the code
+- Look for error messages in the red banner
+
+**VM Explorer not working**
+- Verify your Rive file has ViewModelInstances
+- Check console for injection confirmation
+- Try reloading after injection
+
+**Desktop build fails**
+- Run `rustup update` to ensure latest Rust
+- Check `npm run tauri info` for missing dependencies
+- Verify Xcode Command Line Tools installed (macOS)
+
+## License
+
+MIT License - Copyright © 2025 IVG Design
+
+Rive runtimes are provided by [Rive](https://rive.app/) under their own licensing terms.

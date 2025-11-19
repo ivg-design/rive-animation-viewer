@@ -47,4 +47,7 @@ function injectVersionPlugin() {
 
 export default defineConfig({
     plugins: [injectVersionPlugin()],
+    optimizeDeps: {
+        exclude: ['codemirror', '@codemirror/lang-javascript', '@codemirror/theme-one-dark']
+    }
 });

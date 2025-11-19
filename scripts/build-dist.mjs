@@ -33,7 +33,7 @@ async function build() {
   await fs.rm(distDir, { recursive: true, force: true });
   await ensureDir(distDir);
 
-  const filesToCopy = ['index.html', 'style.css', 'app.js', 'README.md', 'package.json'];
+  const filesToCopy = ['index.html', 'style.css', 'app.js', 'vm-explorer-snippet.js', 'README.md', 'package.json'];
 
   for (const file of filesToCopy) {
     const src = path.join(root, file);
@@ -56,7 +56,7 @@ async function build() {
     }
   }
 
-  const dirsToCopy = ['icons'];
+  const dirsToCopy = ['icons', 'vendor'];
   for (const dir of dirsToCopy) {
     const srcDir = path.join(root, dir);
     try {
