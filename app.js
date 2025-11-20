@@ -1136,8 +1136,13 @@ async function fetchRuntimeRequest(resolvedUrl) {
 }
 
 async function responseToRuntimeAsset(response) {
-    const text = await response.clone().text();
-    const blob = await response.blob();
+    let text = await response.clone().text();
+
+    // Strip sourceMappingURL to prevent blob warnings in Tauri/WebKit
+    text = text.replace(/\/\/# sourceMappingURL=.*$/gm, '');
+
+    // Create blob from cleaned text instead of original response
+    const blob = new Blob([text], { type: 'application/javascript' });
     const objectUrl = URL.createObjectURL(blob);
     return { text, objectUrl };
 }

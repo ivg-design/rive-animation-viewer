@@ -128,6 +128,7 @@ onLoad: () => {
 
 			// Walk vmTree by segments to find the node for this prefix (if any)
 			var node = vmTree;
+			var currentInstance = rootVM;
 			if (clean !== '' && clean !== '<root>') {
 				var segs = clean.split('/');
 				for (var i = 0; i < segs.length; i++) {
@@ -138,6 +139,13 @@ onLoad: () => {
 						return null;
 					}
 					node = node.children[seg];
+
+					// Try to get the actual instance at this path
+					if (currentInstance.viewModelInstance && currentInstance.viewModelInstance(seg)) {
+						currentInstance = currentInstance.viewModelInstance(seg);
+					} else if (currentInstance.viewModel && currentInstance.viewModel(seg)) {
+						currentInstance = currentInstance.viewModel(seg);
+					}
 				}
 			}
 
@@ -146,12 +154,30 @@ onLoad: () => {
 			// Scalars directly at this level
 			for (var s = 0; s < node.scalars.length; s++) {
 				var sc = node.scalars[s];
+				var scalarValue;
+
+				// Try to get value from current instance directly first
+				if (sc.kind === 'number' && currentInstance.number) {
+					var numAcc = currentInstance.number(sc.name);
+					scalarValue = numAcc ? numAcc.value : getVmValue(sc.path);
+				} else if (sc.kind === 'boolean' && currentInstance.boolean) {
+					var boolAcc = currentInstance.boolean(sc.name);
+					scalarValue = boolAcc ? boolAcc.value : getVmValue(sc.path);
+				} else if (sc.kind === 'string' && currentInstance.string) {
+					var strAcc = currentInstance.string(sc.name);
+					scalarValue = strAcc ? strAcc.value : getVmValue(sc.path);
+				} else if (sc.kind === 'enum' && currentInstance.enum) {
+					var enumAcc = currentInstance.enum(sc.name);
+					scalarValue = enumAcc ? enumAcc.value : getVmValue(sc.path);
+				} else {
+					scalarValue = getVmValue(sc.path);
+				}
+
 				rows.push({
-					kind: 'scalar',
 					name: sc.name,
 					path: sc.path,
 					type: sc.kind,
-					value: getVmValue(sc.path),
+					value: scalarValue,
 				});
 			}
 
@@ -159,18 +185,69 @@ onLoad: () => {
 			for (var key in node.children) {
 				if (!Object.prototype.hasOwnProperty.call(node.children, key)) continue;
 				var child = node.children[key];
-
-				// Heuristic: if child has scalars or children, treat it as a nested group
-				var hasScalars = child.scalars && child.scalars.length > 0;
 				var childCount = child.children ? Object.keys(child.children).length : 0;
 
+				// Determine the actual type of this child
+				var childType = 'unknown';
+				var childValue = undefined;
+
+				// Check if it's a scalar type (might not have been caught during tree building)
+				var numAcc = currentInstance.number && currentInstance.number(key);
+				var boolAcc = !numAcc && currentInstance.boolean && currentInstance.boolean(key);
+				var strAcc = !numAcc && !boolAcc && currentInstance.string && currentInstance.string(key);
+				var enumAcc = !numAcc && !boolAcc && !strAcc && currentInstance.enum && currentInstance.enum(key);
+
+				if (numAcc) {
+					childType = 'number';
+					childValue = numAcc.value;
+				} else if (boolAcc) {
+					childType = 'boolean';
+					childValue = boolAcc.value;
+				} else if (strAcc) {
+					childType = 'string';
+					childValue = strAcc.value;
+				} else if (enumAcc) {
+					childType = 'enum';
+					childValue = enumAcc.value;
+				}
+
+				// Check if it's a Trigger
+				var triggerInst = currentInstance.trigger && currentInstance.trigger(key);
+				if (triggerInst) {
+					childType = 'trigger';
+					childValue = '(event)';
+				}
+
+				// Check if it's a Color
+				var colorInst = currentInstance.color && currentInstance.color(key);
+				if (colorInst) {
+					childType = 'color';
+					childValue = colorInst.value;
+				}
+
+				// Check if it's a ViewModelInstance
+				var vmInst = (currentInstance.viewModelInstance && currentInstance.viewModelInstance(key)) ||
+				             (currentInstance.viewModel && currentInstance.viewModel(key));
+				if (vmInst) {
+					childType = 'viewmodel';
+					// Show property count for viewmodels
+					var propCount = vmInst.properties ? vmInst.properties.length : 0;
+					childValue = propCount + ' properties';
+				}
+
+				// Check if it's a List
+				var listInst = currentInstance.list && currentInstance.list(key);
+				if (listInst) {
+					childType = 'list';
+					childValue = 'length: ' + (listInst.length || 0);
+				}
+
 				rows.push({
-					kind: 'group',
 					name: key,
 					path: child.path,
-					type: 'group',
+					type: childType,
+					value: childValue,
 					children: childCount,
-					hasScalars: hasScalars,
 				});
 			}
 
