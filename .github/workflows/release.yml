@@ -20,7 +20,8 @@ jobs:
       - name: Check commit message for release flag
         id: check
         run: |
-          COMMIT_MSG="${{ github.event.head_commit.message }}"
+          # Get only the first line (commit subject) for release flag detection
+          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -n 1)
 
           if [[ "$COMMIT_MSG" =~ release:major ]]; then
             echo "should-release=true" >> $GITHUB_OUTPUT
