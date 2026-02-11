@@ -97,6 +97,8 @@ const elements = {
     runtimeStripVersion: document.getElementById('runtime-strip-version'),
     toggleLeftPanelButton: document.getElementById('toggle-left-panel-btn'),
     toggleRightPanelButton: document.getElementById('toggle-right-panel-btn'),
+    showLeftPanelButton: document.getElementById('show-left-panel-btn'),
+    showRightPanelButton: document.getElementById('show-right-panel-btn'),
     info: document.getElementById('info'),
     error: document.getElementById('error-message'),
     canvasContainer: document.getElementById('canvas-container'),
@@ -597,7 +599,9 @@ function setupPanelVisibilityToggles() {
     const grid = elements.mainGrid;
     const leftButton = elements.toggleLeftPanelButton;
     const rightButton = elements.toggleRightPanelButton;
-    if (!grid || !leftButton || !rightButton) {
+    const showLeftButton = elements.showLeftPanelButton;
+    const showRightButton = elements.showRightPanelButton;
+    if (!grid || !leftButton || !rightButton || !showLeftButton || !showRightButton) {
         return;
     }
 
@@ -612,6 +616,8 @@ function setupPanelVisibilityToggles() {
         rightButton.title = isRightPanelVisible ? 'Hide Properties Panel' : 'Show Properties Panel';
         leftButton.setAttribute('aria-label', leftButton.title);
         rightButton.setAttribute('aria-label', rightButton.title);
+        showLeftButton.hidden = isLeftPanelVisible;
+        showRightButton.hidden = isRightPanelVisible;
         handleResize();
     };
 
@@ -622,6 +628,16 @@ function setupPanelVisibilityToggles() {
 
     rightButton.addEventListener('click', () => {
         isRightPanelVisible = !isRightPanelVisible;
+        applyVisibility();
+    });
+
+    showLeftButton.addEventListener('click', () => {
+        isLeftPanelVisible = true;
+        applyVisibility();
+    });
+
+    showRightButton.addEventListener('click', () => {
+        isRightPanelVisible = true;
         applyVisibility();
     });
 
@@ -721,38 +737,40 @@ function renderEventLog() {
     }
 
     filtered.forEach((entry) => {
-        const item = document.createElement('article');
-        item.className = 'event-log-item';
-
-        const head = document.createElement('div');
-        head.className = 'event-log-head';
-
-        const type = document.createElement('span');
-        type.className = 'event-log-type';
-        type.textContent = entry.type;
+        const row = document.createElement('div');
+        row.className = 'event-log-row';
 
         const time = document.createElement('span');
-        time.className = 'event-log-time';
+        time.className = 'event-row-time';
         time.textContent = formatEventTime(entry.timestamp);
 
         const source = document.createElement('span');
-        source.className = `event-log-source ${entry.source}`;
+        source.className = `event-row-kind ${entry.source}`;
         source.textContent = entry.source;
 
-        head.appendChild(type);
-        head.appendChild(time);
+        const type = document.createElement('span');
+        type.className = 'event-row-type';
+        type.textContent = entry.type;
 
-        const body = document.createElement('pre');
-        body.className = 'event-log-message';
-        body.textContent = entry.payload
-            ? `${entry.message}\n${safeJson(entry.payload)}`
-            : entry.message;
+        const message = document.createElement('span');
+        message.className = 'event-row-message';
+        message.textContent = formatEventRowMessage(entry);
+        message.title = message.textContent;
 
-        item.appendChild(head);
-        item.appendChild(source);
-        item.appendChild(body);
-        list.appendChild(item);
+        row.appendChild(time);
+        row.appendChild(source);
+        row.appendChild(type);
+        row.appendChild(message);
+        list.appendChild(row);
     });
+}
+
+function formatEventRowMessage(entry) {
+    if (!entry?.payload) {
+        return entry?.message || '';
+    }
+    const payloadString = safeJson(entry.payload).replace(/\s+/g, ' ').trim();
+    return `${entry.message} ${payloadString}`.trim();
 }
 
 function formatEventTime(timestamp) {
@@ -882,6 +900,8 @@ async function loadRiveAnimation(fileUrl, fileName) {
         const userOnLoop = config.onLoop;
         const userOnStateChange = config.onStateChange;
         const userOnAdvance = config.onAdvance;
+        const configuredStateMachines = normalizeStateMachineSelection(config.stateMachines);
+        const configuredAnimations = normalizeAnimationSelection(config.animations);
 
         if (config.artboard) {
             currentArtboardName = config.artboard;
@@ -907,6 +927,27 @@ async function loadRiveAnimation(fileUrl, fileName) {
 
             // Get state machine names from instance (same as v1.2.6)
             const names = Array.isArray(riveInstance?.stateMachineNames) ? riveInstance.stateMachineNames : [];
+            const playingStateMachines = Array.isArray(riveInstance?.playingStateMachineNames)
+                ? riveInstance.playingStateMachineNames
+                : [];
+            const playingAnimations = Array.isArray(riveInstance?.playingAnimationNames)
+                ? riveInstance.playingAnimationNames
+                : [];
+
+            if (
+                configuredStateMachines.length === 0
+                && configuredAnimations.length === 0
+                && !playingStateMachines.length
+                && !playingAnimations.length
+                && names.length > 0
+            ) {
+                try {
+                    riveInstance?.play(names[0]);
+                    logEvent('native', 'autoplay-state-machine', `Auto-started state machine: ${names[0]}`);
+                } catch (autoplayError) {
+                    logEvent('native', 'autoplay-state-machine-failed', `Failed to auto-start state machine ${names[0]}`, autoplayError);
+                }
+            }
 
             // Show which state machine is initialized
             // Handle both string and array formats for stateMachines
@@ -2150,6 +2191,16 @@ function arrayBufferToBase64(buffer) {
 }
 
 function normalizeStateMachineSelection(value) {
+    if (Array.isArray(value)) {
+        return value.filter((entry) => typeof entry === 'string' && entry.trim().length > 0);
+    }
+    if (typeof value === 'string' && value.trim().length > 0) {
+        return [value];
+    }
+    return [];
+}
+
+function normalizeAnimationSelection(value) {
     if (Array.isArray(value)) {
         return value.filter((entry) => typeof entry === 'string' && entry.trim().length > 0);
     }

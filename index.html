@@ -23,36 +23,38 @@
                 <input type="file" id="file-input" accept=".riv">
                 <button type="button" id="file-trigger-btn" class="btn btn-dark" onclick="handleFileButtonClick()">Open</button>
 
-                <label class="header-label" for="runtime-select">Runtime</label>
-                <select id="runtime-select" class="header-select">
-                    <option value="webgl2" selected>WebGL</option>
-                    <option value="canvas">Canvas</option>
-                </select>
+                <div class="header-group">
+                    <label class="header-label" for="runtime-select">Runtime</label>
+                    <select id="runtime-select" class="header-select">
+                        <option value="webgl2" selected>WebGL</option>
+                        <option value="canvas">Canvas</option>
+                    </select>
+                </div>
 
-                <label class="header-label" for="layout-select">Layout Fit</label>
-                <select id="layout-select" class="header-select">
-                    <option value="contain" selected>Contain</option>
-                    <option value="cover">Cover</option>
-                    <option value="fill">Fill</option>
-                    <option value="fitWidth">Fit Width</option>
-                    <option value="fitHeight">Fit Height</option>
-                    <option value="scaleDown">Scale Down</option>
-                    <option value="none">None</option>
-                    <option value="layout">Layout</option>
-                </select>
+                <div class="header-group">
+                    <label class="header-label" for="layout-select">Layout Fit</label>
+                    <select id="layout-select" class="header-select">
+                        <option value="contain" selected>Contain</option>
+                        <option value="cover">Cover</option>
+                        <option value="fill">Fill</option>
+                        <option value="fitWidth">Fit Width</option>
+                        <option value="fitHeight">Fit Height</option>
+                        <option value="scaleDown">Scale Down</option>
+                        <option value="none">None</option>
+                        <option value="layout">Layout</option>
+                    </select>
+                </div>
             </div>
 
             <div class="header-center">
-                <div class="time-chip">00:00:00</div>
-                <button type="button" class="icon-btn" onclick="play()" title="Play" aria-label="Play">▶</button>
-                <button type="button" class="icon-btn" onclick="pause()" title="Pause" aria-label="Pause">▮▮</button>
+                <div class="time-chip">00:00:00 / --:--:--</div>
                 <button type="button" class="icon-btn" onclick="reset()" title="Reset" aria-label="Reset">↺</button>
-                <div class="fps-chip"><span class="dot"></span>LIVE</div>
+                <button type="button" class="icon-btn icon-btn-accent" onclick="play()" title="Play" aria-label="Play">▶</button>
+                <button type="button" class="icon-btn" onclick="pause()" title="Pause" aria-label="Pause">▮▮</button>
+                <div class="fps-chip"><span class="dot"></span>60 FPS</div>
             </div>
 
             <div class="header-right">
-                <button type="button" id="toggle-left-panel-btn" class="icon-btn panel-toggle-btn" title="Hide Script Panel" aria-label="Hide Script Panel" aria-pressed="true">◧</button>
-                <button type="button" id="toggle-right-panel-btn" class="icon-btn panel-toggle-btn" title="Hide Properties Panel" aria-label="Hide Properties Panel" aria-pressed="true">◨</button>
                 <label class="header-label" for="canvas-color-input">BG</label>
                 <input type="color" id="canvas-color-input" value="#0d1117" class="color-input">
                 <button type="button" id="demo-bundle-btn" class="btn btn-primary" onclick="createDemoBundle()">Export Demo</button>
@@ -64,8 +66,11 @@
         <div class="workspace" id="main-grid">
             <aside class="panel code-panel" id="config-panel">
                 <div class="panel-heading">
-                    <span class="panel-marker"></span>
-                    <span>SCRIPT.JS</span>
+                    <div class="panel-heading-main">
+                        <span class="panel-marker"></span>
+                        <span>SCRIPT.JS</span>
+                    </div>
+                    <button type="button" id="toggle-left-panel-btn" class="icon-btn panel-toggle-btn" title="Hide Script Panel" aria-label="Hide Script Panel" aria-pressed="true">◧</button>
                 </div>
                 <div class="code-panel-body" id="config-content">
                     <div class="code-editor-header">
@@ -81,6 +86,7 @@
             </aside>
 
             <div class="panel-resizer" id="left-resizer" aria-hidden="true"></div>
+            <button type="button" id="show-left-panel-btn" class="workspace-edge-toggle workspace-edge-toggle-left" title="Show Script Panel" aria-label="Show Script Panel" hidden>›</button>
 
             <section class="panel center-panel" id="center-panel">
                 <div id="canvas-container" class="canvas-drop-target" aria-label="Rive canvas drop zone">
@@ -123,12 +129,16 @@
                 </details>
             </section>
 
+            <button type="button" id="show-right-panel-btn" class="workspace-edge-toggle workspace-edge-toggle-right" title="Show Properties Panel" aria-label="Show Properties Panel" hidden>‹</button>
             <div class="panel-resizer" id="right-resizer" aria-hidden="true"></div>
 
             <aside class="panel properties-panel" id="right-panel">
                 <div class="panel-heading">
-                    <span class="panel-marker"></span>
-                    <span>PROPERTIES</span>
+                    <div class="panel-heading-main">
+                        <span class="panel-marker"></span>
+                        <span>PROPERTIES</span>
+                    </div>
+                    <button type="button" id="toggle-right-panel-btn" class="icon-btn panel-toggle-btn" title="Hide Properties Panel" aria-label="Hide Properties Panel" aria-pressed="true">◨</button>
                 </div>
                 <div class="properties-panel-body">
                     <details class="panel-section vm-controls-section" id="vm-controls-panel" open>
