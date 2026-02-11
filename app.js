@@ -84,6 +84,8 @@ const eventFilterState = {
 };
 let eventLogSequence = 0;
 let riveEventUnsubscribers = [];
+let lastFpsUpdate = 0;
+let frameCount = 0;
 
 const elements = {
     versionInfo: document.getElementById('version-info'),
@@ -118,16 +120,17 @@ const elements = {
     eventLogPanel: document.getElementById('event-log-panel'),
     eventLogCount: document.getElementById('event-log-count'),
     eventLogList: document.getElementById('event-log-list'),
-    eventFilterNative: document.getElementById('event-filter-native'),
-    eventFilterRiveUser: document.getElementById('event-filter-rive-user'),
-    eventFilterUi: document.getElementById('event-filter-ui'),
-    eventFilterSearch: document.getElementById('event-filter-search'),
+    eventFilterSelect: document.getElementById('event-filter-select'),
     eventLogClearButton: document.getElementById('event-log-clear-btn'),
+    settingsButton: document.getElementById('settings-btn'),
+    settingsPopover: document.getElementById('settings-popover'),
 };
 
 init();
 
 async function init() {
+    console.log('[rive-viewer] init start');
+    initLucideIcons();
     resolveAppVersion();
     updateVersionInfo('Loading runtime...');
     setupFileInput();
@@ -141,17 +144,92 @@ async function init() {
     setupCenterResizer();
     setupPanelVisibilityToggles();
     setupEventLog();
+    setupSettingsPopover();
+    setupDragAndDrop();
     resetVmInputControls('No animation loaded.');
     resetEventLog();
     refreshInfoStrip();
     window.addEventListener('resize', handleResize);
     window.addEventListener('beforeunload', revokeLastObjectUrl);
+    console.log('[rive-viewer] setup complete, loading runtime...');
     ensureRuntime(currentRuntime)
         .then(() => {
             updateVersionInfo();
             refreshInfoStrip();
+            console.log('[rive-viewer] runtime ready:', currentRuntime);
         })
-        .catch((error) => showError(`Failed to load runtime: ${error.message}`));
+        .catch((error) => {
+            console.error('[rive-viewer] runtime load failed:', error);
+            showError(`Failed to load runtime: ${error.message}`);
+        });
+}
+
+function initLucideIcons() {
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        lucide.createIcons();
+    }
+}
+
+function setupDragAndDrop() {
+    const container = elements.canvasContainer;
+    if (!container) return;
+
+    container.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        container.classList.add('drag-active');
+    });
+
+    container.addEventListener('dragleave', () => {
+        container.classList.remove('drag-active');
+    });
+
+    container.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        container.classList.remove('drag-active');
+        const file = e.dataTransfer?.files?.[0];
+        if (!file) return;
+        if (!file.name.toLowerCase().endsWith('.riv')) {
+            showError('Please drop a .riv file');
+            logEvent('ui', 'drop-invalid', `Rejected dropped file: ${file.name}`);
+            return;
+        }
+        logEvent('ui', 'file-dropped', `Dropped file: ${file.name}`);
+        updateFileTriggerButton('loaded', file.name);
+        const buffer = await file.arrayBuffer();
+        const fileUrl = URL.createObjectURL(file);
+        setCurrentFile(fileUrl, file.name, true, buffer, file.type, file.size);
+        hideError();
+        try {
+            await loadRiveAnimation(fileUrl, file.name);
+        } catch {
+            logEvent('native', 'load-failed', `Failed to load dropped ${file.name}.`);
+        }
+    });
+}
+
+function setupSettingsPopover() {
+    const btn = elements.settingsButton;
+    const popover = elements.settingsPopover;
+    if (!btn || !popover) return;
+
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isHidden = popover.hidden;
+        popover.hidden = !isHidden;
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!popover.hidden && !popover.contains(e.target) && e.target !== btn) {
+            popover.hidden = true;
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !popover.hidden) {
+            popover.hidden = true;
+        }
+    });
 }
 
 function setupFileInput() {
@@ -302,17 +380,32 @@ async function setupCodeEditor() {
     }
 
     // Set initial code
-    const initialCode = `// You can define functions and helpers here
-// riveInst is available as a global variable
-// Runtimes are pinned to ${RIVE_VERSION} for scripting/ViewModel support
+    const initialCode = `// Rive instantiation config — riveInst is the global instance
+// Uncomment any property to override defaults
 
 ({
   autoplay: true,
   autoBind: true,
+
+  // artboard: "MyArtboard",
+  // stateMachines: "main-sm",
+  // animations: "idle",
+
+  // layout: { fit: "contain", alignment: "center" },
+  //   fit options: contain, cover, fill, fitWidth, fitHeight, scaleDown, none, layout
+  //   alignment: center, topLeft, topCenter, topRight, etc.
+
   onLoad: () => {
     riveInst.resizeDrawingSurfaceToCanvas();
     window.refreshVmInputControls?.();
-  }
+  },
+
+  // onStateChange: (event) => { console.log("state:", event); },
+  // onAdvance: (event) => { console.log("advance:", event); },
+  // onPlay: () => { console.log("play"); },
+  // onPause: () => { console.log("pause"); },
+  // onStop: () => { console.log("stop"); },
+  // onLoop: (event) => { console.log("loop:", event); },
 })`;
 
     // Try to load CodeMirror
@@ -619,6 +712,8 @@ function setupPanelVisibilityToggles() {
         showLeftButton.hidden = isLeftPanelVisible;
         showRightButton.hidden = isRightPanelVisible;
         handleResize();
+        // Resize again after the CSS grid transition completes (0.2s)
+        setTimeout(handleResize, 250);
     };
 
     leftButton.addEventListener('click', () => {
@@ -645,40 +740,53 @@ function setupPanelVisibilityToggles() {
 }
 
 function setupEventLog() {
-    const native = elements.eventFilterNative;
-    const riveUser = elements.eventFilterRiveUser;
-    const ui = elements.eventFilterUi;
-    const search = elements.eventFilterSearch;
+    const filterSelect = elements.eventFilterSelect;
     const clearButton = elements.eventLogClearButton;
-    if (!native || !riveUser || !ui || !search || !clearButton) {
+    if (!filterSelect || !clearButton) {
         return;
     }
 
-    native.checked = true;
-    riveUser.checked = true;
-    ui.checked = true;
-    search.value = '';
+    filterSelect.value = 'all';
 
-    native.addEventListener('change', () => {
-        eventFilterState.native = native.checked;
-        renderEventLog();
-    });
-    riveUser.addEventListener('change', () => {
-        eventFilterState.riveUser = riveUser.checked;
-        renderEventLog();
-    });
-    ui.addEventListener('change', () => {
-        eventFilterState.ui = ui.checked;
-        renderEventLog();
-    });
-    search.addEventListener('input', () => {
-        eventFilterState.search = search.value.trim().toLowerCase();
+    filterSelect.addEventListener('change', () => {
+        const val = filterSelect.value;
+        eventFilterState.native = val === 'all' || val === 'native';
+        eventFilterState.riveUser = val === 'all' || val === 'rive-user';
+        eventFilterState.ui = val === 'all' || val === 'ui';
         renderEventLog();
     });
     clearButton.addEventListener('click', () => {
         resetEventLog();
         logEvent('ui', 'log-cleared', 'Event log cleared.');
     });
+
+    // Collapse/expand via header click (div-based, not <details>)
+    const eventLogHeader = document.getElementById('event-log-header');
+    const eventLogPanel = elements.eventLogPanel;
+    const centerPanel = elements.centerPanel;
+    const showEventLogBtn = document.getElementById('show-event-log-btn');
+
+    if (eventLogHeader && eventLogPanel && centerPanel) {
+        eventLogHeader.addEventListener('click', (e) => {
+            // Don't toggle when clicking filter or clear
+            if (e.target.closest('.event-log-summary-right')) return;
+            const isCollapsed = centerPanel.classList.toggle('event-log-collapsed');
+            eventLogPanel.classList.toggle('collapsed', isCollapsed);
+            if (showEventLogBtn) showEventLogBtn.hidden = !isCollapsed;
+            handleResize();
+            setTimeout(handleResize, 300);
+        });
+
+        if (showEventLogBtn) {
+            showEventLogBtn.addEventListener('click', () => {
+                centerPanel.classList.remove('event-log-collapsed');
+                eventLogPanel.classList.remove('collapsed');
+                showEventLogBtn.hidden = true;
+                handleResize();
+                setTimeout(handleResize, 300);
+            });
+        }
+    }
 }
 
 function resetEventLog() {
@@ -719,11 +827,7 @@ function renderEventLog() {
         if (entry.source === 'ui' && !eventFilterState.ui) {
             return false;
         }
-        if (!eventFilterState.search) {
-            return true;
-        }
-        const haystack = `${entry.type} ${entry.message} ${entry.payload ? JSON.stringify(entry.payload) : ''}`.toLowerCase();
-        return haystack.includes(eventFilterState.search);
+        return true;
     });
 
     count.textContent = String(filtered.length);
@@ -746,11 +850,7 @@ function renderEventLog() {
 
         const source = document.createElement('span');
         source.className = `event-row-kind ${entry.source}`;
-        source.textContent = entry.source;
-
-        const type = document.createElement('span');
-        type.className = 'event-row-type';
-        type.textContent = entry.type;
+        source.textContent = entry.source === 'rive-user' ? 'USER' : entry.source;
 
         const message = document.createElement('span');
         message.className = 'event-row-message';
@@ -759,28 +859,47 @@ function renderEventLog() {
 
         row.appendChild(time);
         row.appendChild(source);
-        row.appendChild(type);
         row.appendChild(message);
         list.appendChild(row);
     });
 }
 
 function formatEventRowMessage(entry) {
-    if (!entry?.payload) {
-        return entry?.message || '';
+    const parts = [];
+    if (entry.type) parts.push(entry.type);
+    if (entry.message && entry.message !== entry.type) parts.push(entry.message);
+    if (entry.payload) {
+        const p = entry.payload;
+        if (typeof p === 'object' && p !== null) {
+            const keys = Object.keys(p).filter(k => k !== 'type' && k !== 'name');
+            if (keys.length) {
+                const vals = keys.map(k => {
+                    const v = p[k];
+                    if (typeof v === 'number') return `${k}: ${roundNum(v)}`;
+                    if (typeof v === 'string') return `${k}: ${v}`;
+                    return `${k}: ${JSON.stringify(v)}`;
+                });
+                parts.push(vals.join('  '));
+            }
+        } else {
+            parts.push(String(p));
+        }
     }
-    const payloadString = safeJson(entry.payload).replace(/\s+/g, ' ').trim();
-    return `${entry.message} ${payloadString}`.trim();
+    return parts.join(' \u2022 ');
+}
+
+function roundNum(n) {
+    if (Number.isInteger(n)) return String(n);
+    return Number(n.toFixed(3)).toString();
 }
 
 function formatEventTime(timestamp) {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-    });
+    const h = String(date.getHours()).padStart(2, '0');
+    const m = String(date.getMinutes()).padStart(2, '0');
+    const s = String(date.getSeconds()).padStart(2, '0');
+    const cs = String(Math.floor(date.getMilliseconds() / 10)).padStart(2, '0');
+    return `${h}:${m}:${s}.${cs}`;
 }
 
 function safeJson(value) {
@@ -815,18 +934,24 @@ function clearRiveEventListeners() {
 
 function attachRiveUserEventListeners(runtime, instance) {
     clearRiveEventListeners();
+    console.log('[rive-viewer] attachRiveUserEventListeners: runtime.EventType:', runtime?.EventType, 'instance.on:', typeof instance?.on);
     if (!runtime?.EventType || !instance || typeof instance.on !== 'function') {
+        console.warn('[rive-viewer] cannot attach event listeners: missing EventType or .on() method');
         return;
     }
 
     const eventType = runtime.EventType.RiveEvent;
+    console.log('[rive-viewer] RiveEvent type:', eventType);
     if (!eventType) {
+        console.warn('[rive-viewer] runtime.EventType.RiveEvent is falsy');
         return;
     }
 
     const listener = (event) => {
+        console.log('[rive-viewer] Rive user event received:', event);
         const payload = event?.data ?? event;
-        logEvent('rive-user', 'riveevent', 'Rive user event emitted.', payload);
+        const eventName = payload?.name || event?.name || 'unknown';
+        logEvent('rive-user', eventName, '', payload);
     };
 
     instance.on(eventType, listener);
@@ -835,6 +960,7 @@ function attachRiveUserEventListeners(runtime, instance) {
             instance.off(eventType, listener);
         }
     });
+    console.log('[rive-viewer] Rive event listener attached successfully');
 }
 
 function setCurrentFile(url, name, isObjectUrl = false, buffer, mimeType, fileSizeBytes) {
@@ -868,6 +994,7 @@ async function loadRiveAnimation(fileUrl, fileName) {
         return;
     }
 
+    console.log('[rive-viewer] loadRiveAnimation:', fileName, currentRuntime);
     updateInfo(`Loading ${fileName} (${currentRuntime})...`);
     resetVmInputControls('Loading ViewModel inputs...');
     logEvent('native', 'load-start', `Loading ${fileName} on ${currentRuntime}.`);
@@ -878,6 +1005,7 @@ async function loadRiveAnimation(fileUrl, fileName) {
         if (!runtime || !container) {
             throw new Error('Runtime or canvas container is not available');
         }
+        console.log('[rive-viewer] runtime loaded, Rive constructor:', typeof runtime.Rive);
 
         cleanupInstance();
         container.innerHTML = '';
@@ -886,10 +1014,12 @@ async function loadRiveAnimation(fileUrl, fileName) {
         canvas.id = 'rive-canvas';
         container.appendChild(canvas);
         resizeCanvas(canvas);
+        console.log('[rive-viewer] canvas:', canvas.width, 'x', canvas.height);
 
         const userConfig = getEditorConfig();
         lastInitConfig = { ...userConfig };
         const config = { ...userConfig };
+        console.log('[rive-viewer] config:', JSON.stringify(Object.keys(config)));
 
         // Preserve user callbacks and wrap them so native events are logged.
         const userOnLoad = config.onLoad;
@@ -902,6 +1032,8 @@ async function loadRiveAnimation(fileUrl, fileName) {
         const userOnAdvance = config.onAdvance;
         const configuredStateMachines = normalizeStateMachineSelection(config.stateMachines);
         const configuredAnimations = normalizeAnimationSelection(config.animations);
+        const userSpecifiedStateMachines = configuredStateMachines.length > 0;
+        let didRestartForStateMachine = false;
 
         if (config.artboard) {
             currentArtboardName = config.artboard;
@@ -920,37 +1052,77 @@ async function loadRiveAnimation(fileUrl, fileName) {
         });
 
         config.onLoad = () => {
+            console.log('[rive-viewer] onLoad fired, riveInstance:', !!riveInstance);
+
+            // Auto-detect state machine: if user didn't specify one, discover from
+            // the artboard and restart the instance with it in the constructor config.
+            if (!didRestartForStateMachine && !userSpecifiedStateMachines) {
+                // Use artboard low-level API (same pattern as rive_dev_playground parser)
+                let detectedSmName = null;
+                try {
+                    const artboard = riveInstance?.artboard;
+                    if (artboard && typeof artboard.stateMachineCount === 'function') {
+                        const count = artboard.stateMachineCount();
+                        if (count > 0) {
+                            const sm = artboard.stateMachineByIndex(0);
+                            if (sm && sm.name) detectedSmName = sm.name;
+                        }
+                    }
+                } catch { /* noop */ }
+
+                // Fallback to high-level API
+                if (!detectedSmName) {
+                    const names = Array.isArray(riveInstance?.stateMachineNames) ? riveInstance.stateMachineNames : [];
+                    if (names.length > 0) detectedSmName = names[0];
+                }
+
+                if (detectedSmName) {
+                    console.log('[rive-viewer] detected state machine:', detectedSmName, '— restarting with it');
+                    didRestartForStateMachine = true;
+
+                    // Clean up current instance
+                    clearRiveEventListeners();
+                    try { riveInstance.cleanup(); } catch { /* noop */ }
+
+                    // Recreate canvas (WebGL context needs a fresh canvas)
+                    container.innerHTML = '';
+                    const newCanvas = document.createElement('canvas');
+                    newCanvas.id = 'rive-canvas';
+                    container.appendChild(newCanvas);
+                    resizeCanvas(newCanvas);
+
+                    // Restart with state machine specified
+                    config.canvas = newCanvas;
+                    config.stateMachines = detectedSmName;
+                    riveInstance = new runtime.Rive(config);
+                    window.riveInst = riveInstance;
+                    attachRiveUserEventListeners(runtime, riveInstance);
+                    return; // New instance will fire onLoad again
+                }
+            }
+
             hideError();
-            resizeCanvas(canvas);
+            const activeCanvas = config.canvas;
+            resizeCanvas(activeCanvas);
             riveInstance?.resizeDrawingSurfaceToCanvas();
             logEvent('native', 'load', `Loaded ${fileName} using ${currentRuntime}.`);
 
-            // Get state machine names from instance (same as v1.2.6)
+            // Get state machine names from instance
             const names = Array.isArray(riveInstance?.stateMachineNames) ? riveInstance.stateMachineNames : [];
             const playingStateMachines = Array.isArray(riveInstance?.playingStateMachineNames)
                 ? riveInstance.playingStateMachineNames
                 : [];
-            const playingAnimations = Array.isArray(riveInstance?.playingAnimationNames)
-                ? riveInstance.playingAnimationNames
-                : [];
 
-            if (
-                configuredStateMachines.length === 0
-                && configuredAnimations.length === 0
-                && !playingStateMachines.length
-                && !playingAnimations.length
-                && names.length > 0
-            ) {
-                try {
-                    riveInstance?.play(names[0]);
-                    logEvent('native', 'autoplay-state-machine', `Auto-started state machine: ${names[0]}`);
-                } catch (autoplayError) {
-                    logEvent('native', 'autoplay-state-machine-failed', `Failed to auto-start state machine ${names[0]}`, autoplayError);
-                }
-            }
+            console.log('[rive-viewer] onLoad state:', {
+                stateMachineNames: names,
+                playingStateMachines,
+                configuredSM: config.stateMachines,
+                isPaused: riveInstance?.isPaused,
+                isPlaying: riveInstance?.isPlaying,
+                viewModelInstance: !!riveInstance?.viewModelInstance,
+            });
 
             // Show which state machine is initialized
-            // Handle both string and array formats for stateMachines
             let activeStateMachine = 'none';
             if (config.stateMachines) {
                 activeStateMachine = Array.isArray(config.stateMachines)
@@ -961,7 +1133,7 @@ async function loadRiveAnimation(fileUrl, fileName) {
             }
 
             const statusMsg = names.length > 0
-                ? `Loaded: ${fileName} (${currentRuntime}) - default state machine (${activeStateMachine}) initialized`
+                ? `Loaded: ${fileName} (${currentRuntime}) - state machine "${activeStateMachine}" active`
                 : `Loaded: ${fileName} (${currentRuntime}) - no state machines`;
             updateInfo(statusMsg);
             currentArtboardName = riveInstance?.artboard?.name || currentArtboardName || config.artboard || null;
@@ -1006,14 +1178,33 @@ async function loadRiveAnimation(fileUrl, fileName) {
             safelyInvokeUserCallback(userOnStateChange, event, 'onStateChange');
         };
         config.onAdvance = (event) => {
+            updatePlaybackChips();
             safelyInvokeUserCallback(userOnAdvance, event, 'onAdvance');
         };
 
+        // Remove undefined keys — Rive runtime treats {stateMachines: undefined}
+        // differently from omitting the key (undefined prevents auto-detection)
+        Object.keys(config).forEach((key) => {
+            if (config[key] === undefined) {
+                delete config[key];
+            }
+        });
+
+        console.log('[rive-viewer] creating Rive instance with:', {
+            src: typeof config.src,
+            canvas: !!config.canvas,
+            autoplay: config.autoplay,
+            autoBind: config.autoBind,
+            stateMachines: config.stateMachines,
+            configKeys: Object.keys(config),
+        });
         riveInstance = new runtime.Rive(config);
+        console.log('[rive-viewer] Rive instance created:', !!riveInstance);
         // Expose globally for code editor access
         window.riveInst = riveInstance;
         attachRiveUserEventListeners(runtime, riveInstance);
     } catch (error) {
+        console.error('[rive-viewer] loadRiveAnimation error:', error);
         showError(`Error initializing Rive: ${error.message}`);
         logEvent('native', 'init-error', 'Error initializing runtime instance.', error);
         throw error;
@@ -1035,14 +1226,18 @@ async function applyCodeAndReload() {
 }
 
 function play() {
+    console.log('[rive-viewer] play() called, riveInstance:', !!riveInstance);
     if (riveInstance) {
         riveInstance.play();
         updateInfo('Playing');
         logEvent('ui', 'play', 'Playback started from UI.');
+    } else {
+        console.warn('[rive-viewer] play() called but no riveInstance');
     }
 }
 
 function pause() {
+    console.log('[rive-viewer] pause() called, riveInstance:', !!riveInstance);
     if (riveInstance) {
         riveInstance.pause();
         updateInfo('Paused');
@@ -1051,8 +1246,10 @@ function pause() {
 }
 
 function reset() {
+    console.log('[rive-viewer] reset() called, riveInstance:', !!riveInstance);
     if (riveInstance) {
         riveInstance.reset();
+        resetPlaybackChips();
         updateInfo('Reset');
         logEvent('ui', 'reset', 'Animation reset from UI.');
     }
@@ -1061,53 +1258,12 @@ function reset() {
 let devToolsEnabled = false;
 
 async function injectCodeSnippet() {
-    // Clear console first
-    console.clear();
-
-    // Open dev tools in Tauri desktop app (only if not already enabled)
+    // Open dev tools in Tauri desktop app
     if (window.__TAURI__ && !devToolsEnabled) {
         try {
-            // Enable dev tools and mark as enabled
             devToolsEnabled = true;
             await window.__TAURI__.invoke('open_devtools');
-            console.log('Dev tools opened. You can now use the console to explore the Rive instance.');
-        } catch (error) {
-            console.warn('Could not open dev tools programmatically:', error);
-            console.log('You may need to right-click and select "Inspect Element" to open dev tools manually.');
-        }
-    } else if (!window.__TAURI__) {
-        // For web version, clear console
-        console.clear();
-    }
-
-    // Default onLoad snippet
-    const defaultSnippet = `onLoad: () => {
-    riveInst.resizeDrawingSurfaceToCanvas();
-    window.refreshVmInputControls?.();
-  }`;
-
-    // Load VM exploration snippet from external file
-    let vmExplorerSnippet;
-    try {
-        // Try to load from external file
-        const response = await fetch('/vm-explorer-snippet.js');
-        const text = await response.text();
-        // Extract the snippet from the file
-        const match = text.match(/const vmExplorerSnippet = `([\s\S]*?)`;/);
-        vmExplorerSnippet = match ? match[1] : null;
-    } catch (error) {
-        console.warn('Could not load VM explorer snippet from file, using fallback');
-        vmExplorerSnippet = null;
-    }
-
-    // Fallback to default if external file not available
-    if (!vmExplorerSnippet) {
-        vmExplorerSnippet = `
-  onLoad: () => {
-    riveInst.resizeDrawingSurfaceToCanvas();
-    window.refreshVmInputControls?.();
-    console.log("VM explorer snippet not loaded - using basic onLoad");
-  }`;
+        } catch { /* noop */ }
     }
 
     if (!editorView) {
@@ -1116,150 +1272,115 @@ async function injectCodeSnippet() {
     }
 
     try {
-        // Get current code
         const currentCode = editorView.state.doc.toString();
+        const hasVmExplorer = currentCode.includes('vmExplore') || currentCode.includes('vmRootInstance');
 
-        // Check if VM explorer is already present
-        const hasVmExplorer = currentCode.includes('viewModelInstance') || currentCode.includes('vmExplore');
-
-        // Parse the current config to preserve other properties like stateMachines
-        let currentConfig = {};
-        try {
-            const wrappedCode = `(function() { return (${currentCode}); })()`;
-            currentConfig = eval(wrappedCode);
-        } catch (e) {
-            // If parsing fails, we'll just work with the string
-        }
-
-        // Decide which snippet to use
-        const targetSnippet = hasVmExplorer ? defaultSnippet : vmExplorerSnippet;
-        const isRemoving = hasVmExplorer;
-
-        // Find and replace the onLoad section while preserving other properties
-        const hasOnLoad = currentCode.includes('onLoad:');
-
+        // Toggle: if explorer is present, revert to default; otherwise inject explorer
         let newCode;
-        if (hasOnLoad && typeof currentConfig === 'object' && currentConfig !== null) {
-            // Build new config preserving all properties except onLoad
-            const props = [];
-
-            // Preserve all non-onLoad properties
-            for (const key in currentConfig) {
-                if (key !== 'onLoad') {
-                    if (key === 'stateMachines' && Array.isArray(currentConfig[key])) {
-                        props.push(`  ${key}: ${JSON.stringify(currentConfig[key])}`);
-                    } else if (typeof currentConfig[key] === 'boolean' || typeof currentConfig[key] === 'number') {
-                        props.push(`  ${key}: ${currentConfig[key]}`);
-                    } else if (typeof currentConfig[key] === 'string') {
-                        props.push(`  ${key}: "${currentConfig[key]}"`);
-                    }
-                }
-            }
-
-            // Add the target onLoad
-            props.push(`  ${targetSnippet.trim()}`);
-
-            newCode = `// You can define functions and helpers here
-// riveInst is available as a global variable
-
-({
-${props.join(',\n')}
-})`;
-        } else if (hasOnLoad) {
-            // Fallback to regex replacement if parsing failed
-            // Replace existing onLoad with target version
-            // Match onLoad: () => { ... } including multi-line content
-            newCode = currentCode.replace(/onLoad:\s*\(\)\s*=>\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)?\}/g, targetSnippet.trim());
-
-            // If the regex didn't work, try a simpler approach
-            if (newCode === currentCode) {
-                // Find the start of onLoad
-                const onLoadStart = currentCode.indexOf('onLoad:');
-                if (onLoadStart !== -1) {
-                    // Find the matching closing brace
-                    let braceCount = 0;
-                    let i = currentCode.indexOf('{', onLoadStart);
-                    let start = i;
-                    while (i < currentCode.length) {
-                        if (currentCode[i] === '{') braceCount++;
-                        if (currentCode[i] === '}') {
-                            braceCount--;
-                            if (braceCount === 0) {
-                                // Found the matching closing brace
-                                newCode = currentCode.substring(0, onLoadStart) + targetSnippet.trim() + currentCode.substring(i + 1);
-                                break;
-                            }
-                        }
-                        i++;
-                    }
-                }
-            }
-        } else {
-            // Insert snippet before the closing })
-            const beforeClosing = currentCode.lastIndexOf('})');
-            if (beforeClosing === -1) {
-                showError('Could not find closing }) in the code');
-                return;
-            }
-            newCode = currentCode.slice(0, beforeClosing - 1) + ',' + targetSnippet + '\n' + currentCode.slice(beforeClosing - 1);
-        }
-
-        // Update the editor based on whether it's CodeMirror or textarea
-        if (editorView.dispatch) {
-            // CodeMirror
-            editorView.dispatch({
-                changes: {
-                    from: 0,
-                    to: editorView.state.doc.length,
-                    insert: newCode
-                }
-            });
-        } else if (editorView.dom) {
-            // Textarea fallback
-            editorView.dom.value = newCode;
-        }
-
-        // Show appropriate message
-        if (isRemoving) {
-            updateInfo('VM explorer removed - restored default');
+        if (hasVmExplorer) {
+            // Revert to default — replace onLoad block with simple version
+            newCode = replaceOnLoadBlock(currentCode, `onLoad: () => {
+    riveInst.resizeDrawingSurfaceToCanvas();
+    window.refreshVmInputControls?.();
+  }`);
+            updateInfo('VM explorer removed — restored default');
             console.log('VM explorer removed. Default onLoad restored.');
         } else {
-            updateInfo('VM explorer code injected - Apply & Reload');
-            // Display comprehensive usage guide
-            console.log('%cRive VM Explorer Injected Successfully', 'color: #4CAF50; font-size: 16px; font-weight: bold');
-            console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #666');
-            console.log('%cAvailable Commands (after reload):', 'color: #2196F3; font-weight: bold');
-            console.log('  %cvmExplore()%c or %cvmExplore("path")%c', 'color: #4CAF50; font-family: monospace', 'color: #888', 'color: #4CAF50; font-family: monospace', 'color: #888');
-            console.log('    → Show interactive table of properties at root or specified path');
-            console.log('    → Example: vmExplore("myGroup/subItem")');
-            console.log('  %cvmGet("path")%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
-            console.log('    → Get current value at path');
-            console.log('    → Example: vmGet("settings/volume")');
-            console.log('  %cvmSet("path", value)%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
-            console.log('    → Update value at path');
-            console.log('    → Example: vmSet("settings/volume", 0.8)');
-            console.log('  %cvmFire("path")%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
-            console.log('    → Fire a trigger input at path');
-            console.log('    → Example: vmFire("settings/apply")');
-            console.log('');
-            console.log('%cAvailable Data Structures:', 'color: #FF9800; font-weight: bold');
-            console.log('  %cvmTree%c         - Full hierarchical structure of all ViewModels', 'color: #4CAF50; font-family: monospace', 'color: #888');
-            console.log('  %cvmPaths%c        - Array of all scalar property paths (ready for get/set)', 'color: #4CAF50; font-family: monospace', 'color: #888');
-            console.log('  %cvmInputs%c       - Full list of detected writable VM inputs', 'color: #4CAF50; font-family: monospace', 'color: #888');
-            console.log('  %cvmRootInstance%c - The root ViewModelInstance object', 'color: #4CAF50; font-family: monospace', 'color: #888');
-            console.log('');
-            console.log('%cQuick Start:', 'color: #9C27B0; font-weight: bold');
-            console.log('  1. Click "Apply & Reload" to load with VM explorer');
-            console.log('  2. Run %cvmExplore()%c to see all available properties', 'color: #4CAF50; font-family: monospace', 'color: #888');
-            console.log('  3. Navigate deeper with %cvmExplore("path/to/item")%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
-            console.log('  4. Read values with %cvmGet("path")%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
-            console.log('  5. Modify values with %cvmSet("path", newValue)%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
-            console.log('  6. Fire triggers with %cvmFire("path")%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
-            console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #666');
+            // Load the explorer snippet from external file
+            let explorerOnLoad = null;
+            try {
+                const resp = await fetch('/vm-explorer-snippet.js');
+                if (resp.ok) {
+                    const text = await resp.text();
+                    // The file wraps the snippet in: const vmExplorerSnippet = `...`;
+                    // Extract just the onLoad: () => { ... } portion
+                    const startMarker = 'onLoad: () => {';
+                    const startIdx = text.indexOf(startMarker);
+                    if (startIdx !== -1) {
+                        // Find matching closing brace using brace counting from the opening {
+                        const braceStart = text.indexOf('{', startIdx + 'onLoad:'.length);
+                        explorerOnLoad = extractBraceBlock(text, startIdx, 'onLoad:');
+                    }
+                }
+            } catch { /* noop */ }
+
+            if (!explorerOnLoad) {
+                showError('Could not load VM explorer snippet');
+                return;
+            }
+
+            newCode = replaceOnLoadBlock(currentCode, explorerOnLoad);
+            updateInfo('VM explorer injected — click Apply & Reload');
+            console.log('%cVM Explorer injected. Click Apply & Reload to activate.', 'color: #C4F82A; font-weight: bold');
+            console.log('After reload: vmExplore(), vmGet("path"), vmSet("path", val), vmFire("path")');
+        }
+
+        if (!newCode || newCode === currentCode) {
+            showError('Could not modify onLoad block — check editor code syntax');
+            return;
+        }
+
+        // Update editor
+        if (editorView.dispatch) {
+            editorView.dispatch({
+                changes: { from: 0, to: editorView.state.doc.length, insert: newCode }
+            });
         }
     } catch (error) {
         showError(`Failed to modify code: ${error.message}`);
     }
+}
+
+// Replace the onLoad: () => { ... } block in config code using brace matching.
+// If no onLoad exists, inserts before the closing })
+function replaceOnLoadBlock(code, replacement) {
+    const onLoadIdx = code.indexOf('onLoad:');
+    if (onLoadIdx === -1) {
+        // No onLoad — insert before closing paren of ({...})
+        const lastClose = code.lastIndexOf('}');
+        if (lastClose === -1) return null;
+        // Find whether we need a comma
+        const before = code.substring(0, lastClose).trimEnd();
+        const needsComma = before.endsWith(',') ? '' : ',';
+        return before + needsComma + '\n  ' + replacement.trim() + '\n' + code.substring(lastClose);
+    }
+
+    // Find the opening brace of the onLoad function body
+    const braceStart = code.indexOf('{', onLoadIdx + 'onLoad:'.length);
+    if (braceStart === -1) return null;
+
+    // Count braces to find the matching close
+    let depth = 0;
+    let end = -1;
+    for (let i = braceStart; i < code.length; i++) {
+        if (code[i] === '{') depth++;
+        else if (code[i] === '}') {
+            depth--;
+            if (depth === 0) { end = i; break; }
+        }
+    }
+    if (end === -1) return null;
+
+    return code.substring(0, onLoadIdx) + replacement.trim() + code.substring(end + 1);
+}
+
+// Extract onLoad: () => { ... } block from text starting at onLoadIdx using brace matching
+function extractBraceBlock(text, onLoadIdx, prefix) {
+    const braceStart = text.indexOf('{', onLoadIdx + prefix.length);
+    if (braceStart === -1) return null;
+
+    let depth = 0;
+    let end = -1;
+    for (let i = braceStart; i < text.length; i++) {
+        if (text[i] === '{') depth++;
+        else if (text[i] === '}') {
+            depth--;
+            if (depth === 0) { end = i; break; }
+        }
+    }
+    if (end === -1) return null;
+
+    return text.substring(onLoadIdx, end + 1);
 }
 
 async function createDemoBundle() {
@@ -1315,6 +1436,27 @@ function getRuntimeDisplayName(runtimeName = currentRuntime) {
     return runtimeName === 'canvas' ? 'Canvas' : 'WebGL';
 }
 
+function updatePlaybackChips() {
+    frameCount += 1;
+    const now = performance.now();
+    if (now - lastFpsUpdate >= 1000) {
+        const fps = Math.round((frameCount * 1000) / (now - lastFpsUpdate));
+        const fpsChip = document.getElementById('fps-chip');
+        if (fpsChip) {
+            fpsChip.innerHTML = `<span class="dot"></span>${fps} FPS`;
+        }
+        frameCount = 0;
+        lastFpsUpdate = now;
+    }
+}
+
+function resetPlaybackChips() {
+    frameCount = 0;
+    lastFpsUpdate = performance.now();
+    const fpsChip = document.getElementById('fps-chip');
+    if (fpsChip) fpsChip.innerHTML = '<span class="dot"></span>-- FPS';
+}
+
 function formatByteSize(value) {
     if (!Number.isFinite(value) || value <= 0) {
         return '';
@@ -1331,7 +1473,7 @@ function formatByteSize(value) {
 
 function refreshInfoStrip() {
     if (elements.runtimeStripRuntime) {
-        elements.runtimeStripRuntime.innerHTML = `<span class="dot" aria-hidden="true"></span>Runtime: ${getRuntimeDisplayName(currentRuntime)}`;
+        elements.runtimeStripRuntime.innerHTML = `<span class="dot dot-sm" aria-hidden="true"></span>Runtime: ${getRuntimeDisplayName(currentRuntime)}`;
     }
     if (elements.runtimeStripVersion) {
         const runtimeVersion = runtimeVersions[currentRuntime] || runtimeRegistry[currentRuntime]?.version || RIVE_VERSION;
@@ -1340,11 +1482,12 @@ function refreshInfoStrip() {
     if (elements.runtimeStripFile) {
         if (currentFileName) {
             const sizeLabel = formatByteSize(currentFileSizeBytes);
-            elements.runtimeStripFile.textContent = sizeLabel
-                ? `${currentFileName} · ${sizeLabel}`
-                : currentFileName;
+            const fileLabel = sizeLabel ? `${currentFileName} \u00B7 ${sizeLabel}` : currentFileName;
+            elements.runtimeStripFile.innerHTML = `<i data-lucide="file" class="lucide-10"></i>${escapeHtml(fileLabel)}`;
+            initLucideIcons();
         } else {
-            elements.runtimeStripFile.textContent = 'No animation loaded';
+            elements.runtimeStripFile.innerHTML = '<i data-lucide="file" class="lucide-10"></i>No animation loaded';
+            initLucideIcons();
         }
     }
 }
@@ -1382,6 +1525,7 @@ function hideError() {
 
 function getEditorConfig() {
     if (!editorView) {
+        console.log('[rive-viewer] getEditorConfig: no editorView, returning {}');
         return {};
     }
 
@@ -1434,8 +1578,14 @@ function handleResize() {
 
 function cleanupInstance() {
     clearRiveEventListeners();
+    resetPlaybackChips();
     if (riveInstance?.cleanup) {
-        riveInstance.cleanup();
+        try {
+            riveInstance.cleanup();
+        } catch (e) {
+            // WebGL context may already be lost during cleanup — safe to ignore
+            console.warn('[rive-viewer] cleanup error (WebGL context loss):', e.message);
+        }
     }
     riveInstance = null;
     window.riveInst = null;
@@ -1653,11 +1803,10 @@ function parseSemverParts(rawVersion) {
 }
 
 function resetVmInputControls(message = 'No bound ViewModel inputs detected.') {
-    const panel = elements.vmControlsPanel;
     const count = elements.vmControlsCount;
     const empty = elements.vmControlsEmpty;
     const tree = elements.vmControlsTree;
-    if (!panel || !count || !empty || !tree) {
+    if (!count || !empty || !tree) {
         return;
     }
     tree.innerHTML = '';
@@ -1667,11 +1816,10 @@ function resetVmInputControls(message = 'No bound ViewModel inputs detected.') {
 }
 
 function renderVmInputControls() {
-    const panel = elements.vmControlsPanel;
     const count = elements.vmControlsCount;
     const empty = elements.vmControlsEmpty;
     const tree = elements.vmControlsTree;
-    if (!panel || !count || !empty || !tree) {
+    if (!count || !empty || !tree) {
         return;
     }
 
@@ -1692,7 +1840,109 @@ function renderVmInputControls() {
     }
 
     empty.hidden = true;
-    tree.appendChild(createVmNodeElement(hierarchy, true));
+
+    // Filter out root-level inputs that are duplicated in child VMs
+    if (hierarchy.children.length) {
+        const childPaths = new Set();
+        const collectChildPaths = (node) => {
+            if (node.inputs) node.inputs.forEach((i) => childPaths.add(i.name));
+            if (node.children) node.children.forEach(collectChildPaths);
+        };
+        hierarchy.children.forEach(collectChildPaths);
+        hierarchy.inputs = hierarchy.inputs.filter((i) => !childPaths.has(i.name));
+    }
+
+    // Render the full hierarchy as a nested tree
+    tree.appendChild(createVmSectionElement(hierarchy, true));
+    initLucideIcons();
+}
+
+// Depth-based color palette for VM nesting levels
+const VM_DEPTH_COLORS = [
+    '#C4F82A', // depth 0 — neon green (root)
+    '#38BDF8', // depth 1 — sky blue
+    '#A78BFA', // depth 2 — purple
+    '#FB923C', // depth 3 — orange
+    '#F472B6', // depth 4 — pink
+    '#34D399', // depth 5 — emerald
+];
+
+function getDepthColor(depth) {
+    return VM_DEPTH_COLORS[depth % VM_DEPTH_COLORS.length];
+}
+
+function createVmSectionElement(node, isTopLevel = false, depth = 0) {
+    const section = document.createElement('details');
+    section.className = 'vm-section';
+    section.open = true;
+
+    const depthColor = getDepthColor(depth);
+
+    const summary = document.createElement('summary');
+    summary.className = 'vm-section-header';
+
+    const sectionBar = document.createElement('span');
+    sectionBar.className = 'vm-section-bar';
+    sectionBar.style.background = depthColor;
+
+    const titleText = document.createElement('span');
+    titleText.textContent = node.label.toUpperCase();
+
+    const inputCountBadge = document.createElement('span');
+    inputCountBadge.className = 'vm-section-count';
+    const totalInputs = countAllInputs(node);
+    inputCountBadge.textContent = String(totalInputs);
+
+    const chevron = document.createElement('i');
+    chevron.setAttribute('data-lucide', 'chevron-down');
+    chevron.className = 'lucide-12 vm-section-chevron';
+
+    summary.appendChild(chevron);
+    summary.appendChild(sectionBar);
+    summary.appendChild(titleText);
+    summary.appendChild(inputCountBadge);
+    section.appendChild(summary);
+
+    const body = document.createElement('div');
+    body.className = 'vm-section-body';
+    body.dataset.depth = depth;
+    body.style.setProperty('--depth-color', depthColor);
+
+    // Render this node's direct inputs
+    if (node.inputs.length) {
+        node.inputs.forEach((input) => {
+            body.appendChild(createVmControlRow(input));
+        });
+    }
+
+    // Render nested children as sub-sections
+    if (node.children.length) {
+        node.children.forEach((child) => {
+            if (child.inputs.length || child.children.length) {
+                body.appendChild(createVmSectionElement(child, false, depth + 1));
+            }
+        });
+    }
+
+    if (!node.inputs.length && !node.children.length) {
+        const emptyMsg = document.createElement('p');
+        emptyMsg.className = 'empty-state';
+        emptyMsg.textContent = 'No controls.';
+        body.appendChild(emptyMsg);
+    }
+
+    section.appendChild(body);
+    return section;
+}
+
+function countAllInputs(node) {
+    let total = node.inputs ? node.inputs.length : 0;
+    if (node.children) {
+        node.children.forEach((child) => {
+            total += countAllInputs(child);
+        });
+    }
+    return total;
 }
 
 function resolveVmRootInstance() {
@@ -1752,8 +2002,9 @@ function buildVmHierarchy(rootVm) {
             }
 
             const fullPath = basePath ? `${basePath}/${name}` : name;
-            const accessorInfo = getVmAccessor(rootVm, fullPath);
+            const accessorInfo = getVmAccessor(instance, name);
             if (accessorInfo && VM_CONTROL_KINDS.has(accessorInfo.kind) && !seenInputPaths.has(fullPath)) {
+                console.log('[rive-viewer] VM input discovered:', fullPath, 'kind:', accessorInfo.kind);
                 node.inputs.push({
                     name,
                     path: fullPath,
@@ -1798,53 +2049,6 @@ function buildVmHierarchy(rootVm) {
     const rootNode = walk(rootVm, 'Root VM', '', 'vm');
     rootNode.totalInputs = totalInputs;
     return rootNode;
-}
-
-function createVmNodeElement(node, isRoot = false) {
-    const details = document.createElement('details');
-    details.className = 'vm-node';
-    const inputCount = Number.isFinite(node?.inputs?.length) ? node.inputs.length : 0;
-    details.open = isRoot ? inputCount <= 12 : false;
-
-    const summary = document.createElement('summary');
-    summary.textContent = node.label;
-
-    const meta = document.createElement('span');
-    meta.className = 'vm-node-meta';
-    meta.textContent = `${node.inputs.length} inputs`;
-    summary.appendChild(meta);
-    details.appendChild(summary);
-
-    const body = document.createElement('div');
-    body.className = 'vm-node-body';
-
-    if (node.inputs.length) {
-        const inputList = document.createElement('div');
-        inputList.className = 'vm-input-list';
-        node.inputs.forEach((input) => {
-            inputList.appendChild(createVmControlRow(input));
-        });
-        body.appendChild(inputList);
-    }
-
-    if (node.children.length) {
-        const childrenContainer = document.createElement('div');
-        childrenContainer.className = 'vm-child-nodes';
-        node.children.forEach((child) => {
-            childrenContainer.appendChild(createVmNodeElement(child));
-        });
-        body.appendChild(childrenContainer);
-    }
-
-    if (!node.inputs.length && !node.children.length) {
-        const empty = document.createElement('p');
-        empty.className = 'empty-state';
-        empty.textContent = `No controls in ${node.label}.`;
-        body.appendChild(empty);
-    }
-
-    details.appendChild(body);
-    return details;
 }
 
 function createVmControlRow(descriptor) {
@@ -1982,7 +2186,9 @@ function createVmControlRow(descriptor) {
         button.disabled = isDisabled;
         button.addEventListener('click', () => {
             const liveAccessor = resolveVmAccessor(descriptor.path, 'trigger');
+            console.log('[rive-viewer] trigger click:', descriptor.path, 'accessor:', liveAccessor, 'type:', typeof liveAccessor, 'has .trigger:', typeof liveAccessor?.trigger, 'has .fire:', typeof liveAccessor?.fire);
             if (riveInstance?.isPaused) {
+                console.log('[rive-viewer] resuming paused instance for trigger');
                 riveInstance.play();
             }
 
@@ -1990,12 +2196,15 @@ function createVmControlRow(descriptor) {
             if (liveAccessor && typeof liveAccessor.trigger === 'function') {
                 liveAccessor.trigger();
                 firedVmTrigger = true;
+                console.log('[rive-viewer] fired VM trigger via .trigger()');
             } else if (liveAccessor && typeof liveAccessor.fire === 'function') {
                 liveAccessor.fire();
                 firedVmTrigger = true;
+                console.log('[rive-viewer] fired VM trigger via .fire()');
             }
 
             const firedStateMachineCount = fireStateMachineTriggerByName(descriptor.name);
+            console.log('[rive-viewer] state machine trigger fallback:', descriptor.name, 'fired:', firedStateMachineCount);
             if (firedVmTrigger || firedStateMachineCount > 0) {
                 const suffix = firedStateMachineCount > 0 ? ` (+${firedStateMachineCount} state machine trigger matches)` : '';
                 logEvent('ui', 'vm-trigger', `Fired trigger ${descriptor.path}${suffix}`);
@@ -2011,12 +2220,65 @@ function createVmControlRow(descriptor) {
     return row;
 }
 
+function navigateToVmInstance(rootVm, path) {
+    if (!path) return null;
+    if (!path.includes('/')) {
+        return { instance: rootVm, propertyName: path };
+    }
+
+    const segments = path.split('/');
+    const propertyName = segments.pop();
+
+    let current = rootVm;
+    let i = 0;
+    while (i < segments.length && current) {
+        const segment = segments[i];
+
+        // Try viewModel navigation
+        let child = safeVmMethodCall(current, 'viewModel', segment)
+            || safeVmMethodCall(current, 'viewModelInstance', segment);
+
+        if (child) {
+            current = child;
+            i++;
+            continue;
+        }
+
+        // Try list navigation: segment is list name, next segment is index
+        if (i + 1 < segments.length) {
+            const listAccessor = safeVmMethodCall(current, 'list', segment);
+            const numIndex = parseInt(segments[i + 1], 10);
+            if (listAccessor && !Number.isNaN(numIndex)) {
+                const itemInstance = getVmListItemAt(listAccessor, numIndex);
+                if (itemInstance) {
+                    current = itemInstance;
+                    i += 2;
+                    continue;
+                }
+            }
+        }
+
+        // Navigation failed for this segment
+        console.warn(`[rive-viewer] VM navigation failed at segment "${segment}" in path "${path}"`);
+        return null;
+    }
+
+    return current ? { instance: current, propertyName } : null;
+}
+
 function resolveVmAccessor(path, expectedKind) {
     const rootVm = resolveVmRootInstance();
     if (!rootVm) {
         return null;
     }
-    const accessorInfo = getVmAccessor(rootVm, path);
+
+    // Navigate to the correct VM instance for the property
+    const nav = navigateToVmInstance(rootVm, path);
+    if (!nav) {
+        return null;
+    }
+
+    const accessorInfo = getVmAccessor(nav.instance, nav.propertyName);
     if (!accessorInfo) {
         return null;
     }
@@ -2061,7 +2323,7 @@ function fireStateMachineTriggerByName(triggerName) {
     return firedCount;
 }
 
-function getVmAccessor(rootVm, path) {
+function getVmAccessor(vmInstance, propertyName) {
     const probes = [
         ['number', 'number'],
         ['boolean', 'boolean'],
@@ -2072,7 +2334,7 @@ function getVmAccessor(rootVm, path) {
     ];
 
     for (const [kind, methodName] of probes) {
-        const accessor = safeVmMethodCall(rootVm, methodName, path);
+        const accessor = safeVmMethodCall(vmInstance, methodName, propertyName);
         if (accessor) {
             return { kind, accessor };
         }
@@ -2327,10 +2589,11 @@ function clearCurrentFile() {
     updateFileTriggerButton('empty');
     elements.canvasContainer.innerHTML = `
         <div class="placeholder">
-            <p>Upload a .riv file</p>
-            <p style="font-size: 11px; margin-top: 10px; opacity: 0.6;">Use runtime and layout controls in the header</p>
+            <div class="placeholder-icon"><i data-lucide="play" class="lucide-24"></i></div>
+            <p>DROP FILE OR CLICK OPEN</p>
         </div>
     `;
+    initLucideIcons();
     resetVmInputControls('No bound ViewModel inputs detected.');
     refreshInfoStrip();
 }
@@ -2341,18 +2604,19 @@ function updateFileTriggerButton(state, fileName) {
         return;
     }
     if (state === 'loaded' && fileName) {
-        button.classList.remove('btn-dark');
-        button.classList.remove('btn-muted');
+        button.classList.remove('btn-dark', 'btn-muted');
         button.classList.add('btn-file-loaded');
-        button.textContent = fileName;
-        button.title = fileName;
     } else {
         button.classList.remove('btn-file-loaded');
-        button.classList.add('btn-dark');
-        button.classList.add('btn-muted');
-        button.textContent = 'Open';
-        button.title = 'Open';
+        button.classList.add('btn-dark', 'btn-muted');
     }
+    // Always show "OPEN" — filename is shown in the runtime strip
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
 }
 async function resolveAppVersion() {
     if (resolvedAppVersion && resolvedAppVersion !== '__APP_VERSION__') {
