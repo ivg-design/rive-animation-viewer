@@ -97,6 +97,9 @@ const elements = {
     mainGrid: document.getElementById('main-grid'),
     leftResizer: document.getElementById('left-resizer'),
     rightResizer: document.getElementById('right-resizer'),
+    centerResizer: document.getElementById('center-resizer'),
+    centerPanel: document.getElementById('center-panel'),
+    rightPanel: document.getElementById('right-panel'),
     configPanel: document.getElementById('config-panel'),
     configContent: document.getElementById('config-content'),
     vmControlsPanel: document.getElementById('vm-controls-panel'),
@@ -126,6 +129,7 @@ async function init() {
     setupCanvasColor();
     setupDemoButton();
     setupPanelResizers();
+    setupCenterResizer();
     setupEventLog();
     resetVmInputControls('No animation loaded.');
     resetEventLog();
@@ -493,12 +497,12 @@ function setupPanelResizers() {
         event.preventDefault();
         const gridRect = grid.getBoundingClientRect();
         const startX = event.clientX;
-        const initialLeft = grid.style.getPropertyValue('--left-panel-width')
-            ? parseFloat(grid.style.getPropertyValue('--left-panel-width'))
-            : document.getElementById('left-panel')?.offsetWidth || 340;
-        const initialRight = grid.style.getPropertyValue('--right-panel-width')
-            ? parseFloat(grid.style.getPropertyValue('--right-panel-width'))
-            : elements.configPanel?.offsetWidth || 460;
+        const initialLeft = grid.style.getPropertyValue('--left-width')
+            ? parseFloat(grid.style.getPropertyValue('--left-width'))
+            : elements.configPanel?.offsetWidth || 340;
+        const initialRight = grid.style.getPropertyValue('--right-width')
+            ? parseFloat(grid.style.getPropertyValue('--right-width'))
+            : elements.rightPanel?.offsetWidth || 330;
 
         const activeResizer = side === 'left' ? leftResizer : rightResizer;
         activeResizer.classList.add('is-dragging');
@@ -510,11 +514,11 @@ function setupPanelResizers() {
             if (side === 'left') {
                 const maxLeft = Math.max(260, gridRect.width - initialRight - 380);
                 const nextLeft = clamp(initialLeft + deltaX, 240, maxLeft);
-                setGridVar('--left-panel-width', nextLeft);
+                setGridVar('--left-width', nextLeft);
             } else {
                 const maxRight = Math.max(320, gridRect.width - initialLeft - 320);
-                const nextRight = clamp(initialRight - deltaX, 320, maxRight);
-                setGridVar('--right-panel-width', nextRight);
+                const nextRight = clamp(initialRight - deltaX, 260, maxRight);
+                setGridVar('--right-width', nextRight);
             }
             handleResize();
         };
@@ -534,6 +538,43 @@ function setupPanelResizers() {
 
     leftResizer.addEventListener('mousedown', (event) => startResizerDrag(event, 'left'));
     rightResizer.addEventListener('mousedown', (event) => startResizerDrag(event, 'right'));
+}
+
+function setupCenterResizer() {
+    const centerPanel = elements.centerPanel;
+    const centerResizer = elements.centerResizer;
+    if (!centerPanel || !centerResizer) {
+        return;
+    }
+
+    centerResizer.addEventListener('mousedown', (event) => {
+        event.preventDefault();
+        const startY = event.clientY;
+        const startHeight = centerPanel.style.getPropertyValue('--center-log-height')
+            ? parseFloat(centerPanel.style.getPropertyValue('--center-log-height'))
+            : 230;
+
+        centerResizer.classList.add('is-dragging');
+        document.body.style.cursor = 'row-resize';
+        document.body.style.userSelect = 'none';
+
+        const onMove = (moveEvent) => {
+            const deltaY = moveEvent.clientY - startY;
+            const nextHeight = clamp(startHeight - deltaY, 120, 420);
+            centerPanel.style.setProperty('--center-log-height', `${Math.round(nextHeight)}px`);
+        };
+
+        const onUp = () => {
+            centerResizer.classList.remove('is-dragging');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    });
 }
 
 function setupEventLog() {

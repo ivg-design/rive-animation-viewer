@@ -11,28 +11,26 @@
 <body>
     <div class="app-shell">
         <header class="top-bar" role="toolbar" aria-label="Animation controls">
-            <div class="top-group top-group-left">
+            <div class="header-left">
                 <div class="brand-block">
                     <div class="brand-icon" aria-hidden="true">▶</div>
                     <div class="brand-text">
-                        <strong>ANIM//PLAYER</strong>
-                        <span>Rive v1.5</span>
+                        <strong>RIVE ANIMATION VIEWER</strong>
+                        <span>v1.5.0</span>
                     </div>
                 </div>
-                <input type="file" id="file-input" accept=".riv">
-                <button type="button" id="file-trigger-btn" class="btn btn-muted" onclick="handleFileButtonClick()">Choose File</button>
-                <button type="button" id="demo-bundle-btn" class="btn btn-primary" onclick="createDemoBundle()">Export Demo</button>
-            </div>
 
-            <div class="top-group top-group-center">
-                <label class="control-label" for="runtime-select">Runtime</label>
-                <select id="runtime-select" class="control-select">
-                    <option value="canvas">Canvas</option>
+                <input type="file" id="file-input" accept=".riv">
+                <button type="button" id="file-trigger-btn" class="btn btn-dark" onclick="handleFileButtonClick()">Open</button>
+
+                <label class="header-label" for="runtime-select">Runtime</label>
+                <select id="runtime-select" class="header-select">
                     <option value="webgl2" selected>WebGL2</option>
+                    <option value="canvas">Canvas</option>
                 </select>
 
-                <label class="control-label" for="layout-select">Layout Fit</label>
-                <select id="layout-select" class="control-select">
+                <label class="header-label" for="layout-select">Layout Fit</label>
+                <select id="layout-select" class="header-select">
                     <option value="contain" selected>Contain</option>
                     <option value="cover">Cover</option>
                     <option value="fill">Fill</option>
@@ -42,34 +40,59 @@
                     <option value="none">None</option>
                     <option value="layout">Layout</option>
                 </select>
-
-                <label class="control-label" for="canvas-color-input">BG</label>
-                <input type="color" id="canvas-color-input" value="#0d1117" class="color-input">
             </div>
 
-            <div class="top-group top-group-right" aria-label="Playback controls">
-                <button type="button" class="btn icon-btn" onclick="play()" title="Play" aria-label="Play">Play</button>
-                <button type="button" class="btn icon-btn" onclick="pause()" title="Pause" aria-label="Pause">Pause</button>
-                <button type="button" class="btn icon-btn" onclick="reset()" title="Reset" aria-label="Reset">Reset</button>
+            <div class="header-center">
+                <div class="time-chip">00:00:00</div>
+                <button type="button" class="icon-btn" onclick="play()" title="Play" aria-label="Play">▶</button>
+                <button type="button" class="icon-btn" onclick="pause()" title="Pause" aria-label="Pause">▮▮</button>
+                <button type="button" class="icon-btn" onclick="reset()" title="Reset" aria-label="Reset">↺</button>
+                <div class="fps-chip"><span class="dot"></span>LIVE</div>
+            </div>
+
+            <div class="header-right">
+                <label class="header-label" for="canvas-color-input">BG</label>
+                <input type="color" id="canvas-color-input" value="#0d1117" class="color-input">
+                <button type="button" id="demo-bundle-btn" class="btn btn-primary" onclick="createDemoBundle()">Export Demo</button>
             </div>
         </header>
 
         <div class="error" id="error-message"></div>
 
         <div class="workspace" id="main-grid">
-            <aside class="panel panel-left" id="left-panel">
-                <details class="panel-section" id="vm-controls-panel" open>
-                    <summary>
-                        <span>View Model Inputs</span>
-                        <span class="pill" id="vm-controls-count">0</span>
-                    </summary>
-                    <div class="panel-section-body">
-                        <p class="empty-state" id="vm-controls-empty">No bound ViewModel inputs detected.</p>
-                        <div class="vm-controls-tree" id="vm-controls-tree"></div>
+            <aside class="panel code-panel" id="config-panel">
+                <div class="panel-heading">
+                    <span class="panel-marker"></span>
+                    <span>SCRIPT.JS</span>
+                </div>
+                <div class="code-editor-header">
+                    <h3>animation_controller.js</h3>
+                    <div class="code-editor-actions">
+                        <button type="button" class="btn btn-dark inject-code-btn" onclick="injectCodeSnippet()" title="Explore the riveInstance in the console" aria-label="Explore the riveInstance in the console">Inject VM Explorer</button>
+                        <button type="button" onclick="applyCodeAndReload()" class="btn btn-primary">Apply & Reload</button>
                     </div>
-                </details>
+                </div>
+                <div class="code-editor-body" id="config-content">
+                    <div id="code-editor"></div>
+                    <div class="version-info" id="version-info">Loading runtime versions...</div>
+                </div>
+            </aside>
 
-                <details class="panel-section" id="event-log-panel" open>
+            <div class="panel-resizer" id="left-resizer" aria-hidden="true"></div>
+
+            <section class="panel center-panel" id="center-panel">
+                <div id="canvas-container" class="canvas-drop-target" aria-label="Rive canvas drop zone">
+                    <div class="placeholder">
+                        <p>Drop .riv file or click Open</p>
+                        <p>Runtime and layout are in the top bar</p>
+                    </div>
+                </div>
+
+                <div class="runtime-strip" id="info">Ready to load animation</div>
+
+                <div class="panel-resizer panel-resizer-horizontal" id="center-resizer" aria-hidden="true"></div>
+
+                <details class="panel-section event-log-panel" id="event-log-panel" open>
                     <summary>
                         <span>Event Log</span>
                         <span class="pill" id="event-log-count">0</span>
@@ -82,41 +105,31 @@
                         </div>
                         <div class="event-filter-row">
                             <input type="search" id="event-filter-search" placeholder="Filter events...">
-                            <button type="button" class="btn btn-muted" id="event-log-clear-btn">Clear</button>
+                            <button type="button" class="btn btn-dark" id="event-log-clear-btn">Clear</button>
                         </div>
                         <div class="event-log-list" id="event-log-list"></div>
                     </div>
                 </details>
-            </aside>
-
-            <div class="panel-resizer" id="left-resizer" aria-hidden="true"></div>
-
-            <main class="panel panel-center viewer-container">
-                <div id="canvas-container" class="canvas-drop-target" aria-label="Rive canvas drop zone">
-                    <div class="placeholder">
-                        <p>Upload a .riv file</p>
-                        <p>Use runtime and layout controls in the header</p>
-                    </div>
-                </div>
-                <div class="info" id="info">Ready to load animation</div>
-            </main>
+            </section>
 
             <div class="panel-resizer" id="right-resizer" aria-hidden="true"></div>
 
-            <aside class="panel panel-right code-editor-container" id="config-panel">
-                <div class="code-editor-header">
-                    <h3>Initialization Config (JavaScript)</h3>
-                    <div class="code-editor-actions">
-                        <button type="button" class="inject-code-btn" onclick="injectCodeSnippet()" title="Explore the riveInstance in the console" aria-label="Explore the riveInstance in the console">
-                            Inject VM Explorer
-                        </button>
-                        <button type="button" onclick="applyCodeAndReload()" class="btn btn-primary">Apply & Reload</button>
+            <aside class="panel properties-panel" id="right-panel">
+                <div class="panel-heading">
+                    <span class="panel-marker"></span>
+                    <span>PROPERTIES</span>
+                </div>
+
+                <details class="panel-section" id="vm-controls-panel" open>
+                    <summary>
+                        <span>View Model Inputs</span>
+                        <span class="pill" id="vm-controls-count">0</span>
+                    </summary>
+                    <div class="panel-section-body">
+                        <p class="empty-state" id="vm-controls-empty">No bound ViewModel inputs detected.</p>
+                        <div class="vm-controls-tree" id="vm-controls-tree"></div>
                     </div>
-                </div>
-                <div class="code-editor-body" id="config-content">
-                    <div id="code-editor"></div>
-                    <div class="version-info" id="version-info">Loading runtime versions...</div>
-                </div>
+                </details>
             </aside>
         </div>
     </div>
