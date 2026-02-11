@@ -70,6 +70,8 @@ let configDirty = false;
 let errorTimeoutId = null;
 let currentArtboardName = null;
 let currentCanvasColor = '#0d1117';
+let isLeftPanelVisible = true;
+let isRightPanelVisible = true;
 const runtimeMeta = loadRuntimeMeta();
 let editorView = null;
 let isAutoFilling = false;
@@ -93,6 +95,8 @@ const elements = {
     runtimeStripRuntime: document.getElementById('runtime-strip-runtime'),
     runtimeStripFile: document.getElementById('runtime-strip-file'),
     runtimeStripVersion: document.getElementById('runtime-strip-version'),
+    toggleLeftPanelButton: document.getElementById('toggle-left-panel-btn'),
+    toggleRightPanelButton: document.getElementById('toggle-right-panel-btn'),
     info: document.getElementById('info'),
     error: document.getElementById('error-message'),
     canvasContainer: document.getElementById('canvas-container'),
@@ -133,6 +137,7 @@ async function init() {
     setupDemoButton();
     setupPanelResizers();
     setupCenterResizer();
+    setupPanelVisibilityToggles();
     setupEventLog();
     resetVmInputControls('No animation loaded.');
     resetEventLog();
@@ -502,6 +507,9 @@ function setupPanelResizers() {
     };
 
     const startResizerDrag = (event, side) => {
+        if ((side === 'left' && !isLeftPanelVisible) || (side === 'right' && !isRightPanelVisible)) {
+            return;
+        }
         event.preventDefault();
         const gridRect = grid.getBoundingClientRect();
         const startX = event.clientX;
@@ -583,6 +591,41 @@ function setupCenterResizer() {
         window.addEventListener('mousemove', onMove);
         window.addEventListener('mouseup', onUp);
     });
+}
+
+function setupPanelVisibilityToggles() {
+    const grid = elements.mainGrid;
+    const leftButton = elements.toggleLeftPanelButton;
+    const rightButton = elements.toggleRightPanelButton;
+    if (!grid || !leftButton || !rightButton) {
+        return;
+    }
+
+    const applyVisibility = () => {
+        grid.classList.toggle('left-hidden', !isLeftPanelVisible);
+        grid.classList.toggle('right-hidden', !isRightPanelVisible);
+        leftButton.classList.toggle('is-collapsed', !isLeftPanelVisible);
+        rightButton.classList.toggle('is-collapsed', !isRightPanelVisible);
+        leftButton.setAttribute('aria-pressed', String(isLeftPanelVisible));
+        rightButton.setAttribute('aria-pressed', String(isRightPanelVisible));
+        leftButton.title = isLeftPanelVisible ? 'Hide Script Panel' : 'Show Script Panel';
+        rightButton.title = isRightPanelVisible ? 'Hide Properties Panel' : 'Show Properties Panel';
+        leftButton.setAttribute('aria-label', leftButton.title);
+        rightButton.setAttribute('aria-label', rightButton.title);
+        handleResize();
+    };
+
+    leftButton.addEventListener('click', () => {
+        isLeftPanelVisible = !isLeftPanelVisible;
+        applyVisibility();
+    });
+
+    rightButton.addEventListener('click', () => {
+        isRightPanelVisible = !isRightPanelVisible;
+        applyVisibility();
+    });
+
+    applyVisibility();
 }
 
 function setupEventLog() {
@@ -1719,7 +1762,8 @@ function buildVmHierarchy(rootVm) {
 function createVmNodeElement(node, isRoot = false) {
     const details = document.createElement('details');
     details.className = 'vm-node';
-    details.open = isRoot;
+    const inputCount = Number.isFinite(node?.inputs?.length) ? node.inputs.length : 0;
+    details.open = isRoot ? inputCount <= 12 : false;
 
     const summary = document.createElement('summary');
     summary.textContent = node.label;
@@ -1897,17 +1941,25 @@ function createVmControlRow(descriptor) {
         button.disabled = isDisabled;
         button.addEventListener('click', () => {
             const liveAccessor = resolveVmAccessor(descriptor.path, 'trigger');
-            if (!liveAccessor) {
-                return;
+            if (riveInstance?.isPaused) {
+                riveInstance.play();
             }
-            if (typeof liveAccessor.trigger === 'function') {
+
+            let firedVmTrigger = false;
+            if (liveAccessor && typeof liveAccessor.trigger === 'function') {
                 liveAccessor.trigger();
-                logEvent('ui', 'vm-trigger', `Fired trigger ${descriptor.path}`);
-                return;
-            }
-            if (typeof liveAccessor.fire === 'function') {
+                firedVmTrigger = true;
+            } else if (liveAccessor && typeof liveAccessor.fire === 'function') {
                 liveAccessor.fire();
-                logEvent('ui', 'vm-trigger', `Fired trigger ${descriptor.path}`);
+                firedVmTrigger = true;
+            }
+
+            const firedStateMachineCount = fireStateMachineTriggerByName(descriptor.name);
+            if (firedVmTrigger || firedStateMachineCount > 0) {
+                const suffix = firedStateMachineCount > 0 ? ` (+${firedStateMachineCount} state machine trigger matches)` : '';
+                logEvent('ui', 'vm-trigger', `Fired trigger ${descriptor.path}${suffix}`);
+            } else {
+                logEvent('ui', 'vm-trigger-miss', `No trigger accessor or state machine trigger matched ${descriptor.path}`);
             }
         });
         inputContainer.appendChild(button);
@@ -1931,6 +1983,41 @@ function resolveVmAccessor(path, expectedKind) {
         return null;
     }
     return accessorInfo.accessor;
+}
+
+function fireStateMachineTriggerByName(triggerName) {
+    if (!riveInstance || typeof riveInstance.stateMachineInputs !== 'function' || !triggerName) {
+        return 0;
+    }
+
+    const stateMachineNames = Array.isArray(riveInstance.stateMachineNames) ? riveInstance.stateMachineNames : [];
+    let firedCount = 0;
+
+    stateMachineNames.forEach((stateMachineName) => {
+        let inputs = [];
+        try {
+            const resolvedInputs = riveInstance.stateMachineInputs(stateMachineName);
+            if (Array.isArray(resolvedInputs)) {
+                inputs = resolvedInputs;
+            }
+        } catch {
+            inputs = [];
+        }
+
+        inputs.forEach((input) => {
+            if (!input || input.name !== triggerName || typeof input.fire !== 'function') {
+                return;
+            }
+            try {
+                input.fire();
+                firedCount += 1;
+            } catch {
+                /* noop */
+            }
+        });
+    });
+
+    return firedCount;
 }
 
 function getVmAccessor(rootVm, path) {

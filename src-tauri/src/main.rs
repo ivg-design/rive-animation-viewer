@@ -683,6 +683,38 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
         return accessorInfo.accessor;
       }}
 
+      function fireStateMachineTriggerByName(triggerName) {{
+        if (!riveInstance || typeof riveInstance.stateMachineInputs !== 'function' || !triggerName) {{
+          return 0;
+        }}
+        const stateMachineNames = Array.isArray(riveInstance.stateMachineNames) ? riveInstance.stateMachineNames : [];
+        let firedCount = 0;
+        stateMachineNames.forEach((stateMachineName) => {{
+          let inputs = [];
+          try {{
+            const resolvedInputs = riveInstance.stateMachineInputs(stateMachineName);
+            if (Array.isArray(resolvedInputs)) {{
+              inputs = resolvedInputs;
+            }}
+          }} catch (_error) {{
+            inputs = [];
+          }}
+
+          inputs.forEach((input) => {{
+            if (!input || input.name !== triggerName || typeof input.fire !== 'function') {{
+              return;
+            }}
+            try {{
+              input.fire();
+              firedCount += 1;
+            }} catch (_error) {{
+              /* noop */
+            }}
+          }});
+        }});
+        return firedCount;
+      }}
+
       function createVmControlRow(descriptor) {{
         const row = document.createElement('div');
         row.className = 'vm-control-row';
@@ -810,16 +842,20 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
           button.disabled = disabled;
           button.addEventListener('click', () => {{
             const live = resolveLiveAccessor(descriptor.path, 'trigger');
-            if (!live) {{
-              return;
+            if (riveInstance?.isPaused) {{
+              riveInstance.play();
             }}
-            if (typeof live.trigger === 'function') {{
+
+            let firedVmTrigger = false;
+            if (live && typeof live.trigger === 'function') {{
               live.trigger();
-              return;
-            }}
-            if (typeof live.fire === 'function') {{
+              firedVmTrigger = true;
+            }} else if (live && typeof live.fire === 'function') {{
               live.fire();
+              firedVmTrigger = true;
             }}
+
+            fireStateMachineTriggerByName(descriptor.name);
           }});
           inputWrap.appendChild(button);
         }}
@@ -832,7 +868,8 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       function createVmNodeElement(node, isRoot = false) {{
         const details = document.createElement('details');
         details.className = 'vm-node';
-        details.open = isRoot;
+        const inputCount = Number.isFinite(node?.inputs?.length) ? node.inputs.length : 0;
+        details.open = isRoot ? inputCount <= 12 : false;
 
         const summary = document.createElement('summary');
         summary.textContent = node.label;

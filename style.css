@@ -217,6 +217,17 @@ body {
     background: #232736;
 }
 
+.panel-toggle-btn {
+    width: 34px;
+    height: 34px;
+    font-size: 12px;
+    letter-spacing: 0;
+}
+
+.panel-toggle-btn.is-collapsed {
+    opacity: 0.58;
+}
+
 .time-chip,
 .fps-chip {
     height: 38px;
@@ -250,6 +261,37 @@ body {
     display: grid;
     grid-template-columns: var(--left-width) var(--split-size) minmax(0, 1fr) var(--split-size) var(--right-width);
     gap: 0;
+    transition: grid-template-columns 0.2s ease;
+}
+
+.workspace.left-hidden {
+    grid-template-columns: 0 0 minmax(0, 1fr) var(--split-size) var(--right-width);
+}
+
+.workspace.right-hidden {
+    grid-template-columns: var(--left-width) var(--split-size) minmax(0, 1fr) 0 0;
+}
+
+.workspace.left-hidden.right-hidden {
+    grid-template-columns: 0 0 minmax(0, 1fr) 0 0;
+}
+
+.workspace.left-hidden #config-panel {
+    opacity: 0;
+    transform: translateX(-22px);
+    pointer-events: none;
+}
+
+.workspace.right-hidden #right-panel {
+    opacity: 0;
+    transform: translateX(22px);
+    pointer-events: none;
+}
+
+.workspace.left-hidden #left-resizer,
+.workspace.right-hidden #right-resizer {
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .panel {
@@ -264,8 +306,9 @@ body {
 .properties-panel {
     display: flex;
     flex-direction: column;
-    padding: 0;
-    gap: 0;
+    padding: 12px;
+    gap: 10px;
+    transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 .panel-heading {
@@ -311,12 +354,13 @@ body {
     padding: 0 10px;
 }
 
-.code-editor-body {
+.code-panel-body {
     flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    overflow: hidden;
 }
 
 #code-editor {
@@ -350,7 +394,7 @@ body {
 
 .center-panel {
     display: grid;
-    grid-template-rows: minmax(0, 1fr) auto var(--split-size) var(--center-log-height);
+    grid-template-rows: minmax(0, 1fr) auto var(--split-size) minmax(160px, var(--center-log-height));
     gap: 8px;
     padding: 12px;
 }
@@ -536,20 +580,26 @@ body {
     min-height: 0;
 }
 
-.code-panel-body,
 .properties-panel-body {
-    overflow: hidden;
-}
-
-.properties-panel-body {
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    overflow: hidden;
+}
+
+.properties-spacer {
+    flex: 1;
+    min-height: 0;
 }
 
 .vm-controls-section {
     flex: 1;
     min-height: 0;
+}
+
+.vm-controls-section[open] {
     display: flex;
     flex-direction: column;
 }
@@ -557,7 +607,7 @@ body {
 .vm-controls-body {
     flex: 1;
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
 }
 
 .pill {
@@ -583,7 +633,10 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    flex: 1;
     min-height: 0;
+    overflow: auto;
+    padding-right: 2px;
 }
 
 .vm-node {
@@ -710,19 +763,23 @@ body {
 
 .event-log-panel {
     min-height: 0;
+}
+
+.event-log-panel[open] {
     display: flex;
     flex-direction: column;
 }
 
-.event-log-panel > .panel-section-body {
+.event-log-panel[open] > .panel-section-body {
+    flex: 1;
     min-height: 0;
     overflow: hidden;
 }
 
 .event-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
     color: #9aa0b6;
     font-size: 11px;
 }
@@ -730,8 +787,37 @@ body {
 .event-filters label {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     cursor: pointer;
+    white-space: nowrap;
+}
+
+.event-filters input[type='checkbox'] {
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    border: 1px solid #667091;
+    border-radius: 3px;
+    background: #0f1220;
+    position: relative;
+    cursor: pointer;
+}
+
+.event-filters input[type='checkbox']:checked {
+    border-color: #bffb2a;
+    background: #bffb2a;
+}
+
+.event-filters input[type='checkbox']:checked::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 0px;
+    width: 4px;
+    height: 8px;
+    border: solid #0b0c11;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
 }
 
 .event-filter-row {
@@ -750,6 +836,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 7px;
+    flex: 1;
     min-height: 0;
     overflow: auto;
     padding-right: 2px;
@@ -901,7 +988,7 @@ body {
     }
 
     .center-panel {
-        grid-template-rows: minmax(0, 1fr) auto auto minmax(180px, 32vh);
+        grid-template-rows: minmax(0, 1fr) auto minmax(180px, 32vh);
     }
 
     .vm-control-row {
