@@ -50,10 +50,11 @@ const runtimeWarningsShown = new Set();
 const APP_VERSION = '__APP_VERSION__';
 let resolvedAppVersion = APP_VERSION;
 const DEFAULT_LAYOUT_FIT = 'contain';
-const LAYOUT_FITS = ['cover', 'contain', 'fill', 'fitWidth', 'fitHeight', 'scaleDown', 'scaleUp'];
+const LAYOUT_FITS = ['cover', 'contain', 'fill', 'fitWidth', 'fitHeight', 'scaleDown', 'none', 'layout'];
 const RUNTIME_CACHE_NAME = 'rive-runtime-cache-v1';
 const RUNTIME_META_STORAGE_KEY = 'riveRuntimeMeta';
 const VM_CONTROL_KINDS = new Set(['number', 'boolean', 'string', 'enum', 'color', 'trigger']);
+const EVENT_LOG_LIMIT = 500;
 
 let riveInstance = null;
 let currentFileUrl = null;
@@ -72,6 +73,15 @@ const runtimeMeta = loadRuntimeMeta();
 let editorView = null;
 let isAutoFilling = false;
 let hasAutoReloaded = false;
+const eventLogEntries = [];
+const eventFilterState = {
+    native: true,
+    riveUser: true,
+    ui: true,
+    search: '',
+};
+let eventLogSequence = 0;
+let riveEventUnsubscribers = [];
 
 const elements = {
     versionInfo: document.getElementById('version-info'),
@@ -85,13 +95,22 @@ const elements = {
     canvasContainer: document.getElementById('canvas-container'),
     canvasColorInput: document.getElementById('canvas-color-input'),
     mainGrid: document.getElementById('main-grid'),
+    leftResizer: document.getElementById('left-resizer'),
+    rightResizer: document.getElementById('right-resizer'),
     configPanel: document.getElementById('config-panel'),
-    configToggle: document.getElementById('config-toggle'),
     configContent: document.getElementById('config-content'),
     vmControlsPanel: document.getElementById('vm-controls-panel'),
     vmControlsCount: document.getElementById('vm-controls-count'),
     vmControlsEmpty: document.getElementById('vm-controls-empty'),
-    vmControlsList: document.getElementById('vm-controls-list'),
+    vmControlsTree: document.getElementById('vm-controls-tree'),
+    eventLogPanel: document.getElementById('event-log-panel'),
+    eventLogCount: document.getElementById('event-log-count'),
+    eventLogList: document.getElementById('event-log-list'),
+    eventFilterNative: document.getElementById('event-filter-native'),
+    eventFilterRiveUser: document.getElementById('event-filter-rive-user'),
+    eventFilterUi: document.getElementById('event-filter-ui'),
+    eventFilterSearch: document.getElementById('event-filter-search'),
+    eventLogClearButton: document.getElementById('event-log-clear-btn'),
 };
 
 init();
@@ -103,12 +122,13 @@ async function init() {
     updateFileTriggerButton('empty');
     setupRuntimeSelect();
     setupLayoutSelect();
-    setupConfigToggle();
     await setupCodeEditor();
     setupCanvasColor();
     setupDemoButton();
-    setupResizeHandle();
+    setupPanelResizers();
+    setupEventLog();
     resetVmInputControls('No animation loaded.');
+    resetEventLog();
     window.addEventListener('resize', handleResize);
     window.addEventListener('beforeunload', revokeLastObjectUrl);
     ensureRuntime(currentRuntime)
@@ -130,10 +150,12 @@ function setupFileInput() {
             showError('Please select a .riv file');
             event.target.value = '';
             updateFileTriggerButton('empty');
+            logEvent('ui', 'file-invalid', `Rejected file: ${selectedFile.name}`);
             return;
         }
 
         updateFileTriggerButton('loaded', selectedFile.name);
+        logEvent('ui', 'file-selected', `Selected file: ${selectedFile.name}`);
 
         const buffer = await selectedFile.arrayBuffer();
         const fileUrl = URL.createObjectURL(selectedFile);
@@ -143,6 +165,7 @@ function setupFileInput() {
             await loadRiveAnimation(fileUrl, selectedFile.name);
         } catch {
             // loadRiveAnimation already surfaced the error
+            logEvent('native', 'load-failed', `Failed to load ${selectedFile.name}.`);
         } finally {
             event.target.value = '';
         }
@@ -163,6 +186,7 @@ function setupRuntimeSelect() {
         currentRuntime = selected;
         updateInfo(`Runtime changed to: ${currentRuntime}`);
         updateVersionInfo('Loading runtime...');
+        logEvent('ui', 'runtime-change', `Runtime set to ${currentRuntime}`);
 
         try {
             await ensureRuntime(currentRuntime);
@@ -172,6 +196,7 @@ function setupRuntimeSelect() {
             }
         } catch (error) {
             showError(`Failed to load runtime: ${error.message}`);
+            logEvent('native', 'runtime-load-failed', `Failed to load runtime ${currentRuntime}.`, error);
         }
     });
 }
@@ -194,6 +219,7 @@ function setupLayoutSelect() {
         }
         currentLayoutFit = selected;
         updateInfo(`Layout fit set to: ${currentLayoutFit}`);
+        logEvent('ui', 'layout-change', `Layout fit set to ${currentLayoutFit}`);
         if (currentFileUrl && currentFileName) {
             try {
                 await loadRiveAnimation(currentFileUrl, currentFileName);
@@ -403,6 +429,7 @@ function setupCanvasColor() {
     input.addEventListener('input', (event) => {
         currentCanvasColor = event.target.value || '#0d1117';
         updateCanvasBackground();
+        logEvent('ui', 'canvas-color', `Canvas color changed to ${currentCanvasColor}`);
     });
     updateCanvasBackground();
 }
@@ -450,52 +477,252 @@ function setupDemoButton() {
     );
 }
 
-function setupResizeHandle() {
-    const handle = document.getElementById('resize-handle');
-    const mainGrid = elements.mainGrid;
-    if (!handle || !mainGrid) {
+function setupPanelResizers() {
+    const grid = elements.mainGrid;
+    const leftResizer = elements.leftResizer;
+    const rightResizer = elements.rightResizer;
+    if (!grid || !leftResizer || !rightResizer) {
         return;
     }
 
-    let isResizing = false;
-    let startX = 0;
-    let startWidth = 0;
+    const setGridVar = (key, value) => {
+        grid.style.setProperty(key, `${Math.round(value)}px`);
+    };
 
-    handle.addEventListener('mousedown', (e) => {
-        isResizing = true;
-        startX = e.clientX;
-        const configPanel = document.getElementById('config-panel');
-        if (configPanel) {
-            startWidth = configPanel.offsetWidth;
-        }
-        handle.classList.add('resizing');
+    const startResizerDrag = (event, side) => {
+        event.preventDefault();
+        const gridRect = grid.getBoundingClientRect();
+        const startX = event.clientX;
+        const initialLeft = grid.style.getPropertyValue('--left-panel-width')
+            ? parseFloat(grid.style.getPropertyValue('--left-panel-width'))
+            : document.getElementById('left-panel')?.offsetWidth || 340;
+        const initialRight = grid.style.getPropertyValue('--right-panel-width')
+            ? parseFloat(grid.style.getPropertyValue('--right-panel-width'))
+            : elements.configPanel?.offsetWidth || 460;
+
+        const activeResizer = side === 'left' ? leftResizer : rightResizer;
+        activeResizer.classList.add('is-dragging');
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
-        e.preventDefault();
-    });
 
-    document.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
+        const onMove = (moveEvent) => {
+            const deltaX = moveEvent.clientX - startX;
+            if (side === 'left') {
+                const maxLeft = Math.max(260, gridRect.width - initialRight - 380);
+                const nextLeft = clamp(initialLeft + deltaX, 240, maxLeft);
+                setGridVar('--left-panel-width', nextLeft);
+            } else {
+                const maxRight = Math.max(320, gridRect.width - initialLeft - 320);
+                const nextRight = clamp(initialRight - deltaX, 320, maxRight);
+                setGridVar('--right-panel-width', nextRight);
+            }
+            handleResize();
+        };
 
-        const diff = startX - e.clientX;
-        const newWidth = Math.max(280, startWidth + diff);
-
-        // Update grid template
-        mainGrid.style.gridTemplateColumns = `minmax(0, 1fr) 4px ${newWidth}px`;
-
-        // Resize canvas to match new container size
-        handleResize();
-    });
-
-    document.addEventListener('mouseup', () => {
-        if (isResizing) {
-            isResizing = false;
-            handle.classList.remove('resizing');
+        const onUp = () => {
+            activeResizer.classList.remove('is-dragging');
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
-
-            // Final resize when done dragging
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
             handleResize();
+        };
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    };
+
+    leftResizer.addEventListener('mousedown', (event) => startResizerDrag(event, 'left'));
+    rightResizer.addEventListener('mousedown', (event) => startResizerDrag(event, 'right'));
+}
+
+function setupEventLog() {
+    const native = elements.eventFilterNative;
+    const riveUser = elements.eventFilterRiveUser;
+    const ui = elements.eventFilterUi;
+    const search = elements.eventFilterSearch;
+    const clearButton = elements.eventLogClearButton;
+    if (!native || !riveUser || !ui || !search || !clearButton) {
+        return;
+    }
+
+    native.checked = true;
+    riveUser.checked = true;
+    ui.checked = true;
+    search.value = '';
+
+    native.addEventListener('change', () => {
+        eventFilterState.native = native.checked;
+        renderEventLog();
+    });
+    riveUser.addEventListener('change', () => {
+        eventFilterState.riveUser = riveUser.checked;
+        renderEventLog();
+    });
+    ui.addEventListener('change', () => {
+        eventFilterState.ui = ui.checked;
+        renderEventLog();
+    });
+    search.addEventListener('input', () => {
+        eventFilterState.search = search.value.trim().toLowerCase();
+        renderEventLog();
+    });
+    clearButton.addEventListener('click', () => {
+        resetEventLog();
+        logEvent('ui', 'log-cleared', 'Event log cleared.');
+    });
+}
+
+function resetEventLog() {
+    eventLogEntries.length = 0;
+    eventLogSequence = 0;
+    renderEventLog();
+}
+
+function logEvent(source, type, message, payload) {
+    eventLogEntries.unshift({
+        id: ++eventLogSequence,
+        source,
+        type,
+        message,
+        payload,
+        timestamp: Date.now(),
+    });
+    if (eventLogEntries.length > EVENT_LOG_LIMIT) {
+        eventLogEntries.length = EVENT_LOG_LIMIT;
+    }
+    renderEventLog();
+}
+
+function renderEventLog() {
+    const list = elements.eventLogList;
+    const count = elements.eventLogCount;
+    if (!list || !count) {
+        return;
+    }
+
+    const filtered = eventLogEntries.filter((entry) => {
+        if (entry.source === 'native' && !eventFilterState.native) {
+            return false;
+        }
+        if (entry.source === 'rive-user' && !eventFilterState.riveUser) {
+            return false;
+        }
+        if (entry.source === 'ui' && !eventFilterState.ui) {
+            return false;
+        }
+        if (!eventFilterState.search) {
+            return true;
+        }
+        const haystack = `${entry.type} ${entry.message} ${entry.payload ? JSON.stringify(entry.payload) : ''}`.toLowerCase();
+        return haystack.includes(eventFilterState.search);
+    });
+
+    count.textContent = String(filtered.length);
+    list.innerHTML = '';
+    if (!filtered.length) {
+        const empty = document.createElement('p');
+        empty.className = 'empty-state';
+        empty.textContent = 'No events match current filters.';
+        list.appendChild(empty);
+        return;
+    }
+
+    filtered.forEach((entry) => {
+        const item = document.createElement('article');
+        item.className = 'event-log-item';
+
+        const head = document.createElement('div');
+        head.className = 'event-log-head';
+
+        const type = document.createElement('span');
+        type.className = 'event-log-type';
+        type.textContent = entry.type;
+
+        const time = document.createElement('span');
+        time.className = 'event-log-time';
+        time.textContent = formatEventTime(entry.timestamp);
+
+        const source = document.createElement('span');
+        source.className = `event-log-source ${entry.source}`;
+        source.textContent = entry.source;
+
+        head.appendChild(type);
+        head.appendChild(time);
+
+        const body = document.createElement('pre');
+        body.className = 'event-log-message';
+        body.textContent = entry.payload
+            ? `${entry.message}\n${safeJson(entry.payload)}`
+            : entry.message;
+
+        item.appendChild(head);
+        item.appendChild(source);
+        item.appendChild(body);
+        list.appendChild(item);
+    });
+}
+
+function formatEventTime(timestamp) {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    });
+}
+
+function safeJson(value) {
+    try {
+        return JSON.stringify(value, null, 2);
+    } catch {
+        return String(value);
+    }
+}
+
+function safelyInvokeUserCallback(callback, event, callbackName) {
+    if (typeof callback !== 'function') {
+        return;
+    }
+    try {
+        callback(event);
+    } catch (error) {
+        console.warn(`Error in user ${callbackName}:`, error);
+    }
+}
+
+function clearRiveEventListeners() {
+    riveEventUnsubscribers.forEach((unsubscribe) => {
+        try {
+            unsubscribe();
+        } catch {
+            /* noop */
+        }
+    });
+    riveEventUnsubscribers = [];
+}
+
+function attachRiveUserEventListeners(runtime, instance) {
+    clearRiveEventListeners();
+    if (!runtime?.EventType || !instance || typeof instance.on !== 'function') {
+        return;
+    }
+
+    const eventType = runtime.EventType.RiveEvent;
+    if (!eventType) {
+        return;
+    }
+
+    const listener = (event) => {
+        const payload = event?.data ?? event;
+        logEvent('rive-user', 'riveevent', 'Rive user event emitted.', payload);
+    };
+
+    instance.on(eventType, listener);
+    riveEventUnsubscribers.push(() => {
+        if (typeof instance.off === 'function') {
+            instance.off(eventType, listener);
         }
     });
 }
@@ -529,6 +756,7 @@ async function loadRiveAnimation(fileUrl, fileName) {
 
     updateInfo(`Loading ${fileName} (${currentRuntime})...`);
     resetVmInputControls('Loading ViewModel inputs...');
+    logEvent('native', 'load-start', `Loading ${fileName} on ${currentRuntime}.`);
 
     try {
         const runtime = await ensureRuntime(currentRuntime);
@@ -549,8 +777,15 @@ async function loadRiveAnimation(fileUrl, fileName) {
         lastInitConfig = { ...userConfig };
         const config = { ...userConfig };
 
-        // Save user's onLoad callback
+        // Preserve user callbacks and wrap them so native events are logged.
         const userOnLoad = config.onLoad;
+        const userOnLoadError = config.onLoadError;
+        const userOnPlay = config.onPlay;
+        const userOnPause = config.onPause;
+        const userOnStop = config.onStop;
+        const userOnLoop = config.onLoop;
+        const userOnStateChange = config.onStateChange;
+        const userOnAdvance = config.onAdvance;
 
         if (config.artboard) {
             currentArtboardName = config.artboard;
@@ -572,6 +807,7 @@ async function loadRiveAnimation(fileUrl, fileName) {
             hideError();
             resizeCanvas(canvas);
             riveInstance?.resizeDrawingSurfaceToCanvas();
+            logEvent('native', 'load', `Loaded ${fileName} using ${currentRuntime}.`);
 
             // Get state machine names from instance (same as v1.2.6)
             const names = Array.isArray(riveInstance?.stateMachineNames) ? riveInstance.stateMachineNames : [];
@@ -620,6 +856,31 @@ async function loadRiveAnimation(fileUrl, fileName) {
         config.onLoadError = (error) => {
             const errorMsg = error?.message || error?.toString() || String(error);
             showError(`Error loading animation: ${errorMsg}`);
+            logEvent('native', 'loaderror', `Load error for ${fileName}.`, error);
+            safelyInvokeUserCallback(userOnLoadError, error, 'onLoadError');
+        };
+        config.onPlay = (event) => {
+            logEvent('native', 'play', 'Playback started by runtime.', event);
+            safelyInvokeUserCallback(userOnPlay, event, 'onPlay');
+        };
+        config.onPause = (event) => {
+            logEvent('native', 'pause', 'Playback paused by runtime.', event);
+            safelyInvokeUserCallback(userOnPause, event, 'onPause');
+        };
+        config.onStop = (event) => {
+            logEvent('native', 'stop', 'Playback stopped by runtime.', event);
+            safelyInvokeUserCallback(userOnStop, event, 'onStop');
+        };
+        config.onLoop = (event) => {
+            logEvent('native', 'loop', 'Loop event emitted by runtime.', event);
+            safelyInvokeUserCallback(userOnLoop, event, 'onLoop');
+        };
+        config.onStateChange = (event) => {
+            logEvent('native', 'statechange', 'State machine changed state.', event);
+            safelyInvokeUserCallback(userOnStateChange, event, 'onStateChange');
+        };
+        config.onAdvance = (event) => {
+            safelyInvokeUserCallback(userOnAdvance, event, 'onAdvance');
         };
 
         const instanceConfig = currentRuntime === 'webgl2'
@@ -629,8 +890,10 @@ async function loadRiveAnimation(fileUrl, fileName) {
         riveInstance = new runtime.Rive(instanceConfig);
         // Expose globally for code editor access
         window.riveInst = riveInstance;
+        attachRiveUserEventListeners(runtime, riveInstance);
     } catch (error) {
         showError(`Error initializing Rive: ${error.message}`);
+        logEvent('native', 'init-error', 'Error initializing runtime instance.', error);
         throw error;
     }
 }
@@ -641,6 +904,7 @@ async function applyCodeAndReload() {
         return;
     }
 
+    logEvent('ui', 'apply-reload', 'Applied editor config and reloaded animation.');
     try {
         await loadRiveAnimation(currentFileUrl, currentFileName);
     } catch {
@@ -652,6 +916,7 @@ function play() {
     if (riveInstance) {
         riveInstance.play();
         updateInfo('Playing');
+        logEvent('ui', 'play', 'Playback started from UI.');
     }
 }
 
@@ -659,6 +924,7 @@ function pause() {
     if (riveInstance) {
         riveInstance.pause();
         updateInfo('Paused');
+        logEvent('ui', 'pause', 'Playback paused from UI.');
     }
 }
 
@@ -666,6 +932,7 @@ function reset() {
     if (riveInstance) {
         riveInstance.reset();
         updateInfo('Reset');
+        logEvent('ui', 'reset', 'Animation reset from UI.');
     }
 }
 
@@ -911,11 +1178,14 @@ async function createDemoBundle() {
     };
 
     updateInfo('Building demo bundle...');
+    logEvent('ui', 'demo-build', `Building demo bundle for ${currentFileName}.`);
     try {
         const outputPath = await invoke('make_demo_bundle', { payload });
         updateInfo(`Demo bundle saved to: ${outputPath}`);
+        logEvent('ui', 'demo-build-success', `Demo bundle saved: ${outputPath}`);
     } catch (error) {
         showError(`Failed to create demo bundle: ${error.message || error}`);
+        logEvent('ui', 'demo-build-failed', 'Failed to build demo bundle.', error);
     }
 }
 
@@ -1002,6 +1272,7 @@ function handleResize() {
 }
 
 function cleanupInstance() {
+    clearRiveEventListeners();
     if (riveInstance?.cleanup) {
         riveInstance.cleanup();
     }
@@ -1221,11 +1492,11 @@ function resetVmInputControls(message = 'No bound ViewModel inputs detected.') {
     const panel = elements.vmControlsPanel;
     const count = elements.vmControlsCount;
     const empty = elements.vmControlsEmpty;
-    const list = elements.vmControlsList;
-    if (!panel || !count || !empty || !list) {
+    const tree = elements.vmControlsTree;
+    if (!panel || !count || !empty || !tree) {
         return;
     }
-    list.innerHTML = '';
+    tree.innerHTML = '';
     count.textContent = '0';
     empty.hidden = false;
     empty.textContent = message;
@@ -1235,8 +1506,8 @@ function renderVmInputControls() {
     const panel = elements.vmControlsPanel;
     const count = elements.vmControlsCount;
     const empty = elements.vmControlsEmpty;
-    const list = elements.vmControlsList;
-    if (!panel || !count || !empty || !list) {
+    const tree = elements.vmControlsTree;
+    if (!panel || !count || !empty || !tree) {
         return;
     }
 
@@ -1246,20 +1517,18 @@ function renderVmInputControls() {
         return;
     }
 
-    const descriptors = collectVmInputDescriptors(rootVm);
-    list.innerHTML = '';
-    count.textContent = String(descriptors.length);
+    const hierarchy = buildVmHierarchy(rootVm);
+    tree.innerHTML = '';
+    count.textContent = String(hierarchy.totalInputs);
 
-    if (!descriptors.length) {
+    if (!hierarchy.totalInputs && !hierarchy.children.length) {
         empty.hidden = false;
         empty.textContent = 'No writable ViewModel inputs were found.';
         return;
     }
 
     empty.hidden = true;
-    descriptors.forEach((descriptor) => {
-        list.appendChild(createVmControlRow(descriptor));
-    });
+    tree.appendChild(createVmNodeElement(hierarchy, true));
 }
 
 function resolveVmRootInstance() {
@@ -1290,17 +1559,24 @@ function resolveVmRootInstance() {
     return null;
 }
 
-function collectVmInputDescriptors(rootVm) {
-    const descriptors = [];
-    const seenPaths = new Set();
+function buildVmHierarchy(rootVm) {
+    const seenInputPaths = new Set();
     const activeInstances = new WeakSet();
+    let totalInputs = 0;
 
-    const walk = (instance, basePath) => {
+    const walk = (instance, label, basePath, kind = 'vm') => {
+        const node = {
+            label,
+            path: basePath || '<root>',
+            kind,
+            inputs: [],
+            children: [],
+        };
         if (!instance || typeof instance !== 'object') {
-            return;
+            return node;
         }
         if (activeInstances.has(instance)) {
-            return;
+            return node;
         }
         activeInstances.add(instance);
 
@@ -1313,37 +1589,97 @@ function collectVmInputDescriptors(rootVm) {
 
             const fullPath = basePath ? `${basePath}/${name}` : name;
             const accessorInfo = getVmAccessor(rootVm, fullPath);
-            if (accessorInfo && VM_CONTROL_KINDS.has(accessorInfo.kind) && !seenPaths.has(fullPath)) {
-                descriptors.push({
+            if (accessorInfo && VM_CONTROL_KINDS.has(accessorInfo.kind) && !seenInputPaths.has(fullPath)) {
+                node.inputs.push({
+                    name,
                     path: fullPath,
                     kind: accessorInfo.kind,
                 });
-                seenPaths.add(fullPath);
+                seenInputPaths.add(fullPath);
+                totalInputs += 1;
             }
 
             const nestedVm = safeVmMethodCall(instance, 'viewModelInstance', name)
                 || safeVmMethodCall(instance, 'viewModel', name);
             if (nestedVm && nestedVm !== instance) {
-                walk(nestedVm, fullPath);
+                node.children.push(walk(nestedVm, name, fullPath, 'vm'));
             }
 
             const listAccessor = safeVmMethodCall(instance, 'list', name);
             const listLength = getVmListLength(listAccessor);
-            for (let index = 0; index < listLength; index += 1) {
-                const itemInstance = getVmListItemAt(listAccessor, index);
-                if (!itemInstance) {
-                    continue;
+            if (listLength > 0) {
+                const listNode = {
+                    label: `${name} [${listLength}]`,
+                    path: fullPath,
+                    kind: 'list',
+                    inputs: [],
+                    children: [],
+                };
+                for (let index = 0; index < listLength; index += 1) {
+                    const itemInstance = getVmListItemAt(listAccessor, index);
+                    if (!itemInstance) {
+                        continue;
+                    }
+                    const itemPath = `${fullPath}/${index}`;
+                    listNode.children.push(walk(itemInstance, `Instance ${index}`, itemPath, 'instance'));
                 }
-                const itemPath = `${fullPath}/${index}`;
-                walk(itemInstance, itemPath);
+                node.children.push(listNode);
             }
         });
 
         activeInstances.delete(instance);
+        return node;
     };
 
-    walk(rootVm, '');
-    return descriptors.sort((a, b) => a.path.localeCompare(b.path));
+    const rootNode = walk(rootVm, 'Root VM', '', 'vm');
+    rootNode.totalInputs = totalInputs;
+    return rootNode;
+}
+
+function createVmNodeElement(node, isRoot = false) {
+    const details = document.createElement('details');
+    details.className = 'vm-node';
+    details.open = isRoot;
+
+    const summary = document.createElement('summary');
+    summary.textContent = node.label;
+
+    const meta = document.createElement('span');
+    meta.className = 'vm-node-meta';
+    meta.textContent = `${node.inputs.length} inputs`;
+    summary.appendChild(meta);
+    details.appendChild(summary);
+
+    const body = document.createElement('div');
+    body.className = 'vm-node-body';
+
+    if (node.inputs.length) {
+        const inputList = document.createElement('div');
+        inputList.className = 'vm-input-list';
+        node.inputs.forEach((input) => {
+            inputList.appendChild(createVmControlRow(input));
+        });
+        body.appendChild(inputList);
+    }
+
+    if (node.children.length) {
+        const childrenContainer = document.createElement('div');
+        childrenContainer.className = 'vm-child-nodes';
+        node.children.forEach((child) => {
+            childrenContainer.appendChild(createVmNodeElement(child));
+        });
+        body.appendChild(childrenContainer);
+    }
+
+    if (!node.inputs.length && !node.children.length) {
+        const empty = document.createElement('p');
+        empty.className = 'empty-state';
+        empty.textContent = `No controls in ${node.label}.`;
+        body.appendChild(empty);
+    }
+
+    details.appendChild(body);
+    return details;
 }
 
 function createVmControlRow(descriptor) {
@@ -1351,8 +1687,9 @@ function createVmControlRow(descriptor) {
     row.className = 'vm-control-row';
 
     const label = document.createElement('div');
-    label.className = 'vm-control-path';
-    label.textContent = `${descriptor.path} (${descriptor.kind})`;
+    label.className = 'vm-control-label';
+    label.textContent = `${descriptor.name} (${descriptor.kind})`;
+    label.title = descriptor.path;
 
     const inputContainer = document.createElement('div');
     inputContainer.className = 'vm-control-input';
@@ -1374,6 +1711,7 @@ function createVmControlRow(descriptor) {
             const liveAccessor = resolveVmAccessor(descriptor.path, 'number');
             if (liveAccessor) {
                 liveAccessor.value = nextValue;
+                logEvent('ui', 'vm-number', `Set ${descriptor.path} = ${nextValue}`);
             }
         });
         inputContainer.appendChild(numberInput);
@@ -1386,6 +1724,7 @@ function createVmControlRow(descriptor) {
             const liveAccessor = resolveVmAccessor(descriptor.path, 'boolean');
             if (liveAccessor) {
                 liveAccessor.value = checkbox.checked;
+                logEvent('ui', 'vm-boolean', `Set ${descriptor.path} = ${checkbox.checked}`);
             }
         });
         inputContainer.appendChild(checkbox);
@@ -1398,6 +1737,7 @@ function createVmControlRow(descriptor) {
             const liveAccessor = resolveVmAccessor(descriptor.path, 'string');
             if (liveAccessor) {
                 liveAccessor.value = textInput.value;
+                logEvent('ui', 'vm-string', `Set ${descriptor.path} = ${textInput.value}`);
             }
         });
         inputContainer.appendChild(textInput);
@@ -1424,6 +1764,7 @@ function createVmControlRow(descriptor) {
             const liveAccessor = resolveVmAccessor(descriptor.path, 'enum');
             if (liveAccessor) {
                 liveAccessor.value = select.value;
+                logEvent('ui', 'vm-enum', `Set ${descriptor.path} = ${select.value}`);
             }
         });
         inputContainer.appendChild(select);
@@ -1456,9 +1797,11 @@ function createVmControlRow(descriptor) {
             const alpha = Math.round((alphaPercent / 100) * 255);
             if (typeof liveAccessor.argb === 'function') {
                 liveAccessor.argb(alpha, rgb.r, rgb.g, rgb.b);
+                logEvent('ui', 'vm-color', `Set ${descriptor.path} color to ${colorInput.value} (${alphaPercent}%).`);
                 return;
             }
             liveAccessor.value = rgbAlphaToArgb(rgb.r, rgb.g, rgb.b, alpha);
+            logEvent('ui', 'vm-color', `Set ${descriptor.path} color to ${colorInput.value} (${alphaPercent}%).`);
         };
 
         colorInput.addEventListener('input', applyColor);
@@ -1479,10 +1822,12 @@ function createVmControlRow(descriptor) {
             }
             if (typeof liveAccessor.trigger === 'function') {
                 liveAccessor.trigger();
+                logEvent('ui', 'vm-trigger', `Fired trigger ${descriptor.path}`);
                 return;
             }
             if (typeof liveAccessor.fire === 'function') {
                 liveAccessor.fire();
+                logEvent('ui', 'vm-trigger', `Fired trigger ${descriptor.path}`);
             }
         });
         inputContainer.appendChild(button);
@@ -1815,6 +2160,7 @@ function handleFileButtonClick() {
         clearCurrentFile();
         updateFileTriggerButton('empty');
         elements.fileInput.value = '';
+        logEvent('ui', 'file-cleared', 'Cleared current animation.');
     }
     elements.fileInput.click();
 }
@@ -1833,9 +2179,10 @@ function clearCurrentFile() {
     elements.canvasContainer.innerHTML = `
         <div class="placeholder">
             <p>Upload a .riv file</p>
-            <p style="font-size: 11px; margin-top: 10px; opacity: 0.6;">Use the runtime & layout controls above</p>
+            <p style="font-size: 11px; margin-top: 10px; opacity: 0.6;">Use runtime and layout controls in the header</p>
         </div>
     `;
+    resetVmInputControls('No bound ViewModel inputs detected.');
 }
 
 function updateFileTriggerButton(state, fileName) {
@@ -1844,13 +2191,13 @@ function updateFileTriggerButton(state, fileName) {
         return;
     }
     if (state === 'loaded' && fileName) {
-        button.classList.remove('primary');
-        button.classList.add('loaded');
+        button.classList.remove('btn-muted');
+        button.classList.add('btn-file-loaded');
         button.textContent = fileName;
         button.title = fileName;
     } else {
-        button.classList.remove('loaded');
-        button.classList.add('primary');
+        button.classList.remove('btn-file-loaded');
+        button.classList.add('btn-muted');
         button.textContent = 'Choose File';
         button.title = 'Choose File';
     }

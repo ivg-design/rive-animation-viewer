@@ -9,139 +9,115 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <div class="toolbar" role="toolbar" aria-label="Animation controls">
-            <div class="toolbar-group file-picker-group">
-                <label for="file-input">Load .riv file</label>
+    <div class="app-shell">
+        <header class="top-bar" role="toolbar" aria-label="Animation controls">
+            <div class="top-group top-group-left">
+                <div class="brand-block">
+                    <div class="brand-icon" aria-hidden="true">▶</div>
+                    <div class="brand-text">
+                        <strong>ANIM//PLAYER</strong>
+                        <span>Rive v1.5</span>
+                    </div>
+                </div>
                 <input type="file" id="file-input" accept=".riv">
-                <button type="button" id="file-trigger-btn" class="primary file-trigger-btn" onclick="handleFileButtonClick()">
-                    Choose File
-                </button>
+                <button type="button" id="file-trigger-btn" class="btn btn-muted" onclick="handleFileButtonClick()">Choose File</button>
+                <button type="button" id="demo-bundle-btn" class="btn btn-primary" onclick="createDemoBundle()">Export Demo</button>
             </div>
-            <div class="toolbar-group">
-                <label for="runtime-select">Runtime</label>
-                <select id="runtime-select">
+
+            <div class="top-group top-group-center">
+                <label class="control-label" for="runtime-select">Runtime</label>
+                <select id="runtime-select" class="control-select">
                     <option value="canvas">Canvas</option>
-                    <option value="webgl2" selected>WebGL2 (Default)</option>
+                    <option value="webgl2" selected>WebGL2</option>
                 </select>
-            </div>
-            <div class="toolbar-group">
-                <label for="layout-select">Layout Fit</label>
-                <select id="layout-select">
+
+                <label class="control-label" for="layout-select">Layout Fit</label>
+                <select id="layout-select" class="control-select">
                     <option value="contain" selected>Contain</option>
                     <option value="cover">Cover</option>
                     <option value="fill">Fill</option>
                     <option value="fitWidth">Fit Width</option>
                     <option value="fitHeight">Fit Height</option>
                     <option value="scaleDown">Scale Down</option>
-                    <option value="scaleUp">Scale Up</option>
+                    <option value="none">None</option>
+                    <option value="layout">Layout</option>
                 </select>
+
+                <label class="control-label" for="canvas-color-input">BG</label>
+                <input type="color" id="canvas-color-input" value="#0d1117" class="color-input">
             </div>
-            <div class="toolbar-group playback-group" aria-label="Playback controls">
-                <span class="toolbar-label">Playback</span>
-                <div class="playback-buttons">
-                    <button type="button" class="icon-button" onclick="play()" title="Play" aria-label="Play">
-                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M8 5v14l11-7z"></path>
-                        </svg>
-                        <span class="sr-only">Play</span>
-                    </button>
-                    <button type="button" class="icon-button" onclick="pause()" title="Pause" aria-label="Pause">
-                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M6 5h4v14H6zM14 5h4v14h-4z"></path>
-                        </svg>
-                        <span class="sr-only">Pause</span>
-                    </button>
-                    <button type="button" class="icon-button" onclick="reset()" title="Reset" aria-label="Reset">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" aria-hidden="true" focusable="false">
-                            <rect width="256" height="256" fill="none"></rect>
-                            <polyline points="88 96 40 96 40 48" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></polyline>
-                            <path d="M40,96,68.28,67.72A88,88,0,0,1,192,67" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></path>
-                            <polyline points="168 160 216 160 216 208" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></polyline>
-                            <path d="M216,160l-28.28,28.28A88,88,0,0,1,64,189" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></path>
-                        </svg>
-                        <span class="sr-only">Reset</span>
-                    </button>
-                </div>
+
+            <div class="top-group top-group-right" aria-label="Playback controls">
+                <button type="button" class="btn icon-btn" onclick="play()" title="Play" aria-label="Play">Play</button>
+                <button type="button" class="btn icon-btn" onclick="pause()" title="Pause" aria-label="Pause">Pause</button>
+                <button type="button" class="btn icon-btn" onclick="reset()" title="Reset" aria-label="Reset">Reset</button>
             </div>
-            <div class="toolbar-group demo-group" aria-label="Demo bundle control">
-                <label for="demo-bundle-btn">Demo Bundle</label>
-                <button type="button" id="demo-bundle-btn" class="primary demo-button" onclick="createDemoBundle()">
-                    Make Demo File
-                </button>
-            </div>
-            <div class="toolbar-group color-group">
-                <label for="canvas-color-input">BG Color</label>
-                <input type="color" id="canvas-color-input" value="#0d1117">
-            </div>
-            <div class="toolbar-group config-toggle-group">
-                <label for="config-toggle">Settings</label>
-                <button
-                    type="button"
-                    class="icon-button config-toggle-btn"
-                    id="config-toggle"
-                    aria-expanded="true"
-                    aria-controls="config-panel"
-                    title="Toggle settings panel"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" aria-hidden="true" focusable="false" class="config-icon">
-                        <rect width="256" height="256" fill="none"></rect>
-                        <line x1="120" y1="128" x2="216" y2="128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
-                        <line x1="120" y1="64" x2="216" y2="64" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
-                        <line x1="40" y1="192" x2="216" y2="192" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
-                        <polyline points="72 56 32 96 72 136" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></polyline>
-                    </svg>
-                </button>
-            </div>
-        </div>
+        </header>
 
         <div class="error" id="error-message"></div>
 
-        <div class="main-grid" id="main-grid">
-            <div class="viewer-container">
+        <div class="workspace" id="main-grid">
+            <aside class="panel panel-left" id="left-panel">
+                <details class="panel-section" id="vm-controls-panel" open>
+                    <summary>
+                        <span>View Model Inputs</span>
+                        <span class="pill" id="vm-controls-count">0</span>
+                    </summary>
+                    <div class="panel-section-body">
+                        <p class="empty-state" id="vm-controls-empty">No bound ViewModel inputs detected.</p>
+                        <div class="vm-controls-tree" id="vm-controls-tree"></div>
+                    </div>
+                </details>
+
+                <details class="panel-section" id="event-log-panel" open>
+                    <summary>
+                        <span>Event Log</span>
+                        <span class="pill" id="event-log-count">0</span>
+                    </summary>
+                    <div class="panel-section-body">
+                        <div class="event-filters">
+                            <label><input type="checkbox" id="event-filter-native" checked> Native</label>
+                            <label><input type="checkbox" id="event-filter-rive-user" checked> Rive User</label>
+                            <label><input type="checkbox" id="event-filter-ui" checked> UI</label>
+                        </div>
+                        <div class="event-filter-row">
+                            <input type="search" id="event-filter-search" placeholder="Filter events...">
+                            <button type="button" class="btn btn-muted" id="event-log-clear-btn">Clear</button>
+                        </div>
+                        <div class="event-log-list" id="event-log-list"></div>
+                    </div>
+                </details>
+            </aside>
+
+            <div class="panel-resizer" id="left-resizer" aria-hidden="true"></div>
+
+            <main class="panel panel-center viewer-container">
                 <div id="canvas-container" class="canvas-drop-target" aria-label="Rive canvas drop zone">
                     <div class="placeholder">
                         <p>Upload a .riv file</p>
-                        <p style="font-size: 11px; margin-top: 10px; opacity: 0.6;">Use the runtime & layout controls above</p>
+                        <p>Use runtime and layout controls in the header</p>
                     </div>
                 </div>
+                <div class="info" id="info">Ready to load animation</div>
+            </main>
 
-                <div class="info" id="info">
-                    Ready to load animation
-                </div>
+            <div class="panel-resizer" id="right-resizer" aria-hidden="true"></div>
 
-                <details class="vm-controls-panel" id="vm-controls-panel" open>
-                    <summary>
-                        VM Inputs
-                        <span class="vm-count" id="vm-controls-count">0</span>
-                    </summary>
-                    <div class="vm-controls-content">
-                        <p class="vm-controls-empty" id="vm-controls-empty">No bound ViewModel inputs detected.</p>
-                        <div class="vm-controls-list" id="vm-controls-list"></div>
-                    </div>
-                </details>
-            </div>
-
-            <div class="resize-handle" id="resize-handle"></div>
-
-            <div class="code-editor-container" id="config-panel">
+            <aside class="panel panel-right code-editor-container" id="config-panel">
                 <div class="code-editor-header">
                     <h3>Initialization Config (JavaScript)</h3>
-                    <button type="button" class="inject-code-btn" onclick="injectCodeSnippet()" title="Explore the riveInstance in the console" aria-label="Explore the riveInstance in the console">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="18" height="18">
-                            <rect width="256" height="256" fill="none"/>
-                            <path d="M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm-91,94.25-40,32a8,8,0,1,1-10-12.5L107.19,128,75,102.25a8,8,0,1,1,10-12.5l40,32a8,8,0,0,1,0,12.5ZM176,168H136a8,8,0,0,1,0-16h40a8,8,0,0,1,0,16Z" fill="currentColor"/>
-                        </svg>
-                    </button>
+                    <div class="code-editor-actions">
+                        <button type="button" class="inject-code-btn" onclick="injectCodeSnippet()" title="Explore the riveInstance in the console" aria-label="Explore the riveInstance in the console">
+                            Inject VM Explorer
+                        </button>
+                        <button type="button" onclick="applyCodeAndReload()" class="btn btn-primary">Apply & Reload</button>
+                    </div>
                 </div>
                 <div class="code-editor-body" id="config-content">
                     <div id="code-editor"></div>
-                    <button type="button" onclick="applyCodeAndReload()" class="primary apply-code-btn">Apply & Reload</button>
-                    <div class="version-info" id="version-info">
-                        Loading runtime versions...
-                    </div>
+                    <div class="version-info" id="version-info">Loading runtime versions...</div>
                 </div>
-            </div>
+            </aside>
         </div>
     </div>
 
