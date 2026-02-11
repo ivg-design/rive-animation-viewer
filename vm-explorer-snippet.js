@@ -4,6 +4,7 @@
 const vmExplorerSnippet = `
 onLoad: () => {
     riveInst.resizeDrawingSurfaceToCanvas();
+    window.refreshVmInputControls && window.refreshVmInputControls();
 
 		var rootVM = riveInst.viewModelInstance;
 		if (!rootVM) {
@@ -13,7 +14,7 @@ onLoad: () => {
 
 		// ------------- core: get/set via full paths on the ROOT instance -------------
 
-		function getVmAccessor(path) {
+		function getVmAccessorInfo(path) {
 			if (!rootVM) {
 				console.warn('No root ViewModelInstance.');
 				return null;
@@ -24,25 +25,57 @@ onLoad: () => {
 				return null;
 			}
 
-			// Let the runtime resolve the whole chain: this is what you were saying.
-			var acc = (rootVM.number && rootVM.number(cleanPath)) || (rootVM.boolean && rootVM.boolean(cleanPath)) || (rootVM.string && rootVM.string(cleanPath)) || (rootVM.enum && rootVM.enum(cleanPath));
+			// Let the runtime resolve the whole chain from the root instance.
+			var numberAcc = rootVM.number && rootVM.number(cleanPath);
+			var boolAcc = !numberAcc && rootVM.boolean && rootVM.boolean(cleanPath);
+			var stringAcc = !numberAcc && !boolAcc && rootVM.string && rootVM.string(cleanPath);
+			var enumAcc = !numberAcc && !boolAcc && !stringAcc && rootVM.enum && rootVM.enum(cleanPath);
+			var colorAcc = !numberAcc && !boolAcc && !stringAcc && !enumAcc && rootVM.color && rootVM.color(cleanPath);
+			var triggerAcc = !numberAcc && !boolAcc && !stringAcc && !enumAcc && !colorAcc && rootVM.trigger && rootVM.trigger(cleanPath);
 
+			var acc = numberAcc || boolAcc || stringAcc || enumAcc || colorAcc || triggerAcc;
 			if (!acc) {
 				console.warn('No accessor found for path:', cleanPath);
+				return null;
 			}
-			return acc;
+			return {
+				path: cleanPath,
+				kind: numberAcc ? 'number' : boolAcc ? 'boolean' : stringAcc ? 'string' : enumAcc ? 'enum' : colorAcc ? 'color' : 'trigger',
+				accessor: acc,
+			};
+		}
+
+		function getVmAccessor(path) {
+			var info = getVmAccessorInfo(path);
+			return info ? info.accessor : null;
 		}
 
 		function getVmValue(path) {
-			var acc = getVmAccessor(path);
-			return acc ? acc.value : undefined;
+			var info = getVmAccessorInfo(path);
+			if (!info) return undefined;
+			if (info.kind === 'trigger') return '(trigger)';
+			return info.accessor ? info.accessor.value : undefined;
 		}
 
 		function setVmValue(path, newValue) {
-			var acc = getVmAccessor(path);
-			if (!acc) return undefined;
-			acc.value = newValue;
-			return acc.value;
+			var info = getVmAccessorInfo(path);
+			if (!info || !info.accessor) return undefined;
+			if (info.kind === 'trigger') {
+				if (info.accessor.trigger) info.accessor.trigger();
+				return true;
+			}
+			info.accessor.value = newValue;
+			return info.accessor.value;
+		}
+
+		function fireVmTrigger(path) {
+			var info = getVmAccessorInfo(path);
+			if (!info || info.kind !== 'trigger' || !info.accessor) {
+				console.warn('No trigger accessor found at path:', path);
+				return false;
+			}
+			if (info.accessor.trigger) info.accessor.trigger();
+			return true;
 		}
 
 		// ------------- tree builder: discover structure + paths ----------------------
@@ -50,6 +83,8 @@ onLoad: () => {
 		// Node shape: { path, scalars: [...], children: { segment: node } }
 		var vmTree = { path: '<root>', scalars: [], children: {} };
 		var scalarPaths = [];
+		var vmInputs = [];
+		var activeInstances = new WeakSet();
 
 		function ensureChildNode(parentNode, segPath, segKey) {
 			if (!parentNode.children[segKey]) {
@@ -62,8 +97,17 @@ onLoad: () => {
 			return parentNode.children[segKey];
 		}
 
+		function addVmInput(path, kind) {
+			for (var i = 0; i < vmInputs.length; i++) {
+				if (vmInputs[i].path === path) return;
+			}
+			vmInputs.push({ path: path, kind: kind });
+		}
+
 		function buildTree(instance, basePath, parentNode) {
 			if (!instance || !instance.properties) return;
+			if (activeInstances.has(instance)) return;
+			activeInstances.add(instance);
 
 			var props = instance.properties;
 			for (var i = 0; i < props.length; i++) {
@@ -74,15 +118,11 @@ onLoad: () => {
 				// Node for this property level
 				var childNode = ensureChildNode(parentNode, fullPath, name);
 
-				// Scalar? Ask the ROOT instance by full path (this is key).
-				var accNumber = rootVM.number && rootVM.number(fullPath);
-				var accBool = !accNumber && rootVM.boolean && rootVM.boolean(fullPath);
-				var accString = !accNumber && !accBool && rootVM.string && rootVM.string(fullPath);
-				var accEnum = !accNumber && !accBool && !accString && rootVM.enum && rootVM.enum(fullPath);
-
-				if (accNumber || accBool || accString || accEnum) {
-					var kind = accNumber ? 'number' : accBool ? 'boolean' : accString ? 'string' : 'enum';
-					var value = accNumber || accBool || accString || accEnum ? (accNumber || accBool || accString || accEnum).value : null;
+				// Scalar/writable input? Ask the ROOT instance by full path.
+				var accessorInfo = getVmAccessorInfo(fullPath);
+				if (accessorInfo) {
+					var kind = accessorInfo.kind;
+					var value = kind === 'trigger' ? '(trigger)' : accessorInfo.accessor ? accessorInfo.accessor.value : null;
 
 					childNode.scalars.push({
 						name: name,
@@ -91,6 +131,7 @@ onLoad: () => {
 						value: value,
 					});
 					scalarPaths.push(fullPath);
+					addVmInput(fullPath, kind);
 				}
 
 				// Nested view model instance under this property?
@@ -102,8 +143,9 @@ onLoad: () => {
 
 				// List? We will treat list items as children "0", "1", etc.
 				var list = instance.list && instance.list(name);
-				if (list && typeof list.length === 'number') {
-					for (var idx = 0; idx < list.length; idx++) {
+				var listLength = list && typeof list.length === 'number' ? list.length : list && typeof list.size === 'number' ? list.size : 0;
+				if (list && listLength > 0) {
+					for (var idx = 0; idx < listLength; idx++) {
 						var instAt = list.instanceAt && list.instanceAt(idx);
 						if (!instAt) continue;
 						var idxSeg = String(idx);
@@ -113,6 +155,7 @@ onLoad: () => {
 					}
 				}
 			}
+			activeInstances.delete(instance);
 		}
 
 		// Build once on load
@@ -169,6 +212,11 @@ onLoad: () => {
 				} else if (sc.kind === 'enum' && currentInstance.enum) {
 					var enumAcc = currentInstance.enum(sc.name);
 					scalarValue = enumAcc ? enumAcc.value : getVmValue(sc.path);
+				} else if (sc.kind === 'color' && currentInstance.color) {
+					var colorAcc = currentInstance.color(sc.name);
+					scalarValue = colorAcc ? colorAcc.value : getVmValue(sc.path);
+				} else if (sc.kind === 'trigger') {
+					scalarValue = '(trigger)';
 				} else {
 					scalarValue = getVmValue(sc.path);
 				}
@@ -267,6 +315,7 @@ onLoad: () => {
 		window.vmRootInstance = rootVM;
 		window.vmTree = vmTree;
 		window.vmPaths = scalarPaths;
+		window.vmInputs = vmInputs;
 
 		window.vmAccessor = function (path) {
 			return getVmAccessor(path);
@@ -276,6 +325,9 @@ onLoad: () => {
 		};
 		window.vmSet = function (path, value) {
 			return setVmValue(path, value);
+		};
+		window.vmFire = function (path) {
+			return fireVmTrigger(path);
 		};
 		window.vmExplore = function (prefix) {
 			return exploreVmLevel(prefix || '');

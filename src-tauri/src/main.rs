@@ -149,6 +149,118 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       background: transparent;
       cursor: pointer;
     }}
+    .vm-controls-panel {{
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      background: #0d1117;
+      overflow: hidden;
+    }}
+    .vm-controls-panel > summary {{
+      padding: 10px 12px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      text-transform: uppercase;
+      font-size: 12px;
+      color: #8b949e;
+      letter-spacing: 0.35px;
+      user-select: none;
+      list-style: none;
+    }}
+    .vm-controls-panel > summary::-webkit-details-marker {{
+      display: none;
+    }}
+    .vm-controls-count {{
+      min-width: 22px;
+      height: 22px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: rgba(56, 139, 253, 0.16);
+      border: 1px solid rgba(56, 139, 253, 0.45);
+      color: #58a6ff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }}
+    .vm-controls-content {{
+      border-top: 1px solid #30363d;
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }}
+    .vm-controls-empty {{
+      font-size: 12px;
+      color: #6e7681;
+    }}
+    .vm-controls-list {{
+      display: grid;
+      gap: 8px;
+    }}
+    .vm-control-row {{
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      background: #161b22;
+      padding: 8px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(120px, 46%);
+      gap: 10px;
+      align-items: center;
+    }}
+    .vm-control-path {{
+      font-size: 11px;
+      color: #8b949e;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }}
+    .vm-control-input input[type="text"],
+    .vm-control-input input[type="number"],
+    .vm-control-input select {{
+      width: 100%;
+      min-width: 0;
+      height: 34px;
+      border-radius: 6px;
+      border: 1px solid #30363d;
+      background: #0d1117;
+      color: #c9d1d9;
+      padding: 0 8px;
+      font: inherit;
+      font-size: 13px;
+    }}
+    .vm-control-input input[type="checkbox"] {{
+      width: 18px;
+      height: 18px;
+    }}
+    .vm-control-input button {{
+      width: 100%;
+      height: 34px;
+      font-size: 12px;
+      padding: 0 8px;
+    }}
+    .vm-color-control {{
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 56px;
+      gap: 6px;
+      align-items: center;
+    }}
+    .vm-color-control input[type="color"] {{
+      width: 100%;
+      min-width: 0;
+      height: 34px;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      background: #0d1117;
+      padding: 0;
+    }}
+    .vm-color-control input[type="number"] {{
+      width: 56px;
+      padding: 0 6px;
+    }}
     footer {{
       padding: 12px 20px;
       font-size: 12px;
@@ -165,6 +277,7 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       border-radius: 0;
     }}
     body.fullscreen-mode .controls,
+    body.fullscreen-mode .vm-controls-panel,
     body.fullscreen-mode footer {{
       display: none;
     }}
@@ -214,6 +327,14 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       height: 100%;
       display: block;
     }}
+    @media (max-width: 720px) {{
+      .vm-control-row {{
+        grid-template-columns: 1fr;
+      }}
+      .vm-controls-content {{
+        max-height: 180px;
+      }}
+    }}
   </style>
 </head>
 <body>
@@ -225,6 +346,16 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       <button id="fullscreen-btn">Fullscreen</button>
       <label>Canvas color<input type="color" id="bg-color-input" value="{canvas_color}"></label>
     </div>
+    <details class="vm-controls-panel" id="vm-controls-panel" open>
+      <summary>
+        VM Inputs
+        <span class="vm-controls-count" id="vm-controls-count">0</span>
+      </summary>
+      <div class="vm-controls-content">
+        <p class="vm-controls-empty" id="vm-controls-empty">No bound ViewModel inputs detected.</p>
+        <div class="vm-controls-list" id="vm-controls-list"></div>
+      </div>
+    </details>
   </main>
   <footer>© 2025 IVG Design · MIT License · Rive runtime © Rive</footer>
   <div id="fullscreen-trigger"></div>
@@ -242,7 +373,11 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
     (function() {{
       const config = window.__DEMO_CONFIG__;
       const canvas = document.getElementById('rive-canvas');
-      const layout = new window.rive.Layout({{ fit: 'contain', alignment: 'center' }});
+      const layout = new window.rive.Layout({{ fit: config.layoutFit || 'contain', alignment: 'center' }});
+      const vmPanel = document.getElementById('vm-controls-panel');
+      const vmCount = document.getElementById('vm-controls-count');
+      const vmEmpty = document.getElementById('vm-controls-empty');
+      const vmList = document.getElementById('vm-controls-list');
 
       function applyCanvasColor(color) {{
         document.documentElement.style.setProperty('--canvas-color', color);
@@ -267,6 +402,375 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
         return URL.createObjectURL(blob);
       }}
 
+      function normalizeStateMachines(value) {{
+        if (Array.isArray(value)) {{
+          return value.filter((entry) => typeof entry === 'string' && entry.trim().length > 0);
+        }}
+        if (typeof value === 'string' && value.trim().length > 0) {{
+          return [value];
+        }}
+        return [];
+      }}
+
+      function resetVmControls(message) {{
+        if (!vmPanel || !vmCount || !vmEmpty || !vmList) {{
+          return;
+        }}
+        vmList.innerHTML = '';
+        vmCount.textContent = '0';
+        vmEmpty.hidden = false;
+        vmEmpty.textContent = message || 'No bound ViewModel inputs detected.';
+      }}
+
+      function resolveVmRootInstance() {{
+        if (!riveInstance) {{
+          return null;
+        }}
+        if (riveInstance.viewModelInstance) {{
+          return riveInstance.viewModelInstance;
+        }}
+        try {{
+          const defaultViewModel = typeof riveInstance.defaultViewModel === 'function'
+            ? riveInstance.defaultViewModel()
+            : null;
+          if (!defaultViewModel) {{
+            return null;
+          }}
+          if (typeof defaultViewModel.defaultInstance === 'function') {{
+            return defaultViewModel.defaultInstance();
+          }}
+          if (typeof defaultViewModel.instance === 'function') {{
+            return defaultViewModel.instance();
+          }}
+        }} catch (_error) {{
+          return null;
+        }}
+        return null;
+      }}
+
+      function safeVmCall(target, methodName, arg) {{
+        if (!target || typeof target[methodName] !== 'function') {{
+          return null;
+        }}
+        try {{
+          return target[methodName](arg) || null;
+        }} catch (_error) {{
+          return null;
+        }}
+      }}
+
+      function getVmAccessor(rootVm, path) {{
+        const probes = [
+          ['number', 'number'],
+          ['boolean', 'boolean'],
+          ['string', 'string'],
+          ['enum', 'enum'],
+          ['color', 'color'],
+          ['trigger', 'trigger'],
+        ];
+
+        for (const [kind, methodName] of probes) {{
+          const accessor = safeVmCall(rootVm, methodName, path);
+          if (accessor) {{
+            return {{ kind, accessor }};
+          }}
+        }}
+        return null;
+      }}
+
+      function getListLength(listAccessor) {{
+        if (!listAccessor) {{
+          return 0;
+        }}
+        if (typeof listAccessor.length === 'number') {{
+          return Math.max(0, Math.floor(listAccessor.length));
+        }}
+        if (typeof listAccessor.size === 'number') {{
+          return Math.max(0, Math.floor(listAccessor.size));
+        }}
+        return 0;
+      }}
+
+      function collectVmInputs(rootVm) {{
+        const descriptors = [];
+        const seenPaths = new Set();
+        const activeInstances = new WeakSet();
+
+        const walk = (instance, basePath) => {{
+          if (!instance || typeof instance !== 'object' || activeInstances.has(instance)) {{
+            return;
+          }}
+          activeInstances.add(instance);
+
+          const properties = Array.isArray(instance.properties) ? instance.properties : [];
+          properties.forEach((property) => {{
+            const name = property?.name;
+            if (typeof name !== 'string' || !name) {{
+              return;
+            }}
+            const fullPath = basePath ? `${{basePath}}/${{name}}` : name;
+            const accessorInfo = getVmAccessor(rootVm, fullPath);
+            if (accessorInfo && !seenPaths.has(fullPath)) {{
+              descriptors.push({{ path: fullPath, kind: accessorInfo.kind }});
+              seenPaths.add(fullPath);
+            }}
+
+            const nestedVm = safeVmCall(instance, 'viewModelInstance', name) || safeVmCall(instance, 'viewModel', name);
+            if (nestedVm && nestedVm !== instance) {{
+              walk(nestedVm, fullPath);
+            }}
+
+            const listAccessor = safeVmCall(instance, 'list', name);
+            const listLength = getListLength(listAccessor);
+            for (let index = 0; index < listLength; index += 1) {{
+              let itemInstance = null;
+              try {{
+                itemInstance = listAccessor?.instanceAt ? listAccessor.instanceAt(index) : null;
+              }} catch (_error) {{
+                itemInstance = null;
+              }}
+              if (!itemInstance) {{
+                continue;
+              }}
+              walk(itemInstance, `${{fullPath}}/${{index}}`);
+            }}
+          }});
+
+          activeInstances.delete(instance);
+        }};
+
+        walk(rootVm, '');
+        return descriptors.sort((a, b) => a.path.localeCompare(b.path));
+      }}
+
+      function clamp(value, min, max) {{
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {{
+          return min;
+        }}
+        return Math.min(max, Math.max(min, numeric));
+      }}
+
+      function toHexByte(value) {{
+        return clamp(Math.round(value), 0, 255).toString(16).padStart(2, '0');
+      }}
+
+      function argbToColorMeta(value) {{
+        const raw = Number.isFinite(Number(value)) ? Number(value) >>> 0 : 0xff000000;
+        const alpha = (raw >>> 24) & 255;
+        const red = (raw >>> 16) & 255;
+        const green = (raw >>> 8) & 255;
+        const blue = raw & 255;
+        return {{
+          hex: `#${{toHexByte(red)}}${{toHexByte(green)}}${{toHexByte(blue)}}`,
+          alphaPercent: Math.round((alpha / 255) * 100),
+        }};
+      }}
+
+      function hexToRgb(hex) {{
+        const cleanHex = String(hex || '').replace('#', '');
+        if (!/^[0-9a-fA-F]{{6}}$/.test(cleanHex)) {{
+          return {{ r: 0, g: 0, b: 0 }};
+        }}
+        return {{
+          r: parseInt(cleanHex.slice(0, 2), 16),
+          g: parseInt(cleanHex.slice(2, 4), 16),
+          b: parseInt(cleanHex.slice(4, 6), 16),
+        }};
+      }}
+
+      function rgbAlphaToArgb(red, green, blue, alpha) {{
+        return (
+          ((clamp(alpha, 0, 255) & 255) << 24)
+          | ((clamp(red, 0, 255) & 255) << 16)
+          | ((clamp(green, 0, 255) & 255) << 8)
+          | (clamp(blue, 0, 255) & 255)
+        ) >>> 0;
+      }}
+
+      function resolveLiveAccessor(path, expectedKind) {{
+        const rootVm = resolveVmRootInstance();
+        if (!rootVm) {{
+          return null;
+        }}
+        const accessorInfo = getVmAccessor(rootVm, path);
+        if (!accessorInfo) {{
+          return null;
+        }}
+        if (expectedKind && accessorInfo.kind !== expectedKind) {{
+          return null;
+        }}
+        return accessorInfo.accessor;
+      }}
+
+      function createVmControlRow(descriptor) {{
+        const row = document.createElement('div');
+        row.className = 'vm-control-row';
+
+        const pathEl = document.createElement('div');
+        pathEl.className = 'vm-control-path';
+        pathEl.textContent = `${{descriptor.path}} (${{descriptor.kind}})`;
+
+        const inputWrap = document.createElement('div');
+        inputWrap.className = 'vm-control-input';
+        const accessor = resolveLiveAccessor(descriptor.path, descriptor.kind);
+        const disabled = !accessor;
+
+        if (descriptor.kind === 'number') {{
+          const input = document.createElement('input');
+          input.type = 'number';
+          input.step = 'any';
+          input.value = Number.isFinite(accessor?.value) ? String(accessor.value) : '0';
+          input.disabled = disabled;
+          input.addEventListener('change', () => {{
+            const nextValue = Number(input.value);
+            if (!Number.isFinite(nextValue)) {{
+              return;
+            }}
+            const live = resolveLiveAccessor(descriptor.path, 'number');
+            if (live) {{
+              live.value = nextValue;
+            }}
+          }});
+          inputWrap.appendChild(input);
+        }} else if (descriptor.kind === 'boolean') {{
+          const input = document.createElement('input');
+          input.type = 'checkbox';
+          input.checked = Boolean(accessor?.value);
+          input.disabled = disabled;
+          input.addEventListener('change', () => {{
+            const live = resolveLiveAccessor(descriptor.path, 'boolean');
+            if (live) {{
+              live.value = input.checked;
+            }}
+          }});
+          inputWrap.appendChild(input);
+        }} else if (descriptor.kind === 'string') {{
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.value = typeof accessor?.value === 'string' ? accessor.value : '';
+          input.disabled = disabled;
+          input.addEventListener('change', () => {{
+            const live = resolveLiveAccessor(descriptor.path, 'string');
+            if (live) {{
+              live.value = input.value;
+            }}
+          }});
+          inputWrap.appendChild(input);
+        }} else if (descriptor.kind === 'enum') {{
+          const select = document.createElement('select');
+          const values = Array.isArray(accessor?.values) ? accessor.values : [];
+          values.forEach((value) => {{
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            select.appendChild(option);
+          }});
+          if (!values.length) {{
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = '(no enum values)';
+            select.appendChild(option);
+          }}
+          if (typeof accessor?.value === 'string') {{
+            select.value = accessor.value;
+          }}
+          select.disabled = disabled || values.length === 0;
+          select.addEventListener('change', () => {{
+            const live = resolveLiveAccessor(descriptor.path, 'enum');
+            if (live) {{
+              live.value = select.value;
+            }}
+          }});
+          inputWrap.appendChild(select);
+        }} else if (descriptor.kind === 'color') {{
+          const colorWrap = document.createElement('div');
+          colorWrap.className = 'vm-color-control';
+          const colorInput = document.createElement('input');
+          const alphaInput = document.createElement('input');
+          colorInput.type = 'color';
+          alphaInput.type = 'number';
+          alphaInput.min = '0';
+          alphaInput.max = '100';
+          alphaInput.step = '1';
+
+          const meta = argbToColorMeta(accessor?.value);
+          colorInput.value = meta.hex;
+          alphaInput.value = String(meta.alphaPercent);
+          colorInput.disabled = disabled;
+          alphaInput.disabled = disabled;
+
+          const applyColor = () => {{
+            const live = resolveLiveAccessor(descriptor.path, 'color');
+            if (!live) {{
+              return;
+            }}
+            const rgb = hexToRgb(colorInput.value);
+            const alphaPercent = clamp(alphaInput.value, 0, 100);
+            alphaInput.value = String(Math.round(alphaPercent));
+            const alpha = Math.round((alphaPercent / 100) * 255);
+            if (typeof live.argb === 'function') {{
+              live.argb(alpha, rgb.r, rgb.g, rgb.b);
+              return;
+            }}
+            live.value = rgbAlphaToArgb(rgb.r, rgb.g, rgb.b, alpha);
+          }};
+
+          colorInput.addEventListener('input', applyColor);
+          alphaInput.addEventListener('change', applyColor);
+
+          colorWrap.appendChild(colorInput);
+          colorWrap.appendChild(alphaInput);
+          inputWrap.appendChild(colorWrap);
+        }} else if (descriptor.kind === 'trigger') {{
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.textContent = 'Fire';
+          button.disabled = disabled;
+          button.addEventListener('click', () => {{
+            const live = resolveLiveAccessor(descriptor.path, 'trigger');
+            if (!live) {{
+              return;
+            }}
+            if (typeof live.trigger === 'function') {{
+              live.trigger();
+              return;
+            }}
+            if (typeof live.fire === 'function') {{
+              live.fire();
+            }}
+          }});
+          inputWrap.appendChild(button);
+        }}
+
+        row.appendChild(pathEl);
+        row.appendChild(inputWrap);
+        return row;
+      }}
+
+      function renderVmControls() {{
+        if (!vmPanel || !vmCount || !vmEmpty || !vmList) {{
+          return;
+        }}
+        const rootVm = resolveVmRootInstance();
+        if (!rootVm) {{
+          resetVmControls('No bound ViewModel inputs detected.');
+          return;
+        }}
+        const descriptors = collectVmInputs(rootVm);
+        vmList.innerHTML = '';
+        vmCount.textContent = String(descriptors.length);
+        if (!descriptors.length) {{
+          vmEmpty.hidden = false;
+          vmEmpty.textContent = 'No writable ViewModel inputs were found.';
+          return;
+        }}
+        vmEmpty.hidden = true;
+        descriptors.forEach((descriptor) => {{
+          vmList.appendChild(createVmControlRow(descriptor));
+        }});
+      }}
+
       const animationUrl = base64ToUrl(config.animationBase64);
       let riveInstance;
 
@@ -281,17 +785,20 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
           riveInstance.cleanup?.();
           riveInstance = null;
         }}
+        resetVmControls('Loading ViewModel inputs...');
+        const stateMachines = normalizeStateMachines(config.stateMachines);
         riveInstance = new window.rive.Rive({{
           src: animationUrl,
           canvas,
           autoplay: config.autoplay !== false,
           autoBind: true,
-          stateMachines: config.stateMachines || [],
+          stateMachines,
           artboard: config.artboardName || undefined,
           layout,
           onLoad: () => {{
             resizeCanvas();
             riveInstance?.resizeDrawingSurfaceToCanvas();
+            renderVmControls();
           }}
         }});
       }}
@@ -366,6 +873,7 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
         riveInstance?.resizeDrawingSurfaceToCanvas();
       }});
 
+      resetVmControls('No animation loaded.');
       initRive();
     }})();
   </script>

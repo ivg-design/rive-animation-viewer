@@ -32,7 +32,8 @@ async function loadCodeMirror() {
     }
 }
 
-const RIVE_VERSION = 'latest';
+const RIVE_VERSION = '2.34.3';
+const MIN_SCRIPTING_RUNTIME_VERSION = '2.34.0';
 const runtimeSources = {
     canvas: `https://cdn.jsdelivr.net/npm/@rive-app/canvas@${RIVE_VERSION}`,
     webgl2: `https://cdn.jsdelivr.net/npm/@rive-app/webgl2@${RIVE_VERSION}`,
@@ -45,12 +46,14 @@ const runtimeResolvedUrls = {};
 const runtimeSourceTexts = {};
 const runtimeBlobUrls = {};
 const runtimeAssets = {};
+const runtimeWarningsShown = new Set();
 const APP_VERSION = '__APP_VERSION__';
 let resolvedAppVersion = APP_VERSION;
 const DEFAULT_LAYOUT_FIT = 'contain';
 const LAYOUT_FITS = ['cover', 'contain', 'fill', 'fitWidth', 'fitHeight', 'scaleDown', 'scaleUp'];
 const RUNTIME_CACHE_NAME = 'rive-runtime-cache-v1';
 const RUNTIME_META_STORAGE_KEY = 'riveRuntimeMeta';
+const VM_CONTROL_KINDS = new Set(['number', 'boolean', 'string', 'enum', 'color', 'trigger']);
 
 let riveInstance = null;
 let currentFileUrl = null;
@@ -85,6 +88,10 @@ const elements = {
     configPanel: document.getElementById('config-panel'),
     configToggle: document.getElementById('config-toggle'),
     configContent: document.getElementById('config-content'),
+    vmControlsPanel: document.getElementById('vm-controls-panel'),
+    vmControlsCount: document.getElementById('vm-controls-count'),
+    vmControlsEmpty: document.getElementById('vm-controls-empty'),
+    vmControlsList: document.getElementById('vm-controls-list'),
 };
 
 init();
@@ -101,6 +108,7 @@ async function init() {
     setupCanvasColor();
     setupDemoButton();
     setupResizeHandle();
+    resetVmInputControls('No animation loaded.');
     window.addEventListener('resize', handleResize);
     window.addEventListener('beforeunload', revokeLastObjectUrl);
     ensureRuntime(currentRuntime)
@@ -251,12 +259,14 @@ async function setupCodeEditor() {
     // Set initial code
     const initialCode = `// You can define functions and helpers here
 // riveInst is available as a global variable
+// Runtimes are pinned to ${RIVE_VERSION} for scripting/ViewModel support
 
 ({
   autoplay: true,
   autoBind: true,
   onLoad: () => {
     riveInst.resizeDrawingSurfaceToCanvas();
+    window.refreshVmInputControls?.();
   }
 })`;
 
@@ -518,6 +528,7 @@ async function loadRiveAnimation(fileUrl, fileName) {
     }
 
     updateInfo(`Loading ${fileName} (${currentRuntime})...`);
+    resetVmInputControls('Loading ViewModel inputs...');
 
     try {
         const runtime = await ensureRuntime(currentRuntime);
@@ -602,6 +613,8 @@ async function loadRiveAnimation(fileUrl, fileName) {
                     console.warn('Error in user onLoad:', e);
                 }
             }
+
+            renderVmInputControls();
         };
 
         config.onLoadError = (error) => {
@@ -681,6 +694,7 @@ async function injectCodeSnippet() {
     // Default onLoad snippet
     const defaultSnippet = `onLoad: () => {
     riveInst.resizeDrawingSurfaceToCanvas();
+    window.refreshVmInputControls?.();
   }`;
 
     // Load VM exploration snippet from external file
@@ -702,6 +716,7 @@ async function injectCodeSnippet() {
         vmExplorerSnippet = `
   onLoad: () => {
     riveInst.resizeDrawingSurfaceToCanvas();
+    window.refreshVmInputControls?.();
     console.log("VM explorer snippet not loaded - using basic onLoad");
   }`;
     }
@@ -834,10 +849,14 @@ ${props.join(',\n')}
             console.log('  %cvmSet("path", value)%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
             console.log('    → Update value at path');
             console.log('    → Example: vmSet("settings/volume", 0.8)');
+            console.log('  %cvmFire("path")%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
+            console.log('    → Fire a trigger input at path');
+            console.log('    → Example: vmFire("settings/apply")');
             console.log('');
             console.log('%cAvailable Data Structures:', 'color: #FF9800; font-weight: bold');
             console.log('  %cvmTree%c         - Full hierarchical structure of all ViewModels', 'color: #4CAF50; font-family: monospace', 'color: #888');
             console.log('  %cvmPaths%c        - Array of all scalar property paths (ready for get/set)', 'color: #4CAF50; font-family: monospace', 'color: #888');
+            console.log('  %cvmInputs%c       - Full list of detected writable VM inputs', 'color: #4CAF50; font-family: monospace', 'color: #888');
             console.log('  %cvmRootInstance%c - The root ViewModelInstance object', 'color: #4CAF50; font-family: monospace', 'color: #888');
             console.log('');
             console.log('%cQuick Start:', 'color: #9C27B0; font-weight: bold');
@@ -846,6 +865,7 @@ ${props.join(',\n')}
             console.log('  3. Navigate deeper with %cvmExplore("path/to/item")%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
             console.log('  4. Read values with %cvmGet("path")%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
             console.log('  5. Modify values with %cvmSet("path", newValue)%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
+            console.log('  6. Fire triggers with %cvmFire("path")%c', 'color: #4CAF50; font-family: monospace', 'color: #888');
             console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #666');
         }
     } catch (error) {
@@ -871,11 +891,11 @@ async function createDemoBundle() {
         return;
     }
 
-    const stateMachines = Array.isArray(riveInstance?.stateMachineNames)
+    const configuredStateMachines = normalizeStateMachineSelection(lastInitConfig.stateMachines);
+    const detectedStateMachines = Array.isArray(riveInstance?.stateMachineNames)
         ? riveInstance.stateMachineNames
-        : Array.isArray(lastInitConfig.stateMachines)
-            ? lastInitConfig.stateMachines
-            : [];
+        : [];
+    const stateMachines = configuredStateMachines.length ? configuredStateMachines : detectedStateMachines;
 
     const payload = {
         file_name: currentFileName,
@@ -986,6 +1006,8 @@ function cleanupInstance() {
         riveInstance.cleanup();
     }
     riveInstance = null;
+    window.riveInst = null;
+    resetVmInputControls('No animation loaded.');
 }
 
 function revokeLastObjectUrl() {
@@ -1150,10 +1172,436 @@ async function responseToRuntimeAsset(response) {
 async function ensureRuntime(runtimeName) {
     const runtime = await loadRuntime(runtimeName);
     window.rive = runtime;
+    warnIfRuntimeLacksScripting(runtimeName);
     if (runtimeName === currentRuntime) {
         updateVersionInfo();
     }
     return runtime;
+}
+
+function warnIfRuntimeLacksScripting(runtimeName) {
+    const version = runtimeVersions[runtimeName] || runtimeRegistry[runtimeName]?.version;
+    if (!version || isSemverAtLeast(version, MIN_SCRIPTING_RUNTIME_VERSION)) {
+        return;
+    }
+    const warningKey = `${runtimeName}@${version}`;
+    if (runtimeWarningsShown.has(warningKey)) {
+        return;
+    }
+    runtimeWarningsShown.add(warningKey);
+    showError(`Runtime ${runtimeName}@${version} is below ${MIN_SCRIPTING_RUNTIME_VERSION}; VM scripting may be unavailable.`);
+}
+
+function isSemverAtLeast(version, minimum) {
+    const currentParts = parseSemverParts(version);
+    const minimumParts = parseSemverParts(minimum);
+    if (!currentParts || !minimumParts) {
+        return true;
+    }
+    for (let index = 0; index < 3; index += 1) {
+        if (currentParts[index] > minimumParts[index]) {
+            return true;
+        }
+        if (currentParts[index] < minimumParts[index]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function parseSemverParts(rawVersion) {
+    const match = String(rawVersion || '').match(/(\d+)\.(\d+)\.(\d+)/);
+    if (!match) {
+        return null;
+    }
+    return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+function resetVmInputControls(message = 'No bound ViewModel inputs detected.') {
+    const panel = elements.vmControlsPanel;
+    const count = elements.vmControlsCount;
+    const empty = elements.vmControlsEmpty;
+    const list = elements.vmControlsList;
+    if (!panel || !count || !empty || !list) {
+        return;
+    }
+    list.innerHTML = '';
+    count.textContent = '0';
+    empty.hidden = false;
+    empty.textContent = message;
+}
+
+function renderVmInputControls() {
+    const panel = elements.vmControlsPanel;
+    const count = elements.vmControlsCount;
+    const empty = elements.vmControlsEmpty;
+    const list = elements.vmControlsList;
+    if (!panel || !count || !empty || !list) {
+        return;
+    }
+
+    const rootVm = resolveVmRootInstance();
+    if (!rootVm) {
+        resetVmInputControls('No bound ViewModel inputs detected.');
+        return;
+    }
+
+    const descriptors = collectVmInputDescriptors(rootVm);
+    list.innerHTML = '';
+    count.textContent = String(descriptors.length);
+
+    if (!descriptors.length) {
+        empty.hidden = false;
+        empty.textContent = 'No writable ViewModel inputs were found.';
+        return;
+    }
+
+    empty.hidden = true;
+    descriptors.forEach((descriptor) => {
+        list.appendChild(createVmControlRow(descriptor));
+    });
+}
+
+function resolveVmRootInstance() {
+    if (!riveInstance) {
+        return null;
+    }
+    if (riveInstance.viewModelInstance) {
+        return riveInstance.viewModelInstance;
+    }
+
+    try {
+        const defaultViewModel = typeof riveInstance.defaultViewModel === 'function'
+            ? riveInstance.defaultViewModel()
+            : null;
+        if (!defaultViewModel) {
+            return null;
+        }
+        if (typeof defaultViewModel.defaultInstance === 'function') {
+            return defaultViewModel.defaultInstance();
+        }
+        if (typeof defaultViewModel.instance === 'function') {
+            return defaultViewModel.instance();
+        }
+    } catch (error) {
+        console.warn('Unable to resolve default ViewModel instance', error);
+    }
+
+    return null;
+}
+
+function collectVmInputDescriptors(rootVm) {
+    const descriptors = [];
+    const seenPaths = new Set();
+    const activeInstances = new WeakSet();
+
+    const walk = (instance, basePath) => {
+        if (!instance || typeof instance !== 'object') {
+            return;
+        }
+        if (activeInstances.has(instance)) {
+            return;
+        }
+        activeInstances.add(instance);
+
+        const properties = Array.isArray(instance.properties) ? instance.properties : [];
+        properties.forEach((property) => {
+            const name = property?.name;
+            if (typeof name !== 'string' || !name) {
+                return;
+            }
+
+            const fullPath = basePath ? `${basePath}/${name}` : name;
+            const accessorInfo = getVmAccessor(rootVm, fullPath);
+            if (accessorInfo && VM_CONTROL_KINDS.has(accessorInfo.kind) && !seenPaths.has(fullPath)) {
+                descriptors.push({
+                    path: fullPath,
+                    kind: accessorInfo.kind,
+                });
+                seenPaths.add(fullPath);
+            }
+
+            const nestedVm = safeVmMethodCall(instance, 'viewModelInstance', name)
+                || safeVmMethodCall(instance, 'viewModel', name);
+            if (nestedVm && nestedVm !== instance) {
+                walk(nestedVm, fullPath);
+            }
+
+            const listAccessor = safeVmMethodCall(instance, 'list', name);
+            const listLength = getVmListLength(listAccessor);
+            for (let index = 0; index < listLength; index += 1) {
+                const itemInstance = getVmListItemAt(listAccessor, index);
+                if (!itemInstance) {
+                    continue;
+                }
+                const itemPath = `${fullPath}/${index}`;
+                walk(itemInstance, itemPath);
+            }
+        });
+
+        activeInstances.delete(instance);
+    };
+
+    walk(rootVm, '');
+    return descriptors.sort((a, b) => a.path.localeCompare(b.path));
+}
+
+function createVmControlRow(descriptor) {
+    const row = document.createElement('div');
+    row.className = 'vm-control-row';
+
+    const label = document.createElement('div');
+    label.className = 'vm-control-path';
+    label.textContent = `${descriptor.path} (${descriptor.kind})`;
+
+    const inputContainer = document.createElement('div');
+    inputContainer.className = 'vm-control-input';
+
+    const accessor = resolveVmAccessor(descriptor.path, descriptor.kind);
+    const isDisabled = !accessor;
+
+    if (descriptor.kind === 'number') {
+        const numberInput = document.createElement('input');
+        numberInput.type = 'number';
+        numberInput.step = 'any';
+        numberInput.value = Number.isFinite(accessor?.value) ? String(accessor.value) : '0';
+        numberInput.disabled = isDisabled;
+        numberInput.addEventListener('change', () => {
+            const nextValue = Number(numberInput.value);
+            if (!Number.isFinite(nextValue)) {
+                return;
+            }
+            const liveAccessor = resolveVmAccessor(descriptor.path, 'number');
+            if (liveAccessor) {
+                liveAccessor.value = nextValue;
+            }
+        });
+        inputContainer.appendChild(numberInput);
+    } else if (descriptor.kind === 'boolean') {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = Boolean(accessor?.value);
+        checkbox.disabled = isDisabled;
+        checkbox.addEventListener('change', () => {
+            const liveAccessor = resolveVmAccessor(descriptor.path, 'boolean');
+            if (liveAccessor) {
+                liveAccessor.value = checkbox.checked;
+            }
+        });
+        inputContainer.appendChild(checkbox);
+    } else if (descriptor.kind === 'string') {
+        const textInput = document.createElement('input');
+        textInput.type = 'text';
+        textInput.value = typeof accessor?.value === 'string' ? accessor.value : '';
+        textInput.disabled = isDisabled;
+        textInput.addEventListener('change', () => {
+            const liveAccessor = resolveVmAccessor(descriptor.path, 'string');
+            if (liveAccessor) {
+                liveAccessor.value = textInput.value;
+            }
+        });
+        inputContainer.appendChild(textInput);
+    } else if (descriptor.kind === 'enum') {
+        const select = document.createElement('select');
+        const values = Array.isArray(accessor?.values) ? accessor.values : [];
+        values.forEach((value) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            select.appendChild(option);
+        });
+        if (values.length === 0) {
+            const fallback = document.createElement('option');
+            fallback.value = '';
+            fallback.textContent = '(no enum values)';
+            select.appendChild(fallback);
+        }
+        if (typeof accessor?.value === 'string') {
+            select.value = accessor.value;
+        }
+        select.disabled = isDisabled || values.length === 0;
+        select.addEventListener('change', () => {
+            const liveAccessor = resolveVmAccessor(descriptor.path, 'enum');
+            if (liveAccessor) {
+                liveAccessor.value = select.value;
+            }
+        });
+        inputContainer.appendChild(select);
+    } else if (descriptor.kind === 'color') {
+        const colorWrap = document.createElement('div');
+        colorWrap.className = 'vm-color-control';
+
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        const alphaInput = document.createElement('input');
+        alphaInput.type = 'number';
+        alphaInput.min = '0';
+        alphaInput.max = '100';
+        alphaInput.step = '1';
+
+        const colorMeta = argbToColorMeta(accessor?.value);
+        colorInput.value = colorMeta.hex;
+        alphaInput.value = String(colorMeta.alphaPercent);
+        colorInput.disabled = isDisabled;
+        alphaInput.disabled = isDisabled;
+
+        const applyColor = () => {
+            const liveAccessor = resolveVmAccessor(descriptor.path, 'color');
+            if (!liveAccessor) {
+                return;
+            }
+            const rgb = hexToRgb(colorInput.value);
+            const alphaPercent = clamp(Number(alphaInput.value), 0, 100);
+            alphaInput.value = String(Math.round(alphaPercent));
+            const alpha = Math.round((alphaPercent / 100) * 255);
+            if (typeof liveAccessor.argb === 'function') {
+                liveAccessor.argb(alpha, rgb.r, rgb.g, rgb.b);
+                return;
+            }
+            liveAccessor.value = rgbAlphaToArgb(rgb.r, rgb.g, rgb.b, alpha);
+        };
+
+        colorInput.addEventListener('input', applyColor);
+        alphaInput.addEventListener('change', applyColor);
+
+        colorWrap.appendChild(colorInput);
+        colorWrap.appendChild(alphaInput);
+        inputContainer.appendChild(colorWrap);
+    } else if (descriptor.kind === 'trigger') {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = 'Fire';
+        button.disabled = isDisabled;
+        button.addEventListener('click', () => {
+            const liveAccessor = resolveVmAccessor(descriptor.path, 'trigger');
+            if (!liveAccessor) {
+                return;
+            }
+            if (typeof liveAccessor.trigger === 'function') {
+                liveAccessor.trigger();
+                return;
+            }
+            if (typeof liveAccessor.fire === 'function') {
+                liveAccessor.fire();
+            }
+        });
+        inputContainer.appendChild(button);
+    }
+
+    row.appendChild(label);
+    row.appendChild(inputContainer);
+    return row;
+}
+
+function resolveVmAccessor(path, expectedKind) {
+    const rootVm = resolveVmRootInstance();
+    if (!rootVm) {
+        return null;
+    }
+    const accessorInfo = getVmAccessor(rootVm, path);
+    if (!accessorInfo) {
+        return null;
+    }
+    if (expectedKind && accessorInfo.kind !== expectedKind) {
+        return null;
+    }
+    return accessorInfo.accessor;
+}
+
+function getVmAccessor(rootVm, path) {
+    const probes = [
+        ['number', 'number'],
+        ['boolean', 'boolean'],
+        ['string', 'string'],
+        ['enum', 'enum'],
+        ['color', 'color'],
+        ['trigger', 'trigger'],
+    ];
+
+    for (const [kind, methodName] of probes) {
+        const accessor = safeVmMethodCall(rootVm, methodName, path);
+        if (accessor) {
+            return { kind, accessor };
+        }
+    }
+
+    return null;
+}
+
+function safeVmMethodCall(target, methodName, ...args) {
+    if (!target || typeof target[methodName] !== 'function') {
+        return null;
+    }
+    try {
+        return target[methodName](...args) || null;
+    } catch {
+        return null;
+    }
+}
+
+function getVmListLength(listAccessor) {
+    if (!listAccessor) {
+        return 0;
+    }
+    if (typeof listAccessor.length === 'number') {
+        return Math.max(0, Math.floor(listAccessor.length));
+    }
+    if (typeof listAccessor.size === 'number') {
+        return Math.max(0, Math.floor(listAccessor.size));
+    }
+    return 0;
+}
+
+function getVmListItemAt(listAccessor, index) {
+    if (!listAccessor || typeof listAccessor.instanceAt !== 'function') {
+        return null;
+    }
+    try {
+        return listAccessor.instanceAt(index);
+    } catch {
+        return null;
+    }
+}
+
+function argbToColorMeta(value) {
+    const rawValue = Number.isFinite(Number(value)) ? Number(value) >>> 0 : 0xff000000;
+    const alpha = (rawValue >>> 24) & 255;
+    const red = (rawValue >>> 16) & 255;
+    const green = (rawValue >>> 8) & 255;
+    const blue = rawValue & 255;
+    return {
+        hex: `#${toHexByte(red)}${toHexByte(green)}${toHexByte(blue)}`,
+        alphaPercent: Math.round((alpha / 255) * 100),
+    };
+}
+
+function toHexByte(value) {
+    return clamp(Math.round(value), 0, 255).toString(16).padStart(2, '0');
+}
+
+function hexToRgb(hex) {
+    const cleanHex = String(hex || '').trim().replace('#', '');
+    if (!/^[0-9a-fA-F]{6}$/.test(cleanHex)) {
+        return { r: 0, g: 0, b: 0 };
+    }
+    return {
+        r: parseInt(cleanHex.slice(0, 2), 16),
+        g: parseInt(cleanHex.slice(2, 4), 16),
+        b: parseInt(cleanHex.slice(4, 6), 16),
+    };
+}
+
+function rgbAlphaToArgb(red, green, blue, alpha) {
+    return (
+        ((clamp(alpha, 0, 255) & 255) << 24)
+        | ((clamp(red, 0, 255) & 255) << 16)
+        | ((clamp(green, 0, 255) & 255) << 8)
+        | (clamp(blue, 0, 255) & 255)
+    ) >>> 0;
+}
+
+function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
 }
 
 // Expose controls for inline handlers
@@ -1164,6 +1612,7 @@ window.reset = reset;
 window.createDemoBundle = createDemoBundle;
 window.injectCodeSnippet = injectCodeSnippet;
 window.handleFileButtonClick = handleFileButtonClick;
+window.refreshVmInputControls = renderVmInputControls;
 window.__riveRuntimeCache = {
     getRuntimeSourceText: (runtimeName) => runtimeSourceTexts[runtimeName] || null,
     getRuntimeVersion: (runtimeName) => runtimeVersions[runtimeName] || null,
@@ -1186,6 +1635,16 @@ function arrayBufferToBase64(buffer) {
         binary += String.fromCharCode.apply(null, chunk);
     }
     return btoa(binary);
+}
+
+function normalizeStateMachineSelection(value) {
+    if (Array.isArray(value)) {
+        return value.filter((entry) => typeof entry === 'string' && entry.trim().length > 0);
+    }
+    if (typeof value === 'string' && value.trim().length > 0) {
+        return [value];
+    }
+    return [];
 }
 
 function autoFillConfigStateMachine(names) {
@@ -1233,7 +1692,7 @@ function autoFillConfigStateMachine(names) {
     const autoplay = typeof parsed.autoplay === 'boolean' ? parsed.autoplay : true;
     const autoBind = typeof parsed.autoBind === 'boolean' ? parsed.autoBind : true;
 
-    const onLoadCode = `onLoad: () => {\n    riveInst.resizeDrawingSurfaceToCanvas();\n  }`;
+    const onLoadCode = `onLoad: () => {\n    riveInst.resizeDrawingSurfaceToCanvas();\n    window.refreshVmInputControls?.();\n  }`;
 
     const newCode = `// You can define functions and helpers here
 // riveInst is available as a global variable
