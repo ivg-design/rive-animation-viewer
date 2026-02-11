@@ -179,6 +179,11 @@ body {
     color: #eff0f7;
 }
 
+.btn-muted {
+    background: #1d202a;
+    color: #eff0f7;
+}
+
 .btn-file-loaded {
     background: #255c31;
     border-color: #329448;
@@ -259,8 +264,8 @@ body {
 .properties-panel {
     display: flex;
     flex-direction: column;
-    padding: 12px;
-    gap: 10px;
+    padding: 0;
+    gap: 0;
 }
 
 .panel-heading {
@@ -387,6 +392,50 @@ body {
     color: #9aa0b6;
     font-size: 12px;
     padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+}
+
+.runtime-strip-left,
+.runtime-strip-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.runtime-strip-left {
+    flex: 1;
+    min-width: 0;
+}
+
+.runtime-chip {
+    height: 28px;
+    border: 1px solid var(--stroke);
+    border-radius: 8px;
+    background: #0f1118;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    color: #98a0bb;
+    font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.runtime-chip-runtime {
+    color: #d0d6eb;
+}
+
+.runtime-chip-status {
+    color: #cad1e8;
 }
 
 .panel-resizer {
@@ -430,6 +479,16 @@ body {
     overflow: hidden;
 }
 
+.panel-section-fill {
+    height: auto;
+}
+
+.panel-section-fill[open] {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
 .panel-section > summary {
     list-style: none;
     cursor: pointer;
@@ -446,6 +505,18 @@ body {
     font-weight: 700;
 }
 
+.panel-section > summary::after {
+    content: '▾';
+    color: #8f96ad;
+    font-size: 12px;
+    transform: rotate(0deg);
+    transition: transform 0.15s ease;
+}
+
+.panel-section:not([open]) > summary::after {
+    transform: rotate(-90deg);
+}
+
 .panel-section > summary::-webkit-details-marker {
     display: none;
 }
@@ -456,6 +527,35 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-height: 0;
+    overflow: auto;
+}
+
+.panel-section-fill > .panel-section-body {
+    flex: 1;
+    min-height: 0;
+}
+
+.code-panel-body,
+.properties-panel-body {
+    overflow: hidden;
+}
+
+.properties-panel-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.vm-controls-section {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.vm-controls-body {
+    flex: 1;
     min-height: 0;
     overflow: auto;
 }
@@ -483,6 +583,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-height: 0;
 }
 
 .vm-node {
@@ -609,6 +710,13 @@ body {
 
 .event-log-panel {
     min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.event-log-panel > .panel-section-body {
+    min-height: 0;
+    overflow: hidden;
 }
 
 .event-filters {
@@ -642,6 +750,9 @@ body {
     display: flex;
     flex-direction: column;
     gap: 7px;
+    min-height: 0;
+    overflow: auto;
+    padding-right: 2px;
 }
 
 .event-log-item {
@@ -754,6 +865,17 @@ body {
     }
 
     .header-left {
+        flex-wrap: wrap;
+    }
+
+    .runtime-strip {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .runtime-strip-left,
+    .runtime-strip-right {
+        width: 100%;
         flex-wrap: wrap;
     }
 }

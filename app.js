@@ -64,6 +64,7 @@ let lastObjectUrl = null;
 let currentLayoutFit = DEFAULT_LAYOUT_FIT;
 let currentFileBuffer = null;
 let currentFileMimeType = 'application/octet-stream';
+let currentFileSizeBytes = 0;
 let lastInitConfig = {};
 let configDirty = false;
 let errorTimeoutId = null;
@@ -72,7 +73,6 @@ let currentCanvasColor = '#0d1117';
 const runtimeMeta = loadRuntimeMeta();
 let editorView = null;
 let isAutoFilling = false;
-let hasAutoReloaded = false;
 const eventLogEntries = [];
 const eventFilterState = {
     native: true,
@@ -90,6 +90,9 @@ const elements = {
     runtimeSelect: document.getElementById('runtime-select'),
     layoutSelect: document.getElementById('layout-select'),
     codeEditor: document.getElementById('code-editor'),
+    runtimeStripRuntime: document.getElementById('runtime-strip-runtime'),
+    runtimeStripFile: document.getElementById('runtime-strip-file'),
+    runtimeStripVersion: document.getElementById('runtime-strip-version'),
     info: document.getElementById('info'),
     error: document.getElementById('error-message'),
     canvasContainer: document.getElementById('canvas-container'),
@@ -133,10 +136,14 @@ async function init() {
     setupEventLog();
     resetVmInputControls('No animation loaded.');
     resetEventLog();
+    refreshInfoStrip();
     window.addEventListener('resize', handleResize);
     window.addEventListener('beforeunload', revokeLastObjectUrl);
     ensureRuntime(currentRuntime)
-        .then(() => updateVersionInfo())
+        .then(() => {
+            updateVersionInfo();
+            refreshInfoStrip();
+        })
         .catch((error) => showError(`Failed to load runtime: ${error.message}`));
 }
 
@@ -163,7 +170,7 @@ function setupFileInput() {
 
         const buffer = await selectedFile.arrayBuffer();
         const fileUrl = URL.createObjectURL(selectedFile);
-        setCurrentFile(fileUrl, selectedFile.name, true, buffer, selectedFile.type);
+        setCurrentFile(fileUrl, selectedFile.name, true, buffer, selectedFile.type, selectedFile.size);
         hideError();
         try {
             await loadRiveAnimation(fileUrl, selectedFile.name);
@@ -188,9 +195,10 @@ function setupRuntimeSelect() {
         }
 
         currentRuntime = selected;
-        updateInfo(`Runtime changed to: ${currentRuntime}`);
+        updateInfo(`Runtime changed to: ${getRuntimeDisplayName(currentRuntime)}`);
+        refreshInfoStrip();
         updateVersionInfo('Loading runtime...');
-        logEvent('ui', 'runtime-change', `Runtime set to ${currentRuntime}`);
+        logEvent('ui', 'runtime-change', `Runtime set to ${getRuntimeDisplayName(currentRuntime)}`);
 
         try {
             await ensureRuntime(currentRuntime);
@@ -768,7 +776,7 @@ function attachRiveUserEventListeners(runtime, instance) {
     });
 }
 
-function setCurrentFile(url, name, isObjectUrl = false, buffer, mimeType) {
+function setCurrentFile(url, name, isObjectUrl = false, buffer, mimeType, fileSizeBytes) {
     if (lastObjectUrl && lastObjectUrl !== url) {
         URL.revokeObjectURL(lastObjectUrl);
         lastObjectUrl = null;
@@ -786,7 +794,11 @@ function setCurrentFile(url, name, isObjectUrl = false, buffer, mimeType) {
     if (mimeType) {
         currentFileMimeType = mimeType;
     }
+    if (Number.isFinite(fileSizeBytes)) {
+        currentFileSizeBytes = Number(fileSizeBytes);
+    }
     updateFileTriggerButton(name ? 'loaded' : 'empty', name);
+    refreshInfoStrip();
 }
 
 async function loadRiveAnimation(fileUrl, fileName) {
@@ -853,17 +865,6 @@ async function loadRiveAnimation(fileUrl, fileName) {
             // Get state machine names from instance (same as v1.2.6)
             const names = Array.isArray(riveInstance?.stateMachineNames) ? riveInstance.stateMachineNames : [];
 
-            // Auto-fill and reload with correct config
-            const didAutoFill = autoFillConfigStateMachine(names);
-            if (didAutoFill && !hasAutoReloaded) {
-                hasAutoReloaded = true;
-                updateInfo(`Auto-reloading with correct state machine...`);
-                setTimeout(() => {
-                    loadRiveAnimation(currentFileUrl, currentFileName);
-                }, 50);
-                return;
-            }
-
             // Show which state machine is initialized
             // Handle both string and array formats for stateMachines
             let activeStateMachine = 'none';
@@ -880,7 +881,7 @@ async function loadRiveAnimation(fileUrl, fileName) {
                 : `Loaded: ${fileName} (${currentRuntime}) - no state machines`;
             updateInfo(statusMsg);
             currentArtboardName = riveInstance?.artboard?.name || currentArtboardName || config.artboard || null;
-            hasAutoReloaded = false;
+            refreshInfoStrip();
 
             // Call user's onLoad callback if provided
             if (typeof userOnLoad === 'function') {
@@ -924,11 +925,7 @@ async function loadRiveAnimation(fileUrl, fileName) {
             safelyInvokeUserCallback(userOnAdvance, event, 'onAdvance');
         };
 
-        const instanceConfig = currentRuntime === 'webgl2'
-            ? { ...config, useOffscreenRenderer: true }
-            : config;
-
-        riveInstance = new runtime.Rive(instanceConfig);
+        riveInstance = new runtime.Rive(config);
         // Expose globally for code editor access
         window.riveInst = riveInstance;
         attachRiveUserEventListeners(runtime, riveInstance);
@@ -1230,10 +1227,49 @@ async function createDemoBundle() {
     }
 }
 
+function getRuntimeDisplayName(runtimeName = currentRuntime) {
+    return runtimeName === 'canvas' ? 'Canvas' : 'WebGL';
+}
+
+function formatByteSize(value) {
+    if (!Number.isFinite(value) || value <= 0) {
+        return '';
+    }
+    if (value < 1024) {
+        return `${value} B`;
+    }
+    const kib = value / 1024;
+    if (kib < 1024) {
+        return `${kib.toFixed(1)} KB`;
+    }
+    return `${(kib / 1024).toFixed(2)} MB`;
+}
+
+function refreshInfoStrip() {
+    if (elements.runtimeStripRuntime) {
+        elements.runtimeStripRuntime.innerHTML = `<span class="dot" aria-hidden="true"></span>Runtime: ${getRuntimeDisplayName(currentRuntime)}`;
+    }
+    if (elements.runtimeStripVersion) {
+        const runtimeVersion = runtimeVersions[currentRuntime] || runtimeRegistry[currentRuntime]?.version || RIVE_VERSION;
+        elements.runtimeStripVersion.textContent = `v${runtimeVersion}`;
+    }
+    if (elements.runtimeStripFile) {
+        if (currentFileName) {
+            const sizeLabel = formatByteSize(currentFileSizeBytes);
+            elements.runtimeStripFile.textContent = sizeLabel
+                ? `${currentFileName} · ${sizeLabel}`
+                : currentFileName;
+        } else {
+            elements.runtimeStripFile.textContent = 'No animation loaded';
+        }
+    }
+}
+
 function updateInfo(message) {
     if (elements.info) {
         elements.info.textContent = message;
     }
+    refreshInfoStrip();
 }
 
 function showError(message) {
@@ -1346,12 +1382,14 @@ function updateVersionInfo(statusMessage) {
 
     if (statusMessage) {
         elements.versionInfo.innerHTML = `${releaseLine}<br>${statusMessage}${footer}`;
+        refreshInfoStrip();
         return;
     }
 
     const runtime = runtimeRegistry[currentRuntime];
     if (!runtime) {
         elements.versionInfo.innerHTML = `${releaseLine}<br>Runtime ${currentRuntime} is loading...${footer}`;
+        refreshInfoStrip();
         return;
     }
 
@@ -1364,6 +1402,7 @@ function updateVersionInfo(statusMessage) {
         Source: ${source}
         ${footer}
     `;
+    refreshInfoStrip();
 }
 
 function loadRuntime(runtimeName) {
@@ -2033,76 +2072,6 @@ function normalizeStateMachineSelection(value) {
     return [];
 }
 
-function autoFillConfigStateMachine(names) {
-    if (!editorView) {
-        return false;
-    }
-    if (configDirty) {
-        return false;
-    }
-    if (!Array.isArray(names) || !names.length) {
-        return false;
-    }
-    const current = editorView.state.doc.toString().trim();
-    let parsed;
-    if (!current) {
-        parsed = {};
-    } else {
-        try {
-            // Try to evaluate the current code
-            const wrappedCode = `(function() {
-                return (
-                    ${current}
-                );
-            })()`;
-            parsed = eval(wrappedCode);
-        } catch (e) {
-            console.warn('Failed to parse config for auto-fill:', e);
-            return;
-        }
-        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-            return;
-        }
-    }
-
-    const primary = names[0];
-
-    // Check if already set to the correct state machine
-    if (parsed.stateMachines === primary ||
-        (Array.isArray(parsed.stateMachines) && parsed.stateMachines[0] === primary)) {
-        return false;
-    }
-
-    // Build new config preserving other user settings
-    const hasOnLoad = typeof parsed.onLoad === 'function';
-    const autoplay = typeof parsed.autoplay === 'boolean' ? parsed.autoplay : true;
-    const autoBind = typeof parsed.autoBind === 'boolean' ? parsed.autoBind : true;
-
-    const onLoadCode = `onLoad: () => {\n    riveInst.resizeDrawingSurfaceToCanvas();\n    window.refreshVmInputControls?.();\n  }`;
-
-    const newCode = `// You can define functions and helpers here
-// riveInst is available as a global variable
-
-({
-  autoplay: ${autoplay},
-  autoBind: ${autoBind},
-  stateMachines: ${JSON.stringify(primary)},
-  ${onLoadCode}
-})`;
-
-    isAutoFilling = true;
-    editorView.dispatch({
-        changes: { from: 0, to: editorView.state.doc.length, insert: newCode }
-    });
-    isAutoFilling = false;
-
-    parsed.stateMachines = primary;
-    lastInitConfig = { ...parsed };
-    configDirty = false;
-
-    return true;
-}
-
 function getTauriInvoker() {
     if (window.__TAURI__?.invoke) {
         return window.__TAURI__.invoke.bind(window.__TAURI__);
@@ -2215,6 +2184,7 @@ function clearCurrentFile() {
     currentFileUrl = null;
     currentFileName = null;
     currentFileBuffer = null;
+    currentFileSizeBytes = 0;
     currentArtboardName = null;
     updateFileTriggerButton('empty');
     elements.canvasContainer.innerHTML = `
@@ -2224,6 +2194,7 @@ function clearCurrentFile() {
         </div>
     `;
     resetVmInputControls('No bound ViewModel inputs detected.');
+    refreshInfoStrip();
 }
 
 function updateFileTriggerButton(state, fileName) {
@@ -2232,15 +2203,17 @@ function updateFileTriggerButton(state, fileName) {
         return;
     }
     if (state === 'loaded' && fileName) {
+        button.classList.remove('btn-dark');
         button.classList.remove('btn-muted');
         button.classList.add('btn-file-loaded');
         button.textContent = fileName;
         button.title = fileName;
     } else {
         button.classList.remove('btn-file-loaded');
+        button.classList.add('btn-dark');
         button.classList.add('btn-muted');
-        button.textContent = 'Choose File';
-        button.title = 'Choose File';
+        button.textContent = 'Open';
+        button.title = 'Open';
     }
 }
 async function resolveAppVersion() {

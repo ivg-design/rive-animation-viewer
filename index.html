@@ -25,7 +25,7 @@
 
                 <label class="header-label" for="runtime-select">Runtime</label>
                 <select id="runtime-select" class="header-select">
-                    <option value="webgl2" selected>WebGL2</option>
+                    <option value="webgl2" selected>WebGL</option>
                     <option value="canvas">Canvas</option>
                 </select>
 
@@ -61,21 +61,25 @@
 
         <div class="workspace" id="main-grid">
             <aside class="panel code-panel" id="config-panel">
-                <div class="panel-heading">
-                    <span class="panel-marker"></span>
-                    <span>SCRIPT.JS</span>
-                </div>
-                <div class="code-editor-header">
-                    <h3>animation_controller.js</h3>
-                    <div class="code-editor-actions">
-                        <button type="button" class="btn btn-dark inject-code-btn" onclick="injectCodeSnippet()" title="Explore the riveInstance in the console" aria-label="Explore the riveInstance in the console">Inject VM Explorer</button>
-                        <button type="button" onclick="applyCodeAndReload()" class="btn btn-primary">Apply & Reload</button>
+                <details class="panel-section panel-section-fill" id="code-panel-section" open>
+                    <summary>
+                        <span>SCRIPT.JS</span>
+                        <span class="pill">Editor</span>
+                    </summary>
+                    <div class="panel-section-body code-panel-body">
+                        <div class="code-editor-header">
+                            <h3>animation_controller.js</h3>
+                            <div class="code-editor-actions">
+                                <button type="button" class="btn btn-dark inject-code-btn" onclick="injectCodeSnippet()" title="Explore the riveInstance in the console" aria-label="Explore the riveInstance in the console">Inject VM Explorer</button>
+                                <button type="button" onclick="applyCodeAndReload()" class="btn btn-primary">Apply & Reload</button>
+                            </div>
+                        </div>
+                        <div class="code-editor-body" id="config-content">
+                            <div id="code-editor"></div>
+                            <div class="version-info" id="version-info">Loading runtime versions...</div>
+                        </div>
                     </div>
-                </div>
-                <div class="code-editor-body" id="config-content">
-                    <div id="code-editor"></div>
-                    <div class="version-info" id="version-info">Loading runtime versions...</div>
-                </div>
+                </details>
             </aside>
 
             <div class="panel-resizer" id="left-resizer" aria-hidden="true"></div>
@@ -88,7 +92,16 @@
                     </div>
                 </div>
 
-                <div class="runtime-strip" id="info">Ready to load animation</div>
+                <div class="runtime-strip" id="runtime-strip">
+                    <div class="runtime-strip-left">
+                        <span class="runtime-chip runtime-chip-runtime" id="runtime-strip-runtime"><span class="dot" aria-hidden="true"></span>Runtime: WebGL</span>
+                        <span class="runtime-chip" id="runtime-strip-file">No animation loaded</span>
+                    </div>
+                    <div class="runtime-strip-right">
+                        <span class="runtime-chip" id="runtime-strip-version">v2.34.3</span>
+                        <span class="runtime-chip runtime-chip-status" id="info">Ready to load animation</span>
+                    </div>
+                </div>
 
                 <div class="panel-resizer panel-resizer-horizontal" id="center-resizer" aria-hidden="true"></div>
 
@@ -115,19 +128,22 @@
             <div class="panel-resizer" id="right-resizer" aria-hidden="true"></div>
 
             <aside class="panel properties-panel" id="right-panel">
-                <div class="panel-heading">
-                    <span class="panel-marker"></span>
-                    <span>PROPERTIES</span>
-                </div>
-
-                <details class="panel-section" id="vm-controls-panel" open>
+                <details class="panel-section panel-section-fill" id="properties-panel-section" open>
                     <summary>
-                        <span>View Model Inputs</span>
-                        <span class="pill" id="vm-controls-count">0</span>
+                        <span>Properties</span>
+                        <span class="pill">Panel</span>
                     </summary>
-                    <div class="panel-section-body">
-                        <p class="empty-state" id="vm-controls-empty">No bound ViewModel inputs detected.</p>
-                        <div class="vm-controls-tree" id="vm-controls-tree"></div>
+                    <div class="panel-section-body properties-panel-body">
+                        <details class="panel-section vm-controls-section" id="vm-controls-panel" open>
+                            <summary>
+                                <span>View Model Inputs</span>
+                                <span class="pill" id="vm-controls-count">0</span>
+                            </summary>
+                            <div class="panel-section-body vm-controls-body">
+                                <p class="empty-state" id="vm-controls-empty">No bound ViewModel inputs detected.</p>
+                                <div class="vm-controls-tree" id="vm-controls-tree"></div>
+                            </div>
+                        </details>
                     </div>
                 </details>
             </aside>

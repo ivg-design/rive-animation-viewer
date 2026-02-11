@@ -197,9 +197,55 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       font-size: 12px;
       color: #6e7681;
     }}
-    .vm-controls-list {{
+    .vm-controls-tree {{
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+    }}
+    .vm-node {{
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      background: #161b22;
+      overflow: hidden;
+    }}
+    .vm-node > summary {{
+      list-style: none;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      color: #c9d1d9;
+      font-size: 12px;
+    }}
+    .vm-node > summary::-webkit-details-marker {{
+      display: none;
+    }}
+    .vm-node-meta {{
+      color: #8b949e;
+      font-size: 11px;
+    }}
+    .vm-node-body {{
+      border-top: 1px solid #30363d;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }}
+    .vm-input-list {{
       display: grid;
       gap: 8px;
+    }}
+    .vm-child-nodes {{
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-left: 8px;
+      padding-left: 8px;
+      border-left: 1px dashed rgba(139, 148, 158, 0.35);
     }}
     .vm-control-row {{
       border: 1px solid #30363d;
@@ -353,7 +399,7 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       </summary>
       <div class="vm-controls-content">
         <p class="vm-controls-empty" id="vm-controls-empty">No bound ViewModel inputs detected.</p>
-        <div class="vm-controls-list" id="vm-controls-list"></div>
+        <div class="vm-controls-tree" id="vm-controls-tree"></div>
       </div>
     </details>
   </main>
@@ -377,7 +423,7 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       const vmPanel = document.getElementById('vm-controls-panel');
       const vmCount = document.getElementById('vm-controls-count');
       const vmEmpty = document.getElementById('vm-controls-empty');
-      const vmList = document.getElementById('vm-controls-list');
+      const vmTree = document.getElementById('vm-controls-tree');
 
       function applyCanvasColor(color) {{
         document.documentElement.style.setProperty('--canvas-color', color);
@@ -413,10 +459,10 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       }}
 
       function resetVmControls(message) {{
-        if (!vmPanel || !vmCount || !vmEmpty || !vmList) {{
+        if (!vmPanel || !vmCount || !vmEmpty || !vmTree) {{
           return;
         }}
-        vmList.innerHTML = '';
+        vmTree.innerHTML = '';
         vmCount.textContent = '0';
         vmEmpty.hidden = false;
         vmEmpty.textContent = message || 'No bound ViewModel inputs detected.';
@@ -491,14 +537,35 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
         return 0;
       }}
 
-      function collectVmInputs(rootVm) {{
-        const descriptors = [];
-        const seenPaths = new Set();
-        const activeInstances = new WeakSet();
+      function getVmListItemAt(listAccessor, index) {{
+        if (!listAccessor || typeof listAccessor.instanceAt !== 'function') {{
+          return null;
+        }}
+        try {{
+          return listAccessor.instanceAt(index);
+        }} catch (_error) {{
+          return null;
+        }}
+      }}
 
-        const walk = (instance, basePath) => {{
-          if (!instance || typeof instance !== 'object' || activeInstances.has(instance)) {{
-            return;
+      function buildVmHierarchy(rootVm) {{
+        const seenInputPaths = new Set();
+        const activeInstances = new WeakSet();
+        let totalInputs = 0;
+
+        const walk = (instance, label, basePath, kind = 'vm') => {{
+          const node = {{
+            label,
+            path: basePath || '<root>',
+            kind,
+            inputs: [],
+            children: [],
+          }};
+          if (!instance || typeof instance !== 'object') {{
+            return node;
+          }}
+          if (activeInstances.has(instance)) {{
+            return node;
           }}
           activeInstances.add(instance);
 
@@ -510,37 +577,50 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
             }}
             const fullPath = basePath ? `${{basePath}}/${{name}}` : name;
             const accessorInfo = getVmAccessor(rootVm, fullPath);
-            if (accessorInfo && !seenPaths.has(fullPath)) {{
-              descriptors.push({{ path: fullPath, kind: accessorInfo.kind }});
-              seenPaths.add(fullPath);
+            if (accessorInfo && !seenInputPaths.has(fullPath)) {{
+              node.inputs.push({{
+                name,
+                path: fullPath,
+                kind: accessorInfo.kind,
+              }});
+              seenInputPaths.add(fullPath);
+              totalInputs += 1;
             }}
 
             const nestedVm = safeVmCall(instance, 'viewModelInstance', name) || safeVmCall(instance, 'viewModel', name);
             if (nestedVm && nestedVm !== instance) {{
-              walk(nestedVm, fullPath);
+              node.children.push(walk(nestedVm, name, fullPath, 'vm'));
             }}
 
             const listAccessor = safeVmCall(instance, 'list', name);
             const listLength = getListLength(listAccessor);
-            for (let index = 0; index < listLength; index += 1) {{
-              let itemInstance = null;
-              try {{
-                itemInstance = listAccessor?.instanceAt ? listAccessor.instanceAt(index) : null;
-              }} catch (_error) {{
-                itemInstance = null;
+            if (listLength > 0) {{
+              const listNode = {{
+                label: `${{name}} [${{listLength}}]`,
+                path: fullPath,
+                kind: 'list',
+                inputs: [],
+                children: [],
+              }};
+              for (let index = 0; index < listLength; index += 1) {{
+                const itemInstance = getVmListItemAt(listAccessor, index);
+                if (!itemInstance) {{
+                  continue;
+                }}
+                const itemPath = `${{fullPath}}/${{index}}`;
+                listNode.children.push(walk(itemInstance, `Instance ${{index}}`, itemPath, 'instance'));
               }}
-              if (!itemInstance) {{
-                continue;
-              }}
-              walk(itemInstance, `${{fullPath}}/${{index}}`);
+              node.children.push(listNode);
             }}
           }});
 
           activeInstances.delete(instance);
+          return node;
         }};
 
-        walk(rootVm, '');
-        return descriptors.sort((a, b) => a.path.localeCompare(b.path));
+        const rootNode = walk(rootVm, 'Root VM', '', 'vm');
+        rootNode.totalInputs = totalInputs;
+        return rootNode;
       }}
 
       function clamp(value, min, max) {{
@@ -609,7 +689,8 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
 
         const pathEl = document.createElement('div');
         pathEl.className = 'vm-control-path';
-        pathEl.textContent = `${{descriptor.path}} (${{descriptor.kind}})`;
+        pathEl.textContent = `${{descriptor.name || descriptor.path}} (${{descriptor.kind}})`;
+        pathEl.title = descriptor.path;
 
         const inputWrap = document.createElement('div');
         inputWrap.className = 'vm-control-input';
@@ -748,8 +829,54 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
         return row;
       }}
 
+      function createVmNodeElement(node, isRoot = false) {{
+        const details = document.createElement('details');
+        details.className = 'vm-node';
+        details.open = isRoot;
+
+        const summary = document.createElement('summary');
+        summary.textContent = node.label;
+
+        const meta = document.createElement('span');
+        meta.className = 'vm-node-meta';
+        meta.textContent = `${{node.inputs.length}} inputs`;
+        summary.appendChild(meta);
+        details.appendChild(summary);
+
+        const body = document.createElement('div');
+        body.className = 'vm-node-body';
+
+        if (node.inputs.length) {{
+          const inputList = document.createElement('div');
+          inputList.className = 'vm-input-list';
+          node.inputs.forEach((input) => {{
+            inputList.appendChild(createVmControlRow(input));
+          }});
+          body.appendChild(inputList);
+        }}
+
+        if (node.children.length) {{
+          const childrenContainer = document.createElement('div');
+          childrenContainer.className = 'vm-child-nodes';
+          node.children.forEach((child) => {{
+            childrenContainer.appendChild(createVmNodeElement(child));
+          }});
+          body.appendChild(childrenContainer);
+        }}
+
+        if (!node.inputs.length && !node.children.length) {{
+          const empty = document.createElement('p');
+          empty.className = 'vm-controls-empty';
+          empty.textContent = `No controls in ${{node.label}}.`;
+          body.appendChild(empty);
+        }}
+
+        details.appendChild(body);
+        return details;
+      }}
+
       function renderVmControls() {{
-        if (!vmPanel || !vmCount || !vmEmpty || !vmList) {{
+        if (!vmPanel || !vmCount || !vmEmpty || !vmTree) {{
           return;
         }}
         const rootVm = resolveVmRootInstance();
@@ -757,18 +884,16 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
           resetVmControls('No bound ViewModel inputs detected.');
           return;
         }}
-        const descriptors = collectVmInputs(rootVm);
-        vmList.innerHTML = '';
-        vmCount.textContent = String(descriptors.length);
-        if (!descriptors.length) {{
+        const hierarchy = buildVmHierarchy(rootVm);
+        vmTree.innerHTML = '';
+        vmCount.textContent = String(hierarchy.totalInputs);
+        if (!hierarchy.totalInputs && !hierarchy.children.length) {{
           vmEmpty.hidden = false;
           vmEmpty.textContent = 'No writable ViewModel inputs were found.';
           return;
         }}
         vmEmpty.hidden = true;
-        descriptors.forEach((descriptor) => {{
-          vmList.appendChild(createVmControlRow(descriptor));
-        }});
+        vmTree.appendChild(createVmNodeElement(hierarchy, true));
       }}
 
       const animationUrl = base64ToUrl(config.animationBase64);
