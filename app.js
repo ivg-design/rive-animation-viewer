@@ -1383,6 +1383,39 @@ function extractBraceBlock(text, onLoadIdx, prefix) {
     return text.substring(onLoadIdx, end + 1);
 }
 
+// Serialize the current VM hierarchy with live values for embedding in demo exports
+function serializeVmHierarchy() {
+    const rootVm = resolveVmRootInstance();
+    if (!rootVm) return null;
+    const hierarchy = buildVmHierarchy(rootVm);
+    if (!hierarchy) return null;
+
+    function serializeNode(node) {
+        return {
+            label: node.label,
+            path: node.path,
+            kind: node.kind,
+            inputs: (node.inputs || []).map(input => {
+                let value = null;
+                try {
+                    const accessor = resolveVmAccessor(input.path, input.kind);
+                    if (accessor && input.kind !== 'trigger') {
+                        value = accessor.value;
+                    }
+                    // For enums, also capture available values
+                    if (accessor && input.kind === 'enum' && Array.isArray(accessor.values)) {
+                        return { name: input.name, path: input.path, kind: input.kind, value, enumValues: accessor.values };
+                    }
+                } catch { /* noop */ }
+                return { name: input.name, path: input.path, kind: input.kind, value };
+            }),
+            children: (node.children || []).map(serializeNode),
+        };
+    }
+
+    return serializeNode(hierarchy);
+}
+
 async function createDemoBundle() {
     const invoke = getTauriInvoker();
     if (!invoke) {
@@ -1407,6 +1440,9 @@ async function createDemoBundle() {
         : [];
     const stateMachines = configuredStateMachines.length ? configuredStateMachines : detectedStateMachines;
 
+    // Snapshot the current VM hierarchy with live values
+    const vmHierarchy = serializeVmHierarchy();
+
     const payload = {
         file_name: currentFileName,
         animation_base64: arrayBufferToBase64(currentFileBuffer),
@@ -1418,6 +1454,7 @@ async function createDemoBundle() {
         state_machines: stateMachines,
         artboard_name: currentArtboardName,
         canvas_color: currentCanvasColor,
+        vm_hierarchy: vmHierarchy ? JSON.stringify(vmHierarchy) : null,
     };
 
     updateInfo('Building demo bundle...');

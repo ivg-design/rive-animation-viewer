@@ -1,0 +1,2389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>__TITLE__</title>
+    <meta name="theme-color" content="__CANVAS_COLOR__">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+<style>
+/* ── Design tokens ───────────────────────────────────────── */
+
+:root {
+    --alert: #fa541c;
+    --bg-elevated: #27272a;
+    --bg-void: #0a0a0a;
+    --bg-zinc: #18181b;
+    --border: #27272a;
+    --border-bright: #3f3f46;
+    --neon: #c4f82a;
+    --neon-glow: #c4f82a40;
+    --text-dark: #0a0a0a;
+    --text-dim: #a1a1aa;
+    --text-ghost: #52525b;
+    --text-muted: #71717a;
+    --text-white: #ffffff;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --header-control-h: 36px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    height: 100%;
+}
+
+body {
+    background: var(--bg-void);
+    color: var(--text-white);
+    font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+    overflow: hidden;
+}
+
+/* ── Lucide icon sizing ──────────────────────────────────── */
+
+.lucide-10 { width: 10px; height: 10px; }
+.lucide-12 { width: 12px; height: 12px; }
+.lucide-14 { width: 14px; height: 14px; }
+.lucide-16 { width: 16px; height: 16px; }
+.lucide-18 { width: 18px; height: 18px; }
+.lucide-24 { width: 24px; height: 24px; }
+
+/* ── App shell ───────────────────────────────────────────── */
+
+.app-shell {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+}
+
+/* ── Top bar ─────────────────────────────────────────────── */
+
+.top-bar {
+    min-height: 52px;
+    height: 52px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-zinc);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    padding: 0 20px;
+}
+
+.header-left,
+.header-center,
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex-wrap: nowrap;
+}
+
+.header-left {
+    justify-self: start;
+    gap: 16px;
+}
+
+.header-center,
+.header-right {
+    flex-shrink: 0;
+}
+
+.header-center {
+    justify-self: center;
+    justify-content: center;
+    gap: 2px;
+}
+
+.header-right {
+    justify-self: end;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+/* ── Brand ───────────────────────────────────────────────── */
+
+.brand-block {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.brand-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: var(--neon);
+    color: var(--text-dark);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.brand-text {
+    font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    line-height: 1;
+    text-transform: uppercase;
+    color: var(--text-white);
+}
+
+/* ── Icon buttons ────────────────────────────────────────── */
+
+.icon-btn {
+    width: 36px;
+    height: var(--header-control-h);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+    color: var(--text-dim);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.icon-btn:hover {
+    border-color: var(--border-bright);
+    background: #2c2c32;
+}
+
+.icon-btn-accent {
+    width: 44px;
+    background: var(--neon);
+    border-color: var(--neon);
+    color: var(--text-dark);
+    box-shadow: 0 2px 16px var(--neon-glow);
+}
+
+.icon-btn-accent:hover {
+    background: #cffd51;
+    border-color: #cffd51;
+}
+
+.icon-btn-ghost {
+    width: 36px;
+    height: 36px;
+    border-color: transparent;
+    background: transparent;
+    color: var(--text-muted);
+}
+
+.icon-btn-ghost:hover {
+    background: var(--bg-elevated);
+    border-color: var(--border);
+    color: var(--text-dim);
+}
+
+/* ── FPS chip ────────────────────────────────────────────── */
+
+.fps-chip {
+    height: var(--header-control-h);
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-void);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    gap: 6px;
+    color: var(--text-dim);
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--neon);
+    flex-shrink: 0;
+}
+
+.dot-sm {
+    width: 6px;
+    height: 6px;
+}
+
+/* ── Settings popover ────────────────────────────────────── */
+
+.settings-wrapper {
+    position: relative;
+}
+
+.settings-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 200px;
+    background: var(--bg-zinc);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 100;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.settings-popover[hidden] {
+    display: none !important;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 36px;
+}
+
+.settings-label {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.settings-select {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ── Header select ───────────────────────────────────────── */
+
+.header-select {
+    height: var(--header-control-h);
+    padding: 0 10px;
+    min-width: 104px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg-elevated);
+    color: var(--text-dim);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* ── Color input ─────────────────────────────────────────── */
+
+.color-input {
+    width: 48px;
+    height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-zinc);
+    padding: 0;
+    cursor: pointer;
+}
+
+/* ── Compact button ──────────────────────────────────────── */
+
+.btn-compact {
+    height: 24px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.btn-compact:hover {
+    border-color: var(--border-bright);
+    background: #2c2c32;
+    color: var(--text-white);
+}
+
+/* ── Pill ────────────────────────────────────────────────── */
+
+.pill {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 4px;
+    border: 0;
+    background: var(--neon);
+    color: var(--text-dark);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ── Workspace grid ──────────────────────────────────────── */
+
+.workspace {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 0;
+    background: var(--bg-void);
+    overflow: hidden;
+}
+
+/* ── Center panel ────────────────────────────────────────── */
+
+.center-panel {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto 230px;
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+.center-panel.event-log-collapsed {
+    grid-template-rows: minmax(0, 1fr) auto 36px;
+}
+
+/* ── Canvas container ────────────────────────────────────── */
+
+.canvas-container {
+    position: relative;
+    overflow: hidden;
+    background: var(--canvas-color, #0d1117);
+}
+
+.canvas-container canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* ── Runtime strip ───────────────────────────────────────── */
+
+.runtime-strip {
+    height: 36px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-zinc);
+    color: var(--text-dim);
+    font-size: 10px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-width: 0;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-weight: 500;
+}
+
+.runtime-strip-left,
+.runtime-strip-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.runtime-strip-left {
+    flex: 1;
+    min-width: 0;
+}
+
+.runtime-strip-sep {
+    color: var(--border-bright);
+    font-size: 10px;
+}
+
+.runtime-chip {
+    height: auto;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: var(--text-dim);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.runtime-chip-runtime {
+    color: var(--text-ghost);
+}
+
+.runtime-chip-runtime .dot {
+    width: 6px;
+    height: 6px;
+}
+
+.runtime-chip-file {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-dim);
+}
+
+.runtime-chip-status {
+    color: var(--text-ghost);
+}
+
+/* ── Event log panel ─────────────────────────────────────── */
+
+.event-log-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    border-top: 1px solid var(--border);
+    border-radius: 0;
+    background: #0d0d0d;
+}
+
+.event-log-header {
+    min-height: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.25px;
+    color: var(--text-white);
+}
+
+.event-log-summary-left {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.event-log-summary-left .event-log-chevron {
+    color: var(--neon);
+    transition: transform 0.2s ease;
+}
+
+.center-panel.event-log-collapsed .event-log-chevron {
+    transform: rotate(-90deg);
+}
+
+.event-log-summary-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.event-log-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable both-edges;
+    padding: 4px 10px 6px;
+}
+
+.center-panel.event-log-collapsed .event-log-body {
+    display: none;
+}
+
+.event-log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-height: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+}
+
+.event-log-row {
+    display: grid;
+    grid-template-columns: 72px 52px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    min-height: 22px;
+    padding: 1px 0;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 11px;
+    white-space: nowrap;
+    border-bottom: 1px solid #ffffff08;
+}
+
+.event-row-time {
+    color: var(--text-muted);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+}
+
+.event-row-kind {
+    justify-self: start;
+    border: 0;
+    border-radius: 3px;
+    min-width: 44px;
+    width: 44px;
+    padding: 0 4px;
+    line-height: 16px;
+    text-align: center;
+    text-transform: uppercase;
+    font-size: 9px;
+    font-weight: 600;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.event-row-kind.native {
+    color: var(--neon);
+    background: #c4f82a20;
+}
+
+.event-row-kind.rive-user {
+    color: var(--alert);
+    background: #fa541c20;
+}
+
+.event-row-kind.ui {
+    color: var(--text-muted);
+    background: var(--bg-elevated);
+}
+
+.event-row-message {
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 400;
+}
+
+.event-log-list .empty-state {
+    padding: 8px 6px;
+}
+
+.empty-state {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+/* ── Properties panel ────────────────────────────────────── */
+
+.properties-panel {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    gap: 0;
+    position: relative;
+    overflow: hidden;
+    border-left: 1px solid var(--border);
+    background: var(--bg-zinc);
+}
+
+/* ── Panel heading ───────────────────────────────────────── */
+
+.panel-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 40px;
+    height: 40px;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+.panel-heading-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-white);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.25px;
+    font-weight: 600;
+    line-height: 1;
+    flex: 1;
+    min-width: 0;
+}
+
+.panel-heading-main > .pill {
+    margin-left: auto;
+}
+
+.panel-marker {
+    width: 6px;
+    height: 6px;
+    border-radius: 1px;
+    background: var(--neon);
+    flex-shrink: 0;
+}
+
+/* ── Properties panel body ───────────────────────────────── */
+
+.properties-panel-body {
+    position: absolute;
+    top: 40px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 3px;
+    scrollbar-gutter: stable;
+}
+
+/* ── VM controls ─────────────────────────────────────────── */
+
+.vm-controls-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 0;
+}
+
+.vm-section {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-void);
+    overflow: visible;
+}
+
+.vm-section-header {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 0 8px;
+    color: var(--text-white);
+    font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.25px;
+    line-height: 1;
+}
+
+.vm-section-header::-webkit-details-marker {
+    display: none;
+}
+
+.vm-section-bar {
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.vm-section-chevron {
+    color: var(--text-ghost);
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+}
+
+.vm-section:not([open]) .vm-section-chevron {
+    transform: rotate(-90deg);
+}
+
+.vm-section-count {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+.vm-section-body {
+    border-top: 1px solid var(--border);
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.vm-section-body[data-depth] {
+    position: relative;
+    margin-left: 0;
+    padding-left: 10px;
+    border-left: 2px solid var(--depth-color, var(--border));
+    border-radius: 0;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 2px;
+}
+
+/* Nested sections inside a section */
+.vm-section .vm-section {
+    border-color: var(--border);
+    background: var(--bg-zinc);
+    border-radius: var(--radius-md);
+}
+
+.vm-section .vm-section .vm-section-header {
+    min-height: 30px;
+    font-size: 10px;
+    padding: 0 8px;
+    gap: 6px;
+}
+
+.vm-section .vm-section .vm-section-body {
+    padding: 3px 3px 3px 10px;
+    gap: 2px;
+}
+
+/* Third level nesting */
+.vm-section .vm-section .vm-section {
+    background: var(--bg-void);
+}
+
+.vm-section .vm-section .vm-section .vm-section-header {
+    min-height: 28px;
+    font-size: 10px;
+}
+
+/* ── VM control row ──────────────────────────────────────── */
+
+.vm-control-row {
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-zinc);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 48%);
+    gap: 6px;
+    padding: 5px 6px;
+    align-items: center;
+}
+
+.vm-control-label {
+    min-width: 0;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vm-control-input {
+    min-width: 0;
+}
+
+.vm-control-input input[type='text'],
+.vm-control-input input[type='number'],
+.vm-control-input select {
+    width: 100%;
+    height: 28px;
+    padding: 0 8px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-zinc);
+    color: var(--text-white);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.vm-control-input input[type='checkbox'] {
+    width: 18px;
+    height: 18px;
+    appearance: none;
+    border: 1px solid var(--border-bright);
+    border-radius: 4px;
+    background: var(--bg-void);
+    position: relative;
+    cursor: pointer;
+}
+
+.vm-control-input input[type='checkbox']:checked {
+    border-color: var(--neon);
+    background: var(--neon);
+}
+
+.vm-control-input input[type='checkbox']:checked::after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 2px;
+    width: 5px;
+    height: 9px;
+    border: solid var(--text-dark);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.vm-control-input button {
+    width: 100%;
+    height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-elevated);
+    color: var(--text-white);
+    font-size: 11px;
+    font-weight: 600;
+    font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.vm-control-input button:hover {
+    border-color: var(--border-bright);
+    background: #2c2c32;
+}
+
+.vm-color-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 56px;
+    gap: 6px;
+}
+
+.vm-color-control input[type='color'] {
+    width: 100%;
+    height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-zinc);
+}
+
+.vm-color-control input[type='number'] {
+    width: 56px;
+    height: 28px;
+    padding: 0 6px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-zinc);
+    color: var(--text-white);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+/* ── Scrollbar styling ───────────────────────────────────── */
+
+.properties-panel-body::-webkit-scrollbar,
+.event-log-body::-webkit-scrollbar {
+    width: 10px;
+}
+
+.properties-panel-body::-webkit-scrollbar-track,
+.event-log-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.properties-panel-body::-webkit-scrollbar-thumb,
+.event-log-body::-webkit-scrollbar-thumb {
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background: var(--border);
+    background-clip: padding-box;
+}
+
+.properties-panel-body::-webkit-scrollbar-thumb:hover,
+.event-log-body::-webkit-scrollbar-thumb:hover {
+    background: var(--border-bright);
+    background-clip: padding-box;
+}
+
+/* ── Error toast ─────────────────────────────────────────── */
+
+.error {
+    position: fixed;
+    top: 68px;
+    right: 16px;
+    width: 320px;
+    border: 1px solid #fa541c99;
+    border-radius: 8px;
+    background: #200f0bcc;
+    color: #ffc4b3;
+    padding: 12px;
+    font-size: 13px;
+    z-index: 4000;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.error.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ── Fullscreen mode ─────────────────────────────────────── */
+
+body.fullscreen-mode .top-bar,
+body.fullscreen-mode .runtime-strip,
+body.fullscreen-mode .event-log-panel,
+body.fullscreen-mode .properties-panel {
+    display: none !important;
+}
+
+body.fullscreen-mode .workspace {
+    grid-template-columns: 1fr !important;
+}
+
+body.fullscreen-mode .center-panel {
+    grid-template-rows: 1fr !important;
+}
+
+.fullscreen-exit-hint {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    background: var(--bg-zinc);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 5000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+body.fullscreen-mode .fullscreen-exit-hint {
+    pointer-events: auto;
+}
+
+body.fullscreen-mode .fullscreen-exit-hint:hover {
+    opacity: 1 !important;
+}
+
+/* ── Event filter select ─────────────────────────────────── */
+
+.event-filter-select {
+    height: 24px;
+    padding: 0 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-dim);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+    .workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .properties-panel {
+        display: none;
+    }
+}
+
+@media (max-width: 700px) {
+    .top-bar {
+        grid-template-columns: auto auto;
+        gap: 8px;
+        padding: 0 12px;
+    }
+
+    .header-left {
+        display: none;
+    }
+
+    .header-center {
+        justify-self: start;
+    }
+
+    .header-right {
+        justify-self: end;
+    }
+
+    .brand-text {
+        display: none;
+    }
+}
+</style>
+</head>
+<body>
+    <div class="app-shell">
+        <!-- ── Top bar ───────────────────────────────────────── -->
+        <header class="top-bar" role="toolbar" aria-label="Animation controls">
+            <div class="header-left">
+                <div class="brand-block">
+                    <div class="brand-icon" aria-hidden="true">
+                        <i data-lucide="play" class="lucide-14"></i>
+                    </div>
+                    <strong class="brand-text">Rive Demo Viewer</strong>
+                </div>
+            </div>
+
+            <div class="header-center">
+                <button type="button" class="icon-btn" id="btn-reset" title="Reset" aria-label="Reset">
+                    <i data-lucide="rotate-ccw" class="lucide-16"></i>
+                </button>
+                <button type="button" class="icon-btn icon-btn-accent" id="btn-play" title="Play" aria-label="Play">
+                    <i data-lucide="play" class="lucide-18"></i>
+                </button>
+                <button type="button" class="icon-btn" id="btn-pause" title="Pause" aria-label="Pause">
+                    <i data-lucide="pause" class="lucide-16"></i>
+                </button>
+                <div class="fps-chip" id="fps-chip"><span class="dot"></span>-- FPS</div>
+            </div>
+
+            <div class="header-right">
+                <div class="settings-wrapper">
+                    <button type="button" id="settings-btn" class="icon-btn icon-btn-ghost" title="Settings" aria-label="Settings">
+                        <i data-lucide="settings" class="lucide-18"></i>
+                    </button>
+                    <div class="settings-popover" id="settings-popover" hidden>
+                        <div class="settings-row">
+                            <label class="settings-label" for="layout-select">Layout Fit</label>
+                            <select id="layout-select" class="header-select settings-select">
+                                <option value="contain">Contain</option>
+                                <option value="cover">Cover</option>
+                                <option value="fill">Fill</option>
+                                <option value="fitWidth">Fit Width</option>
+                                <option value="fitHeight">Fit Height</option>
+                                <option value="scaleDown">Scale Down</option>
+                                <option value="none">None</option>
+                                <option value="layout">Layout</option>
+                            </select>
+                        </div>
+                        <div class="settings-row">
+                            <label class="settings-label" for="canvas-color-input">BG Color</label>
+                            <input type="color" id="canvas-color-input" value="__CANVAS_COLOR__" class="color-input">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- ── Error toast ───────────────────────────────────── -->
+        <div class="error" id="error-message"></div>
+
+        <!-- ── Workspace ─────────────────────────────────────── -->
+        <div class="workspace">
+            <section class="center-panel" id="center-panel">
+                <!-- Canvas -->
+                <div class="canvas-container" id="canvas-container">
+                    <canvas id="rive-canvas"></canvas>
+                </div>
+
+                <!-- Runtime strip -->
+                <div class="runtime-strip">
+                    <div class="runtime-strip-left">
+                        <span class="runtime-chip runtime-chip-runtime"><span class="dot dot-sm" aria-hidden="true"></span>Runtime: __RUNTIME_DISPLAY__</span>
+                        <span class="runtime-chip">v__RUNTIME_VERSION__</span>
+                        <span class="runtime-strip-sep" aria-hidden="true">|</span>
+                        <span class="runtime-chip runtime-chip-file"><i data-lucide="file" class="lucide-10"></i>__FILE_NAME__</span>
+                    </div>
+                    <div class="runtime-strip-right">
+                        <span class="runtime-chip runtime-chip-status" id="info">Loading...</span>
+                    </div>
+                </div>
+
+                <!-- Event log panel -->
+                <div class="event-log-panel" id="event-log-panel">
+                    <div class="event-log-header" id="event-log-header">
+                        <div class="event-log-summary-left">
+                            <i data-lucide="chevron-down" class="lucide-14 event-log-chevron"></i>
+                            <span>EVENT LOG</span>
+                            <span class="pill" id="event-log-count">0</span>
+                        </div>
+                        <div class="event-log-summary-right">
+                            <select id="event-filter-select" class="event-filter-select">
+                                <option value="all" selected>ALL</option>
+                                <option value="native">NATIVE</option>
+                                <option value="rive-user">RIVE USER</option>
+                                <option value="ui">UI</option>
+                            </select>
+                            <button type="button" class="btn-compact" id="event-log-clear-btn">CLEAR</button>
+                        </div>
+                    </div>
+                    <div class="event-log-body">
+                        <div class="event-log-list" id="event-log-list">
+                            <p class="empty-state">No events yet.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── Properties panel ──────────────────────────── -->
+            <aside class="properties-panel" id="right-panel">
+                <div class="panel-heading">
+                    <div class="panel-heading-main">
+                        <span class="panel-marker"></span>
+                        <span>PROPERTIES</span>
+                        <span class="pill" id="vm-controls-count">0</span>
+                    </div>
+                </div>
+                <div class="properties-panel-body" id="vm-controls-panel">
+                    <p class="empty-state" id="vm-controls-empty">No bound ViewModel inputs detected.</p>
+                    <div class="vm-controls-tree" id="vm-controls-tree"></div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- ── Fullscreen exit hint ──────────────────────────────── -->
+    <div class="fullscreen-exit-hint" id="fullscreen-exit-hint">
+        <i data-lucide="minimize-2" class="lucide-18"></i>
+    </div>
+
+    <!-- ── Rive runtime (injected by Rust) ───────────────────── -->
+    <script>__RUNTIME_SCRIPT__</script>
+
+    <!-- ── Application logic ─────────────────────────────────── -->
+    <script>
+    (function () {
+        'use strict';
+
+        /* ── Configuration from Rust placeholders ────────────── */
+
+        const CONFIG = JSON.parse('__CONFIG_JSON__');
+        const VM_HIERARCHY = JSON.parse('__VM_HIERARCHY_JSON__');
+
+        const LAYOUT_FITS = ['cover', 'contain', 'fill', 'fitWidth', 'fitHeight', 'scaleDown', 'none', 'layout'];
+        const VM_CONTROL_KINDS = new Set(['number', 'boolean', 'string', 'enum', 'color', 'trigger']);
+        const EVENT_LOG_LIMIT = 500;
+        const VM_DEPTH_COLORS = ['#C4F82A', '#38BDF8', '#A78BFA', '#FB923C', '#F472B6', '#34D399'];
+
+        let riveInstance = null;
+        let currentLayoutFit = CONFIG.layoutFit || 'contain';
+        let currentCanvasColor = CONFIG.canvasColor || '__CANVAS_COLOR__';
+        let errorTimeoutId = null;
+        const eventLogEntries = [];
+        const eventFilterState = { native: true, riveUser: true, ui: true };
+        let eventLogSequence = 0;
+        let riveEventUnsubscribers = [];
+        let lastFpsUpdate = 0;
+        let frameCount = 0;
+
+        /* ── DOM references ──────────────────────────────────── */
+
+        const els = {
+            canvasContainer: document.getElementById('canvas-container'),
+            canvas: document.getElementById('rive-canvas'),
+            info: document.getElementById('info'),
+            error: document.getElementById('error-message'),
+            fpsChip: document.getElementById('fps-chip'),
+            centerPanel: document.getElementById('center-panel'),
+            eventLogPanel: document.getElementById('event-log-panel'),
+            eventLogHeader: document.getElementById('event-log-header'),
+            eventLogCount: document.getElementById('event-log-count'),
+            eventLogList: document.getElementById('event-log-list'),
+            eventLogClearBtn: document.getElementById('event-log-clear-btn'),
+            eventFilterSelect: document.getElementById('event-filter-select'),
+            vmControlsCount: document.getElementById('vm-controls-count'),
+            vmControlsEmpty: document.getElementById('vm-controls-empty'),
+            vmControlsTree: document.getElementById('vm-controls-tree'),
+            settingsBtn: document.getElementById('settings-btn'),
+            settingsPopover: document.getElementById('settings-popover'),
+            layoutSelect: document.getElementById('layout-select'),
+            canvasColorInput: document.getElementById('canvas-color-input'),
+            btnPlay: document.getElementById('btn-play'),
+            btnPause: document.getElementById('btn-pause'),
+            btnReset: document.getElementById('btn-reset'),
+            fullscreenExitHint: document.getElementById('fullscreen-exit-hint'),
+        };
+
+        /* ── Initialization ──────────────────────────────────── */
+
+        init();
+
+        function init() {
+            initLucideIcons();
+            setupCanvasSize();
+            updateCanvasBackground();
+            setupPlaybackControls();
+            setupSettingsPopover();
+            setupLayoutSelect();
+            setupCanvasColor();
+            setupEventLog();
+            setupFullscreen();
+            window.addEventListener('resize', handleResize);
+            loadAnimation();
+        }
+
+        function initLucideIcons() {
+            if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                lucide.createIcons();
+            }
+        }
+
+        /* ── Canvas sizing ───────────────────────────────────── */
+
+        function setupCanvasSize() {
+            resizeCanvas();
+        }
+
+        function resizeCanvas() {
+            const container = els.canvasContainer;
+            const canvas = els.canvas;
+            if (!container || !canvas) return;
+            const dpr = window.devicePixelRatio || 1;
+            const { clientWidth, clientHeight } = container;
+            canvas.width = clientWidth * dpr;
+            canvas.height = clientHeight * dpr;
+            canvas.style.width = clientWidth + 'px';
+            canvas.style.height = clientHeight + 'px';
+        }
+
+        function handleResize() {
+            resizeCanvas();
+            if (riveInstance) {
+                riveInstance.resizeDrawingSurfaceToCanvas();
+            }
+        }
+
+        /* ── Canvas background ───────────────────────────────── */
+
+        function updateCanvasBackground() {
+            if (els.canvasContainer) {
+                els.canvasContainer.style.background = currentCanvasColor;
+            }
+        }
+
+        /* ── Playback controls ───────────────────────────────── */
+
+        function setupPlaybackControls() {
+            if (els.btnPlay) els.btnPlay.addEventListener('click', play);
+            if (els.btnPause) els.btnPause.addEventListener('click', pause);
+            if (els.btnReset) els.btnReset.addEventListener('click', resetAnimation);
+        }
+
+        function play() {
+            if (riveInstance) {
+                riveInstance.play();
+                updateInfo('Playing');
+                logEvent('ui', 'play', 'Playback started from UI.');
+            }
+        }
+
+        function pause() {
+            if (riveInstance) {
+                riveInstance.pause();
+                updateInfo('Paused');
+                logEvent('ui', 'pause', 'Playback paused from UI.');
+            }
+        }
+
+        function resetAnimation() {
+            if (riveInstance) {
+                riveInstance.reset();
+                resetPlaybackChips();
+                updateInfo('Reset');
+                logEvent('ui', 'reset', 'Animation reset from UI.');
+            }
+        }
+
+        /* ── FPS tracking ────────────────────────────────────── */
+
+        function updatePlaybackChips() {
+            frameCount += 1;
+            const now = performance.now();
+            if (now - lastFpsUpdate >= 1000) {
+                const fps = Math.round((frameCount * 1000) / (now - lastFpsUpdate));
+                if (els.fpsChip) {
+                    els.fpsChip.innerHTML = '<span class="dot"></span>' + fps + ' FPS';
+                }
+                frameCount = 0;
+                lastFpsUpdate = now;
+            }
+        }
+
+        function resetPlaybackChips() {
+            frameCount = 0;
+            lastFpsUpdate = performance.now();
+            if (els.fpsChip) els.fpsChip.innerHTML = '<span class="dot"></span>-- FPS';
+        }
+
+        /* ── Settings popover ────────────────────────────────── */
+
+        function setupSettingsPopover() {
+            const btn = els.settingsBtn;
+            const popover = els.settingsPopover;
+            if (!btn || !popover) return;
+
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                popover.hidden = !popover.hidden;
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!popover.hidden && !popover.contains(e.target) && e.target !== btn) {
+                    popover.hidden = true;
+                }
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && !popover.hidden) {
+                    popover.hidden = true;
+                }
+            });
+        }
+
+        /* ── Layout fit select ───────────────────────────────── */
+
+        function setupLayoutSelect() {
+            const select = els.layoutSelect;
+            if (!select) return;
+            select.value = currentLayoutFit;
+
+            select.addEventListener('change', function () {
+                const selected = select.value;
+                if (!selected || selected === currentLayoutFit) return;
+                if (!LAYOUT_FITS.includes(selected)) return;
+                currentLayoutFit = selected;
+                logEvent('ui', 'layout-change', 'Layout fit set to ' + currentLayoutFit);
+                // Reload to apply new layout
+                loadAnimation();
+            });
+        }
+
+        /* ── Canvas color input ──────────────────────────────── */
+
+        function setupCanvasColor() {
+            const input = els.canvasColorInput;
+            if (!input) return;
+            input.value = currentCanvasColor;
+            input.addEventListener('input', function () {
+                currentCanvasColor = input.value || '#0d1117';
+                updateCanvasBackground();
+                logEvent('ui', 'canvas-color', 'Canvas color changed to ' + currentCanvasColor);
+            });
+        }
+
+        /* ── Fullscreen ──────────────────────────────────────── */
+
+        function setupFullscreen() {
+            const hint = els.fullscreenExitHint;
+            if (!hint) return;
+
+            let hoverTimer = null;
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                    const tag = (e.target.tagName || '').toLowerCase();
+                    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+                    document.body.classList.toggle('fullscreen-mode');
+                    handleResize();
+                }
+            });
+
+            hint.addEventListener('click', function () {
+                document.body.classList.remove('fullscreen-mode');
+                handleResize();
+            });
+
+            // Show hint on hover in bottom-right corner
+            document.addEventListener('mousemove', function (e) {
+                if (!document.body.classList.contains('fullscreen-mode')) {
+                    hint.style.opacity = '0';
+                    return;
+                }
+                const threshold = 80;
+                const inCorner = e.clientX > window.innerWidth - threshold && e.clientY > window.innerHeight - threshold;
+                if (inCorner) {
+                    if (!hoverTimer) {
+                        hoverTimer = setTimeout(function () {
+                            hint.style.opacity = '1';
+                        }, 1000);
+                    }
+                } else {
+                    clearTimeout(hoverTimer);
+                    hoverTimer = null;
+                    hint.style.opacity = '0';
+                }
+            });
+        }
+
+        /* ── Event log ───────────────────────────────────────── */
+
+        function setupEventLog() {
+            var filterSelect = els.eventFilterSelect;
+            var clearButton = els.eventLogClearBtn;
+            var header = els.eventLogHeader;
+            var centerPanel = els.centerPanel;
+
+            if (filterSelect) {
+                filterSelect.value = 'all';
+                filterSelect.addEventListener('change', function () {
+                    var val = filterSelect.value;
+                    eventFilterState.native = val === 'all' || val === 'native';
+                    eventFilterState.riveUser = val === 'all' || val === 'rive-user';
+                    eventFilterState.ui = val === 'all' || val === 'ui';
+                    renderEventLog();
+                });
+            }
+
+            if (clearButton) {
+                clearButton.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    resetEventLog();
+                    logEvent('ui', 'log-cleared', 'Event log cleared.');
+                });
+            }
+
+            if (header && centerPanel) {
+                header.addEventListener('click', function (e) {
+                    if (e.target.closest('.event-log-summary-right')) return;
+                    centerPanel.classList.toggle('event-log-collapsed');
+                    handleResize();
+                    setTimeout(handleResize, 300);
+                });
+            }
+        }
+
+        function resetEventLog() {
+            eventLogEntries.length = 0;
+            eventLogSequence = 0;
+            renderEventLog();
+        }
+
+        function logEvent(source, type, message, payload) {
+            eventLogEntries.unshift({
+                id: ++eventLogSequence,
+                source: source,
+                type: type,
+                message: message,
+                payload: payload,
+                timestamp: Date.now(),
+            });
+            if (eventLogEntries.length > EVENT_LOG_LIMIT) {
+                eventLogEntries.length = EVENT_LOG_LIMIT;
+            }
+            renderEventLog();
+        }
+
+        function renderEventLog() {
+            var list = els.eventLogList;
+            var count = els.eventLogCount;
+            if (!list || !count) return;
+
+            var filtered = eventLogEntries.filter(function (entry) {
+                if (entry.source === 'native' && !eventFilterState.native) return false;
+                if (entry.source === 'rive-user' && !eventFilterState.riveUser) return false;
+                if (entry.source === 'ui' && !eventFilterState.ui) return false;
+                return true;
+            });
+
+            count.textContent = String(filtered.length);
+            list.innerHTML = '';
+
+            if (!filtered.length) {
+                var empty = document.createElement('p');
+                empty.className = 'empty-state';
+                empty.textContent = 'No events match current filters.';
+                list.appendChild(empty);
+                return;
+            }
+
+            filtered.forEach(function (entry) {
+                var row = document.createElement('div');
+                row.className = 'event-log-row';
+
+                var time = document.createElement('span');
+                time.className = 'event-row-time';
+                time.textContent = formatEventTime(entry.timestamp);
+
+                var source = document.createElement('span');
+                source.className = 'event-row-kind ' + entry.source;
+                source.textContent = entry.source === 'rive-user' ? 'USER' : entry.source.toUpperCase();
+
+                var message = document.createElement('span');
+                message.className = 'event-row-message';
+                message.textContent = formatEventRowMessage(entry);
+                message.title = message.textContent;
+
+                row.appendChild(time);
+                row.appendChild(source);
+                row.appendChild(message);
+                list.appendChild(row);
+            });
+        }
+
+        function formatEventRowMessage(entry) {
+            var parts = [];
+            if (entry.type) parts.push(entry.type);
+            if (entry.message && entry.message !== entry.type) parts.push(entry.message);
+            if (entry.payload) {
+                var p = entry.payload;
+                if (typeof p === 'object' && p !== null) {
+                    var keys = Object.keys(p).filter(function (k) { return k !== 'type' && k !== 'name'; });
+                    if (keys.length) {
+                        var vals = keys.map(function (k) {
+                            var v = p[k];
+                            if (typeof v === 'number') return k + ': ' + roundNum(v);
+                            if (typeof v === 'string') return k + ': ' + v;
+                            return k + ': ' + JSON.stringify(v);
+                        });
+                        parts.push(vals.join('  '));
+                    }
+                } else {
+                    parts.push(String(p));
+                }
+            }
+            return parts.join(' \u2022 ');
+        }
+
+        function roundNum(n) {
+            if (Number.isInteger(n)) return String(n);
+            return Number(n.toFixed(3)).toString();
+        }
+
+        function formatEventTime(timestamp) {
+            var date = new Date(timestamp);
+            var h = String(date.getHours()).padStart(2, '0');
+            var m = String(date.getMinutes()).padStart(2, '0');
+            var s = String(date.getSeconds()).padStart(2, '0');
+            var cs = String(Math.floor(date.getMilliseconds() / 10)).padStart(2, '0');
+            return h + ':' + m + ':' + s + '.' + cs;
+        }
+
+        /* ── UI helpers ──────────────────────────────────────── */
+
+        function updateInfo(message) {
+            if (els.info) els.info.textContent = message;
+        }
+
+        function showError(message) {
+            if (els.error) {
+                els.error.textContent = message;
+                els.error.classList.add('visible');
+                if (errorTimeoutId) clearTimeout(errorTimeoutId);
+                errorTimeoutId = setTimeout(hideError, 6000);
+            }
+        }
+
+        function hideError() {
+            if (els.error) {
+                els.error.textContent = '';
+                els.error.classList.remove('visible');
+            }
+            if (errorTimeoutId) {
+                clearTimeout(errorTimeoutId);
+                errorTimeoutId = null;
+            }
+        }
+
+        function escapeHtml(str) {
+            var div = document.createElement('div');
+            div.appendChild(document.createTextNode(str));
+            return div.innerHTML;
+        }
+
+        /* ── VM accessor helpers ─────────────────────────────── */
+
+        function resolveVmRootInstance() {
+            if (!riveInstance) return null;
+            if (riveInstance.viewModelInstance) return riveInstance.viewModelInstance;
+
+            try {
+                var defaultViewModel = typeof riveInstance.defaultViewModel === 'function'
+                    ? riveInstance.defaultViewModel()
+                    : null;
+                if (!defaultViewModel) return null;
+                if (typeof defaultViewModel.defaultInstance === 'function') {
+                    return defaultViewModel.defaultInstance();
+                }
+                if (typeof defaultViewModel.instance === 'function') {
+                    return defaultViewModel.instance();
+                }
+            } catch (e) {
+                console.warn('Unable to resolve default ViewModel instance', e);
+            }
+            return null;
+        }
+
+        function safeVmCall(target, method, arg) {
+            if (!target || typeof target[method] !== 'function') return null;
+            try {
+                return target[method](arg) || null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function getVmAccessor(vmInstance, propertyName) {
+            var probes = [
+                ['number', 'number'],
+                ['boolean', 'boolean'],
+                ['string', 'string'],
+                ['enum', 'enum'],
+                ['color', 'color'],
+                ['trigger', 'trigger'],
+            ];
+
+            for (var i = 0; i < probes.length; i++) {
+                var kind = probes[i][0];
+                var methodName = probes[i][1];
+                var accessor = safeVmCall(vmInstance, methodName, propertyName);
+                if (accessor) {
+                    return { kind: kind, accessor: accessor };
+                }
+            }
+            return null;
+        }
+
+        function navigateToVmInstance(rootVm, path) {
+            if (!path) return null;
+            if (!path.includes('/')) {
+                return { instance: rootVm, propertyName: path };
+            }
+
+            var segments = path.split('/');
+            var propertyName = segments.pop();
+            var current = rootVm;
+            var i = 0;
+
+            while (i < segments.length && current) {
+                var segment = segments[i];
+
+                // Try viewModel navigation
+                var child = safeVmCall(current, 'viewModel', segment)
+                    || safeVmCall(current, 'viewModelInstance', segment);
+
+                if (child) {
+                    current = child;
+                    i++;
+                    continue;
+                }
+
+                // Try list navigation
+                if (i + 1 < segments.length) {
+                    var listAccessor = safeVmCall(current, 'list', segment);
+                    var numIndex = parseInt(segments[i + 1], 10);
+                    if (listAccessor && !isNaN(numIndex)) {
+                        var itemInstance = null;
+                        try {
+                            if (typeof listAccessor.instanceAt === 'function') {
+                                itemInstance = listAccessor.instanceAt(numIndex);
+                            }
+                        } catch (e) { /* noop */ }
+                        if (itemInstance) {
+                            current = itemInstance;
+                            i += 2;
+                            continue;
+                        }
+                    }
+                }
+
+                console.warn('VM navigation failed at segment "' + segment + '" in path "' + path + '"');
+                return null;
+            }
+
+            return current ? { instance: current, propertyName: propertyName } : null;
+        }
+
+        function resolveLiveAccessor(path, expectedKind) {
+            var rootVm = resolveVmRootInstance();
+            if (!rootVm) return null;
+
+            var nav = navigateToVmInstance(rootVm, path);
+            if (!nav) return null;
+
+            var accessorInfo = getVmAccessor(nav.instance, nav.propertyName);
+            if (!accessorInfo) return null;
+            if (expectedKind && accessorInfo.kind !== expectedKind) return null;
+            return accessorInfo.accessor;
+        }
+
+        function fireStateMachineTriggerByName(triggerName) {
+            if (!riveInstance || typeof riveInstance.stateMachineInputs !== 'function' || !triggerName) return 0;
+
+            var stateMachineNames = Array.isArray(riveInstance.stateMachineNames) ? riveInstance.stateMachineNames : [];
+            var firedCount = 0;
+
+            stateMachineNames.forEach(function (smName) {
+                var inputs = [];
+                try {
+                    var resolved = riveInstance.stateMachineInputs(smName);
+                    if (Array.isArray(resolved)) inputs = resolved;
+                } catch (e) { inputs = []; }
+
+                inputs.forEach(function (input) {
+                    if (!input || input.name !== triggerName || typeof input.fire !== 'function') return;
+                    try {
+                        input.fire();
+                        firedCount++;
+                    } catch (e) { /* noop */ }
+                });
+            });
+
+            return firedCount;
+        }
+
+        /* ── Dynamic VM hierarchy discovery (fallback) ───────── */
+
+        function buildVmHierarchy(rootVm) {
+            var seenInputPaths = new Set();
+            var activeInstances = new WeakSet();
+            var totalInputs = 0;
+
+            function walk(instance, label, basePath, kind) {
+                var node = {
+                    label: label,
+                    path: basePath || '<root>',
+                    kind: kind || 'vm',
+                    inputs: [],
+                    children: [],
+                };
+                if (!instance || typeof instance !== 'object') return node;
+                if (activeInstances.has(instance)) return node;
+                activeInstances.add(instance);
+
+                var properties = Array.isArray(instance.properties) ? instance.properties : [];
+                properties.forEach(function (property) {
+                    var name = property && property.name;
+                    if (typeof name !== 'string' || !name) return;
+
+                    var fullPath = basePath ? basePath + '/' + name : name;
+                    var accessorInfo = getVmAccessor(instance, name);
+                    if (accessorInfo && VM_CONTROL_KINDS.has(accessorInfo.kind) && !seenInputPaths.has(fullPath)) {
+                        node.inputs.push({ name: name, path: fullPath, kind: accessorInfo.kind });
+                        seenInputPaths.add(fullPath);
+                        totalInputs += 1;
+                    }
+
+                    var nestedVm = safeVmCall(instance, 'viewModelInstance', name)
+                        || safeVmCall(instance, 'viewModel', name);
+                    if (nestedVm && nestedVm !== instance) {
+                        node.children.push(walk(nestedVm, name, fullPath, 'vm'));
+                    }
+
+                    var listAccessor = safeVmCall(instance, 'list', name);
+                    var listLength = 0;
+                    if (listAccessor) {
+                        if (typeof listAccessor.length === 'number') listLength = Math.max(0, Math.floor(listAccessor.length));
+                        else if (typeof listAccessor.size === 'number') listLength = Math.max(0, Math.floor(listAccessor.size));
+                    }
+                    if (listLength > 0) {
+                        var listNode = { label: name + ' [' + listLength + ']', path: fullPath, kind: 'list', inputs: [], children: [] };
+                        for (var idx = 0; idx < listLength; idx++) {
+                            var itemInstance = null;
+                            try { if (typeof listAccessor.instanceAt === 'function') itemInstance = listAccessor.instanceAt(idx); } catch (e) { /* noop */ }
+                            if (itemInstance) {
+                                listNode.children.push(walk(itemInstance, 'Instance ' + idx, fullPath + '/' + idx, 'instance'));
+                            }
+                        }
+                        node.children.push(listNode);
+                    }
+                });
+
+                activeInstances.delete(instance);
+                return node;
+            }
+
+            var rootNode = walk(rootVm, 'Root VM', '', 'vm');
+            rootNode.totalInputs = totalInputs;
+            return rootNode;
+        }
+
+        /* ── VM controls rendering ───────────────────────────── */
+
+        function getDepthColor(depth) {
+            return VM_DEPTH_COLORS[depth % VM_DEPTH_COLORS.length];
+        }
+
+        function countAllInputs(node) {
+            var total = node.inputs ? node.inputs.length : 0;
+            if (node.children) {
+                node.children.forEach(function (child) { total += countAllInputs(child); });
+            }
+            return total;
+        }
+
+        function createVmSectionElement(node, isTopLevel, depth) {
+            var section = document.createElement('details');
+            section.className = 'vm-section';
+            section.open = true;
+
+            var depthColor = getDepthColor(depth);
+
+            var summary = document.createElement('summary');
+            summary.className = 'vm-section-header';
+
+            var chevron = document.createElement('i');
+            chevron.setAttribute('data-lucide', 'chevron-down');
+            chevron.className = 'lucide-12 vm-section-chevron';
+
+            var sectionBar = document.createElement('span');
+            sectionBar.className = 'vm-section-bar';
+            sectionBar.style.background = depthColor;
+
+            var titleText = document.createElement('span');
+            titleText.textContent = node.label.toUpperCase();
+
+            var inputCountBadge = document.createElement('span');
+            inputCountBadge.className = 'vm-section-count';
+            inputCountBadge.textContent = String(countAllInputs(node));
+
+            summary.appendChild(chevron);
+            summary.appendChild(sectionBar);
+            summary.appendChild(titleText);
+            summary.appendChild(inputCountBadge);
+            section.appendChild(summary);
+
+            var body = document.createElement('div');
+            body.className = 'vm-section-body';
+            body.dataset.depth = depth;
+            body.style.setProperty('--depth-color', depthColor);
+
+            // Render this node's direct inputs
+            if (node.inputs && node.inputs.length) {
+                node.inputs.forEach(function (input) {
+                    body.appendChild(createVmControlRow(input));
+                });
+            }
+
+            // Render nested children as sub-sections
+            if (node.children && node.children.length) {
+                node.children.forEach(function (child) {
+                    if ((child.inputs && child.inputs.length) || (child.children && child.children.length)) {
+                        body.appendChild(createVmSectionElement(child, false, depth + 1));
+                    }
+                });
+            }
+
+            if ((!node.inputs || !node.inputs.length) && (!node.children || !node.children.length)) {
+                var emptyMsg = document.createElement('p');
+                emptyMsg.className = 'empty-state';
+                emptyMsg.textContent = 'No controls.';
+                body.appendChild(emptyMsg);
+            }
+
+            section.appendChild(body);
+            return section;
+        }
+
+        function createVmControlRow(descriptor) {
+            var row = document.createElement('div');
+            row.className = 'vm-control-row';
+
+            var label = document.createElement('div');
+            label.className = 'vm-control-label';
+            label.textContent = descriptor.name + ' (' + descriptor.kind + ')';
+            label.title = descriptor.path;
+
+            var inputContainer = document.createElement('div');
+            inputContainer.className = 'vm-control-input';
+
+            var accessor = resolveLiveAccessor(descriptor.path, descriptor.kind);
+            var isDisabled = !accessor;
+
+            if (descriptor.kind === 'number') {
+                var numberInput = document.createElement('input');
+                numberInput.type = 'number';
+                numberInput.step = 'any';
+                numberInput.value = Number.isFinite(accessor && accessor.value) ? String(accessor.value) : '0';
+                numberInput.disabled = isDisabled;
+                numberInput.addEventListener('change', function () {
+                    var nextValue = Number(numberInput.value);
+                    if (!Number.isFinite(nextValue)) return;
+                    var live = resolveLiveAccessor(descriptor.path, 'number');
+                    if (live) {
+                        live.value = nextValue;
+                        logEvent('ui', 'vm-number', 'Set ' + descriptor.path + ' = ' + nextValue);
+                    }
+                });
+                inputContainer.appendChild(numberInput);
+
+            } else if (descriptor.kind === 'boolean') {
+                var checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = Boolean(accessor && accessor.value);
+                checkbox.disabled = isDisabled;
+                checkbox.addEventListener('change', function () {
+                    var live = resolveLiveAccessor(descriptor.path, 'boolean');
+                    if (live) {
+                        live.value = checkbox.checked;
+                        logEvent('ui', 'vm-boolean', 'Set ' + descriptor.path + ' = ' + checkbox.checked);
+                    }
+                });
+                inputContainer.appendChild(checkbox);
+
+            } else if (descriptor.kind === 'string') {
+                var textInput = document.createElement('input');
+                textInput.type = 'text';
+                textInput.value = (accessor && typeof accessor.value === 'string') ? accessor.value : '';
+                textInput.disabled = isDisabled;
+                textInput.addEventListener('change', function () {
+                    var live = resolveLiveAccessor(descriptor.path, 'string');
+                    if (live) {
+                        live.value = textInput.value;
+                        logEvent('ui', 'vm-string', 'Set ' + descriptor.path + ' = ' + textInput.value);
+                    }
+                });
+                inputContainer.appendChild(textInput);
+
+            } else if (descriptor.kind === 'enum') {
+                var select = document.createElement('select');
+                var values = (accessor && Array.isArray(accessor.values)) ? accessor.values : [];
+                values.forEach(function (val) {
+                    var option = document.createElement('option');
+                    option.value = val;
+                    option.textContent = val;
+                    select.appendChild(option);
+                });
+                if (values.length === 0) {
+                    var fallback = document.createElement('option');
+                    fallback.value = '';
+                    fallback.textContent = '(no enum values)';
+                    select.appendChild(fallback);
+                }
+                if (accessor && typeof accessor.value === 'string') select.value = accessor.value;
+                select.disabled = isDisabled || values.length === 0;
+                select.addEventListener('change', function () {
+                    var live = resolveLiveAccessor(descriptor.path, 'enum');
+                    if (live) {
+                        live.value = select.value;
+                        logEvent('ui', 'vm-enum', 'Set ' + descriptor.path + ' = ' + select.value);
+                    }
+                });
+                inputContainer.appendChild(select);
+
+            } else if (descriptor.kind === 'color') {
+                var colorWrap = document.createElement('div');
+                colorWrap.className = 'vm-color-control';
+
+                var colorInput = document.createElement('input');
+                colorInput.type = 'color';
+                var alphaInput = document.createElement('input');
+                alphaInput.type = 'number';
+                alphaInput.min = '0';
+                alphaInput.max = '100';
+                alphaInput.step = '1';
+
+                var colorMeta = argbToColorMeta(accessor && accessor.value);
+                colorInput.value = colorMeta.hex;
+                alphaInput.value = String(colorMeta.alphaPercent);
+                colorInput.disabled = isDisabled;
+                alphaInput.disabled = isDisabled;
+
+                var applyColor = function () {
+                    var live = resolveLiveAccessor(descriptor.path, 'color');
+                    if (!live) return;
+                    var rgb = hexToRgb(colorInput.value);
+                    var alphaPercent = clamp(Number(alphaInput.value), 0, 100);
+                    alphaInput.value = String(Math.round(alphaPercent));
+                    var alpha = Math.round((alphaPercent / 100) * 255);
+                    if (typeof live.argb === 'function') {
+                        live.argb(alpha, rgb.r, rgb.g, rgb.b);
+                    } else {
+                        live.value = rgbAlphaToArgb(rgb.r, rgb.g, rgb.b, alpha);
+                    }
+                    logEvent('ui', 'vm-color', 'Set ' + descriptor.path + ' color to ' + colorInput.value + ' (' + alphaPercent + '%).');
+                };
+
+                colorInput.addEventListener('input', applyColor);
+                alphaInput.addEventListener('change', applyColor);
+
+                colorWrap.appendChild(colorInput);
+                colorWrap.appendChild(alphaInput);
+                inputContainer.appendChild(colorWrap);
+
+            } else if (descriptor.kind === 'trigger') {
+                var button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = 'Fire';
+                button.disabled = isDisabled;
+                button.addEventListener('click', function () {
+                    var live = resolveLiveAccessor(descriptor.path, 'trigger');
+
+                    // Ensure animation is playing for trigger to take effect
+                    if (riveInstance && riveInstance.isPaused) {
+                        riveInstance.play();
+                    }
+
+                    var firedVmTrigger = false;
+                    if (live && typeof live.trigger === 'function') {
+                        live.trigger();
+                        firedVmTrigger = true;
+                    } else if (live && typeof live.fire === 'function') {
+                        live.fire();
+                        firedVmTrigger = true;
+                    }
+
+                    var firedSmCount = fireStateMachineTriggerByName(descriptor.name);
+                    if (firedVmTrigger || firedSmCount > 0) {
+                        var suffix = firedSmCount > 0 ? ' (+' + firedSmCount + ' state machine trigger matches)' : '';
+                        logEvent('ui', 'vm-trigger', 'Fired trigger ' + descriptor.path + suffix);
+                    } else {
+                        logEvent('ui', 'vm-trigger-miss', 'No trigger accessor or state machine trigger matched ' + descriptor.path);
+                    }
+                });
+                inputContainer.appendChild(button);
+            }
+
+            row.appendChild(label);
+            row.appendChild(inputContainer);
+            return row;
+        }
+
+        /* ── Color utilities ─────────────────────────────────── */
+
+        function clamp(value, min, max) {
+            return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
+        }
+
+        function argbToColorMeta(value) {
+            var rawValue = Number.isFinite(Number(value)) ? Number(value) >>> 0 : 0xff000000;
+            var alpha = (rawValue >>> 24) & 255;
+            var red = (rawValue >>> 16) & 255;
+            var green = (rawValue >>> 8) & 255;
+            var blue = rawValue & 255;
+            return {
+                hex: '#' + toHexByte(red) + toHexByte(green) + toHexByte(blue),
+                alphaPercent: Math.round((alpha / 255) * 100),
+            };
+        }
+
+        function toHexByte(value) {
+            return clamp(Math.round(value), 0, 255).toString(16).padStart(2, '0');
+        }
+
+        function hexToRgb(hex) {
+            var cleanHex = String(hex || '').trim().replace('#', '');
+            if (!/^[0-9a-fA-F]{6}$/.test(cleanHex)) return { r: 0, g: 0, b: 0 };
+            return {
+                r: parseInt(cleanHex.slice(0, 2), 16),
+                g: parseInt(cleanHex.slice(2, 4), 16),
+                b: parseInt(cleanHex.slice(4, 6), 16),
+            };
+        }
+
+        function rgbAlphaToArgb(red, green, blue, alpha) {
+            return (
+                ((clamp(alpha, 0, 255) & 255) << 24) |
+                ((clamp(red, 0, 255) & 255) << 16) |
+                ((clamp(green, 0, 255) & 255) << 8) |
+                (clamp(blue, 0, 255) & 255)
+            ) >>> 0;
+        }
+
+        /* ── Rive animation loading ──────────────────────────── */
+
+        function loadAnimation() {
+            if (!els.canvas || !els.canvasContainer) {
+                showError('Canvas element not found.');
+                return;
+            }
+
+            updateInfo('Loading animation...');
+            logEvent('native', 'load-start', 'Loading embedded animation.');
+
+            try {
+                // Locate the Rive constructor from the runtime
+                var rive = window.rive || window.RiveModule;
+                if (!rive || typeof rive.Rive !== 'function') {
+                    // Try global constructor
+                    if (typeof Rive === 'function') {
+                        rive = { Rive: Rive, Layout: (typeof Layout !== 'undefined') ? Layout : null };
+                    } else {
+                        showError('Rive runtime not found.');
+                        return;
+                    }
+                }
+
+                // Clean up previous instance
+                cleanupInstance();
+
+                // Decode embedded animation from base64
+                var base64Data = CONFIG.animationBase64;
+                var binaryString = atob(base64Data);
+                var bytes = new Uint8Array(binaryString.length);
+                for (var i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                var animationBlob = new Blob([bytes], { type: 'application/octet-stream' });
+                var animationUrl = URL.createObjectURL(animationBlob);
+
+                resizeCanvas();
+
+                // Build Rive config
+                var configuredStateMachines = normalizeStateMachineSelection(CONFIG.stateMachines);
+                var userSpecifiedStateMachines = configuredStateMachines.length > 0;
+                var didRestartForStateMachine = false;
+
+                var riveConfig = {
+                    src: animationUrl,
+                    canvas: els.canvas,
+                    autoplay: CONFIG.autoplay !== false,
+                    autoBind: true,
+                };
+
+                if (CONFIG.artboardName) {
+                    riveConfig.artboard = CONFIG.artboardName;
+                }
+
+                if (userSpecifiedStateMachines) {
+                    riveConfig.stateMachines = configuredStateMachines.length === 1
+                        ? configuredStateMachines[0]
+                        : configuredStateMachines;
+                }
+
+                // Set layout
+                if (rive.Layout) {
+                    riveConfig.layout = new rive.Layout({
+                        fit: currentLayoutFit,
+                        alignment: 'center',
+                    });
+                }
+
+                riveConfig.onLoad = function () {
+                    // Auto-detect state machine if none specified
+                    if (!didRestartForStateMachine && !userSpecifiedStateMachines) {
+                        var detectedSmName = null;
+                        try {
+                            var artboard = riveInstance && riveInstance.artboard;
+                            if (artboard && typeof artboard.stateMachineCount === 'function') {
+                                var count = artboard.stateMachineCount();
+                                if (count > 0) {
+                                    var sm = artboard.stateMachineByIndex(0);
+                                    if (sm && sm.name) detectedSmName = sm.name;
+                                }
+                            }
+                        } catch (e) { /* noop */ }
+
+                        if (!detectedSmName) {
+                            var names = Array.isArray(riveInstance && riveInstance.stateMachineNames) ? riveInstance.stateMachineNames : [];
+                            if (names.length > 0) detectedSmName = names[0];
+                        }
+
+                        if (detectedSmName) {
+                            didRestartForStateMachine = true;
+                            clearRiveEventListeners();
+                            try { riveInstance.cleanup(); } catch (e) { /* noop */ }
+
+                            // Fresh canvas for WebGL context
+                            els.canvasContainer.innerHTML = '';
+                            var newCanvas = document.createElement('canvas');
+                            newCanvas.id = 'rive-canvas';
+                            els.canvasContainer.appendChild(newCanvas);
+                            els.canvas = newCanvas;
+                            resizeCanvas();
+
+                            riveConfig.canvas = newCanvas;
+                            riveConfig.stateMachines = detectedSmName;
+                            riveInstance = new rive.Rive(riveConfig);
+                            window.riveInst = riveInstance;
+                            attachRiveUserEventListeners(rive, riveInstance);
+                            return;
+                        }
+                    }
+
+                    hideError();
+                    resizeCanvas();
+                    if (riveInstance) riveInstance.resizeDrawingSurfaceToCanvas();
+
+                    var smNames = Array.isArray(riveInstance && riveInstance.stateMachineNames) ? riveInstance.stateMachineNames : [];
+                    var activeStateMachine = 'none';
+                    if (riveConfig.stateMachines) {
+                        activeStateMachine = Array.isArray(riveConfig.stateMachines)
+                            ? riveConfig.stateMachines[0]
+                            : riveConfig.stateMachines;
+                    } else if (smNames.length > 0) {
+                        activeStateMachine = smNames[0];
+                    }
+
+                    var statusMsg = smNames.length > 0
+                        ? 'Loaded - state machine "' + activeStateMachine + '" active'
+                        : 'Loaded - no state machines';
+                    updateInfo(statusMsg);
+                    logEvent('native', 'load', 'Animation loaded successfully.');
+
+                    // Render VM controls
+                    renderVmControls();
+                };
+
+                riveConfig.onLoadError = function (error) {
+                    var errorMsg = (error && error.message) || String(error);
+                    showError('Error loading animation: ' + errorMsg);
+                    logEvent('native', 'loaderror', 'Load error: ' + errorMsg);
+                };
+
+                riveConfig.onPlay = function (event) {
+                    logEvent('native', 'play', 'Playback started by runtime.', event);
+                };
+
+                riveConfig.onPause = function (event) {
+                    logEvent('native', 'pause', 'Playback paused by runtime.', event);
+                };
+
+                riveConfig.onStop = function (event) {
+                    logEvent('native', 'stop', 'Playback stopped by runtime.', event);
+                };
+
+                riveConfig.onLoop = function (event) {
+                    logEvent('native', 'loop', 'Loop event emitted by runtime.', event);
+                };
+
+                riveConfig.onStateChange = function (event) {
+                    logEvent('native', 'statechange', 'State machine changed state.', event);
+                };
+
+                riveConfig.onAdvance = function (event) {
+                    updatePlaybackChips();
+                };
+
+                // Remove undefined keys
+                Object.keys(riveConfig).forEach(function (key) {
+                    if (riveConfig[key] === undefined) delete riveConfig[key];
+                });
+
+                riveInstance = new rive.Rive(riveConfig);
+                window.riveInst = riveInstance;
+                attachRiveUserEventListeners(rive, riveInstance);
+
+            } catch (error) {
+                showError('Error initializing Rive: ' + (error.message || error));
+                logEvent('native', 'init-error', 'Error initializing runtime instance.');
+            }
+        }
+
+        function normalizeStateMachineSelection(value) {
+            if (!value) return [];
+            if (typeof value === 'string') return [value];
+            if (Array.isArray(value)) return value.filter(function (v) { return typeof v === 'string' && v; });
+            return [];
+        }
+
+        function cleanupInstance() {
+            clearRiveEventListeners();
+            resetPlaybackChips();
+            if (riveInstance && riveInstance.cleanup) {
+                try { riveInstance.cleanup(); } catch (e) { /* noop */ }
+            }
+            riveInstance = null;
+            window.riveInst = null;
+        }
+
+        /* ── Rive event listeners ────────────────────────────── */
+
+        function clearRiveEventListeners() {
+            riveEventUnsubscribers.forEach(function (unsub) {
+                try { unsub(); } catch (e) { /* noop */ }
+            });
+            riveEventUnsubscribers = [];
+        }
+
+        function attachRiveUserEventListeners(runtime, instance) {
+            clearRiveEventListeners();
+            if (!runtime || !runtime.EventType || !instance || typeof instance.on !== 'function') return;
+
+            var eventType = runtime.EventType.RiveEvent;
+            if (!eventType) return;
+
+            var listener = function (event) {
+                var payload = (event && event.data) || event;
+                var eventName = (payload && payload.name) || (event && event.name) || 'unknown';
+                logEvent('rive-user', eventName, '', payload);
+            };
+
+            instance.on(eventType, listener);
+            riveEventUnsubscribers.push(function () {
+                if (typeof instance.off === 'function') {
+                    instance.off(eventType, listener);
+                }
+            });
+        }
+
+        /* ── VM controls rendering orchestration ─────────────── */
+
+        function renderVmControls() {
+            var countEl = els.vmControlsCount;
+            var emptyEl = els.vmControlsEmpty;
+            var treeEl = els.vmControlsTree;
+            if (!countEl || !emptyEl || !treeEl) return;
+
+            // Use embedded hierarchy if available, otherwise fall back to dynamic discovery
+            var hierarchy = null;
+
+            if (VM_HIERARCHY && VM_HIERARCHY.label) {
+                hierarchy = VM_HIERARCHY;
+                hierarchy.totalInputs = countAllInputs(hierarchy);
+            } else {
+                // Fall back to dynamic discovery
+                var rootVm = resolveVmRootInstance();
+                if (!rootVm) {
+                    treeEl.innerHTML = '';
+                    countEl.textContent = '0';
+                    emptyEl.hidden = false;
+                    emptyEl.textContent = 'No bound ViewModel inputs detected.';
+                    return;
+                }
+                hierarchy = buildVmHierarchy(rootVm);
+            }
+
+            treeEl.innerHTML = '';
+            countEl.textContent = String(hierarchy.totalInputs || 0);
+
+            if (!hierarchy.totalInputs && (!hierarchy.children || !hierarchy.children.length)) {
+                emptyEl.hidden = false;
+                emptyEl.textContent = 'No writable ViewModel inputs were found.';
+                return;
+            }
+
+            emptyEl.hidden = true;
+
+            // Filter out root-level inputs that are duplicated in child VMs
+            if (hierarchy.children && hierarchy.children.length && hierarchy.inputs) {
+                var childPaths = new Set();
+                var collectChildPaths = function (node) {
+                    if (node.inputs) node.inputs.forEach(function (inp) { childPaths.add(inp.name); });
+                    if (node.children) node.children.forEach(collectChildPaths);
+                };
+                hierarchy.children.forEach(collectChildPaths);
+                hierarchy.inputs = hierarchy.inputs.filter(function (inp) { return !childPaths.has(inp.name); });
+            }
+
+            treeEl.appendChild(createVmSectionElement(hierarchy, true, 0));
+            initLucideIcons();
+        }
+
+    })();
+    </script>
+</body>
+</html>
