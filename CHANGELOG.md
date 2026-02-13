@@ -1,0 +1,30 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+## [1.6.0] - 2026-02-13
+
+### Added
+
+- Dynamic VM input control generation for all discovered ViewModel inputs with nested, collapsible sections.
+- State machine input support (legacy control schema) for number, boolean, and trigger inputs.
+- Multi-source event log filtering with independent toggles (`Native`, `Rive User`, `UI`) plus text search.
+- Desktop open-file flow support for `.riv` files via system open actions (`Open With`, double-click association launch path handling).
+- Embedded VM hierarchy payload support in exported standalone demo bundles.
+
+### Changed
+
+- Upgraded app release versioning to `1.6.0` across frontend and Tauri package manifests.
+- Default startup layout now opens with the code editor panel hidden.
+- VM control tree defaults to root open, with nested ViewModels and state-machine groups collapsed by default.
+- Event drawer resize now triggers immediate canvas redraw/resizing to prevent squashed rendering.
+- Event log UI changed from single-select source dropdown to multi-toggle filters and search-first workflow.
+- Opened-file path normalization improved for `file://` URIs, quoted paths, and Windows-style path separators.
+
+### Fixed
+
+- Trigger execution reliability for VM/state-machine controls by resolving accessors per-control-source.
+- Root VM duplicate-input suppression now keys by full input path (not name only), preventing accidental hidden controls.
+- File-open error handling robustness for invalid/empty open-file payloads.
+- Runtime resize consistency during panel drag and panel visibility transitions.
+

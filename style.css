@@ -1380,18 +1380,54 @@ body {
     gap: 6px;
 }
 
-.event-filter-select {
+.event-filter-toggles {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.event-filter-toggle {
     height: 24px;
-    padding: 0 6px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    cursor: pointer;
+    letter-spacing: 0.2px;
+}
+
+.event-filter-toggle:hover {
+    border-color: var(--border-bright);
+    color: var(--text-dim);
+}
+
+.event-filter-toggle.is-active {
+    border-color: #c4f82a66;
+    color: var(--neon);
+    background: #c4f82a18;
+}
+
+.event-filter-search {
+    height: 24px;
+    width: 128px;
+    padding: 0 8px;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--bg-elevated);
     color: var(--text-dim);
     font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 500;
     text-transform: uppercase;
-    cursor: pointer;
+}
+
+.event-filter-search::placeholder {
+    color: var(--text-ghost);
 }
 
 .event-log-body {

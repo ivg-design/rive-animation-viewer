@@ -9,7 +9,7 @@
   },
   "package": {
     "productName": "Rive Animation Viewer",
-    "version": "1.5.0"
+    "version": "1.6.0"
   },
   "tauri": {
     "allowlist": {
@@ -57,10 +57,10 @@
     "windows": [
       {
         "fullscreen": false,
-        "height": 600,
+        "width": 1250,
+        "height": 900,
         "resizable": true,
-        "title": "Rive Animation Viewer",
-        "width": 800
+        "title": "Rive Animation Viewer"
       }
     ]
   }

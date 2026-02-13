@@ -147,12 +147,12 @@
                             <span class="pill" id="event-log-count">0</span>
                         </div>
                         <div class="event-log-summary-right">
-                            <select id="event-filter-select" class="event-filter-select">
-                                <option value="all" selected>ALL</option>
-                                <option value="native">NATIVE</option>
-                                <option value="rive-user">RIVE USER</option>
-                                <option value="ui">UI</option>
-                            </select>
+                            <div class="event-filter-toggles" role="group" aria-label="Event source filters">
+                                <button type="button" id="event-filter-native" class="event-filter-toggle is-active" aria-pressed="true">NATIVE</button>
+                                <button type="button" id="event-filter-rive-user" class="event-filter-toggle is-active" aria-pressed="true">RIVE USER</button>
+                                <button type="button" id="event-filter-ui" class="event-filter-toggle is-active" aria-pressed="true">UI</button>
+                            </div>
+                            <input type="search" id="event-filter-search" class="event-filter-search" placeholder="SEARCH">
                             <button type="button" class="btn-compact" id="event-log-clear-btn">CLEAR</button>
                         </div>
                     </div>

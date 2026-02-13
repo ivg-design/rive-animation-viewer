@@ -3,6 +3,7 @@
 
 use serde::Deserialize;
 use std::fs;
+use std::sync::Mutex;
 use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 
 #[derive(Deserialize)]
@@ -32,6 +33,24 @@ fn open_devtools(window: tauri::Window) {
 fn open_devtools(_window: tauri::Window) {
     // In release builds, this is a no-op
     println!("DevTools are only available in debug builds");
+}
+
+// State: holds file path passed via "Open With" on cold launch
+struct OpenedFile(Mutex<Option<String>>);
+
+#[tauri::command]
+fn get_opened_file(state: tauri::State<'_, OpenedFile>) -> Option<String> {
+    state.0.lock().ok().and_then(|mut guard| guard.take())
+}
+
+#[tauri::command]
+fn read_riv_file(path: String) -> Result<String, String> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    if path.trim().is_empty() {
+        return Err("File path is empty".into());
+    }
+    let bytes = fs::read(&path).map_err(|e| format!("Failed to read {}: {}", path, e))?;
+    Ok(STANDARD.encode(&bytes))
 }
 
 #[tauri::command]
@@ -165,10 +184,28 @@ fn build_menu(about_item: &CustomMenuItem) -> Menu {
         .add_submenu(window_menu)
 }
 
+fn extract_opened_riv_file_arg() -> Option<String> {
+    std::env::args().skip(1).find_map(|arg| {
+        let trimmed = arg.trim_matches('"').trim().to_string();
+        if trimmed.is_empty() || trimmed.starts_with('-') {
+            return None;
+        }
+        let lowered = trimmed.to_ascii_lowercase();
+        if lowered.ends_with(".riv") || (lowered.starts_with("file://") && lowered.contains(".riv")) {
+            return Some(trimmed);
+        }
+        None
+    })
+}
+
 fn main() {
+    // Capture file path from "Open With" / double-click launch.
+    let opened_file = extract_opened_riv_file_arg();
+
     let about_item = CustomMenuItem::new("about_ivg", "About Rive Animation Viewer");
 
     tauri::Builder::default()
+        .manage(OpenedFile(Mutex::new(opened_file)))
         .menu(build_menu(&about_item))
         .on_menu_event(move |event| {
             if event.menu_item_id() == "about_ivg" {
@@ -183,7 +220,12 @@ fn main() {
                 );
             }
         })
-        .invoke_handler(tauri::generate_handler![make_demo_bundle, open_devtools])
+        .invoke_handler(tauri::generate_handler![
+            make_demo_bundle,
+            open_devtools,
+            get_opened_file,
+            read_riv_file
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

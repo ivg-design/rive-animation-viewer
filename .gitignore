@@ -48,3 +48,7 @@ logs/
 # Cache
 .cache/
 *.cache
+
+# Tooling artifacts
+src-tauri/CLAUDE.md
+src-tauri/src/CLAUDE.md
