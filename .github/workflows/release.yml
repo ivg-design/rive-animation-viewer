@@ -2,105 +2,88 @@ name: Release Tauri App
 
 on:
   push:
-    branches:
-      - main
-    paths-ignore:
-      - 'README.md'
-      - '.gitignore'
+    tags:
+      - "v*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.7.0). Leave empty to use package.json"
+        required: false
+        type: string
 
 jobs:
-  # Parse release type from commit message
-  check-release:
+  prepare-release:
     runs-on: ubuntu-latest
     outputs:
-      should-release: ${{ steps.check.outputs.should-release }}
-      bump-type: ${{ steps.check.outputs.bump-type }}
-    steps:
-      - name: Check commit message for release flag
-        id: check
-        run: |
-          # Get only the first line (commit subject) for release flag detection
-          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | head -n 1)
-
-          if [[ "$COMMIT_MSG" =~ release:major ]]; then
-            echo "should-release=true" >> $GITHUB_OUTPUT
-            echo "bump-type=major" >> $GITHUB_OUTPUT
-            echo "Found release:major - will bump major version"
-          elif [[ "$COMMIT_MSG" =~ release:minor ]]; then
-            echo "should-release=true" >> $GITHUB_OUTPUT
-            echo "bump-type=minor" >> $GITHUB_OUTPUT
-            echo "Found release:minor - will bump minor version"
-          elif [[ "$COMMIT_MSG" =~ release:patch ]]; then
-            echo "should-release=true" >> $GITHUB_OUTPUT
-            echo "bump-type=patch" >> $GITHUB_OUTPUT
-            echo "Found release:patch - will bump patch version"
-          else
-            echo "should-release=false" >> $GITHUB_OUTPUT
-            echo "bump-type=none" >> $GITHUB_OUTPUT
-            echo "No release flag found - skipping release"
-          fi
-
-  # Extract version (already bumped by local pre-push hook)
-  extract-version:
-    needs: check-release
-    if: needs.check-release.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    outputs:
-      new-version: ${{ steps.version.outputs.new-version }}
+      version: ${{ steps.meta.outputs.version }}
+      tag: ${{ steps.meta.outputs.tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract version from package.json
-        id: version
+      - name: Resolve release version
+        id: meta
+        shell: bash
+        env:
+          DISPATCH_VERSION: ${{ github.event.inputs.version || '' }}
         run: |
-          NEW_VERSION=$(node -p "require('./package.json').version")
-          echo "new-version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "Building version: $NEW_VERSION"
+          set -euo pipefail
+
+          PKG_VERSION=$(node -p "require('./package.json').version")
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${DISPATCH_VERSION}" ]]; then
+            VERSION="${DISPATCH_VERSION}"
+          elif [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="$PKG_VERSION"
+          fi
+
+          if [[ "$VERSION" != "$PKG_VERSION" ]]; then
+            echo "Version mismatch: package.json=$PKG_VERSION requested=$VERSION"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Preparing release $VERSION"
 
   release:
-    needs: [check-release, extract-version]
-    if: needs.check-release.outputs.should-release == 'true'
+    needs: prepare-release
     permissions:
       contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest'
-            args: '--target aarch64-apple-darwin'
-            rust_target: 'aarch64-apple-darwin'
-          - platform: 'macos-latest'
-            args: '--target x86_64-apple-darwin'
-            rust_target: 'x86_64-apple-darwin'
-          - platform: 'windows-latest'
-            args: ''
-            rust_target: ''
+          - name: macOS Apple Silicon
+            platform: macos-14
+            rust_target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin
+          - name: macOS Intel
+            platform: macos-13
+            rust_target: x86_64-apple-darwin
+            args: --target x86_64-apple-darwin
+          - name: Windows x64
+            platform: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            args: --target x86_64-pc-windows-msvc
 
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: main
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: npm
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.rust_target }}
-
-      - name: Install dependencies (Ubuntu)
-        if: matrix.platform == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: Install npm dependencies
         run: npm ci
@@ -108,60 +91,26 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Use extracted version
-        id: version
-        shell: bash
-        run: |
-          echo "version=${{ needs.extract-version.outputs.new-version }}" >> $GITHUB_OUTPUT
-          echo "Building version: ${{ needs.extract-version.outputs.new-version }}"
-
-      - name: Install Tauri CLI
-        run: npm install -g @tauri-apps/cli
-
-      - name: Build Tauri app
+      - name: Build and publish (${{ matrix.name }})
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tauriScript: npm run tauri
-          tagName: v${{ steps.version.outputs.version }}
-          releaseName: 'Rive Animation Viewer v${{ steps.version.outputs.version }}'
+          tagName: ${{ needs.prepare-release.outputs.tag }}
+          releaseName: Rive Animation Viewer v${{ needs.prepare-release.outputs.version }}
           releaseBody: |
-            ## Rive Animation Viewer v${{ steps.version.outputs.version }}
+            ## Rive Animation Viewer v${{ needs.prepare-release.outputs.version }}
 
-            Desktop app for previewing Rive animations with one-click demo bundle generation.
+            Desktop app for previewing Rive animations with runtime controls, VM/state-machine tooling, and standalone demo export.
 
-            ### Downloads
+            ### Included targets
 
-            **macOS**
-            - aarch64_darwin.dmg - Apple Silicon (M1/M2/M3/M4)
-            - x64_darwin.dmg - Intel Macs
+            - macOS Apple Silicon (`aarch64-apple-darwin`)
+            - macOS Intel (`x86_64-apple-darwin`)
+            - Windows x64 (`x86_64-pc-windows-msvc`)
 
-            **Windows**
-            - .msi installer - x64
-
-            ### Features
-            - Native desktop preview of .riv animations
-            - Live parameter editing with JSON config editor
-            - One-click demo bundle generation (self-contained HTML)
-            - Canvas/WebGL2 runtime switching
-            - Multiple layout fit modes
-            - Compact binary size
-
-            ### Installation
-
-            **macOS:**
-            1. Download and open the .dmg file
-            2. Drag to Applications folder
-            3. Right-click the app and select "Open" (first launch only)
-
-            **Windows:**
-            1. Download and run the .msi installer
-            2. Follow the installation prompts
-
-            ---
-
-            © 2025 IVG Design · MIT License · [GitHub](https://github.com/ivg-design/rive-animation-viewer)
+            See `CHANGELOG.md` for full release details.
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
