@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.6.3] - 2026-02-14
+
+### Changed
+
+- Bumped app/package/runtime version from `1.6.2` to `1.6.3`.
+
+### Fixed
+
+- VM and state-machine control UI now continuously syncs live runtime values, including booleans changed by animation/listener logic.
+- Preserved in-progress user edits while syncing by skipping active focused inputs.
+
 ## [1.6.2] - 2026-02-14
 
 ### Changed
