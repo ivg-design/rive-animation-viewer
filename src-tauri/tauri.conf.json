@@ -19,6 +19,8 @@
         "title": "Rive Animation Viewer",
         "width": 1250,
         "height": 900,
+        "minWidth": 1090,
+        "minHeight": 850,
         "resizable": true,
         "fullscreen": false
       }

@@ -52,6 +52,8 @@ const runtimeSourceTexts = {};
 const runtimeBlobUrls = {};
 const runtimeAssets = {};
 const runtimeWarningsShown = new Set();
+const APP_VERSION_PLACEHOLDER = '__APP' + '_VERSION__';
+const APP_BUILD_PLACEHOLDER = '__APP' + '_BUILD__';
 const APP_VERSION = '__APP_VERSION__';
 const APP_BUILD = '__APP_BUILD__';
 let resolvedAppVersion = APP_VERSION;
@@ -958,6 +960,9 @@ function setupEventLog() {
     const eventLogPanel = elements.eventLogPanel;
     const centerPanel = elements.centerPanel;
     const showEventLogBtn = document.getElementById('show-event-log-btn');
+    if (showEventLogBtn) {
+        showEventLogBtn.hidden = true;
+    }
 
     if (eventLogHeader && eventLogPanel && centerPanel) {
         eventLogHeader.addEventListener('click', (e) => {
@@ -965,20 +970,9 @@ function setupEventLog() {
             if (e.target.closest('.event-log-summary-right')) return;
             const isCollapsed = centerPanel.classList.toggle('event-log-collapsed');
             eventLogPanel.classList.toggle('collapsed', isCollapsed);
-            if (showEventLogBtn) showEventLogBtn.hidden = !isCollapsed;
             handleResize();
             setTimeout(handleResize, 300);
         });
-
-        if (showEventLogBtn) {
-            showEventLogBtn.addEventListener('click', () => {
-                centerPanel.classList.remove('event-log-collapsed');
-                eventLogPanel.classList.remove('collapsed');
-                showEventLogBtn.hidden = true;
-                handleResize();
-                setTimeout(handleResize, 300);
-            });
-        }
     }
 }
 
@@ -1726,7 +1720,7 @@ function refreshInfoStrip() {
         elements.runtimeStripVersion.textContent = `v${runtimeVersion}`;
     }
     if (elements.runtimeStripBuild) {
-        elements.runtimeStripBuild.textContent = `build ${getBuildIdLabel()}`;
+        elements.runtimeStripBuild.textContent = `b ${getShortBuildIdLabel()}`;
     }
     if (elements.runtimeStripFile) {
         if (currentFileName) {
@@ -3214,8 +3208,8 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 async function resolveAppVersion() {
-    if (resolvedAppVersion && resolvedAppVersion !== '__APP_VERSION__') {
-        if (!resolvedAppBuild || resolvedAppBuild === '__APP_BUILD__') {
+    if (resolvedAppVersion && resolvedAppVersion !== APP_VERSION_PLACEHOLDER) {
+        if (!resolvedAppBuild || resolvedAppBuild === APP_BUILD_PLACEHOLDER) {
             resolvedAppBuild = 'dev';
         }
         return;
@@ -3230,18 +3224,30 @@ async function resolveAppVersion() {
             }
         }
     } catch {
-        if (!resolvedAppVersion || resolvedAppVersion === '__APP_VERSION__') {
+        if (!resolvedAppVersion || resolvedAppVersion === APP_VERSION_PLACEHOLDER) {
             resolvedAppVersion = 'dev';
         }
     }
-    if (!resolvedAppBuild || resolvedAppBuild === '__APP_BUILD__') {
+    if (!resolvedAppBuild || resolvedAppBuild === APP_BUILD_PLACEHOLDER) {
         resolvedAppBuild = 'dev';
     }
 }
 
 function getBuildIdLabel() {
-    if (resolvedAppBuild && resolvedAppBuild !== '__APP_BUILD__') {
+    if (resolvedAppBuild && resolvedAppBuild !== APP_BUILD_PLACEHOLDER) {
         return resolvedAppBuild;
     }
     return 'dev';
+}
+
+function getShortBuildIdLabel() {
+    const full = getBuildIdLabel();
+    if (!full || full === 'dev') {
+        return 'dev';
+    }
+    const tail = full.split('-').pop();
+    if (tail && tail.length >= 6) {
+        return tail;
+    }
+    return full.length > 12 ? `${full.slice(0, 12)}…` : full;
 }

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rive Animation Viewer</title>
     <meta name="theme-color" content="#0d1117">
-    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="icon" type="image/png" href="icons/app-icon.png">
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
@@ -15,7 +15,7 @@
             <div class="header-left">
                 <div class="brand-block">
                     <div class="brand-icon" aria-hidden="true">
-                        <i data-lucide="play" class="lucide-14"></i>
+                        <img src="icons/app-icon.png" alt="" class="brand-app-icon">
                     </div>
                     <strong class="brand-text">RIVE ANIMATION VIEWER</strong>
                 </div>
@@ -84,7 +84,7 @@
                 <div class="panel-heading">
                     <div class="panel-heading-main">
                         <span class="panel-marker"></span>
-                        <span>SCRIPT.JS</span>
+                        <span>SCRIPT EDITOR</span>
                     </div>
                     <div class="panel-heading-actions">
                         <button type="button" class="icon-btn-sm" onclick="injectCodeSnippet()" title="Inject VM Explorer" aria-label="Inject VM Explorer">
@@ -125,7 +125,7 @@
                     <div class="runtime-strip-left">
                         <span class="runtime-chip runtime-chip-runtime" id="runtime-strip-runtime"><span class="dot dot-sm" aria-hidden="true"></span>Runtime: WebGL</span>
                         <span class="runtime-chip" id="runtime-strip-version">v2.34.3</span>
-                        <span class="runtime-chip" id="runtime-strip-build">build dev</span>
+                        <span class="runtime-chip" id="runtime-strip-build">b --</span>
                         <span class="runtime-strip-sep" aria-hidden="true">|</span>
                         <span class="runtime-chip runtime-chip-file" id="runtime-strip-file"><i data-lucide="file" class="lucide-10"></i>No animation loaded</span>
                     </div>
@@ -136,7 +136,7 @@
 
                 <div class="panel-resizer panel-resizer-horizontal" id="center-resizer" aria-hidden="true"></div>
 
-                <button type="button" id="show-event-log-btn" class="workspace-edge-toggle workspace-edge-toggle-bottom" title="Show Event Log" aria-label="Show Event Log" hidden>
+                <button type="button" id="show-event-log-btn" class="workspace-edge-toggle workspace-edge-toggle-bottom" title="Show Event Console" aria-label="Show Event Console" hidden>
                     <i data-lucide="chevron-up" class="lucide-14"></i>
                 </button>
 
@@ -144,7 +144,7 @@
                     <div class="event-log-header" id="event-log-header">
                         <div class="event-log-summary-left">
                             <i data-lucide="chevron-down" class="lucide-14 event-log-chevron"></i>
-                            <span>EVENT LOG</span>
+                            <span>EVENT CONSOLE</span>
                             <span class="pill" id="event-log-count">0</span>
                         </div>
                         <div class="event-log-summary-right">

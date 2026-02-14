@@ -80,10 +80,10 @@ body {
     border-bottom: 1px solid var(--border);
     background: var(--bg-zinc);
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
     align-items: center;
-    gap: var(--gap-relaxed);
-    padding: 0 20px;
+    gap: 10px;
+    padding: 0 10px;
 }
 
 .header-left,
@@ -98,7 +98,9 @@ body {
 
 .header-left {
     justify-self: start;
-    gap: var(--gap-spacious);
+    gap: 10px;
+    min-width: max-content;
+    overflow: hidden;
 }
 
 .header-center,
@@ -110,12 +112,14 @@ body {
     justify-self: center;
     justify-content: center;
     gap: var(--gap-micro);
+    min-width: max-content;
 }
 
 .header-right {
     justify-self: end;
     justify-content: flex-end;
     gap: var(--gap-base);
+    min-width: max-content;
 }
 
 /* ── Brand ────────────────────────────────────────────────── */
@@ -125,23 +129,32 @@ body {
     align-items: center;
     gap: var(--gap-base);
     min-width: 0;
+    flex-shrink: 0;
 }
 
 .brand-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    background: var(--neon);
-    color: var(--text-dark);
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: #10141f;
+    border: 1px solid #2a3246;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    overflow: hidden;
+}
+
+.brand-app-icon {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 
 .brand-text {
     font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     letter-spacing: 0.1px;
     white-space: nowrap;
@@ -174,8 +187,8 @@ body {
 
 .header-select {
     height: var(--header-control-h);
-    padding: 0 14px;
-    min-width: 104px;
+    padding: 0 10px;
+    min-width: 92px;
     border-radius: var(--radius-md);
     border-color: var(--border-bright);
     font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
@@ -775,7 +788,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
+    gap: 10px;
     min-width: 0;
     font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
     font-weight: 500;
@@ -785,13 +798,20 @@ body {
 .runtime-strip-right {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     min-width: 0;
 }
 
 .runtime-strip-left {
-    flex: 1;
+    flex: 1 1 auto;
     min-width: 0;
+    overflow: hidden;
+}
+
+.runtime-strip-right {
+    flex: 0 1 38%;
+    justify-content: flex-end;
+    overflow: hidden;
 }
 
 .runtime-strip-sep {
@@ -828,6 +848,8 @@ body {
 }
 
 .runtime-chip-file {
+    flex: 1 1 auto;
+    min-width: 0;
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -836,6 +858,10 @@ body {
 
 .runtime-chip-status {
     color: var(--text-ghost);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* ── Resizers ─────────────────────────────────────────────── */
@@ -910,12 +936,7 @@ body {
 }
 
 .workspace-edge-toggle-bottom {
-    position: absolute;
-    bottom: 24px;
-    left: 50%;
-    top: auto;
-    transform: translateX(-50%);
-    z-index: 20;
+    display: none !important;
 }
 
 .center-panel {
@@ -1357,12 +1378,14 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.25px;
     color: var(--text-white);
+    gap: 8px;
 }
 
 .event-log-summary-left {
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    flex: 0 0 auto;
 }
 
 .event-log-summary-left .event-log-chevron {
@@ -1378,6 +1401,11 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    overflow: hidden;
 }
 
 .event-filter-toggles {
@@ -1570,7 +1598,36 @@ body {
 
 /* ── Responsive ───────────────────────────────────────────── */
 
-@media (max-width: 1300px) {
+@media (max-width: 1160px) {
+    .brand-text {
+        font-size: 14px;
+    }
+
+    #file-trigger-btn {
+        min-width: 100px;
+        padding: 0 10px;
+    }
+
+    .header-select {
+        min-width: 84px;
+        font-size: 10px;
+    }
+
+    .event-log-summary-right {
+        gap: 4px;
+    }
+
+    .event-filter-toggle {
+        padding: 0 6px;
+        font-size: 9px;
+    }
+
+    .event-filter-search {
+        width: 88px;
+    }
+}
+
+@media (max-width: 1089px) {
     :root {
         --left-width: 300px;
         --right-width: 290px;
