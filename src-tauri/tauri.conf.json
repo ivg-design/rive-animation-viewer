@@ -1,66 +1,60 @@
 {
-  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Rive Animation Viewer",
+  "version": "1.6.0",
+  "identifier": "app.rive.animation.viewer",
   "build": {
     "beforeBuildCommand": "npm run build",
     "beforeDevCommand": "npm run serve",
-    "devPath": "http://localhost:8080",
-    "distDir": "../dist",
-    "withGlobalTauri": true
+    "devUrl": "http://localhost:8080",
+    "frontendDist": "../dist"
   },
-  "package": {
-    "productName": "Rive Animation Viewer",
-    "version": "1.6.0"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false
-    },
-    "bundle": {
-      "active": true,
-      "category": "DeveloperTool",
-      "copyright": "",
-      "deb": {
-        "depends": []
-      },
-      "externalBin": [],
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "identifier": "app.rive.animation.viewer",
-      "longDescription": "",
-      "macOS": {
-        "entitlements": null,
-        "exceptionDomain": "",
-        "frameworks": [],
-        "providerShortName": null,
-        "signingIdentity": "-"
-      },
-      "resources": [],
-      "shortDescription": "",
-      "targets": "all",
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-      }
-    },
+  "app": {
     "security": {
       "csp": null
     },
-    "updater": {
-      "active": false
-    },
     "windows": [
       {
-        "fullscreen": false,
+        "title": "Rive Animation Viewer",
         "width": 1250,
         "height": 900,
         "resizable": true,
-        "title": "Rive Animation Viewer"
+        "fullscreen": false
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "DeveloperTool",
+    "shortDescription": "Rive animation player and runtime debugger",
+    "longDescription": "Desktop viewer for Rive files with VM/state machine controls, runtime switching, code injection, event logging, and standalone demo export.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "signingIdentity": "-"
+    },
+    "fileAssociations": [
+      {
+        "ext": [
+          "riv"
+        ],
+        "name": "Rive Animation",
+        "description": "Rive animation file",
+        "role": "Viewer",
+        "rank": "Owner",
+        "mimeType": "application/octet-stream",
+        "exportedType": {
+          "identifier": "app.rive.animation.viewer.riv",
+          "conformsTo": [
+            "public.data"
+          ]
+        }
       }
     ]
   }

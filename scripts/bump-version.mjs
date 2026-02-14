@@ -36,7 +36,7 @@ async function updatePackageJson(newVersion) {
 async function updateTauriConfig(newVersion) {
   const configPath = path.join(root, 'src-tauri', 'tauri.conf.json');
   const config = JSON.parse(await fs.readFile(configPath, 'utf8'));
-  config.package.version = newVersion;
+  config.version = newVersion;
   await fs.writeFile(configPath, JSON.stringify(config, null, 2) + '\n');
   console.log(`✓ Updated tauri.conf.json: ${newVersion}`);
 }

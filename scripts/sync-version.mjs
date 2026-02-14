@@ -25,7 +25,7 @@ async function getCurrentVersions() {
 
   return {
     package: pkg.version,
-    tauri: tauri.package.version,
+    tauri: tauri.version,
     cargo: cargoVersion
   };
 }

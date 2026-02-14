@@ -1,10 +1,12 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::Deserialize;
 use std::fs;
 use std::sync::Mutex;
-use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
+use tauri::menu::Menu;
+use tauri::{Emitter, Manager};
 
 #[derive(Deserialize)]
 struct DemoBundlePayload {
@@ -21,22 +23,20 @@ struct DemoBundlePayload {
     vm_hierarchy: Option<String>,
 }
 
+// State: holds a file path passed via Open With / double click for first-load handoff.
+struct OpenedFile(Mutex<Option<String>>);
+
 #[cfg(debug_assertions)]
 #[tauri::command]
-fn open_devtools(window: tauri::Window) {
-    // DevTools are only available in debug builds
+fn open_devtools(window: tauri::WebviewWindow) {
     window.open_devtools();
 }
 
 #[cfg(not(debug_assertions))]
 #[tauri::command]
-fn open_devtools(_window: tauri::Window) {
-    // In release builds, this is a no-op
+fn open_devtools(_window: tauri::WebviewWindow) {
     println!("DevTools are only available in debug builds");
 }
-
-// State: holds file path passed via "Open With" on cold launch
-struct OpenedFile(Mutex<Option<String>>);
 
 #[tauri::command]
 fn get_opened_file(state: tauri::State<'_, OpenedFile>) -> Option<String> {
@@ -45,7 +45,6 @@ fn get_opened_file(state: tauri::State<'_, OpenedFile>) -> Option<String> {
 
 #[tauri::command]
 fn read_riv_file(path: String) -> Result<String, String> {
-    use base64::{engine::general_purpose::STANDARD, Engine};
     if path.trim().is_empty() {
         return Err("File path is empty".into());
     }
@@ -62,16 +61,13 @@ async fn make_demo_bundle(payload: DemoBundlePayload) -> Result<String, String> 
             .replace(|c: char| !c.is_ascii_alphanumeric(), "-")
     );
 
-    let save_path = tauri::api::dialog::blocking::FileDialogBuilder::new()
+    let save_path = rfd::FileDialog::new()
         .set_title("Save Rive Demo Viewer")
         .set_file_name(&suggested)
         .add_filter("HTML File", &["html"])
         .save_file();
 
-    let path = match save_path {
-        Some(path) => path,
-        None => return Err("Save canceled".into()),
-    };
+    let path = save_path.ok_or_else(|| "Save canceled".to_string())?;
 
     let html = build_demo_html(&payload).map_err(|error| error.to_string())?;
     fs::write(&path, html).map_err(|error| error.to_string())?;
@@ -96,23 +92,15 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
         .unwrap_or_else(|| "#0d1117".into())
     });
     let config_json = serde_json::to_string(&config)?;
-    let escaped_config = config_json
-        .replace('\\', "\\\\")
-        .replace('\'', "\\'");
+    let escaped_config = config_json.replace('\\', "\\\\").replace('\'', "\\'");
     let escaped_runtime = payload.runtime_script.replace("</script", "<\\/script");
-    let canvas_color = payload
-        .canvas_color
-        .as_deref()
-        .unwrap_or("#0d1117");
+    let canvas_color = payload.canvas_color.as_deref().unwrap_or("#0d1117");
     let runtime_display = if payload.runtime_name == "canvas" {
         "Canvas"
     } else {
         "WebGL"
     };
-    let runtime_version = payload
-        .runtime_version
-        .as_deref()
-        .unwrap_or("unknown");
+    let runtime_version = payload.runtime_version.as_deref().unwrap_or("unknown");
     let vm_hierarchy_json = payload
         .vm_hierarchy
         .as_deref()
@@ -136,52 +124,8 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
     Ok(html)
 }
 
-fn build_menu(about_item: &CustomMenuItem) -> Menu {
-    let app_menu = Submenu::new(
-        "Rive Animation Viewer",
-        Menu::new()
-            .add_item(about_item.clone())
-            .add_native_item(MenuItem::Separator)
-            .add_native_item(MenuItem::Services)
-            .add_native_item(MenuItem::Separator)
-            .add_native_item(MenuItem::Hide)
-            .add_native_item(MenuItem::HideOthers)
-            .add_native_item(MenuItem::ShowAll)
-            .add_native_item(MenuItem::Separator)
-            .add_native_item(MenuItem::Quit),
-    );
-
-    let edit_menu = Submenu::new(
-        "Edit",
-        Menu::new()
-            .add_native_item(MenuItem::Undo)
-            .add_native_item(MenuItem::Redo)
-            .add_native_item(MenuItem::Separator)
-            .add_native_item(MenuItem::Cut)
-            .add_native_item(MenuItem::Copy)
-            .add_native_item(MenuItem::Paste)
-            .add_native_item(MenuItem::SelectAll),
-    );
-
-    let view_menu = Submenu::new(
-        "View",
-        Menu::new().add_native_item(MenuItem::EnterFullScreen),
-    );
-
-    let window_menu = Submenu::new(
-        "Window",
-        Menu::new()
-            .add_native_item(MenuItem::Minimize)
-            .add_native_item(MenuItem::Zoom)
-            .add_native_item(MenuItem::Separator)
-            .add_native_item(MenuItem::CloseWindow),
-    );
-
-    Menu::new()
-        .add_submenu(app_menu)
-        .add_submenu(edit_menu)
-        .add_submenu(view_menu)
-        .add_submenu(window_menu)
+fn looks_like_riv_file(value: &str) -> bool {
+    value.trim().to_ascii_lowercase().ends_with(".riv")
 }
 
 fn extract_opened_riv_file_arg() -> Option<String> {
@@ -190,35 +134,35 @@ fn extract_opened_riv_file_arg() -> Option<String> {
         if trimmed.is_empty() || trimmed.starts_with('-') {
             return None;
         }
-        let lowered = trimmed.to_ascii_lowercase();
-        if lowered.ends_with(".riv") || (lowered.starts_with("file://") && lowered.contains(".riv")) {
+        if looks_like_riv_file(&trimmed)
+            || (trimmed.to_ascii_lowercase().starts_with("file://")
+                && trimmed.to_ascii_lowercase().contains(".riv"))
+        {
             return Some(trimmed);
         }
         None
     })
 }
 
-fn main() {
-    // Capture file path from "Open With" / double-click launch.
-    let opened_file = extract_opened_riv_file_arg();
+fn try_emit_open_file(app: &tauri::AppHandle, path: String) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.emit("open-file", path);
+    }
+}
 
-    let about_item = CustomMenuItem::new("about_ivg", "About Rive Animation Viewer");
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+fn main() {
+    let opened_file = extract_opened_riv_file_arg();
 
     tauri::Builder::default()
         .manage(OpenedFile(Mutex::new(opened_file)))
-        .menu(build_menu(&about_item))
-        .on_menu_event(move |event| {
-            if event.menu_item_id() == "about_ivg" {
-                let message = format!(
-          "Rive Animation Viewer v{}\n© 2025 IVG Design · MIT License\nRive runtime © Rive",
-          env!("CARGO_PKG_VERSION")
-        );
-                tauri::api::dialog::message(
-                    Some(event.window()),
-                    "About Rive Animation Viewer",
-                    message,
-                );
+        .setup(|app| {
+            #[cfg(desktop)]
+            {
+                let menu = Menu::default(app.handle())?;
+                app.set_menu(menu)?;
             }
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             make_demo_bundle,
@@ -226,6 +170,31 @@ fn main() {
             get_opened_file,
             read_riv_file
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            if let tauri::RunEvent::Opened { urls } = event {
+                let maybe_file = urls.into_iter().find_map(|url| {
+                    if let Ok(path) = url.to_file_path() {
+                        let value = path.to_string_lossy().to_string();
+                        if looks_like_riv_file(&value) {
+                            return Some(value);
+                        }
+                        return None;
+                    }
+
+                    let value = url.to_string();
+                    if looks_like_riv_file(&value) {
+                        return Some(value);
+                    }
+                    None
+                });
+
+                if let Some(path) = maybe_file {
+                    // Forward to frontend when app is already running.
+                    try_emit_open_file(app, path);
+                }
+            }
+        });
 }
