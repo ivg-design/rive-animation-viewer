@@ -2,6 +2,10 @@
 
 A local and desktop viewer for `.riv` files with runtime controls, JavaScript configuration editing, and ViewModelInstance debugging tools.
 
+## Release
+
+- Current release: `1.7.0` (2026-02-14)
+
 ## Quick Start
 
 ```bash
@@ -17,6 +21,7 @@ npm start  # Opens browser at http://localhost:8080
 - **Layout Options**: Choose from contain, cover, fill, fit-width, fit-height, scale-down, scale-up
 - **Background Color**: Color picker to change canvas background
 - **Playback Controls**: Play, pause, and reset animation buttons
+- **Event Console**: Source toggles (`Native`, `Rive User`, `UI`) and text search filters
 - **State Machine Detection**: Automatically detects and initializes available state machines
 
 ### Code Editor Panel

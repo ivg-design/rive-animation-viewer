@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.7.0] - 2026-02-14
+
+### Changed
+
+- Bumped app/package/runtime version from `1.6.3` to `1.7.0`.
+- Updated project documentation (`README.md`) for the latest release.
+
+### Fixed
+
+- Event console filter toggle labels now stay on a single line (prevents `RIVE USER` from wrapping in narrow layouts).
+
 ## [1.6.3] - 2026-02-14
 
 ### Changed

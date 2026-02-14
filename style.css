@@ -1417,6 +1417,7 @@ body {
 .event-filter-toggle {
     height: 24px;
     padding: 0 8px;
+    flex: 0 0 auto;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--bg-elevated);
@@ -1425,6 +1426,7 @@ body {
     font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
+    white-space: nowrap;
     cursor: pointer;
     letter-spacing: 0.2px;
 }

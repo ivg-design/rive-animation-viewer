@@ -1,0 +1,29 @@
+{
+  "fill" : {
+    "solid" : "display-p3:0.96783,0.93833,0.92699,1.00000"
+  },
+  "groups" : [
+    {
+      "blur-material" : null,
+      "layers" : [
+        {
+          "image-name" : "RAV_2.0.png",
+          "name" : "RAV_2.0"
+        }
+      ],
+      "lighting" : "combined",
+      "shadow" : {
+        "kind" : "layer-color",
+        "opacity" : 1
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.28
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : "shared"
+  }
+}
