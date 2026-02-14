@@ -21,8 +21,8 @@ npm start  # Opens browser at http://localhost:8080
 - **Layout Options**: Choose from contain, cover, fill, fit-width, fit-height, scale-down, scale-up
 - **Background Color**: Color picker with `No BG` reset for transparent canvas backgrounds
 - **Transparency Mode**: Toggle transparent canvas/window mode for overlay-style playback
-- **Click-through (Desktop)**: Best-effort transparent-pixel click-through in transparency mode
-- **Playback Controls**: Play, pause, and reset animation buttons
+- **Click-through (Desktop)**: Cursor-synced transparent-pixel click-through while keeping the viewer topmost in transparency mode
+- **Playback Controls**: Play, pause, and reset/restart (reset reloads animation with autoplay and restores control values)
 - **Event Console**: Source toggles (`Native`, `Rive User`, `UI`) and text search filters
 - **State Machine Detection**: Automatically detects and initializes available state machines
 
@@ -68,6 +68,7 @@ The explorer displays a comprehensive usage guide in the console when injected.
 ### Desktop Features (Tauri)
 - **Native App**: Runs as a desktop application on macOS/Windows/Linux
 - **Demo Bundle Export**: Create self-contained HTML files with embedded animations
+- **Demo Runtime Guardrails**: Exported demos intentionally disable desktop-only transparency toggle behavior
 - **Offline Support**: Caches runtime scripts for offline use
 - **Dev Tools Access**: Programmatic DevTools opening via inject button to access console
 

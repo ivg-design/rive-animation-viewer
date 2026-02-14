@@ -48,6 +48,10 @@ body {
     height: 100%;
 }
 
+html {
+    background: var(--bg-void);
+}
+
 body {
     background: var(--bg-void);
     color: var(--text-white);
@@ -56,8 +60,15 @@ body {
 }
 
 body.transparency-mode,
+html.transparency-mode,
 body.transparency-mode .app-shell {
     background: transparent;
+}
+
+body.transparency-mode .workspace,
+body.transparency-mode #center-panel,
+body.transparency-mode .center-panel {
+    background: transparent !important;
 }
 
 .app-shell {
@@ -799,6 +810,13 @@ body.transparency-mode .app-shell {
 
 body.transparency-mode .canvas-drop-target,
 body.transparency-mode #canvas-container {
+    background: transparent !important;
+}
+
+body.transparency-mode .runtime-strip,
+body.transparency-mode .event-log-panel,
+body.transparency-mode .event-log-body,
+body.transparency-mode .event-log-list {
     background: transparent !important;
 }
 

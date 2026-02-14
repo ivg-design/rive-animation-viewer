@@ -21,6 +21,10 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - Demo export hydration now restores right-panel width/visibility and event-console layout state instead of always using defaults.
+- Desktop click-through transparency now uses continuous cursor-position sync (no pulse mode), reducing focus flapping and improving pass-through reliability.
+- Reset control now performs a full autoplay-style reload instead of leaving playback stopped.
+- VM/state-machine property values set in the Properties panel are now captured and restored after reset/restart (trigger inputs excluded).
+- Exported demo template now disables transparency toggle UI to avoid exposing a non-functional desktop-only control.
 
 ## [1.7.0] - 2026-02-13
 

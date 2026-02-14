@@ -49,6 +49,10 @@ html, body {
     height: 100%;
 }
 
+html {
+    background: var(--bg-void);
+}
+
 body {
     background: var(--bg-void);
     color: var(--text-white);
@@ -57,8 +61,15 @@ body {
 }
 
 body.transparency-mode,
+html.transparency-mode,
 body.transparency-mode .app-shell {
     background: transparent;
+}
+
+body.transparency-mode .workspace,
+body.transparency-mode #center-panel,
+body.transparency-mode .center-panel {
+    background: transparent !important;
 }
 
 /* ── Lucide icon sizing ──────────────────────────────────── */
@@ -324,6 +335,11 @@ body.transparency-mode .app-shell {
     color: var(--neon);
 }
 
+.settings-toggle:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 .settings-note {
     color: var(--text-muted);
     font-size: 10px;
@@ -467,6 +483,13 @@ body.transparency-mode .app-shell {
 }
 
 body.transparency-mode .canvas-container {
+    background: transparent !important;
+}
+
+body.transparency-mode .runtime-strip,
+body.transparency-mode .event-log-panel,
+body.transparency-mode .event-log-body,
+body.transparency-mode .event-log-list {
     background: transparent !important;
 }
 
@@ -1355,9 +1378,9 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                         </div>
                         <div class="settings-row">
                             <label class="settings-label" for="transparency-mode-toggle">Transparency</label>
-                            <button type="button" id="transparency-mode-toggle" class="settings-toggle" aria-pressed="false">OFF</button>
+                            <button type="button" id="transparency-mode-toggle" class="settings-toggle" aria-pressed="false" disabled aria-disabled="true">OFF</button>
                         </div>
-                        <p class="settings-note">Click-through transparency is available in the desktop app only.</p>
+                        <p class="settings-note">Transparency controls are disabled in exported demos. Use the desktop app for transparency and click-through mode.</p>
                     </div>
                 </div>
             </div>
@@ -1463,6 +1486,7 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
         const VM_HIERARCHY = JSON.parse('__VM_HIERARCHY_JSON__');
         const DEFAULT_CANVAS_COLOR = '__CANVAS_COLOR__' || '#0d1117';
         const TRANSPARENT_CANVAS_COLOR = 'transparent';
+        const DEMO_TRANSPARENCY_TOGGLE_ENABLED = false;
         const LAYOUT_STATE = (CONFIG.layoutState && typeof CONFIG.layoutState === 'object')
             ? CONFIG.layoutState
             : {};
@@ -1477,7 +1501,7 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
         let currentLayoutFit = CONFIG.layoutFit || 'contain';
         let lastSolidCanvasColor = normalizeCanvasColor(CONFIG.canvasColor) || DEFAULT_CANVAS_COLOR;
         let currentCanvasColor = CONFIG.canvasTransparent ? TRANSPARENT_CANVAS_COLOR : lastSolidCanvasColor;
-        let isTransparencyModeEnabled = Boolean(LAYOUT_STATE.transparencyMode);
+        let isTransparencyModeEnabled = false;
         let isRightPanelVisible = typeof LAYOUT_STATE.rightPanelVisible === 'boolean'
             ? LAYOUT_STATE.rightPanelVisible
             : true;
@@ -1578,6 +1602,10 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             return currentCanvasColor === TRANSPARENT_CANVAS_COLOR;
         }
 
+        function isCanvasEffectivelyTransparent() {
+            return isTransparencyModeEnabled || isCanvasBackgroundTransparent();
+        }
+
         function updateSettingToggle(button, active) {
             if (!button) return;
             button.classList.toggle('is-active', active);
@@ -1601,6 +1629,13 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
 
         function syncTransparencyControls() {
             updateSettingToggle(els.transparencyModeToggle, isTransparencyModeEnabled);
+            if (els.transparencyModeToggle) {
+                els.transparencyModeToggle.disabled = !DEMO_TRANSPARENCY_TOGGLE_ENABLED;
+                els.transparencyModeToggle.setAttribute('aria-disabled', String(!DEMO_TRANSPARENCY_TOGGLE_ENABLED));
+                els.transparencyModeToggle.title = DEMO_TRANSPARENCY_TOGGLE_ENABLED
+                    ? 'Toggle transparency mode'
+                    : 'Transparency mode is not available in exported demos';
+            }
         }
 
         function applyPersistedLayoutState() {
@@ -1622,6 +1657,7 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                 els.showEventLogBtn.hidden = !collapsedEventLog;
             }
 
+            document.documentElement.classList.toggle('transparency-mode', isTransparencyModeEnabled);
             document.body.classList.toggle('transparency-mode', isTransparencyModeEnabled);
             syncCanvasColorControls();
             syncTransparencyControls();
@@ -1672,9 +1708,12 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
         /* ── Canvas background ───────────────────────────────── */
 
         function updateCanvasBackground() {
+            var canvasBackground = isCanvasEffectivelyTransparent() ? 'transparent' : currentCanvasColor;
             if (els.canvasContainer) {
-                var canvasBackground = isCanvasBackgroundTransparent() ? 'transparent' : currentCanvasColor;
                 els.canvasContainer.style.background = canvasBackground;
+            }
+            if (els.canvas) {
+                els.canvas.style.background = canvasBackground;
             }
         }
 
@@ -1914,10 +1953,16 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             var toggle = els.transparencyModeToggle;
             if (!toggle) return;
 
+            isTransparencyModeEnabled = false;
             syncTransparencyControls();
+            document.documentElement.classList.toggle('transparency-mode', isTransparencyModeEnabled);
             document.body.classList.toggle('transparency-mode', isTransparencyModeEnabled);
+            if (!DEMO_TRANSPARENCY_TOGGLE_ENABLED) {
+                return;
+            }
             toggle.addEventListener('click', function () {
                 isTransparencyModeEnabled = !isTransparencyModeEnabled;
+                document.documentElement.classList.toggle('transparency-mode', isTransparencyModeEnabled);
                 document.body.classList.toggle('transparency-mode', isTransparencyModeEnabled);
                 syncTransparencyControls();
                 updateCanvasBackground();
@@ -2934,6 +2979,9 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                         fit: currentLayoutFit,
                         alignment: 'center',
                     });
+                }
+                if (isCanvasEffectivelyTransparent() && CONFIG.runtimeName !== 'canvas' && typeof riveConfig.useOffscreenRenderer === 'undefined') {
+                    riveConfig.useOffscreenRenderer = true;
                 }
 
                 riveConfig.onLoad = function () {

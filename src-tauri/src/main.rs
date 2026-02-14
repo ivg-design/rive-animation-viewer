@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use base64::{engine::general_purpose::STANDARD, Engine};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fs;
 use std::sync::Mutex;
@@ -29,6 +29,12 @@ struct DemoBundlePayload {
 
 // State: queue of file paths passed via Open With / double click.
 struct OpenedFiles(Mutex<VecDeque<String>>);
+
+#[derive(Serialize)]
+struct WindowCursorPosition {
+    x: f64,
+    y: f64,
+}
 
 #[cfg(debug_assertions)]
 #[tauri::command]
@@ -65,7 +71,17 @@ fn set_window_transparency_mode(window: tauri::WebviewWindow, enabled: bool) -> 
     };
     window
         .set_background_color(Some(color))
-        .map_err(|error| error.to_string())
+        .map_err(|error| error.to_string())?;
+
+    #[cfg(desktop)]
+    {
+        // Transparent overlays look cleaner without the native window shadow.
+        if let Err(error) = window.set_shadow(!enabled) {
+            eprintln!("failed to set window shadow: {error}");
+        }
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -73,6 +89,28 @@ fn set_window_click_through(window: tauri::WebviewWindow, enabled: bool) -> Resu
     window
         .set_ignore_cursor_events(enabled)
         .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn set_window_click_through_mode(window: tauri::WebviewWindow, enabled: bool) -> Result<(), String> {
+    window
+        .set_always_on_top(enabled)
+        .map_err(|error| error.to_string())?;
+    if !enabled {
+        let _ = window.set_ignore_cursor_events(false);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn get_window_cursor_position(window: tauri::WebviewWindow) -> Option<WindowCursorPosition> {
+    window
+        .cursor_position()
+        .ok()
+        .map(|position| WindowCursorPosition {
+            x: position.x,
+            y: position.y,
+        })
 }
 
 #[tauri::command]
@@ -234,7 +272,9 @@ fn main() {
             get_opened_file,
             read_riv_file,
             set_window_transparency_mode,
-            set_window_click_through
+            set_window_click_through,
+            set_window_click_through_mode,
+            get_window_cursor_position
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

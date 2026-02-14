@@ -41,8 +41,7 @@ const RIVE_VERSION = '2.34.3';
 const MIN_SCRIPTING_RUNTIME_VERSION = '2.34.0';
 const DEFAULT_CANVAS_COLOR = '#0d1117';
 const TRANSPARENT_CANVAS_COLOR = 'transparent';
-const CLICK_THROUGH_PULSE_MS = 180;
-const CLICK_THROUGH_SAMPLE_INTERVAL_MS = 48;
+const CLICK_THROUGH_POLL_INTERVAL_MS = 42;
 const runtimeSources = {
     canvas: `https://cdn.jsdelivr.net/npm/@rive-app/canvas@${RIVE_VERSION}`,
     webgl2: `https://cdn.jsdelivr.net/npm/@rive-app/webgl2@${RIVE_VERSION}`,
@@ -89,10 +88,10 @@ let isLeftPanelVisible = false;
 let isRightPanelVisible = true;
 let isTransparencyModeEnabled = false;
 let isClickThroughEnabled = false;
-let clickThroughPulseTimeout = null;
-let clickThroughPulseActive = false;
+let clickThroughMonitorTimer = null;
+let clickThroughMonitorInFlight = false;
+let clickThroughPassThroughActive = false;
 let clickThroughRequestSequence = 0;
-let lastClickThroughSampleAt = 0;
 const runtimeMeta = loadRuntimeMeta();
 let editorView = null;
 let isAutoFilling = false;
@@ -181,7 +180,6 @@ async function init() {
     setupEventLog();
     setupSettingsPopover();
     setupDragAndDrop();
-    setupClickThroughSampling();
     await setupTauriOpenFileListener();
     resetVmInputControls('No animation loaded.');
     resetEventLog();
@@ -197,7 +195,11 @@ async function init() {
             openedFilePollTimeout = null;
         }
         revokeLastObjectUrl();
+        stopClickThroughMonitor();
         if (isTauriEnvironment()) {
+            setWindowClickThroughMode(false).catch(() => {
+                /* noop */
+            });
             setWindowClickThrough(false).catch(() => {
                 /* noop */
             });
@@ -585,6 +587,7 @@ async function setupCodeEditor() {
   // layout: { fit: "contain", alignment: "center" },
   //   fit options: contain, cover, fill, fitWidth, fitHeight, scaleDown, none, layout
   //   alignment: center, topLeft, topCenter, topRight, etc.
+  // useOffscreenRenderer: true, // recommended for transparent overlays with glows/shadows
 
   onLoad: () => {
     riveInst.resizeDrawingSurfaceToCanvas();
@@ -758,7 +761,8 @@ function setupTransparencyControls() {
         isTransparencyModeEnabled = !isTransparencyModeEnabled;
         if (!isTransparencyModeEnabled && isClickThroughEnabled) {
             isClickThroughEnabled = false;
-            await stopClickThroughPulse();
+            stopClickThroughMonitor();
+            await setWindowClickThrough(false);
         }
         await applyTransparencyMode({ source: 'toggle' });
     });
@@ -772,9 +776,7 @@ function setupTransparencyControls() {
             await applyTransparencyMode({ source: 'toggle' });
         }
         isClickThroughEnabled = !isClickThroughEnabled;
-        if (!isClickThroughEnabled) {
-            await stopClickThroughPulse();
-        }
+        await applyTransparencyMode({ source: 'click-through-toggle' });
         syncTransparencyControls();
         logEvent('ui', 'click-through', `Click-through ${isClickThroughEnabled ? 'enabled' : 'disabled'}.`);
     });
@@ -784,47 +786,16 @@ function setupTransparencyControls() {
     });
 }
 
-function setupClickThroughSampling() {
-    const container = elements.canvasContainer;
-    if (!container) {
-        return;
-    }
-
-    const sampleAtPointer = (event) => {
-        if (!isClickThroughEnabled || !isTransparencyModeEnabled || !canUseDesktopClickThrough()) {
-            return;
-        }
-        if (!riveInstance) {
-            stopClickThroughPulse();
-            return;
-        }
-        const now = performance.now();
-        if (now - lastClickThroughSampleAt < CLICK_THROUGH_SAMPLE_INTERVAL_MS) {
-            return;
-        }
-        lastClickThroughSampleAt = now;
-
-        const isTransparentPixel = isCanvasPixelTransparent(event.clientX, event.clientY);
-        if (isTransparentPixel) {
-            pulseWindowClickThrough();
-        } else {
-            stopClickThroughPulse();
-        }
-    };
-
-    container.addEventListener('mousemove', sampleAtPointer);
-    container.addEventListener('mousedown', sampleAtPointer);
-    container.addEventListener('mouseleave', () => {
-        stopClickThroughPulse();
-    });
-}
-
 function canUseDesktopClickThrough() {
     return Boolean(getTauriInvoker()) && isTauriEnvironment();
 }
 
 function isCanvasBackgroundTransparent() {
     return currentCanvasColor === TRANSPARENT_CANVAS_COLOR;
+}
+
+function isCanvasEffectivelyTransparent() {
+    return isTransparencyModeEnabled || isCanvasBackgroundTransparent();
 }
 
 function normalizeCanvasColor(rawColor) {
@@ -911,46 +882,120 @@ async function setWindowClickThrough(enabled) {
     }
 }
 
+async function getWindowCursorPosition() {
+    const invoke = getTauriInvoker();
+    if (!invoke || !isTauriEnvironment()) {
+        return null;
+    }
+    try {
+        const position = await invoke('get_window_cursor_position');
+        if (!position || typeof position.x !== 'number' || typeof position.y !== 'number') {
+            return null;
+        }
+        const ratio = window.devicePixelRatio || 1;
+        let x = position.x;
+        let y = position.y;
+        if ((x > window.innerWidth + 2 || y > window.innerHeight + 2) && ratio > 1) {
+            x /= ratio;
+            y /= ratio;
+        }
+        return { x, y };
+    } catch (error) {
+        console.warn('[rive-viewer] failed to query cursor position:', error);
+        return null;
+    }
+}
+
+async function setWindowClickThroughMode(enabled) {
+    const invoke = getTauriInvoker();
+    if (!invoke || !isTauriEnvironment()) {
+        return false;
+    }
+    try {
+        await invoke('set_window_click_through_mode', { enabled });
+        return true;
+    } catch (error) {
+        console.warn('[rive-viewer] failed to set click-through mode:', error);
+        return false;
+    }
+}
+
+function startClickThroughMonitor() {
+    if (clickThroughMonitorTimer) {
+        return;
+    }
+    clickThroughMonitorTimer = setInterval(() => {
+        syncClickThroughPassThrough().catch(() => {
+            /* noop */
+        });
+    }, CLICK_THROUGH_POLL_INTERVAL_MS);
+    syncClickThroughPassThrough().catch(() => {
+        /* noop */
+    });
+}
+
+function stopClickThroughMonitor() {
+    if (clickThroughMonitorTimer) {
+        clearInterval(clickThroughMonitorTimer);
+        clickThroughMonitorTimer = null;
+    }
+    clickThroughMonitorInFlight = false;
+}
+
+async function disableClickThroughPassThrough() {
+    if (!clickThroughPassThroughActive) {
+        return;
+    }
+    clickThroughPassThroughActive = false;
+    await setWindowClickThrough(false);
+}
+
+async function syncClickThroughPassThrough() {
+    const monitorActive = isClickThroughEnabled && isTransparencyModeEnabled && canUseDesktopClickThrough();
+    if (!monitorActive || !riveInstance) {
+        await disableClickThroughPassThrough();
+        return;
+    }
+    if (clickThroughMonitorInFlight) {
+        return;
+    }
+    clickThroughMonitorInFlight = true;
+    try {
+        const cursor = await getWindowCursorPosition();
+        if (!cursor) {
+            return;
+        }
+        const shouldPassThrough = isCanvasPixelTransparent(cursor.x, cursor.y);
+        if (shouldPassThrough === clickThroughPassThroughActive) {
+            return;
+        }
+        const applied = await setWindowClickThrough(shouldPassThrough);
+        if (applied) {
+            clickThroughPassThroughActive = shouldPassThrough;
+        }
+    } finally {
+        clickThroughMonitorInFlight = false;
+    }
+}
+
 async function applyTransparencyMode({ source } = {}) {
+    document.documentElement.classList.toggle('transparency-mode', isTransparencyModeEnabled);
     document.body.classList.toggle('transparency-mode', isTransparencyModeEnabled);
     syncTransparencyControls();
     updateCanvasBackground();
     await setWindowTransparencyMode(isTransparencyModeEnabled);
-    if (!isClickThroughEnabled || !isTransparencyModeEnabled) {
-        await stopClickThroughPulse();
+    const clickThroughModeActive = isClickThroughEnabled && isTransparencyModeEnabled;
+    await setWindowClickThroughMode(clickThroughModeActive);
+    if (clickThroughModeActive) {
+        startClickThroughMonitor();
+        await syncClickThroughPassThrough();
+    } else {
+        stopClickThroughMonitor();
+        await disableClickThroughPassThrough();
     }
     if (source === 'toggle') {
         logEvent('ui', 'transparency-mode', `Transparency mode ${isTransparencyModeEnabled ? 'enabled' : 'disabled'}.`);
     }
-}
-
-async function pulseWindowClickThrough() {
-    if (!isClickThroughEnabled || !isTransparencyModeEnabled || !canUseDesktopClickThrough()) {
-        return;
-    }
-    const enabled = await setWindowClickThrough(true);
-    if (!enabled) {
-        return;
-    }
-    clickThroughPulseActive = true;
-    if (clickThroughPulseTimeout) {
-        clearTimeout(clickThroughPulseTimeout);
-    }
-    clickThroughPulseTimeout = setTimeout(() => {
-        stopClickThroughPulse();
-    }, CLICK_THROUGH_PULSE_MS);
-}
-
-async function stopClickThroughPulse() {
-    if (clickThroughPulseTimeout) {
-        clearTimeout(clickThroughPulseTimeout);
-        clickThroughPulseTimeout = null;
-    }
-    if (!clickThroughPulseActive) {
-        return;
-    }
-    clickThroughPulseActive = false;
-    await setWindowClickThrough(false);
 }
 
 function isCanvasPixelTransparent(clientX, clientY) {
@@ -1460,7 +1505,40 @@ function setCurrentFile(url, name, isObjectUrl = false, buffer, mimeType, fileSi
     refreshInfoStrip();
 }
 
-async function loadRiveAnimation(fileUrl, fileName) {
+async function loadRiveAnimation(fileUrl, fileName, options = {}) {
+    const {
+        forceAutoplay = false,
+        onLoaded = null,
+        onLoadError = null,
+    } = options || {};
+    let loadSettled = false;
+    const notifyLoadSuccess = () => {
+        if (loadSettled) {
+            return;
+        }
+        loadSettled = true;
+        if (typeof onLoaded === 'function') {
+            try {
+                onLoaded();
+            } catch (error) {
+                console.warn('[rive-viewer] onLoaded callback failed:', error);
+            }
+        }
+    };
+    const notifyLoadFailure = (error) => {
+        if (loadSettled) {
+            return;
+        }
+        loadSettled = true;
+        if (typeof onLoadError === 'function') {
+            try {
+                onLoadError(error);
+            } catch (callbackError) {
+                console.warn('[rive-viewer] onLoadError callback failed:', callbackError);
+            }
+        }
+    };
+
     if (!fileUrl) {
         showError('Please load a Rive file first');
         return;
@@ -1489,8 +1567,9 @@ async function loadRiveAnimation(fileUrl, fileName) {
         console.log('[rive-viewer] canvas:', canvas.width, 'x', canvas.height);
 
         const userConfig = getEditorConfig();
-        lastInitConfig = { ...userConfig };
-        const config = { ...userConfig };
+        const effectiveUserConfig = forceAutoplay ? { ...userConfig, autoplay: true } : { ...userConfig };
+        lastInitConfig = { ...effectiveUserConfig };
+        const config = { ...effectiveUserConfig };
         console.log('[rive-viewer] config:', JSON.stringify(Object.keys(config)));
 
         // Preserve user callbacks and wrap them so native events are logged.
@@ -1522,6 +1601,10 @@ async function loadRiveAnimation(fileUrl, fileName) {
             alignment: alignment || 'center',
             ...otherLayoutProps,
         });
+        if (isCanvasEffectivelyTransparent() && currentRuntime !== 'canvas' && typeof config.useOffscreenRenderer === 'undefined') {
+            // Improves glow/shadow compositing quality for transparent overlays.
+            config.useOffscreenRenderer = true;
+        }
 
         config.onLoad = () => {
             console.log('[rive-viewer] onLoad fired, riveInstance:', !!riveInstance);
@@ -1621,6 +1704,7 @@ async function loadRiveAnimation(fileUrl, fileName) {
             }
 
             renderVmInputControls();
+            notifyLoadSuccess();
         };
 
         config.onLoadError = (error) => {
@@ -1628,6 +1712,7 @@ async function loadRiveAnimation(fileUrl, fileName) {
             showError(`Error loading animation: ${errorMsg}`);
             logEvent('native', 'loaderror', `Load error for ${fileName}.`, error);
             safelyInvokeUserCallback(userOnLoadError, error, 'onLoadError');
+            notifyLoadFailure(error);
         };
         config.onPlay = (event) => {
             logEvent('native', 'play', 'Playback started by runtime.', event);
@@ -1679,6 +1764,7 @@ async function loadRiveAnimation(fileUrl, fileName) {
         console.error('[rive-viewer] loadRiveAnimation error:', error);
         showError(`Error initializing Rive: ${error.message}`);
         logEvent('native', 'init-error', 'Error initializing runtime instance.', error);
+        notifyLoadFailure(error);
         throw error;
     }
 }
@@ -1717,13 +1803,46 @@ function pause() {
     }
 }
 
-function reset() {
+async function reset() {
     console.log('[rive-viewer] reset() called, riveInstance:', !!riveInstance);
-    if (riveInstance) {
-        riveInstance.reset();
-        resetPlaybackChips();
-        updateInfo('Reset');
-        logEvent('ui', 'reset', 'Animation reset from UI.');
+    if (!currentFileUrl || !currentFileName) {
+        showError('Please load a Rive file first');
+        return;
+    }
+
+    const vmSnapshot = captureVmControlSnapshot();
+    updateInfo(`Restarting ${currentFileName}...`);
+    logEvent('ui', 'reset', `Restarting animation with autoplay (${vmSnapshot.length} controls captured).`);
+
+    try {
+        await new Promise((resolve, reject) => {
+            let settled = false;
+            const resolveOnce = () => {
+                if (!settled) {
+                    settled = true;
+                    resolve();
+                }
+            };
+            const rejectOnce = (error) => {
+                if (!settled) {
+                    settled = true;
+                    reject(error || new Error('Animation restart failed'));
+                }
+            };
+
+            loadRiveAnimation(currentFileUrl, currentFileName, {
+                forceAutoplay: true,
+                onLoaded: resolveOnce,
+                onLoadError: rejectOnce,
+            }).catch(rejectOnce);
+        });
+
+        const restoredControls = applyVmControlSnapshot(vmSnapshot);
+        updateInfo(`Restarted ${currentFileName}`);
+        logEvent('ui', 'reset-complete', `Animation restarted with autoplay (${restoredControls} controls restored).`);
+    } catch (error) {
+        showError(`Failed to restart animation: ${error?.message || error}`);
+        logEvent('ui', 'reset-error', 'Failed to restart animation from UI.', error);
     }
 }
 
@@ -1971,8 +2090,8 @@ async function createDemoBundle() {
         layout_fit: currentLayoutFit,
         state_machines: stateMachines,
         artboard_name: currentArtboardName,
-        canvas_color: isCanvasBackgroundTransparent() ? null : currentCanvasColor,
-        canvas_transparent: isCanvasBackgroundTransparent(),
+        canvas_color: isCanvasEffectivelyTransparent() ? null : currentCanvasColor,
+        canvas_transparent: isCanvasEffectivelyTransparent(),
         layout_state: JSON.stringify(captureLayoutStateForExport()),
         vm_hierarchy: vmHierarchy ? JSON.stringify(vmHierarchy) : null,
     };
@@ -2139,7 +2258,8 @@ function handleResize() {
 function cleanupInstance() {
     clearRiveEventListeners();
     resetPlaybackChips();
-    stopClickThroughPulse().catch(() => {
+    stopClickThroughMonitor();
+    disableClickThroughPassThrough().catch(() => {
         /* noop */
     });
     if (riveInstance?.cleanup) {
@@ -2163,9 +2283,13 @@ function revokeLastObjectUrl() {
 }
 
 function updateCanvasBackground() {
+    const canvasBackground = isCanvasEffectivelyTransparent() ? 'transparent' : currentCanvasColor;
     if (elements.canvasContainer) {
-        const canvasBackground = isCanvasBackgroundTransparent() ? 'transparent' : currentCanvasColor;
         elements.canvasContainer.style.background = canvasBackground;
+    }
+    const canvas = document.getElementById('rive-canvas');
+    if (canvas) {
+        canvas.style.background = canvasBackground;
     }
 }
 
@@ -2915,6 +3039,119 @@ function registerVmControlBinding(descriptor, binding) {
         descriptor: { ...descriptor },
         ...binding,
     });
+}
+
+function vmSnapshotKeyForDescriptor(descriptor) {
+    if (!descriptor) {
+        return null;
+    }
+    if (descriptor.source === 'state-machine') {
+        return `sm:${descriptor.stateMachineName || ''}:${descriptor.name || ''}:${descriptor.kind || ''}`;
+    }
+    return `vm:${descriptor.path || ''}:${descriptor.kind || ''}`;
+}
+
+function captureVmControlSnapshot() {
+    if (!vmControlBindings.length) {
+        return [];
+    }
+
+    const snapshot = [];
+    const seen = new Set();
+    vmControlBindings.forEach((binding) => {
+        if (!binding || binding.kind === 'trigger') {
+            return;
+        }
+        const descriptor = binding.descriptor;
+        const key = vmSnapshotKeyForDescriptor(descriptor);
+        if (!key || seen.has(key)) {
+            return;
+        }
+        const accessor = resolveControlAccessor(descriptor);
+        if (!accessor || !('value' in accessor)) {
+            return;
+        }
+
+        let value = accessor.value;
+        if (binding.kind === 'number') {
+            const numberValue = Number(value);
+            if (!Number.isFinite(numberValue)) {
+                return;
+            }
+            value = numberValue;
+        } else if (binding.kind === 'boolean') {
+            value = Boolean(value);
+        } else if (binding.kind === 'string' || binding.kind === 'enum') {
+            value = typeof value === 'string' ? value : String(value ?? '');
+        } else if (binding.kind === 'color') {
+            const numericColor = Number(value);
+            if (!Number.isFinite(numericColor)) {
+                return;
+            }
+            value = numericColor >>> 0;
+        }
+
+        seen.add(key);
+        snapshot.push({
+            descriptor: { ...descriptor },
+            kind: binding.kind,
+            value,
+        });
+    });
+
+    return snapshot;
+}
+
+function applyVmControlSnapshot(snapshot) {
+    if (!Array.isArray(snapshot) || !snapshot.length) {
+        return 0;
+    }
+
+    let applied = 0;
+    snapshot.forEach((entry) => {
+        const descriptor = entry?.descriptor;
+        const kind = entry?.kind || descriptor?.kind;
+        if (!descriptor || kind === 'trigger') {
+            return;
+        }
+        const accessor = resolveControlAccessor(descriptor);
+        if (!accessor || !('value' in accessor)) {
+            return;
+        }
+
+        try {
+            if (kind === 'number') {
+                const nextValue = Number(entry.value);
+                if (Number.isFinite(nextValue)) {
+                    accessor.value = nextValue;
+                    applied += 1;
+                }
+                return;
+            }
+            if (kind === 'boolean') {
+                accessor.value = Boolean(entry.value);
+                applied += 1;
+                return;
+            }
+            if (kind === 'string' || kind === 'enum') {
+                accessor.value = typeof entry.value === 'string' ? entry.value : String(entry.value ?? '');
+                applied += 1;
+                return;
+            }
+            if (kind === 'color') {
+                const numericColor = Number(entry.value);
+                if (Number.isFinite(numericColor)) {
+                    accessor.value = numericColor >>> 0;
+                    applied += 1;
+                }
+            }
+        } catch {
+            /* noop */
+        }
+    });
+
+    syncVmControlBindings(true);
+    return applied;
 }
 
 function startVmControlSync() {
