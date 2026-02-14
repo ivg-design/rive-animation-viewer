@@ -95,6 +95,7 @@ let lastFpsUpdate = 0;
 let frameCount = 0;
 let tauriOpenFileUnlisten = null;
 let openedFilePollTimeout = null;
+const OPEN_FILE_POLL_INTERVAL_MS = 900;
 
 const elements = {
     versionInfo: document.getElementById('version-info'),
@@ -185,8 +186,9 @@ async function init() {
             // Check if the app was launched via "Open With" with a .riv file
             const loadedFromPending = await checkOpenedFile();
             if (!loadedFromPending) {
-                startOpenedFilePolling();
+                console.log('[rive-viewer] no pending file at startup; open-file polling enabled');
             }
+            startOpenedFilePolling();
         })
         .catch((error) => {
             console.error('[rive-viewer] runtime load failed:', error);
@@ -196,8 +198,14 @@ async function init() {
 }
 
 async function checkOpenedFile() {
+    await ensureTauriBridge();
     const invoke = getTauriInvoker();
-    if (!invoke) return false;
+    if (!invoke) {
+        if (isTauriEnvironment()) {
+            console.warn('[rive-viewer] Tauri environment detected but invoke bridge is unavailable');
+        }
+        return false;
+    }
     try {
         const filePath = extractOpenedFilePath(await invoke('get_opened_file'));
         if (filePath) {
@@ -211,24 +219,21 @@ async function checkOpenedFile() {
     return false;
 }
 
-function startOpenedFilePolling(maxAttempts = 30, intervalMs = 500) {
+function startOpenedFilePolling(intervalMs = OPEN_FILE_POLL_INTERVAL_MS) {
+    if (!isTauriEnvironment()) {
+        return;
+    }
     if (openedFilePollTimeout) {
         clearTimeout(openedFilePollTimeout);
         openedFilePollTimeout = null;
     }
 
-    let attempts = 0;
     const poll = async () => {
-        attempts += 1;
-        const loaded = await checkOpenedFile();
-        if (loaded || attempts >= maxAttempts || currentFileName) {
-            openedFilePollTimeout = null;
-            return;
-        }
+        await checkOpenedFile();
         openedFilePollTimeout = setTimeout(poll, intervalMs);
     };
 
-    openedFilePollTimeout = setTimeout(poll, intervalMs);
+    openedFilePollTimeout = setTimeout(poll, Math.max(250, intervalMs));
 }
 
 async function setupTauriOpenFileListener() {
@@ -2834,6 +2839,12 @@ function getTauriInvoker() {
     if (typeof tauriBridge.invoke === 'function') {
         return tauriBridge.invoke;
     }
+    if (window.__TAURI_INTERNALS__?.invoke) {
+        return window.__TAURI_INTERNALS__.invoke.bind(window.__TAURI_INTERNALS__);
+    }
+    if (window.__TAURI__?.core?.invoke) {
+        return window.__TAURI__.core.invoke.bind(window.__TAURI__.core);
+    }
     if (window.__TAURI__?.invoke) {
         return window.__TAURI__.invoke.bind(window.__TAURI__);
     }
@@ -2875,6 +2886,17 @@ async function ensureTauriBridge() {
     if (!isTauriEnvironment()) {
         return tauriBridge;
     }
+    if (window.__TAURI_INTERNALS__?.invoke) {
+        tauriBridge.invoke = window.__TAURI_INTERNALS__.invoke.bind(window.__TAURI_INTERNALS__);
+    }
+    if (window.__TAURI__?.core?.invoke) {
+        tauriBridge.invoke = window.__TAURI__.core.invoke.bind(window.__TAURI__.core);
+    } else if (window.__TAURI__?.invoke) {
+        tauriBridge.invoke = window.__TAURI__.invoke.bind(window.__TAURI__);
+    }
+    if (window.__TAURI__?.event?.listen) {
+        tauriBridge.listen = window.__TAURI__.event.listen.bind(window.__TAURI__.event);
+    }
     if (typeof tauriBridge.invoke === 'function' && typeof tauriBridge.listen === 'function') {
         return tauriBridge;
     }
@@ -2884,15 +2906,20 @@ async function ensureTauriBridge() {
     }
 
     tauriApiLoadPromise = (async () => {
+        // Bare module imports are only resolvable in the local dev server.
+        if (location.protocol !== 'http:' && location.protocol !== 'https:') {
+            tauriApiLoadPromise = null;
+            return;
+        }
         try {
             const [{ invoke }, { listen }] = await Promise.all([
                 import('@tauri-apps/api/core'),
                 import('@tauri-apps/api/event'),
             ]);
-            tauriBridge.invoke = invoke;
-            tauriBridge.listen = listen;
+            tauriBridge.invoke = tauriBridge.invoke || invoke;
+            tauriBridge.listen = tauriBridge.listen || listen;
         } catch (error) {
-            console.warn('[rive-viewer] failed to load Tauri v2 API bridge:', error);
+            console.warn('[rive-viewer] failed to load Tauri API bridge:', error);
         } finally {
             tauriApiLoadPromise = null;
         }
@@ -2905,6 +2932,9 @@ async function ensureTauriBridge() {
 async function getTauriEventListener() {
     if (typeof tauriBridge.listen === 'function') {
         return tauriBridge.listen;
+    }
+    if (window.__TAURI__?.event?.listen) {
+        return window.__TAURI__.event.listen.bind(window.__TAURI__.event);
     }
     await ensureTauriBridge();
     if (typeof tauriBridge.listen === 'function') {

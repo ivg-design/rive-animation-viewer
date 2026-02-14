@@ -3,6 +3,7 @@
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::Deserialize;
+use std::collections::VecDeque;
 use std::fs;
 use std::sync::Mutex;
 use tauri::menu::Menu;
@@ -23,8 +24,8 @@ struct DemoBundlePayload {
     vm_hierarchy: Option<String>,
 }
 
-// State: holds a file path passed via Open With / double click for first-load handoff.
-struct OpenedFile(Mutex<Option<String>>);
+// State: queue of file paths passed via Open With / double click.
+struct OpenedFiles(Mutex<VecDeque<String>>);
 
 #[cfg(debug_assertions)]
 #[tauri::command]
@@ -39,8 +40,8 @@ fn open_devtools(_window: tauri::WebviewWindow) {
 }
 
 #[tauri::command]
-fn get_opened_file(state: tauri::State<'_, OpenedFile>) -> Option<String> {
-    state.0.lock().ok().and_then(|mut guard| guard.take())
+fn get_opened_file(state: tauri::State<'_, OpenedFiles>) -> Option<String> {
+    state.0.lock().ok().and_then(|mut guard| guard.pop_front())
 }
 
 #[tauri::command]
@@ -128,40 +129,62 @@ fn looks_like_riv_file(value: &str) -> bool {
     value.trim().to_ascii_lowercase().ends_with(".riv")
 }
 
-fn extract_opened_riv_file_arg() -> Option<String> {
-    std::env::args().skip(1).find_map(|arg| {
-        let trimmed = arg.trim_matches('"').trim().to_string();
-        if trimmed.is_empty() || trimmed.starts_with('-') {
-            return None;
-        }
-        if looks_like_riv_file(&trimmed)
-            || (trimmed.to_ascii_lowercase().starts_with("file://")
-                && trimmed.to_ascii_lowercase().contains(".riv"))
-        {
-            return Some(trimmed);
-        }
-        None
-    })
+fn extract_opened_riv_file_args_from_iter<I, S>(args: I) -> Vec<String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    args.into_iter()
+        .filter_map(|arg| {
+            let trimmed = arg.as_ref().trim_matches('"').trim().to_string();
+            if trimmed.is_empty() || trimmed.starts_with('-') {
+                return None;
+            }
+
+            let lower = trimmed.to_ascii_lowercase();
+            if looks_like_riv_file(&trimmed) || (lower.starts_with("file://") && lower.contains(".riv")) {
+                Some(trimmed)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn extract_opened_riv_file_args() -> Vec<String> {
+    extract_opened_riv_file_args_from_iter(std::env::args().skip(1))
 }
 
 fn try_emit_open_file(app: &tauri::AppHandle, path: String) {
     let _ = app.emit("open-file", path);
 }
 
-fn set_pending_opened_file(app: &tauri::AppHandle, path: &str) {
-    if let Some(state) = app.try_state::<OpenedFile>() {
+fn queue_pending_opened_file(app: &tauri::AppHandle, path: &str) {
+    if let Some(state) = app.try_state::<OpenedFiles>() {
         if let Ok(mut guard) = state.0.lock() {
-            *guard = Some(path.to_string());
+            if !guard.iter().any(|entry| entry == path) {
+                guard.push_back(path.to_string());
+            }
         }
     }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 fn main() {
-    let opened_file = extract_opened_riv_file_arg();
+    let opened_files = extract_opened_riv_file_args();
 
     tauri::Builder::default()
-        .manage(OpenedFile(Mutex::new(opened_file)))
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            for path in extract_opened_riv_file_args_from_iter(argv.iter().skip(1).map(String::as_str)) {
+                queue_pending_opened_file(app, &path);
+                try_emit_open_file(app, path);
+            }
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
+        .manage(OpenedFiles(Mutex::new(VecDeque::from(opened_files))))
         .setup(|app| {
             #[cfg(desktop)]
             {
@@ -181,26 +204,29 @@ fn main() {
         .run(|app, event| {
             #[cfg(any(target_os = "macos", target_os = "ios"))]
             if let tauri::RunEvent::Opened { urls } = event {
-                let maybe_file = urls.into_iter().find_map(|url| {
-                    if let Ok(path) = url.to_file_path() {
-                        let value = path.to_string_lossy().to_string();
+                let opened_files: Vec<String> = urls
+                    .into_iter()
+                    .filter_map(|url| {
+                        if let Ok(path) = url.to_file_path() {
+                            let value = path.to_string_lossy().to_string();
+                            if looks_like_riv_file(&value) {
+                                return Some(value);
+                            }
+                            return None;
+                        }
+
+                        let value = url.to_string();
                         if looks_like_riv_file(&value) {
                             return Some(value);
                         }
-                        return None;
-                    }
+                        None
+                    })
+                    .collect();
 
-                    let value = url.to_string();
-                    if looks_like_riv_file(&value) {
-                        return Some(value);
-                    }
-                    None
-                });
-
-                if let Some(path) = maybe_file {
+                for path in opened_files {
                     // Persist for frontend startup handoff in case event listener
                     // isn't registered yet when the app is cold-launched.
-                    set_pending_opened_file(app, &path);
+                    queue_pending_opened_file(app, &path);
                     // Forward to frontend when app is already running.
                     try_emit_open_file(app, path);
                 }

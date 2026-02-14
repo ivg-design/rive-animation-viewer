@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.6.2] - 2026-02-14
+
+### Changed
+
+- Bumped app/package/runtime version from `1.6.1` to `1.6.2`.
+
+### Fixed
+
+- Hardened Tauri v2 frontend bridge resolution for packaged builds by supporting `window.__TAURI_INTERNALS__.invoke`.
+- Prevented broken bare-module bridge imports in packaged protocol mode (`tauri://`) and restricted module imports to local dev server usage.
+- Kept open-file polling active in desktop mode so newly opened `.riv` files are detected reliably even when event listeners are unavailable.
+- Switched native pending open-file state to a queue (not single slot), preventing dropped files when multiple open events arrive quickly.
+- Added single-instance argument forwarding in Tauri so double-click/open-in arguments are forwarded and focused into the running app.
+
 ## [1.6.1] - 2026-02-13
 
 ### Added
