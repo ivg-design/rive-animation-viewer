@@ -10,6 +10,16 @@ on:
         description: "Release version (e.g. 1.7.0). Leave empty to use package.json"
         required: false
         type: string
+      platform:
+        description: "Platform target to build"
+        required: false
+        default: all
+        type: choice
+        options:
+          - all
+          - macos_arm
+          - macos_intel
+          - windows_x64
 
 jobs:
   prepare-release:
@@ -50,21 +60,25 @@ jobs:
 
   release:
     needs: prepare-release
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == matrix.id }}
     permissions:
       contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: macOS Apple Silicon
+          - id: macos_arm
+            name: macOS Apple Silicon
             platform: macos-14
             rust_target: aarch64-apple-darwin
             args: --target aarch64-apple-darwin
-          - name: macOS Intel
-            platform: macos-13
+          - id: macos_intel
+            name: macOS Intel
+            platform: macos-latest
             rust_target: x86_64-apple-darwin
             args: --target x86_64-apple-darwin
-          - name: Windows x64
+          - id: windows_x64
+            name: Windows x64
             platform: windows-latest
             rust_target: x86_64-pc-windows-msvc
             args: --target x86_64-pc-windows-msvc
