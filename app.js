@@ -53,7 +53,9 @@ const runtimeBlobUrls = {};
 const runtimeAssets = {};
 const runtimeWarningsShown = new Set();
 const APP_VERSION = '__APP_VERSION__';
+const APP_BUILD = '__APP_BUILD__';
 let resolvedAppVersion = APP_VERSION;
+let resolvedAppBuild = APP_BUILD;
 const DEFAULT_LAYOUT_FIT = 'contain';
 const LAYOUT_FITS = ['cover', 'contain', 'fill', 'fitWidth', 'fitHeight', 'scaleDown', 'none', 'layout'];
 const RUNTIME_CACHE_NAME = 'rive-runtime-cache-v1';
@@ -92,6 +94,7 @@ let riveEventUnsubscribers = [];
 let lastFpsUpdate = 0;
 let frameCount = 0;
 let tauriOpenFileUnlisten = null;
+let openedFilePollTimeout = null;
 
 const elements = {
     versionInfo: document.getElementById('version-info'),
@@ -103,6 +106,7 @@ const elements = {
     runtimeStripRuntime: document.getElementById('runtime-strip-runtime'),
     runtimeStripFile: document.getElementById('runtime-strip-file'),
     runtimeStripVersion: document.getElementById('runtime-strip-version'),
+    runtimeStripBuild: document.getElementById('runtime-strip-build'),
     toggleLeftPanelButton: document.getElementById('toggle-left-panel-btn'),
     toggleRightPanelButton: document.getElementById('toggle-right-panel-btn'),
     showLeftPanelButton: document.getElementById('show-left-panel-btn'),
@@ -166,6 +170,10 @@ async function init() {
             tauriOpenFileUnlisten();
             tauriOpenFileUnlisten = null;
         }
+        if (openedFilePollTimeout) {
+            clearTimeout(openedFilePollTimeout);
+            openedFilePollTimeout = null;
+        }
         revokeLastObjectUrl();
     });
     console.log('[rive-viewer] setup complete, loading runtime...');
@@ -175,7 +183,10 @@ async function init() {
             refreshInfoStrip();
             console.log('[rive-viewer] runtime ready:', currentRuntime);
             // Check if the app was launched via "Open With" with a .riv file
-            await checkOpenedFile();
+            const loadedFromPending = await checkOpenedFile();
+            if (!loadedFromPending) {
+                startOpenedFilePolling();
+            }
         })
         .catch((error) => {
             console.error('[rive-viewer] runtime load failed:', error);
@@ -186,16 +197,38 @@ async function init() {
 
 async function checkOpenedFile() {
     const invoke = getTauriInvoker();
-    if (!invoke) return;
+    if (!invoke) return false;
     try {
         const filePath = extractOpenedFilePath(await invoke('get_opened_file'));
         if (filePath) {
             console.log('[rive-viewer] opened via "Open With":', filePath);
             await loadRivFromPath(filePath);
+            return true;
         }
     } catch (e) {
         console.warn('[rive-viewer] get_opened_file failed:', e);
     }
+    return false;
+}
+
+function startOpenedFilePolling(maxAttempts = 30, intervalMs = 500) {
+    if (openedFilePollTimeout) {
+        clearTimeout(openedFilePollTimeout);
+        openedFilePollTimeout = null;
+    }
+
+    let attempts = 0;
+    const poll = async () => {
+        attempts += 1;
+        const loaded = await checkOpenedFile();
+        if (loaded || attempts >= maxAttempts || currentFileName) {
+            openedFilePollTimeout = null;
+            return;
+        }
+        openedFilePollTimeout = setTimeout(poll, intervalMs);
+    };
+
+    openedFilePollTimeout = setTimeout(poll, intervalMs);
 }
 
 async function setupTauriOpenFileListener() {
@@ -1675,6 +1708,9 @@ function refreshInfoStrip() {
         const runtimeVersion = runtimeVersions[currentRuntime] || runtimeRegistry[currentRuntime]?.version || RIVE_VERSION;
         elements.runtimeStripVersion.textContent = `v${runtimeVersion}`;
     }
+    if (elements.runtimeStripBuild) {
+        elements.runtimeStripBuild.textContent = `build ${getBuildIdLabel()}`;
+    }
     if (elements.runtimeStripFile) {
         if (currentFileName) {
             const sizeLabel = formatByteSize(currentFileSizeBytes);
@@ -1807,7 +1843,7 @@ function updateVersionInfo(statusMessage) {
     }
 
     const appVersion = resolvedAppVersion || 'dev';
-    const releaseLine = `Release: v${appVersion}`;
+    const releaseLine = `Release: v${appVersion} · Build: ${getBuildIdLabel()}`;
     const footer = '<div class="version-footer">© 2025 IVG Design · MIT License · Runtime © Rive</div>';
 
     if (statusMessage) {
@@ -2996,6 +3032,9 @@ function escapeHtml(str) {
 }
 async function resolveAppVersion() {
     if (resolvedAppVersion && resolvedAppVersion !== '__APP_VERSION__') {
+        if (!resolvedAppBuild || resolvedAppBuild === '__APP_BUILD__') {
+            resolvedAppBuild = 'dev';
+        }
         return;
     }
     try {
@@ -3012,4 +3051,14 @@ async function resolveAppVersion() {
             resolvedAppVersion = 'dev';
         }
     }
+    if (!resolvedAppBuild || resolvedAppBuild === '__APP_BUILD__') {
+        resolvedAppBuild = 'dev';
+    }
+}
+
+function getBuildIdLabel() {
+    if (resolvedAppBuild && resolvedAppBuild !== '__APP_BUILD__') {
+        return resolvedAppBuild;
+    }
+    return 'dev';
 }

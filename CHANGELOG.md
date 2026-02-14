@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.6.1] - 2026-02-13
+
+### Added
+
+- Visible app build identifier in the runtime info strip (`build YYYYMMDD-HHMM-<gitsha>`).
+- Build metadata injection in `npm run build`, including UTC timestamp + git short SHA.
+
+### Changed
+
+- Bumped app/package/runtime version from `1.6.0` to `1.6.1`.
+- Version panel now shows both release and build identifier.
+
+### Fixed
+
+- Improved cold-launch file handoff reliability for `.riv` open events in Tauri v2 by:
+  - persisting pending opened-file state in Rust,
+  - emitting `open-file` at app scope,
+  - adding frontend polling fallback for startup race conditions.
+
 ## [1.6.0] - 2026-02-13
 
 ### Added
@@ -27,4 +46,3 @@ All notable changes to this project are documented in this file.
 - Root VM duplicate-input suppression now keys by full input path (not name only), preventing accidental hidden controls.
 - File-open error handling robustness for invalid/empty open-file payloads.
 - Runtime resize consistency during panel drag and panel visibility transitions.
-

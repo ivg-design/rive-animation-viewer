@@ -1,10 +1,33 @@
 #!/usr/bin/env node
 import { promises as fs } from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 
 const root = process.cwd();
 const distDir = path.join(root, 'dist');
 const pkg = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
+
+function getGitShortSha() {
+  try {
+    return execSync('git rev-parse --short HEAD', {
+      cwd: root,
+      stdio: ['ignore', 'pipe', 'ignore'],
+      encoding: 'utf8',
+    }).trim();
+  } catch {
+    return 'nogit';
+  }
+}
+
+function getBuildTimestamp() {
+  const date = new Date();
+  const year = String(date.getUTCFullYear());
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const hour = String(date.getUTCHours()).padStart(2, '0');
+  const minute = String(date.getUTCMinutes()).padStart(2, '0');
+  return `${year}${month}${day}-${hour}${minute}`;
+}
 
 async function ensureDir(dir) {
   await fs.mkdir(dir, { recursive: true });
@@ -32,6 +55,7 @@ async function copyDir(src, dest) {
 async function build() {
   await fs.rm(distDir, { recursive: true, force: true });
   await ensureDir(distDir);
+  const buildId = process.env.APP_BUILD_ID || `${getBuildTimestamp()}-${getGitShortSha()}`;
 
   const filesToCopy = ['index.html', 'style.css', 'app.js', 'vm-explorer-snippet.js', 'README.md', 'package.json'];
 
@@ -41,6 +65,7 @@ async function build() {
       if (file === 'app.js') {
         let content = await fs.readFile(src, 'utf8');
         content = content.replace(/__APP_VERSION__/g, pkg.version);
+        content = content.replace(/__APP_BUILD__/g, buildId);
         const destPath = path.join(distDir, file);
         await ensureDir(path.dirname(destPath));
         await fs.writeFile(destPath, content);
@@ -70,7 +95,7 @@ async function build() {
     }
   }
 
-  console.log(`Built static bundle in ${distDir}`);
+  console.log(`Built static bundle in ${distDir} (build ${buildId})`);
 }
 
 build().catch((error) => {

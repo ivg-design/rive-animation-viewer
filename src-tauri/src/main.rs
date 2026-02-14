@@ -145,8 +145,14 @@ fn extract_opened_riv_file_arg() -> Option<String> {
 }
 
 fn try_emit_open_file(app: &tauri::AppHandle, path: String) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.emit("open-file", path);
+    let _ = app.emit("open-file", path);
+}
+
+fn set_pending_opened_file(app: &tauri::AppHandle, path: &str) {
+    if let Some(state) = app.try_state::<OpenedFile>() {
+        if let Ok(mut guard) = state.0.lock() {
+            *guard = Some(path.to_string());
+        }
     }
 }
 
@@ -192,6 +198,9 @@ fn main() {
                 });
 
                 if let Some(path) = maybe_file {
+                    // Persist for frontend startup handoff in case event listener
+                    // isn't registered yet when the app is cold-launched.
+                    set_pending_opened_file(app, &path);
                     // Forward to frontend when app is already running.
                     try_emit_open_file(app, path);
                 }
