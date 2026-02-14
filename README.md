@@ -4,7 +4,7 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `1.7.0` (2026-02-14)
+- Current release: `1.7.1` (2026-02-14)
 
 ## Quick Start
 
@@ -19,7 +19,9 @@ npm start  # Opens browser at http://localhost:8080
 - **File Loading**: Standard file input to load `.riv` files
 - **Runtime Selection**: Toggle between Canvas and WebGL2 renderers
 - **Layout Options**: Choose from contain, cover, fill, fit-width, fit-height, scale-down, scale-up
-- **Background Color**: Color picker to change canvas background
+- **Background Color**: Color picker with `No BG` reset for transparent canvas backgrounds
+- **Transparency Mode**: Toggle transparent canvas/window mode for overlay-style playback
+- **Click-through (Desktop)**: Best-effort transparent-pixel click-through in transparency mode
 - **Playback Controls**: Play, pause, and reset animation buttons
 - **Event Console**: Source toggles (`Native`, `Rive User`, `UI`) and text search filters
 - **State Machine Detection**: Automatically detects and initializes available state machines
@@ -96,6 +98,20 @@ rive-local/
 ```bash
 npm run tauri dev   # Development mode
 npm run tauri build # Production build
+```
+
+### Test Build Numbering
+
+`npm run build` now stamps builds as `bNNNN-YYYYMMDD-HHMM-<gitsha>`:
+- `bNNNN` defaults to git commit count (`git rev-list --count HEAD`)
+- Timestamp is UTC
+- Tail is short git SHA
+
+Override the test build number when needed:
+
+```bash
+npm run build -- --build-number=172
+APP_BUILD_NUMBER=172 npm run tauri build
 ```
 
 ## Technical Details

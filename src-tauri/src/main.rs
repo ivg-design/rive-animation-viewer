@@ -21,6 +21,9 @@ struct DemoBundlePayload {
     state_machines: Vec<String>,
     artboard_name: Option<String>,
     canvas_color: Option<String>,
+    #[serde(default)]
+    canvas_transparent: bool,
+    layout_state: Option<String>,
     vm_hierarchy: Option<String>,
 }
 
@@ -54,6 +57,25 @@ fn read_riv_file(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+fn set_window_transparency_mode(window: tauri::WebviewWindow, enabled: bool) -> Result<(), String> {
+    let color = if enabled {
+        tauri::window::Color(0, 0, 0, 0)
+    } else {
+        tauri::window::Color(10, 10, 10, 255)
+    };
+    window
+        .set_background_color(Some(color))
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn set_window_click_through(window: tauri::WebviewWindow, enabled: bool) -> Result<(), String> {
+    window
+        .set_ignore_cursor_events(enabled)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 async fn make_demo_bundle(payload: DemoBundlePayload) -> Result<String, String> {
     let suggested = format!(
         "{}-demo.html",
@@ -79,6 +101,12 @@ async fn make_demo_bundle(payload: DemoBundlePayload) -> Result<String, String> 
 fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Error> {
     use serde_json::json;
 
+    let layout_state = payload
+        .layout_state
+        .as_deref()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+        .unwrap_or_else(|| json!({}));
+
     let config = json!({
       "runtimeName": payload.runtime_name,
       "runtimeVersion": payload.runtime_version,
@@ -90,7 +118,9 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       "canvasColor": payload
         .canvas_color
         .clone()
-        .unwrap_or_else(|| "#0d1117".into())
+        .unwrap_or_else(|| "#0d1117".into()),
+      "canvasTransparent": payload.canvas_transparent,
+      "layoutState": layout_state
     });
     let config_json = serde_json::to_string(&config)?;
     let escaped_config = config_json.replace('\\', "\\\\").replace('\'', "\\'");
@@ -202,7 +232,9 @@ fn main() {
             make_demo_bundle,
             open_devtools,
             get_opened_file,
-            read_riv_file
+            read_riv_file,
+            set_window_transparency_mode,
+            set_window_click_through
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

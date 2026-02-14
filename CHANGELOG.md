@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file.
 
 > Historical note: entries before `1.6.0` were reconstructed from git commit messages, manifest version bumps, and commit dates. Early repository tags around `1.1.x`-`1.2.0` were offset by the old CI bump flow; this changelog follows the actual `package.json`/Tauri manifest version history.
 
+## [1.7.1] - 2026-02-14
+
+### Changed
+
+- Bumped app/package/runtime version from `1.7.0` to `1.7.1`.
+- Exported demo bundles now persist active player layout state (panel sizes/visibility, event console collapse/filter state, and transparency-related settings) from the moment export is triggered.
+- Continued build traceability with numbered build identifiers (`bNNNN-YYYYMMDD-HHMM-<gitsha>`) for test installs.
+
+### Added
+
+- New `No BG` control to return canvas background to transparent mode.
+- New `Transparency` mode toggle in player settings.
+- New desktop `Click Through` toggle (best-effort transparent-pixel passthrough sampling).
+
+### Fixed
+
+- Demo export hydration now restores right-panel width/visibility and event-console layout state instead of always using defaults.
+
 ## [1.7.0] - 2026-02-13
 
 ### Changed

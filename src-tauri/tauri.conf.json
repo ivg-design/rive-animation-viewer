@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Rive Animation Viewer",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "identifier": "app.rive.animation.viewer",
   "build": {
     "beforeBuildCommand": "npm run build",
@@ -22,6 +22,7 @@
         "minWidth": 1090,
         "minHeight": 850,
         "resizable": true,
+        "transparent": true,
         "fullscreen": false
       }
     ]

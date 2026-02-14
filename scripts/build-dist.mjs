@@ -19,6 +19,18 @@ function getGitShortSha() {
   }
 }
 
+function getGitCommitCount() {
+  try {
+    return execSync('git rev-list --count HEAD', {
+      cwd: root,
+      stdio: ['ignore', 'pipe', 'ignore'],
+      encoding: 'utf8',
+    }).trim();
+  } catch {
+    return '';
+  }
+}
+
 function getBuildTimestamp() {
   const date = new Date();
   const year = String(date.getUTCFullYear());
@@ -27,6 +39,23 @@ function getBuildTimestamp() {
   const hour = String(date.getUTCHours()).padStart(2, '0');
   const minute = String(date.getUTCMinutes()).padStart(2, '0');
   return `${year}${month}${day}-${hour}${minute}`;
+}
+
+function parseCliBuildNumber(argv) {
+  const arg = argv.find((value) => value.startsWith('--build-number='));
+  if (!arg) {
+    return '';
+  }
+  const value = arg.slice('--build-number='.length).trim();
+  return /^[0-9]+$/.test(value) ? value : '';
+}
+
+function normalizeBuildNumber(value) {
+  const raw = String(value || '').trim();
+  if (!/^[0-9]+$/.test(raw)) {
+    return '';
+  }
+  return String(Number.parseInt(raw, 10));
 }
 
 async function ensureDir(dir) {
@@ -55,7 +84,12 @@ async function copyDir(src, dest) {
 async function build() {
   await fs.rm(distDir, { recursive: true, force: true });
   await ensureDir(distDir);
-  const buildId = process.env.APP_BUILD_ID || `${getBuildTimestamp()}-${getGitShortSha()}`;
+  const cliBuildNumber = parseCliBuildNumber(process.argv.slice(2));
+  const envBuildNumber = normalizeBuildNumber(process.env.APP_BUILD_NUMBER);
+  const gitBuildNumber = normalizeBuildNumber(getGitCommitCount());
+  const buildNumber = cliBuildNumber || envBuildNumber || gitBuildNumber || '0';
+  const numberedPrefix = `b${buildNumber.padStart(4, '0')}`;
+  const buildId = process.env.APP_BUILD_ID || `${numberedPrefix}-${getBuildTimestamp()}-${getGitShortSha()}`;
 
   const filesToCopy = ['index.html', 'style.css', 'app.js', 'vm-explorer-snippet.js', 'README.md', 'package.json'];
 
@@ -96,6 +130,7 @@ async function build() {
   }
 
   console.log(`Built static bundle in ${distDir} (build ${buildId})`);
+  console.log(`Build number source: cli/env/git -> ${buildNumber}`);
 }
 
 build().catch((error) => {

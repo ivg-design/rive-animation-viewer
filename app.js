@@ -39,6 +39,10 @@ async function loadCodeMirror() {
 
 const RIVE_VERSION = '2.34.3';
 const MIN_SCRIPTING_RUNTIME_VERSION = '2.34.0';
+const DEFAULT_CANVAS_COLOR = '#0d1117';
+const TRANSPARENT_CANVAS_COLOR = 'transparent';
+const CLICK_THROUGH_PULSE_MS = 180;
+const CLICK_THROUGH_SAMPLE_INTERVAL_MS = 48;
 const runtimeSources = {
     canvas: `https://cdn.jsdelivr.net/npm/@rive-app/canvas@${RIVE_VERSION}`,
     webgl2: `https://cdn.jsdelivr.net/npm/@rive-app/webgl2@${RIVE_VERSION}`,
@@ -79,9 +83,16 @@ let lastInitConfig = {};
 let configDirty = false;
 let errorTimeoutId = null;
 let currentArtboardName = null;
-let currentCanvasColor = '#0d1117';
+let currentCanvasColor = DEFAULT_CANVAS_COLOR;
+let lastSolidCanvasColor = DEFAULT_CANVAS_COLOR;
 let isLeftPanelVisible = false;
 let isRightPanelVisible = true;
+let isTransparencyModeEnabled = false;
+let isClickThroughEnabled = false;
+let clickThroughPulseTimeout = null;
+let clickThroughPulseActive = false;
+let clickThroughRequestSequence = 0;
+let lastClickThroughSampleAt = 0;
 const runtimeMeta = loadRuntimeMeta();
 let editorView = null;
 let isAutoFilling = false;
@@ -121,6 +132,9 @@ const elements = {
     error: document.getElementById('error-message'),
     canvasContainer: document.getElementById('canvas-container'),
     canvasColorInput: document.getElementById('canvas-color-input'),
+    canvasColorResetButton: document.getElementById('canvas-color-reset-btn'),
+    transparencyModeToggle: document.getElementById('transparency-mode-toggle'),
+    clickThroughToggle: document.getElementById('click-through-toggle'),
     mainGrid: document.getElementById('main-grid'),
     leftResizer: document.getElementById('left-resizer'),
     rightResizer: document.getElementById('right-resizer'),
@@ -159,6 +173,7 @@ async function init() {
     setupLayoutSelect();
     await setupCodeEditor();
     setupCanvasColor();
+    setupTransparencyControls();
     setupDemoButton();
     setupPanelResizers();
     setupCenterResizer();
@@ -166,6 +181,7 @@ async function init() {
     setupEventLog();
     setupSettingsPopover();
     setupDragAndDrop();
+    setupClickThroughSampling();
     await setupTauriOpenFileListener();
     resetVmInputControls('No animation loaded.');
     resetEventLog();
@@ -181,6 +197,11 @@ async function init() {
             openedFilePollTimeout = null;
         }
         revokeLastObjectUrl();
+        if (isTauriEnvironment()) {
+            setWindowClickThrough(false).catch(() => {
+                /* noop */
+            });
+        }
     });
     console.log('[rive-viewer] setup complete, loading runtime...');
     ensureRuntime(currentRuntime)
@@ -704,16 +725,273 @@ async function setupCodeEditor() {
 
 function setupCanvasColor() {
     const input = elements.canvasColorInput;
-    if (!input) {
+    const resetButton = elements.canvasColorResetButton;
+    if (!input || !resetButton) {
         return;
     }
-    input.value = currentCanvasColor;
+    syncCanvasColorControls();
     input.addEventListener('input', (event) => {
-        currentCanvasColor = event.target.value || '#0d1117';
+        const normalized = normalizeCanvasColor(event.target.value);
+        if (!normalized) {
+            return;
+        }
+        lastSolidCanvasColor = normalized;
+        currentCanvasColor = normalized;
+        syncCanvasColorControls();
         updateCanvasBackground();
         logEvent('ui', 'canvas-color', `Canvas color changed to ${currentCanvasColor}`);
     });
+    resetButton.addEventListener('click', () => {
+        setCanvasBackgroundTransparent();
+    });
     updateCanvasBackground();
+}
+
+function setupTransparencyControls() {
+    const transparencyToggle = elements.transparencyModeToggle;
+    const clickThroughToggle = elements.clickThroughToggle;
+    if (!transparencyToggle || !clickThroughToggle) {
+        return;
+    }
+
+    transparencyToggle.addEventListener('click', async () => {
+        isTransparencyModeEnabled = !isTransparencyModeEnabled;
+        if (!isTransparencyModeEnabled && isClickThroughEnabled) {
+            isClickThroughEnabled = false;
+            await stopClickThroughPulse();
+        }
+        await applyTransparencyMode({ source: 'toggle' });
+    });
+
+    clickThroughToggle.addEventListener('click', async () => {
+        if (!canUseDesktopClickThrough()) {
+            return;
+        }
+        if (!isTransparencyModeEnabled) {
+            isTransparencyModeEnabled = true;
+            await applyTransparencyMode({ source: 'toggle' });
+        }
+        isClickThroughEnabled = !isClickThroughEnabled;
+        if (!isClickThroughEnabled) {
+            await stopClickThroughPulse();
+        }
+        syncTransparencyControls();
+        logEvent('ui', 'click-through', `Click-through ${isClickThroughEnabled ? 'enabled' : 'disabled'}.`);
+    });
+
+    applyTransparencyMode({ source: 'init' }).catch(() => {
+        /* noop */
+    });
+}
+
+function setupClickThroughSampling() {
+    const container = elements.canvasContainer;
+    if (!container) {
+        return;
+    }
+
+    const sampleAtPointer = (event) => {
+        if (!isClickThroughEnabled || !isTransparencyModeEnabled || !canUseDesktopClickThrough()) {
+            return;
+        }
+        if (!riveInstance) {
+            stopClickThroughPulse();
+            return;
+        }
+        const now = performance.now();
+        if (now - lastClickThroughSampleAt < CLICK_THROUGH_SAMPLE_INTERVAL_MS) {
+            return;
+        }
+        lastClickThroughSampleAt = now;
+
+        const isTransparentPixel = isCanvasPixelTransparent(event.clientX, event.clientY);
+        if (isTransparentPixel) {
+            pulseWindowClickThrough();
+        } else {
+            stopClickThroughPulse();
+        }
+    };
+
+    container.addEventListener('mousemove', sampleAtPointer);
+    container.addEventListener('mousedown', sampleAtPointer);
+    container.addEventListener('mouseleave', () => {
+        stopClickThroughPulse();
+    });
+}
+
+function canUseDesktopClickThrough() {
+    return Boolean(getTauriInvoker()) && isTauriEnvironment();
+}
+
+function isCanvasBackgroundTransparent() {
+    return currentCanvasColor === TRANSPARENT_CANVAS_COLOR;
+}
+
+function normalizeCanvasColor(rawColor) {
+    const value = String(rawColor || '').trim().toLowerCase();
+    if (/^#[0-9a-f]{6}$/i.test(value)) {
+        return value;
+    }
+    return null;
+}
+
+function syncCanvasColorControls() {
+    const input = elements.canvasColorInput;
+    const resetButton = elements.canvasColorResetButton;
+    if (!input || !resetButton) {
+        return;
+    }
+    if (!normalizeCanvasColor(lastSolidCanvasColor)) {
+        lastSolidCanvasColor = DEFAULT_CANVAS_COLOR;
+    }
+    input.value = lastSolidCanvasColor;
+    input.classList.toggle('is-transparent', isCanvasBackgroundTransparent());
+    resetButton.classList.toggle('is-active', isCanvasBackgroundTransparent());
+    resetButton.setAttribute('aria-pressed', String(isCanvasBackgroundTransparent()));
+}
+
+function setCanvasBackgroundTransparent() {
+    currentCanvasColor = TRANSPARENT_CANVAS_COLOR;
+    syncCanvasColorControls();
+    updateCanvasBackground();
+    logEvent('ui', 'canvas-color', 'Canvas background reset to transparent.');
+}
+
+function updateSettingToggle(button, active) {
+    if (!button) {
+        return;
+    }
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', String(active));
+    button.textContent = active ? 'ON' : 'OFF';
+}
+
+function syncTransparencyControls() {
+    updateSettingToggle(elements.transparencyModeToggle, isTransparencyModeEnabled);
+
+    const clickToggle = elements.clickThroughToggle;
+    if (!clickToggle) {
+        return;
+    }
+
+    const clickThroughSupported = canUseDesktopClickThrough();
+    clickToggle.disabled = !clickThroughSupported || !isTransparencyModeEnabled;
+    updateSettingToggle(clickToggle, isClickThroughEnabled);
+}
+
+async function setWindowTransparencyMode(enabled) {
+    const invoke = getTauriInvoker();
+    if (!invoke || !isTauriEnvironment()) {
+        return;
+    }
+    try {
+        await invoke('set_window_transparency_mode', { enabled });
+    } catch (error) {
+        console.warn('[rive-viewer] failed to set window transparency mode:', error);
+    }
+}
+
+async function setWindowClickThrough(enabled) {
+    const invoke = getTauriInvoker();
+    if (!invoke || !isTauriEnvironment()) {
+        return false;
+    }
+    const requestId = ++clickThroughRequestSequence;
+    try {
+        await invoke('set_window_click_through', { enabled });
+        if (requestId !== clickThroughRequestSequence) {
+            return false;
+        }
+        return true;
+    } catch (error) {
+        if (requestId === clickThroughRequestSequence) {
+            console.warn('[rive-viewer] failed to set click-through state:', error);
+        }
+        return false;
+    }
+}
+
+async function applyTransparencyMode({ source } = {}) {
+    document.body.classList.toggle('transparency-mode', isTransparencyModeEnabled);
+    syncTransparencyControls();
+    updateCanvasBackground();
+    await setWindowTransparencyMode(isTransparencyModeEnabled);
+    if (!isClickThroughEnabled || !isTransparencyModeEnabled) {
+        await stopClickThroughPulse();
+    }
+    if (source === 'toggle') {
+        logEvent('ui', 'transparency-mode', `Transparency mode ${isTransparencyModeEnabled ? 'enabled' : 'disabled'}.`);
+    }
+}
+
+async function pulseWindowClickThrough() {
+    if (!isClickThroughEnabled || !isTransparencyModeEnabled || !canUseDesktopClickThrough()) {
+        return;
+    }
+    const enabled = await setWindowClickThrough(true);
+    if (!enabled) {
+        return;
+    }
+    clickThroughPulseActive = true;
+    if (clickThroughPulseTimeout) {
+        clearTimeout(clickThroughPulseTimeout);
+    }
+    clickThroughPulseTimeout = setTimeout(() => {
+        stopClickThroughPulse();
+    }, CLICK_THROUGH_PULSE_MS);
+}
+
+async function stopClickThroughPulse() {
+    if (clickThroughPulseTimeout) {
+        clearTimeout(clickThroughPulseTimeout);
+        clickThroughPulseTimeout = null;
+    }
+    if (!clickThroughPulseActive) {
+        return;
+    }
+    clickThroughPulseActive = false;
+    await setWindowClickThrough(false);
+}
+
+function isCanvasPixelTransparent(clientX, clientY) {
+    const canvas = document.getElementById('rive-canvas');
+    if (!canvas) {
+        return false;
+    }
+    const rect = canvas.getBoundingClientRect();
+    if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
+        return false;
+    }
+    if (rect.width <= 0 || rect.height <= 0 || canvas.width <= 0 || canvas.height <= 0) {
+        return false;
+    }
+
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const pixelX = clamp(Math.floor((clientX - rect.left) * scaleX), 0, Math.max(0, canvas.width - 1));
+    const pixelYFromTop = clamp(Math.floor((clientY - rect.top) * scaleY), 0, Math.max(0, canvas.height - 1));
+
+    try {
+        if (currentRuntime === 'canvas') {
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            if (!ctx) {
+                return false;
+            }
+            const alpha = ctx.getImageData(pixelX, pixelYFromTop, 1, 1).data[3];
+            return alpha <= 8;
+        }
+
+        const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+        if (!gl) {
+            return false;
+        }
+        const readY = clamp(canvas.height - pixelYFromTop - 1, 0, Math.max(0, canvas.height - 1));
+        const pixel = new Uint8Array(4);
+        gl.readPixels(pixelX, readY, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+        return pixel[3] <= 8;
+    } catch {
+        return false;
+    }
 }
 
 function setupDemoButton() {
@@ -732,6 +1010,7 @@ function setupDemoButton() {
 
     const refreshState = () => {
         setButtonState(Boolean(getTauriInvoker()));
+        syncTransparencyControls();
     };
 
     refreshState();
@@ -1610,6 +1889,42 @@ function serializeVmHierarchy() {
     return serializeNode(hierarchy);
 }
 
+function parseCssPixels(value, fallback) {
+    const numeric = Number.parseFloat(String(value || '').replace('px', '').trim());
+    return Number.isFinite(numeric) ? Math.round(numeric) : fallback;
+}
+
+function captureLayoutStateForExport() {
+    const grid = elements.mainGrid;
+    const centerPanel = elements.centerPanel;
+    const eventLogPanel = elements.eventLogPanel;
+    const gridStyles = grid ? getComputedStyle(grid) : null;
+    const centerStyles = centerPanel ? getComputedStyle(centerPanel) : null;
+    const rightWidth = parseCssPixels(
+        grid?.style.getPropertyValue('--right-width') || gridStyles?.getPropertyValue('--right-width'),
+        320,
+    );
+    const eventLogHeight = parseCssPixels(
+        centerPanel?.style.getPropertyValue('--center-log-height') || centerStyles?.getPropertyValue('--center-log-height'),
+        230,
+    );
+
+    return {
+        rightPanelVisible: isRightPanelVisible,
+        rightPanelWidth: rightWidth,
+        eventLogCollapsed: Boolean(centerPanel?.classList.contains('event-log-collapsed') || eventLogPanel?.classList.contains('collapsed')),
+        eventLogHeight,
+        eventFilters: {
+            native: eventFilterState.native,
+            riveUser: eventFilterState.riveUser,
+            ui: eventFilterState.ui,
+            search: eventFilterState.search || '',
+        },
+        transparencyMode: isTransparencyModeEnabled,
+        clickThroughMode: isClickThroughEnabled,
+    };
+}
+
 async function createDemoBundle() {
     const invoke = getTauriInvoker();
     if (!invoke) {
@@ -1656,7 +1971,9 @@ async function createDemoBundle() {
         layout_fit: currentLayoutFit,
         state_machines: stateMachines,
         artboard_name: currentArtboardName,
-        canvas_color: currentCanvasColor,
+        canvas_color: isCanvasBackgroundTransparent() ? null : currentCanvasColor,
+        canvas_transparent: isCanvasBackgroundTransparent(),
+        layout_state: JSON.stringify(captureLayoutStateForExport()),
         vm_hierarchy: vmHierarchy ? JSON.stringify(vmHierarchy) : null,
     };
 
@@ -1822,6 +2139,9 @@ function handleResize() {
 function cleanupInstance() {
     clearRiveEventListeners();
     resetPlaybackChips();
+    stopClickThroughPulse().catch(() => {
+        /* noop */
+    });
     if (riveInstance?.cleanup) {
         try {
             riveInstance.cleanup();
@@ -1844,7 +2164,8 @@ function revokeLastObjectUrl() {
 
 function updateCanvasBackground() {
     if (elements.canvasContainer) {
-        elements.canvasContainer.style.background = currentCanvasColor;
+        const canvasBackground = isCanvasBackgroundTransparent() ? 'transparent' : currentCanvasColor;
+        elements.canvasContainer.style.background = canvasBackground;
     }
 }
 
@@ -3240,10 +3561,26 @@ function getBuildIdLabel() {
     return 'dev';
 }
 
+function getBuildNumberLabel() {
+    const full = getBuildIdLabel();
+    if (!full || full === 'dev') {
+        return '';
+    }
+    const first = full.split('-')[0];
+    if (/^b\d+$/i.test(first)) {
+        return first.toLowerCase();
+    }
+    return '';
+}
+
 function getShortBuildIdLabel() {
     const full = getBuildIdLabel();
     if (!full || full === 'dev') {
         return 'dev';
+    }
+    const numbered = getBuildNumberLabel();
+    if (numbered) {
+        return numbered;
     }
     const tail = full.split('-').pop();
     if (tail && tail.length >= 6) {

@@ -56,6 +56,11 @@ body {
     overflow: hidden;
 }
 
+body.transparency-mode,
+body.transparency-mode .app-shell {
+    background: transparent;
+}
+
 /* ── Lucide icon sizing ──────────────────────────────────── */
 
 .lucide-10 { width: 10px; height: 10px; }
@@ -286,6 +291,51 @@ body {
     min-width: 0;
 }
 
+.settings-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.settings-toggle {
+    min-width: 64px;
+    height: 24px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.25px;
+}
+
+.settings-toggle:hover {
+    border-color: var(--border-bright);
+    color: var(--text-white);
+}
+
+.settings-toggle.is-active {
+    border-color: #c4f82a66;
+    background: #c4f82a18;
+    color: var(--neon);
+}
+
+.settings-note {
+    color: var(--text-muted);
+    font-size: 10px;
+    line-height: 1.35;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.color-input.is-transparent {
+    border-color: #c4f82a66;
+    box-shadow: inset 0 0 0 1px #c4f82a44;
+}
+
 /* ── Header select ───────────────────────────────────────── */
 
 .header-select {
@@ -414,6 +464,10 @@ body {
     position: relative;
     overflow: hidden;
     background: var(--canvas-color, #0d1117);
+}
+
+body.transparency-mode .canvas-container {
+    background: transparent !important;
 }
 
 .canvas-container canvas {
@@ -1294,8 +1348,16 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                         </div>
                         <div class="settings-row">
                             <label class="settings-label" for="canvas-color-input">BG Color</label>
-                            <input type="color" id="canvas-color-input" value="__CANVAS_COLOR__" class="color-input">
+                            <div class="settings-controls">
+                                <input type="color" id="canvas-color-input" value="__CANVAS_COLOR__" class="color-input">
+                                <button type="button" id="canvas-color-reset-btn" class="settings-toggle">NO BG</button>
+                            </div>
                         </div>
+                        <div class="settings-row">
+                            <label class="settings-label" for="transparency-mode-toggle">Transparency</label>
+                            <button type="button" id="transparency-mode-toggle" class="settings-toggle" aria-pressed="false">OFF</button>
+                        </div>
+                        <p class="settings-note">Click-through transparency is available in the desktop app only.</p>
                     </div>
                 </div>
             </div>
@@ -1399,6 +1461,11 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
 
         const CONFIG = JSON.parse('__CONFIG_JSON__');
         const VM_HIERARCHY = JSON.parse('__VM_HIERARCHY_JSON__');
+        const DEFAULT_CANVAS_COLOR = '__CANVAS_COLOR__' || '#0d1117';
+        const TRANSPARENT_CANVAS_COLOR = 'transparent';
+        const LAYOUT_STATE = (CONFIG.layoutState && typeof CONFIG.layoutState === 'object')
+            ? CONFIG.layoutState
+            : {};
 
         const LAYOUT_FITS = ['cover', 'contain', 'fill', 'fitWidth', 'fitHeight', 'scaleDown', 'none', 'layout'];
         const VM_CONTROL_KINDS = new Set(['number', 'boolean', 'string', 'enum', 'color', 'trigger']);
@@ -1408,12 +1475,21 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
 
         let riveInstance = null;
         let currentLayoutFit = CONFIG.layoutFit || 'contain';
-        let currentCanvasColor = CONFIG.canvasColor || '__CANVAS_COLOR__';
-        let isRightPanelVisible = true;
+        let lastSolidCanvasColor = normalizeCanvasColor(CONFIG.canvasColor) || DEFAULT_CANVAS_COLOR;
+        let currentCanvasColor = CONFIG.canvasTransparent ? TRANSPARENT_CANVAS_COLOR : lastSolidCanvasColor;
+        let isTransparencyModeEnabled = Boolean(LAYOUT_STATE.transparencyMode);
+        let isRightPanelVisible = typeof LAYOUT_STATE.rightPanelVisible === 'boolean'
+            ? LAYOUT_STATE.rightPanelVisible
+            : true;
         let errorTimeoutId = null;
         let canvasResizeObserver = null;
         const eventLogEntries = [];
-        const eventFilterState = { native: true, riveUser: true, ui: true, search: '' };
+        const eventFilterState = {
+            native: typeof LAYOUT_STATE.eventFilters?.native === 'boolean' ? LAYOUT_STATE.eventFilters.native : true,
+            riveUser: typeof LAYOUT_STATE.eventFilters?.riveUser === 'boolean' ? LAYOUT_STATE.eventFilters.riveUser : true,
+            ui: typeof LAYOUT_STATE.eventFilters?.ui === 'boolean' ? LAYOUT_STATE.eventFilters.ui : true,
+            search: typeof LAYOUT_STATE.eventFilters?.search === 'string' ? LAYOUT_STATE.eventFilters.search.toLowerCase() : '',
+        };
         let eventLogSequence = 0;
         let riveEventUnsubscribers = [];
         let vmControlSyncTimer = null;
@@ -1453,6 +1529,8 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             settingsPopover: document.getElementById('settings-popover'),
             layoutSelect: document.getElementById('layout-select'),
             canvasColorInput: document.getElementById('canvas-color-input'),
+            canvasColorResetBtn: document.getElementById('canvas-color-reset-btn'),
+            transparencyModeToggle: document.getElementById('transparency-mode-toggle'),
             btnPlay: document.getElementById('btn-play'),
             btnPause: document.getElementById('btn-pause'),
             btnReset: document.getElementById('btn-reset'),
@@ -1467,6 +1545,7 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             initLucideIcons();
             setupCanvasSize();
             setupCanvasResizeObserver();
+            applyPersistedLayoutState();
             updateCanvasBackground();
             setupPlaybackControls();
             setupPanelResizers();
@@ -1475,10 +1554,77 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             setupSettingsPopover();
             setupLayoutSelect();
             setupCanvasColor();
+            setupTransparencyControls();
             setupEventLog();
             setupFullscreen();
             window.addEventListener('resize', handleResize);
             loadAnimation();
+        }
+
+        function parseCssPixels(value, fallback) {
+            var numeric = Number.parseFloat(String(value == null ? '' : value).replace('px', '').trim());
+            return Number.isFinite(numeric) ? Math.round(numeric) : fallback;
+        }
+
+        function normalizeCanvasColor(rawColor) {
+            var value = String(rawColor || '').trim().toLowerCase();
+            if (/^#[0-9a-f]{6}$/i.test(value)) {
+                return value;
+            }
+            return null;
+        }
+
+        function isCanvasBackgroundTransparent() {
+            return currentCanvasColor === TRANSPARENT_CANVAS_COLOR;
+        }
+
+        function updateSettingToggle(button, active) {
+            if (!button) return;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-pressed', String(active));
+            button.textContent = active ? 'ON' : 'OFF';
+        }
+
+        function syncCanvasColorControls() {
+            var input = els.canvasColorInput;
+            var resetBtn = els.canvasColorResetBtn;
+            if (!input || !resetBtn) return;
+
+            if (!normalizeCanvasColor(lastSolidCanvasColor)) {
+                lastSolidCanvasColor = DEFAULT_CANVAS_COLOR;
+            }
+            input.value = lastSolidCanvasColor;
+            input.classList.toggle('is-transparent', isCanvasBackgroundTransparent());
+            resetBtn.classList.toggle('is-active', isCanvasBackgroundTransparent());
+            resetBtn.setAttribute('aria-pressed', String(isCanvasBackgroundTransparent()));
+        }
+
+        function syncTransparencyControls() {
+            updateSettingToggle(els.transparencyModeToggle, isTransparencyModeEnabled);
+        }
+
+        function applyPersistedLayoutState() {
+            var rightWidth = parseCssPixels(LAYOUT_STATE.rightPanelWidth, 320);
+            var eventLogHeight = parseCssPixels(LAYOUT_STATE.eventLogHeight, 230);
+            var collapsedEventLog = Boolean(LAYOUT_STATE.eventLogCollapsed);
+
+            if (els.mainGrid && Number.isFinite(rightWidth)) {
+                els.mainGrid.style.setProperty('--right-width', clamp(rightWidth, 260, 900) + 'px');
+            }
+            if (els.centerPanel && Number.isFinite(eventLogHeight)) {
+                els.centerPanel.style.setProperty('--center-log-height', clamp(eventLogHeight, 120, 420) + 'px');
+            }
+            if (els.centerPanel && els.eventLogPanel) {
+                els.centerPanel.classList.toggle('event-log-collapsed', collapsedEventLog);
+                els.eventLogPanel.classList.toggle('collapsed', collapsedEventLog);
+            }
+            if (els.showEventLogBtn) {
+                els.showEventLogBtn.hidden = !collapsedEventLog;
+            }
+
+            document.body.classList.toggle('transparency-mode', isTransparencyModeEnabled);
+            syncCanvasColorControls();
+            syncTransparencyControls();
         }
 
         function initLucideIcons() {
@@ -1527,7 +1673,8 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
 
         function updateCanvasBackground() {
             if (els.canvasContainer) {
-                els.canvasContainer.style.background = currentCanvasColor;
+                var canvasBackground = isCanvasBackgroundTransparent() ? 'transparent' : currentCanvasColor;
+                els.canvasContainer.style.background = canvasBackground;
             }
         }
 
@@ -1741,12 +1888,40 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
 
         function setupCanvasColor() {
             const input = els.canvasColorInput;
-            if (!input) return;
-            input.value = currentCanvasColor;
+            const resetBtn = els.canvasColorResetBtn;
+            if (!input || !resetBtn) return;
+
+            syncCanvasColorControls();
             input.addEventListener('input', function () {
-                currentCanvasColor = input.value || '#0d1117';
+                var normalized = normalizeCanvasColor(input.value);
+                if (!normalized) return;
+                lastSolidCanvasColor = normalized;
+                currentCanvasColor = normalized;
+                syncCanvasColorControls();
                 updateCanvasBackground();
                 logEvent('ui', 'canvas-color', 'Canvas color changed to ' + currentCanvasColor);
+            });
+
+            resetBtn.addEventListener('click', function () {
+                currentCanvasColor = TRANSPARENT_CANVAS_COLOR;
+                syncCanvasColorControls();
+                updateCanvasBackground();
+                logEvent('ui', 'canvas-color', 'Canvas background reset to transparent.');
+            });
+        }
+
+        function setupTransparencyControls() {
+            var toggle = els.transparencyModeToggle;
+            if (!toggle) return;
+
+            syncTransparencyControls();
+            document.body.classList.toggle('transparency-mode', isTransparencyModeEnabled);
+            toggle.addEventListener('click', function () {
+                isTransparencyModeEnabled = !isTransparencyModeEnabled;
+                document.body.classList.toggle('transparency-mode', isTransparencyModeEnabled);
+                syncTransparencyControls();
+                updateCanvasBackground();
+                logEvent('ui', 'transparency-mode', 'Transparency mode ' + (isTransparencyModeEnabled ? 'enabled' : 'disabled') + '.');
             });
         }
 
@@ -1817,7 +1992,7 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             syncToggle(nativeToggle, eventFilterState.native);
             syncToggle(riveUserToggle, eventFilterState.riveUser);
             syncToggle(uiToggle, eventFilterState.ui);
-            searchInput.value = '';
+            searchInput.value = eventFilterState.search || '';
 
             nativeToggle.addEventListener('click', function () {
                 eventFilterState.native = !eventFilterState.native;

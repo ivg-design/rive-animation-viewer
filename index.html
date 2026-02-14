@@ -70,8 +70,20 @@
                         </div>
                         <div class="settings-row">
                             <label class="settings-label" for="canvas-color-input">BG Color</label>
-                            <input type="color" id="canvas-color-input" value="#0d1117" class="color-input">
+                            <div class="settings-controls">
+                                <input type="color" id="canvas-color-input" value="#0d1117" class="color-input">
+                                <button type="button" id="canvas-color-reset-btn" class="settings-toggle">NO BG</button>
+                            </div>
                         </div>
+                        <div class="settings-row">
+                            <label class="settings-label" for="transparency-mode-toggle">Transparency</label>
+                            <button type="button" id="transparency-mode-toggle" class="settings-toggle" aria-pressed="false">OFF</button>
+                        </div>
+                        <div class="settings-row">
+                            <label class="settings-label" for="click-through-toggle">Click Through</label>
+                            <button type="button" id="click-through-toggle" class="settings-toggle" aria-pressed="false" disabled>OFF</button>
+                        </div>
+                        <p class="settings-note">Click-through works only in desktop mode and is sampled on transparent canvas pixels.</p>
                     </div>
                 </div>
             </div>
