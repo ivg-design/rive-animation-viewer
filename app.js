@@ -62,6 +62,7 @@ const RUNTIME_CACHE_NAME = 'rive-runtime-cache-v1';
 const RUNTIME_META_STORAGE_KEY = 'riveRuntimeMeta';
 const VM_CONTROL_KINDS = new Set(['number', 'boolean', 'string', 'enum', 'color', 'trigger']);
 const EVENT_LOG_LIMIT = 500;
+const VM_CONTROL_SYNC_INTERVAL_MS = 120;
 
 let riveInstance = null;
 let currentFileUrl = null;
@@ -96,6 +97,8 @@ let frameCount = 0;
 let tauriOpenFileUnlisten = null;
 let openedFilePollTimeout = null;
 const OPEN_FILE_POLL_INTERVAL_MS = 900;
+let vmControlSyncTimer = null;
+let vmControlBindings = [];
 
 const elements = {
     versionInfo: document.getElementById('version-info'),
@@ -2050,6 +2053,8 @@ function resetVmInputControls(message = 'No bound ViewModel inputs detected.') {
     count.textContent = '0';
     empty.hidden = false;
     empty.textContent = message;
+    clearVmControlBindings();
+    stopVmControlSync();
 }
 
 function renderVmInputControls() {
@@ -2061,6 +2066,7 @@ function renderVmInputControls() {
     }
 
     tree.innerHTML = '';
+    clearVmControlBindings();
     const rootVm = resolveVmRootInstance();
     const vmHierarchy = rootVm ? buildVmHierarchy(rootVm) : null;
     const stateMachineHierarchy = buildStateMachineHierarchy();
@@ -2073,6 +2079,7 @@ function renderVmInputControls() {
     if (!totalControls) {
         empty.hidden = false;
         empty.textContent = 'No writable ViewModel or state machine inputs were found.';
+        stopVmControlSync();
         return;
     }
 
@@ -2097,6 +2104,8 @@ function renderVmInputControls() {
         // State machine groups stay collapsed by default.
         tree.appendChild(createVmSectionElement(stateMachineHierarchy, false));
     }
+    startVmControlSync();
+    syncVmControlBindings(true);
     initLucideIcons();
 }
 
@@ -2406,6 +2415,10 @@ function createVmControlRow(descriptor) {
                 logEvent('ui', source, `Set ${descriptor.path} = ${nextValue}`);
             }
         });
+        registerVmControlBinding(descriptor, {
+            kind: 'number',
+            input: numberInput,
+        });
         inputContainer.appendChild(numberInput);
     } else if (descriptor.kind === 'boolean') {
         const checkbox = document.createElement('input');
@@ -2420,6 +2433,10 @@ function createVmControlRow(descriptor) {
                 logEvent('ui', source, `Set ${descriptor.path} = ${checkbox.checked}`);
             }
         });
+        registerVmControlBinding(descriptor, {
+            kind: 'boolean',
+            input: checkbox,
+        });
         inputContainer.appendChild(checkbox);
     } else if (descriptor.kind === 'string') {
         const textInput = document.createElement('input');
@@ -2432,6 +2449,10 @@ function createVmControlRow(descriptor) {
                 liveAccessor.value = textInput.value;
                 logEvent('ui', 'vm-string', `Set ${descriptor.path} = ${textInput.value}`);
             }
+        });
+        registerVmControlBinding(descriptor, {
+            kind: 'string',
+            input: textInput,
         });
         inputContainer.appendChild(textInput);
     } else if (descriptor.kind === 'enum') {
@@ -2459,6 +2480,10 @@ function createVmControlRow(descriptor) {
                 liveAccessor.value = select.value;
                 logEvent('ui', 'vm-enum', `Set ${descriptor.path} = ${select.value}`);
             }
+        });
+        registerVmControlBinding(descriptor, {
+            kind: 'enum',
+            input: select,
         });
         inputContainer.appendChild(select);
     } else if (descriptor.kind === 'color') {
@@ -2499,6 +2524,11 @@ function createVmControlRow(descriptor) {
 
         colorInput.addEventListener('input', applyColor);
         alphaInput.addEventListener('change', applyColor);
+        registerVmControlBinding(descriptor, {
+            kind: 'color',
+            colorInput,
+            alphaInput,
+        });
 
         colorWrap.appendChild(colorInput);
         colorWrap.appendChild(alphaInput);
@@ -2547,6 +2577,120 @@ function createVmControlRow(descriptor) {
     row.appendChild(label);
     row.appendChild(inputContainer);
     return row;
+}
+
+function clearVmControlBindings() {
+    vmControlBindings = [];
+}
+
+function registerVmControlBinding(descriptor, binding) {
+    if (!descriptor || !binding) {
+        return;
+    }
+    vmControlBindings.push({
+        descriptor: { ...descriptor },
+        ...binding,
+    });
+}
+
+function startVmControlSync() {
+    if (vmControlSyncTimer || !vmControlBindings.length) {
+        return;
+    }
+    vmControlSyncTimer = setInterval(() => {
+        syncVmControlBindings(false);
+    }, VM_CONTROL_SYNC_INTERVAL_MS);
+}
+
+function stopVmControlSync() {
+    if (vmControlSyncTimer) {
+        clearInterval(vmControlSyncTimer);
+        vmControlSyncTimer = null;
+    }
+}
+
+function isEditingControl(element) {
+    return document.activeElement === element;
+}
+
+function syncVmControlBindings(force = false) {
+    if (!vmControlBindings.length) {
+        return;
+    }
+
+    vmControlBindings.forEach((binding) => {
+        const accessor = resolveControlAccessor(binding.descriptor);
+        const canEdit = Boolean(accessor);
+
+        if (binding.input) {
+            binding.input.disabled = !canEdit;
+        }
+        if (binding.colorInput) {
+            binding.colorInput.disabled = !canEdit;
+        }
+        if (binding.alphaInput) {
+            binding.alphaInput.disabled = !canEdit;
+        }
+        if (!canEdit) {
+            return;
+        }
+
+        if (binding.kind === 'number') {
+            const value = Number(accessor.value);
+            if (!Number.isFinite(value)) {
+                return;
+            }
+            if (!force && isEditingControl(binding.input)) {
+                return;
+            }
+            const next = String(value);
+            if (binding.input.value !== next) {
+                binding.input.value = next;
+            }
+            return;
+        }
+
+        if (binding.kind === 'boolean') {
+            const next = Boolean(accessor.value);
+            if (binding.input.checked !== next) {
+                binding.input.checked = next;
+            }
+            return;
+        }
+
+        if (binding.kind === 'string') {
+            const next = typeof accessor.value === 'string' ? accessor.value : '';
+            if (!force && isEditingControl(binding.input)) {
+                return;
+            }
+            if (binding.input.value !== next) {
+                binding.input.value = next;
+            }
+            return;
+        }
+
+        if (binding.kind === 'enum') {
+            const next = typeof accessor.value === 'string' ? accessor.value : '';
+            if (binding.input.value !== next) {
+                binding.input.value = next;
+            }
+            return;
+        }
+
+        if (binding.kind === 'color') {
+            const meta = argbToColorMeta(accessor.value);
+            if (!force && (isEditingControl(binding.colorInput) || isEditingControl(binding.alphaInput))) {
+                return;
+            }
+            if (binding.colorInput.value !== meta.hex) {
+                binding.colorInput.value = meta.hex;
+            }
+            const nextAlpha = String(meta.alphaPercent);
+            if (binding.alphaInput.value !== nextAlpha) {
+                binding.alphaInput.value = nextAlpha;
+            }
+        }
+    });
 }
 
 function navigateToVmInstance(rootVm, path) {
