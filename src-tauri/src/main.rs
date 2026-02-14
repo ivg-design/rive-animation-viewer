@@ -102,6 +102,10 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
         "WebGL"
     };
     let runtime_version = payload.runtime_version.as_deref().unwrap_or("unknown");
+    let app_icon_data_url = format!(
+        "data:image/png;base64,{}",
+        STANDARD.encode(include_bytes!("../icons/128x128.png"))
+    );
     let vm_hierarchy_json = payload
         .vm_hierarchy
         .as_deref()
@@ -120,6 +124,7 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
         .replace("__VM_HIERARCHY_JSON__", &vm_hierarchy_json)
         .replace("__FILE_NAME__", &payload.file_name)
         .replace("__RUNTIME_DISPLAY__", runtime_display)
+        .replace("__APP_ICON_DATA_URL__", &app_icon_data_url)
         .replace("__RUNTIME_VERSION__", runtime_version);
 
     Ok(html)
