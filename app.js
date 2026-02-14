@@ -1628,9 +1628,18 @@ async function createDemoBundle() {
         return;
     }
 
-    const runtimeAsset = runtimeAssets[currentRuntime];
+    const exportRuntime = elements.runtimeSelect?.value || currentRuntime;
+    try {
+        await ensureRuntime(exportRuntime);
+    } catch (error) {
+        showError(`Failed to prepare ${exportRuntime} runtime for export.`);
+        logEvent('ui', 'demo-build-runtime-error', `Runtime prep failed for ${exportRuntime}.`, error);
+        return;
+    }
+
+    const runtimeAsset = runtimeAssets[exportRuntime];
     if (!runtimeAsset?.text) {
-        showError('Runtime data is not ready yet. Please wait for the runtime to finish loading.');
+        showError(`Runtime data for ${exportRuntime} is not ready yet. Please wait for it to finish loading.`);
         return;
     }
 
@@ -1646,7 +1655,7 @@ async function createDemoBundle() {
     const payload = {
         file_name: currentFileName,
         animation_base64: arrayBufferToBase64(currentFileBuffer),
-        runtime_name: currentRuntime,
+        runtime_name: exportRuntime,
         runtime_version: runtimeAsset.version,
         runtime_script: runtimeAsset.text,
         autoplay: typeof lastInitConfig.autoplay === 'boolean' ? lastInitConfig.autoplay : true,
@@ -1658,7 +1667,7 @@ async function createDemoBundle() {
     };
 
     updateInfo('Building demo bundle...');
-    logEvent('ui', 'demo-build', `Building demo bundle for ${currentFileName}.`);
+    logEvent('ui', 'demo-build', `Building demo bundle for ${currentFileName} (${exportRuntime}).`);
     try {
         const outputPath = await invoke('make_demo_bundle', { payload });
         updateInfo(`Demo bundle saved to: ${outputPath}`);

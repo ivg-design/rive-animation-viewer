@@ -32,6 +32,9 @@
     --radius-lg: 12px;
     --radius-xl: 16px;
     --header-control-h: 36px;
+    --right-width: 320px;
+    --center-log-height: 230px;
+    --split-size: 2px;
 }
 
 * {
@@ -348,17 +351,39 @@ body {
     flex: 1;
     min-height: 0;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(0, 1fr) var(--split-size) var(--right-width);
     gap: 0;
     background: var(--bg-void);
     overflow: hidden;
+    position: relative;
+    transition: grid-template-columns 0.2s ease;
+}
+
+.workspace.right-hidden {
+    grid-template-columns: minmax(0, 1fr) 0 0;
+}
+
+.workspace.right-hidden #right-panel {
+    opacity: 0;
+    transform: translateX(22px);
+    pointer-events: none;
+}
+
+.workspace.right-hidden #right-resizer {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.workspace:not(.right-hidden) #show-right-panel-btn {
+    opacity: 0;
+    pointer-events: none;
 }
 
 /* ── Center panel ────────────────────────────────────────── */
 
 .center-panel {
     display: grid;
-    grid-template-rows: minmax(0, 1fr) auto 230px;
+    grid-template-rows: minmax(0, 1fr) auto var(--split-size) var(--center-log-height);
     gap: 0;
     padding: 0;
     overflow: hidden;
@@ -366,7 +391,12 @@ body {
 }
 
 .center-panel.event-log-collapsed {
-    grid-template-rows: minmax(0, 1fr) auto 36px;
+    grid-template-rows: minmax(0, 1fr) auto 0px 36px;
+}
+
+.center-panel.event-log-collapsed .panel-resizer-horizontal {
+    visibility: hidden;
+    pointer-events: none;
 }
 
 /* ── Canvas container ────────────────────────────────────── */
@@ -458,6 +488,91 @@ body {
     color: var(--text-ghost);
 }
 
+#canvas-container { grid-row: 1; }
+.runtime-strip { grid-row: 2; }
+.panel-resizer-horizontal { grid-row: 3; }
+.event-log-panel { grid-row: 4; }
+
+/* ── Resizers ─────────────────────────────────────────────── */
+
+.panel-resizer {
+    position: relative;
+    cursor: col-resize;
+}
+
+.panel-resizer::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    left: calc(50% - 1px);
+    width: 2px;
+    border-radius: 99px;
+    background: var(--border);
+}
+
+.panel-resizer:hover::before,
+.panel-resizer.is-dragging::before {
+    background: var(--neon);
+}
+
+.panel-resizer-horizontal {
+    cursor: row-resize;
+}
+
+.panel-resizer-horizontal::before {
+    left: 8px;
+    right: 8px;
+    top: calc(50% - 1px);
+    bottom: auto;
+    width: auto;
+    height: 2px;
+}
+
+/* ── Edge toggles ─────────────────────────────────────────── */
+
+.workspace-edge-toggle {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-dim);
+    cursor: pointer;
+    z-index: 20;
+    opacity: 1;
+    transition: opacity 0.16s ease, background 0.16s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.workspace-edge-toggle:hover {
+    background: #2d2d33;
+    border-color: var(--border-bright);
+}
+
+.workspace-edge-toggle-right {
+    right: 8px;
+}
+
+.workspace-edge-toggle-bottom {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    top: auto;
+    transform: translateX(-50%);
+}
+
+.center-panel:not(.event-log-collapsed) .workspace-edge-toggle-bottom {
+    opacity: 0;
+    pointer-events: none;
+}
+
 /* ── Event log panel ─────────────────────────────────────── */
 
 .event-log-panel {
@@ -503,10 +618,64 @@ body {
     transform: rotate(-90deg);
 }
 
+.event-log-panel.collapsed .event-log-chevron {
+    transform: rotate(-90deg);
+}
+
 .event-log-summary-right {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+}
+
+.event-filter-toggles {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.event-filter-toggle {
+    height: 24px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    cursor: pointer;
+    letter-spacing: 0.2px;
+}
+
+.event-filter-toggle:hover {
+    border-color: var(--border-bright);
+    color: var(--text-dim);
+}
+
+.event-filter-toggle.is-active {
+    border-color: #c4f82a66;
+    color: var(--neon);
+    background: #c4f82a18;
+}
+
+.event-filter-search {
+    height: 24px;
+    width: 128px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-dim);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.event-filter-search::placeholder {
+    color: var(--text-ghost);
 }
 
 .event-log-body {
@@ -612,6 +781,7 @@ body {
     overflow: hidden;
     border-left: 1px solid var(--border);
     background: var(--bg-zinc);
+    transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 /* ── Panel heading ───────────────────────────────────────── */
@@ -644,6 +814,34 @@ body {
 
 .panel-heading-main > .pill {
     margin-left: auto;
+}
+
+.panel-heading-mirrored {
+    flex-direction: row;
+}
+
+.panel-heading-main-end {
+    display: flex;
+    flex: 1;
+    justify-content: flex-end;
+}
+
+.panel-heading-main-end > .pill {
+    margin-left: 8px;
+}
+
+.panel-toggle-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-sm);
+    border-color: transparent;
+    background: transparent;
+    color: var(--text-ghost);
+    padding: 0;
+}
+
+.panel-toggle-btn.is-collapsed {
+    opacity: 0.58;
 }
 
 .panel-marker {
@@ -956,6 +1154,12 @@ body.fullscreen-mode .properties-panel {
     display: none !important;
 }
 
+body.fullscreen-mode #right-resizer,
+body.fullscreen-mode .panel-resizer-horizontal,
+body.fullscreen-mode .workspace-edge-toggle {
+    display: none !important;
+}
+
 body.fullscreen-mode .workspace {
     grid-template-columns: 1fr !important;
 }
@@ -992,31 +1196,20 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
     opacity: 1 !important;
 }
 
-/* ── Event filter select ─────────────────────────────────── */
-
-.event-filter-select {
-    height: 24px;
-    padding: 0 6px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--bg-elevated);
-    color: var(--text-dim);
-    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    cursor: pointer;
-}
-
 /* ── Responsive ──────────────────────────────────────────── */
 
 @media (max-width: 1100px) {
     .workspace {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .properties-panel {
         display: none;
+    }
+
+    #right-resizer,
+    #show-right-panel-btn {
+        display: none !important;
     }
 }
 
@@ -1123,6 +1316,12 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                     </div>
                 </div>
 
+                <div class="panel-resizer panel-resizer-horizontal" id="center-resizer" aria-hidden="true"></div>
+
+                <button type="button" id="show-event-log-btn" class="workspace-edge-toggle workspace-edge-toggle-bottom" title="Show Event Log" aria-label="Show Event Log" hidden>
+                    <i data-lucide="chevron-up" class="lucide-14"></i>
+                </button>
+
                 <!-- Event log panel -->
                 <div class="event-log-panel" id="event-log-panel">
                     <div class="event-log-header" id="event-log-header">
@@ -1132,12 +1331,12 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                             <span class="pill" id="event-log-count">0</span>
                         </div>
                         <div class="event-log-summary-right">
-                            <select id="event-filter-select" class="event-filter-select">
-                                <option value="all" selected>ALL</option>
-                                <option value="native">NATIVE</option>
-                                <option value="rive-user">RIVE USER</option>
-                                <option value="ui">UI</option>
-                            </select>
+                            <div class="event-filter-toggles" role="group" aria-label="Event source filters">
+                                <button type="button" id="event-filter-native" class="event-filter-toggle is-active" aria-pressed="true">NATIVE</button>
+                                <button type="button" id="event-filter-rive-user" class="event-filter-toggle is-active" aria-pressed="true">RIVE USER</button>
+                                <button type="button" id="event-filter-ui" class="event-filter-toggle is-active" aria-pressed="true">UI</button>
+                            </div>
+                            <input type="search" id="event-filter-search" class="event-filter-search" placeholder="SEARCH">
                             <button type="button" class="btn-compact" id="event-log-clear-btn">CLEAR</button>
                         </div>
                     </div>
@@ -1149,10 +1348,18 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                 </div>
             </section>
 
+            <button type="button" id="show-right-panel-btn" class="workspace-edge-toggle workspace-edge-toggle-right" title="Show Properties Panel" aria-label="Show Properties Panel" hidden>
+                <i data-lucide="chevron-left" class="lucide-14"></i>
+            </button>
+            <div class="panel-resizer" id="right-resizer" aria-hidden="true"></div>
+
             <!-- ── Properties panel ──────────────────────────── -->
             <aside class="properties-panel" id="right-panel">
-                <div class="panel-heading">
-                    <div class="panel-heading-main">
+                <div class="panel-heading panel-heading-mirrored">
+                    <button type="button" id="toggle-right-panel-btn" class="icon-btn panel-toggle-btn" title="Hide Properties Panel" aria-label="Hide Properties Panel" aria-pressed="true">
+                        <i data-lucide="panel-right-close" class="lucide-14"></i>
+                    </button>
+                    <div class="panel-heading-main panel-heading-main-end">
                         <span class="panel-marker"></span>
                         <span>PROPERTIES</span>
                         <span class="pill" id="vm-controls-count">0</span>
@@ -1187,16 +1394,21 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
         const LAYOUT_FITS = ['cover', 'contain', 'fill', 'fitWidth', 'fitHeight', 'scaleDown', 'none', 'layout'];
         const VM_CONTROL_KINDS = new Set(['number', 'boolean', 'string', 'enum', 'color', 'trigger']);
         const EVENT_LOG_LIMIT = 500;
+        const VM_CONTROL_SYNC_INTERVAL_MS = 120;
         const VM_DEPTH_COLORS = ['#C4F82A', '#38BDF8', '#A78BFA', '#FB923C', '#F472B6', '#34D399'];
 
         let riveInstance = null;
         let currentLayoutFit = CONFIG.layoutFit || 'contain';
         let currentCanvasColor = CONFIG.canvasColor || '__CANVAS_COLOR__';
+        let isRightPanelVisible = true;
         let errorTimeoutId = null;
+        let canvasResizeObserver = null;
         const eventLogEntries = [];
-        const eventFilterState = { native: true, riveUser: true, ui: true };
+        const eventFilterState = { native: true, riveUser: true, ui: true, search: '' };
         let eventLogSequence = 0;
         let riveEventUnsubscribers = [];
+        let vmControlSyncTimer = null;
+        let vmControlBindings = [];
         let lastFpsUpdate = 0;
         let frameCount = 0;
 
@@ -1214,10 +1426,20 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             eventLogCount: document.getElementById('event-log-count'),
             eventLogList: document.getElementById('event-log-list'),
             eventLogClearBtn: document.getElementById('event-log-clear-btn'),
-            eventFilterSelect: document.getElementById('event-filter-select'),
+            eventFilterNative: document.getElementById('event-filter-native'),
+            eventFilterRiveUser: document.getElementById('event-filter-rive-user'),
+            eventFilterUi: document.getElementById('event-filter-ui'),
+            eventFilterSearch: document.getElementById('event-filter-search'),
             vmControlsCount: document.getElementById('vm-controls-count'),
             vmControlsEmpty: document.getElementById('vm-controls-empty'),
             vmControlsTree: document.getElementById('vm-controls-tree'),
+            mainGrid: document.querySelector('.workspace'),
+            rightResizer: document.getElementById('right-resizer'),
+            centerResizer: document.getElementById('center-resizer'),
+            rightPanel: document.getElementById('right-panel'),
+            toggleRightPanelBtn: document.getElementById('toggle-right-panel-btn'),
+            showRightPanelBtn: document.getElementById('show-right-panel-btn'),
+            showEventLogBtn: document.getElementById('show-event-log-btn'),
             settingsBtn: document.getElementById('settings-btn'),
             settingsPopover: document.getElementById('settings-popover'),
             layoutSelect: document.getElementById('layout-select'),
@@ -1235,8 +1457,12 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
         function init() {
             initLucideIcons();
             setupCanvasSize();
+            setupCanvasResizeObserver();
             updateCanvasBackground();
             setupPlaybackControls();
+            setupPanelResizers();
+            setupCenterResizer();
+            setupPanelVisibilityToggles();
             setupSettingsPopover();
             setupLayoutSelect();
             setupCanvasColor();
@@ -1256,6 +1482,17 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
 
         function setupCanvasSize() {
             resizeCanvas();
+        }
+
+        function setupCanvasResizeObserver() {
+            if (!els.canvasContainer || typeof ResizeObserver === 'undefined') return;
+            if (canvasResizeObserver) {
+                try { canvasResizeObserver.disconnect(); } catch (e) { /* noop */ }
+            }
+            canvasResizeObserver = new ResizeObserver(function () {
+                handleResize();
+            });
+            canvasResizeObserver.observe(els.canvasContainer);
         }
 
         function resizeCanvas() {
@@ -1316,6 +1553,115 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                 updateInfo('Reset');
                 logEvent('ui', 'reset', 'Animation reset from UI.');
             }
+        }
+
+        /* ── Panel resize/collapse controls ─────────────────── */
+
+        function setupPanelResizers() {
+            var grid = els.mainGrid;
+            var rightResizer = els.rightResizer;
+            if (!grid || !rightResizer) return;
+
+            rightResizer.addEventListener('mousedown', function (event) {
+                if (!isRightPanelVisible) return;
+                event.preventDefault();
+                var gridRect = grid.getBoundingClientRect();
+                var startX = event.clientX;
+                var initialRight = grid.style.getPropertyValue('--right-width')
+                    ? parseFloat(grid.style.getPropertyValue('--right-width'))
+                    : (els.rightPanel ? els.rightPanel.offsetWidth : 320);
+
+                rightResizer.classList.add('is-dragging');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+
+                var onMove = function (moveEvent) {
+                    var deltaX = moveEvent.clientX - startX;
+                    var maxRight = Math.max(300, gridRect.width - 320);
+                    var nextRight = clamp(initialRight - deltaX, 260, maxRight);
+                    grid.style.setProperty('--right-width', Math.round(nextRight) + 'px');
+                    handleResize();
+                };
+
+                var onUp = function () {
+                    rightResizer.classList.remove('is-dragging');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                    window.removeEventListener('mousemove', onMove);
+                    window.removeEventListener('mouseup', onUp);
+                    handleResize();
+                };
+
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
+            });
+        }
+
+        function setupCenterResizer() {
+            var centerPanel = els.centerPanel;
+            var centerResizer = els.centerResizer;
+            if (!centerPanel || !centerResizer) return;
+
+            centerResizer.addEventListener('mousedown', function (event) {
+                event.preventDefault();
+                var startY = event.clientY;
+                var startHeight = centerPanel.style.getPropertyValue('--center-log-height')
+                    ? parseFloat(centerPanel.style.getPropertyValue('--center-log-height'))
+                    : 230;
+
+                centerResizer.classList.add('is-dragging');
+                document.body.style.cursor = 'row-resize';
+                document.body.style.userSelect = 'none';
+
+                var onMove = function (moveEvent) {
+                    var deltaY = moveEvent.clientY - startY;
+                    var nextHeight = clamp(startHeight - deltaY, 120, 420);
+                    centerPanel.style.setProperty('--center-log-height', Math.round(nextHeight) + 'px');
+                    handleResize();
+                };
+
+                var onUp = function () {
+                    centerResizer.classList.remove('is-dragging');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                    window.removeEventListener('mousemove', onMove);
+                    window.removeEventListener('mouseup', onUp);
+                    handleResize();
+                };
+
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
+            });
+        }
+
+        function setupPanelVisibilityToggles() {
+            var grid = els.mainGrid;
+            var toggleBtn = els.toggleRightPanelBtn;
+            var showBtn = els.showRightPanelBtn;
+            if (!grid || !toggleBtn || !showBtn) return;
+
+            var applyVisibility = function () {
+                grid.classList.toggle('right-hidden', !isRightPanelVisible);
+                toggleBtn.classList.toggle('is-collapsed', !isRightPanelVisible);
+                toggleBtn.setAttribute('aria-pressed', String(isRightPanelVisible));
+                toggleBtn.title = isRightPanelVisible ? 'Hide Properties Panel' : 'Show Properties Panel';
+                toggleBtn.setAttribute('aria-label', toggleBtn.title);
+                showBtn.hidden = isRightPanelVisible;
+                handleResize();
+                setTimeout(handleResize, 250);
+            };
+
+            toggleBtn.addEventListener('click', function () {
+                isRightPanelVisible = !isRightPanelVisible;
+                applyVisibility();
+            });
+
+            showBtn.addEventListener('click', function () {
+                isRightPanelVisible = true;
+                applyVisibility();
+            });
+
+            applyVisibility();
         }
 
         /* ── FPS tracking ────────────────────────────────────── */
@@ -1442,36 +1788,71 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
         /* ── Event log ───────────────────────────────────────── */
 
         function setupEventLog() {
-            var filterSelect = els.eventFilterSelect;
+            var nativeToggle = els.eventFilterNative;
+            var riveUserToggle = els.eventFilterRiveUser;
+            var uiToggle = els.eventFilterUi;
+            var searchInput = els.eventFilterSearch;
             var clearButton = els.eventLogClearBtn;
             var header = els.eventLogHeader;
             var centerPanel = els.centerPanel;
+            var eventLogPanel = els.eventLogPanel;
+            var showEventLogBtn = els.showEventLogBtn;
 
-            if (filterSelect) {
-                filterSelect.value = 'all';
-                filterSelect.addEventListener('change', function () {
-                    var val = filterSelect.value;
-                    eventFilterState.native = val === 'all' || val === 'native';
-                    eventFilterState.riveUser = val === 'all' || val === 'rive-user';
-                    eventFilterState.ui = val === 'all' || val === 'ui';
-                    renderEventLog();
-                });
-            }
+            if (!nativeToggle || !riveUserToggle || !uiToggle || !searchInput || !clearButton) return;
 
-            if (clearButton) {
-                clearButton.addEventListener('click', function (e) {
-                    e.stopPropagation();
-                    resetEventLog();
-                    logEvent('ui', 'log-cleared', 'Event log cleared.');
-                });
-            }
+            var syncToggle = function (element, active) {
+                element.classList.toggle('is-active', active);
+                element.setAttribute('aria-pressed', String(active));
+            };
 
-            if (header && centerPanel) {
+            syncToggle(nativeToggle, eventFilterState.native);
+            syncToggle(riveUserToggle, eventFilterState.riveUser);
+            syncToggle(uiToggle, eventFilterState.ui);
+            searchInput.value = '';
+
+            nativeToggle.addEventListener('click', function () {
+                eventFilterState.native = !eventFilterState.native;
+                syncToggle(nativeToggle, eventFilterState.native);
+                renderEventLog();
+            });
+            riveUserToggle.addEventListener('click', function () {
+                eventFilterState.riveUser = !eventFilterState.riveUser;
+                syncToggle(riveUserToggle, eventFilterState.riveUser);
+                renderEventLog();
+            });
+            uiToggle.addEventListener('click', function () {
+                eventFilterState.ui = !eventFilterState.ui;
+                syncToggle(uiToggle, eventFilterState.ui);
+                renderEventLog();
+            });
+            searchInput.addEventListener('input', function () {
+                eventFilterState.search = searchInput.value.trim().toLowerCase();
+                renderEventLog();
+            });
+            clearButton.addEventListener('click', function (e) {
+                e.stopPropagation();
+                resetEventLog();
+                logEvent('ui', 'log-cleared', 'Event log cleared.');
+            });
+
+            if (header && centerPanel && eventLogPanel) {
                 header.addEventListener('click', function (e) {
                     if (e.target.closest('.event-log-summary-right')) return;
-                    centerPanel.classList.toggle('event-log-collapsed');
+                    var isCollapsed = centerPanel.classList.toggle('event-log-collapsed');
+                    eventLogPanel.classList.toggle('collapsed', isCollapsed);
+                    if (showEventLogBtn) showEventLogBtn.hidden = !isCollapsed;
                     handleResize();
-                    setTimeout(handleResize, 300);
+                    setTimeout(handleResize, 250);
+                });
+            }
+
+            if (showEventLogBtn && centerPanel && eventLogPanel) {
+                showEventLogBtn.addEventListener('click', function () {
+                    centerPanel.classList.remove('event-log-collapsed');
+                    eventLogPanel.classList.remove('collapsed');
+                    showEventLogBtn.hidden = true;
+                    handleResize();
+                    setTimeout(handleResize, 250);
                 });
             }
         }
@@ -1506,6 +1887,10 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                 if (entry.source === 'native' && !eventFilterState.native) return false;
                 if (entry.source === 'rive-user' && !eventFilterState.riveUser) return false;
                 if (entry.source === 'ui' && !eventFilterState.ui) return false;
+                if (eventFilterState.search) {
+                    var haystack = (entry.source + ' ' + entry.type + ' ' + entry.message + ' ' + (entry.payload ? safeJson(entry.payload) : '')).toLowerCase();
+                    if (!haystack.includes(eventFilterState.search)) return false;
+                }
                 return true;
             });
 
@@ -1580,6 +1965,14 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             var s = String(date.getSeconds()).padStart(2, '0');
             var cs = String(Math.floor(date.getMilliseconds() / 10)).padStart(2, '0');
             return h + ':' + m + ':' + s + '.' + cs;
+        }
+
+        function safeJson(value) {
+            try {
+                return JSON.stringify(value, null, 2);
+            } catch (e) {
+                return String(value);
+            }
         }
 
         /* ── UI helpers ──────────────────────────────────────── */
@@ -1730,6 +2123,38 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             return accessorInfo.accessor;
         }
 
+        function getStateMachineInputKind(input) {
+            if (!input || typeof input !== 'object') return null;
+            if (typeof input.fire === 'function') return 'trigger';
+            if (typeof input.value === 'boolean') return 'boolean';
+            if (typeof input.value === 'number') return 'number';
+            return null;
+        }
+
+        function resolveStateMachineInputAccessor(stateMachineName, inputName, expectedKind) {
+            if (!riveInstance || typeof riveInstance.stateMachineInputs !== 'function' || !stateMachineName || !inputName) {
+                return null;
+            }
+            try {
+                var inputs = riveInstance.stateMachineInputs(stateMachineName);
+                if (!Array.isArray(inputs)) return null;
+                var input = inputs.find(function (candidate) { return candidate && candidate.name === inputName; });
+                if (!input) return null;
+                var detectedKind = getStateMachineInputKind(input);
+                if (expectedKind && detectedKind !== expectedKind) return null;
+                return input;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function resolveControlAccessor(descriptor) {
+            if (descriptor && descriptor.source === 'state-machine') {
+                return resolveStateMachineInputAccessor(descriptor.stateMachineName, descriptor.name, descriptor.kind);
+            }
+            return resolveLiveAccessor(descriptor.path, descriptor.kind);
+        }
+
         function fireStateMachineTriggerByName(triggerName) {
             if (!riveInstance || typeof riveInstance.stateMachineInputs !== 'function' || !triggerName) return 0;
 
@@ -1821,6 +2246,59 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             return rootNode;
         }
 
+        function buildStateMachineHierarchy() {
+            if (!riveInstance || typeof riveInstance.stateMachineInputs !== 'function') return null;
+
+            var stateMachineNames = Array.isArray(riveInstance.stateMachineNames) ? riveInstance.stateMachineNames : [];
+            if (!stateMachineNames.length) return null;
+
+            var rootNode = {
+                label: 'State Machines',
+                path: '__state_machines__',
+                kind: 'state-machines',
+                inputs: [],
+                children: [],
+                totalInputs: 0,
+            };
+
+            stateMachineNames.forEach(function (stateMachineName) {
+                var inputs = [];
+                try {
+                    var resolved = riveInstance.stateMachineInputs(stateMachineName);
+                    if (Array.isArray(resolved)) inputs = resolved;
+                } catch (e) { inputs = []; }
+
+                var childNode = {
+                    label: stateMachineName,
+                    path: 'stateMachine/' + stateMachineName,
+                    kind: 'state-machine',
+                    inputs: [],
+                    children: [],
+                };
+
+                inputs.forEach(function (input) {
+                    var inputKind = getStateMachineInputKind(input);
+                    var inputName = input && typeof input.name === 'string' && input.name ? input.name : null;
+                    if (!inputKind || !inputName) return;
+
+                    childNode.inputs.push({
+                        name: inputName,
+                        path: 'stateMachine/' + stateMachineName + '/' + inputName,
+                        kind: inputKind,
+                        source: 'state-machine',
+                        stateMachineName: stateMachineName,
+                    });
+                    rootNode.totalInputs += 1;
+                });
+
+                if (childNode.inputs.length) {
+                    rootNode.children.push(childNode);
+                }
+            });
+
+            return rootNode.totalInputs > 0 ? rootNode : null;
+        }
+
         /* ── VM controls rendering ───────────────────────────── */
 
         function getDepthColor(depth) {
@@ -1838,7 +2316,7 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
         function createVmSectionElement(node, isTopLevel, depth) {
             var section = document.createElement('details');
             section.className = 'vm-section';
-            section.open = true;
+            section.open = Boolean(isTopLevel);
 
             var depthColor = getDepthColor(depth);
 
@@ -1910,7 +2388,7 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             var inputContainer = document.createElement('div');
             inputContainer.className = 'vm-control-input';
 
-            var accessor = resolveLiveAccessor(descriptor.path, descriptor.kind);
+            var accessor = resolveControlAccessor(descriptor);
             var isDisabled = !accessor;
 
             if (descriptor.kind === 'number') {
@@ -1922,12 +2400,14 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                 numberInput.addEventListener('change', function () {
                     var nextValue = Number(numberInput.value);
                     if (!Number.isFinite(nextValue)) return;
-                    var live = resolveLiveAccessor(descriptor.path, 'number');
+                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'number', source: descriptor.source, stateMachineName: descriptor.stateMachineName });
                     if (live) {
                         live.value = nextValue;
-                        logEvent('ui', 'vm-number', 'Set ' + descriptor.path + ' = ' + nextValue);
+                        var numberSource = descriptor.source === 'state-machine' ? 'sm-number' : 'vm-number';
+                        logEvent('ui', numberSource, 'Set ' + descriptor.path + ' = ' + nextValue);
                     }
                 });
+                registerVmControlBinding(descriptor, { kind: 'number', input: numberInput });
                 inputContainer.appendChild(numberInput);
 
             } else if (descriptor.kind === 'boolean') {
@@ -1936,12 +2416,14 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                 checkbox.checked = Boolean(accessor && accessor.value);
                 checkbox.disabled = isDisabled;
                 checkbox.addEventListener('change', function () {
-                    var live = resolveLiveAccessor(descriptor.path, 'boolean');
+                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'boolean', source: descriptor.source, stateMachineName: descriptor.stateMachineName });
                     if (live) {
                         live.value = checkbox.checked;
-                        logEvent('ui', 'vm-boolean', 'Set ' + descriptor.path + ' = ' + checkbox.checked);
+                        var boolSource = descriptor.source === 'state-machine' ? 'sm-boolean' : 'vm-boolean';
+                        logEvent('ui', boolSource, 'Set ' + descriptor.path + ' = ' + checkbox.checked);
                     }
                 });
+                registerVmControlBinding(descriptor, { kind: 'boolean', input: checkbox });
                 inputContainer.appendChild(checkbox);
 
             } else if (descriptor.kind === 'string') {
@@ -1950,12 +2432,13 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                 textInput.value = (accessor && typeof accessor.value === 'string') ? accessor.value : '';
                 textInput.disabled = isDisabled;
                 textInput.addEventListener('change', function () {
-                    var live = resolveLiveAccessor(descriptor.path, 'string');
+                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'string', source: descriptor.source, stateMachineName: descriptor.stateMachineName });
                     if (live) {
                         live.value = textInput.value;
                         logEvent('ui', 'vm-string', 'Set ' + descriptor.path + ' = ' + textInput.value);
                     }
                 });
+                registerVmControlBinding(descriptor, { kind: 'string', input: textInput });
                 inputContainer.appendChild(textInput);
 
             } else if (descriptor.kind === 'enum') {
@@ -1976,12 +2459,13 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                 if (accessor && typeof accessor.value === 'string') select.value = accessor.value;
                 select.disabled = isDisabled || values.length === 0;
                 select.addEventListener('change', function () {
-                    var live = resolveLiveAccessor(descriptor.path, 'enum');
+                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'enum', source: descriptor.source, stateMachineName: descriptor.stateMachineName });
                     if (live) {
                         live.value = select.value;
                         logEvent('ui', 'vm-enum', 'Set ' + descriptor.path + ' = ' + select.value);
                     }
                 });
+                registerVmControlBinding(descriptor, { kind: 'enum', input: select });
                 inputContainer.appendChild(select);
 
             } else if (descriptor.kind === 'color') {
@@ -2003,7 +2487,7 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                 alphaInput.disabled = isDisabled;
 
                 var applyColor = function () {
-                    var live = resolveLiveAccessor(descriptor.path, 'color');
+                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'color', source: descriptor.source, stateMachineName: descriptor.stateMachineName });
                     if (!live) return;
                     var rgb = hexToRgb(colorInput.value);
                     var alphaPercent = clamp(Number(alphaInput.value), 0, 100);
@@ -2019,6 +2503,7 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
 
                 colorInput.addEventListener('input', applyColor);
                 alphaInput.addEventListener('change', applyColor);
+                registerVmControlBinding(descriptor, { kind: 'color', colorInput: colorInput, alphaInput: alphaInput });
 
                 colorWrap.appendChild(colorInput);
                 colorWrap.appendChild(alphaInput);
@@ -2030,7 +2515,7 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                 button.textContent = 'Fire';
                 button.disabled = isDisabled;
                 button.addEventListener('click', function () {
-                    var live = resolveLiveAccessor(descriptor.path, 'trigger');
+                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'trigger', source: descriptor.source, stateMachineName: descriptor.stateMachineName });
 
                     // Ensure animation is playing for trigger to take effect
                     if (riveInstance && riveInstance.isPaused) {
@@ -2046,12 +2531,17 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                         firedVmTrigger = true;
                     }
 
-                    var firedSmCount = fireStateMachineTriggerByName(descriptor.name);
+                    var firedSmCount = 0;
+                    if (descriptor.source !== 'state-machine') {
+                        firedSmCount = fireStateMachineTriggerByName(descriptor.name);
+                    }
                     if (firedVmTrigger || firedSmCount > 0) {
                         var suffix = firedSmCount > 0 ? ' (+' + firedSmCount + ' state machine trigger matches)' : '';
-                        logEvent('ui', 'vm-trigger', 'Fired trigger ' + descriptor.path + suffix);
+                        var triggerSource = descriptor.source === 'state-machine' ? 'sm-trigger' : 'vm-trigger';
+                        logEvent('ui', triggerSource, 'Fired trigger ' + descriptor.path + suffix);
                     } else {
-                        logEvent('ui', 'vm-trigger-miss', 'No trigger accessor or state machine trigger matched ' + descriptor.path);
+                        var missSource = descriptor.source === 'state-machine' ? 'sm-trigger-miss' : 'vm-trigger-miss';
+                        logEvent('ui', missSource, 'No trigger accessor or state machine trigger matched ' + descriptor.path);
                     }
                 });
                 inputContainer.appendChild(button);
@@ -2060,6 +2550,96 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             row.appendChild(label);
             row.appendChild(inputContainer);
             return row;
+        }
+
+        function clearVmControlBindings() {
+            vmControlBindings = [];
+        }
+
+        function registerVmControlBinding(descriptor, binding) {
+            if (!descriptor || !binding) return;
+            vmControlBindings.push({
+                descriptor: {
+                    path: descriptor.path,
+                    name: descriptor.name,
+                    kind: descriptor.kind,
+                    source: descriptor.source,
+                    stateMachineName: descriptor.stateMachineName,
+                },
+                kind: binding.kind,
+                input: binding.input || null,
+                colorInput: binding.colorInput || null,
+                alphaInput: binding.alphaInput || null,
+            });
+        }
+
+        function startVmControlSync() {
+            if (vmControlSyncTimer || !vmControlBindings.length) return;
+            vmControlSyncTimer = setInterval(function () {
+                syncVmControlBindings(false);
+            }, VM_CONTROL_SYNC_INTERVAL_MS);
+        }
+
+        function stopVmControlSync() {
+            if (vmControlSyncTimer) {
+                clearInterval(vmControlSyncTimer);
+                vmControlSyncTimer = null;
+            }
+        }
+
+        function isEditingControl(element) {
+            return document.activeElement === element;
+        }
+
+        function syncVmControlBindings(force) {
+            if (force === void 0) force = false;
+            if (!vmControlBindings.length) return;
+
+            vmControlBindings.forEach(function (binding) {
+                var accessor = resolveControlAccessor(binding.descriptor);
+                var canEdit = Boolean(accessor);
+
+                if (binding.input) binding.input.disabled = !canEdit;
+                if (binding.colorInput) binding.colorInput.disabled = !canEdit;
+                if (binding.alphaInput) binding.alphaInput.disabled = !canEdit;
+                if (!canEdit) return;
+
+                if (binding.kind === 'number') {
+                    var numValue = Number(accessor.value);
+                    if (!Number.isFinite(numValue)) return;
+                    if (!force && isEditingControl(binding.input)) return;
+                    var nextNum = String(numValue);
+                    if (binding.input.value !== nextNum) binding.input.value = nextNum;
+                    return;
+                }
+
+                if (binding.kind === 'boolean') {
+                    var nextBool = Boolean(accessor.value);
+                    if (binding.input.checked !== nextBool) binding.input.checked = nextBool;
+                    return;
+                }
+
+                if (binding.kind === 'string') {
+                    var nextText = (typeof accessor.value === 'string') ? accessor.value : '';
+                    if (!force && isEditingControl(binding.input)) return;
+                    if (binding.input.value !== nextText) binding.input.value = nextText;
+                    return;
+                }
+
+                if (binding.kind === 'enum') {
+                    var nextEnum = (typeof accessor.value === 'string') ? accessor.value : '';
+                    if (binding.input.value !== nextEnum) binding.input.value = nextEnum;
+                    return;
+                }
+
+                if (binding.kind === 'color') {
+                    var meta = argbToColorMeta(accessor.value);
+                    if (!force && (isEditingControl(binding.colorInput) || isEditingControl(binding.alphaInput))) return;
+                    if (binding.colorInput.value !== meta.hex) binding.colorInput.value = meta.hex;
+                    var nextAlpha = String(meta.alphaPercent);
+                    if (binding.alphaInput.value !== nextAlpha) binding.alphaInput.value = nextAlpha;
+                }
+            });
         }
 
         /* ── Color utilities ─────────────────────────────────── */
@@ -2293,6 +2873,8 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
         function cleanupInstance() {
             clearRiveEventListeners();
             resetPlaybackChips();
+            stopVmControlSync();
+            clearVmControlBindings();
             if (riveInstance && riveInstance.cleanup) {
                 try { riveInstance.cleanup(); } catch (e) { /* noop */ }
             }
@@ -2338,48 +2920,55 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             var treeEl = els.vmControlsTree;
             if (!countEl || !emptyEl || !treeEl) return;
 
-            // Use embedded hierarchy if available, otherwise fall back to dynamic discovery
-            var hierarchy = null;
+            treeEl.innerHTML = '';
+            clearVmControlBindings();
 
+            // Use embedded hierarchy if available, otherwise fall back to dynamic discovery.
+            var vmHierarchy = null;
             if (VM_HIERARCHY && VM_HIERARCHY.label) {
-                hierarchy = VM_HIERARCHY;
-                hierarchy.totalInputs = countAllInputs(hierarchy);
+                vmHierarchy = JSON.parse(JSON.stringify(VM_HIERARCHY));
+                vmHierarchy.totalInputs = countAllInputs(vmHierarchy);
             } else {
-                // Fall back to dynamic discovery
                 var rootVm = resolveVmRootInstance();
-                if (!rootVm) {
-                    treeEl.innerHTML = '';
-                    countEl.textContent = '0';
-                    emptyEl.hidden = false;
-                    emptyEl.textContent = 'No bound ViewModel inputs detected.';
-                    return;
-                }
-                hierarchy = buildVmHierarchy(rootVm);
+                vmHierarchy = rootVm ? buildVmHierarchy(rootVm) : null;
             }
 
-            treeEl.innerHTML = '';
-            countEl.textContent = String(hierarchy.totalInputs || 0);
+            var stateMachineHierarchy = buildStateMachineHierarchy();
+            var vmTotal = vmHierarchy && vmHierarchy.totalInputs ? vmHierarchy.totalInputs : 0;
+            var smTotal = stateMachineHierarchy && stateMachineHierarchy.totalInputs ? stateMachineHierarchy.totalInputs : 0;
+            var totalControls = vmTotal + smTotal;
 
-            if (!hierarchy.totalInputs && (!hierarchy.children || !hierarchy.children.length)) {
+            countEl.textContent = String(totalControls);
+
+            if (!totalControls) {
                 emptyEl.hidden = false;
-                emptyEl.textContent = 'No writable ViewModel inputs were found.';
+                emptyEl.textContent = 'No writable ViewModel or state machine inputs were found.';
+                stopVmControlSync();
                 return;
             }
 
             emptyEl.hidden = true;
 
-            // Filter out root-level inputs that are duplicated in child VMs
-            if (hierarchy.children && hierarchy.children.length && hierarchy.inputs) {
+            // Filter out root-level VM inputs duplicated in child VMs.
+            if (vmHierarchy && vmHierarchy.children && vmHierarchy.children.length && vmHierarchy.inputs) {
                 var childPaths = new Set();
                 var collectChildPaths = function (node) {
-                    if (node.inputs) node.inputs.forEach(function (inp) { childPaths.add(inp.name); });
+                    if (node.inputs) node.inputs.forEach(function (inp) { childPaths.add(inp.path); });
                     if (node.children) node.children.forEach(collectChildPaths);
                 };
-                hierarchy.children.forEach(collectChildPaths);
-                hierarchy.inputs = hierarchy.inputs.filter(function (inp) { return !childPaths.has(inp.name); });
+                vmHierarchy.children.forEach(collectChildPaths);
+                vmHierarchy.inputs = vmHierarchy.inputs.filter(function (inp) { return !childPaths.has(inp.path); });
             }
 
-            treeEl.appendChild(createVmSectionElement(hierarchy, true, 0));
+            if (vmHierarchy) {
+                treeEl.appendChild(createVmSectionElement(vmHierarchy, true, 0));
+            }
+            if (stateMachineHierarchy && stateMachineHierarchy.totalInputs) {
+                treeEl.appendChild(createVmSectionElement(stateMachineHierarchy, false, 0));
+            }
+
+            startVmControlSync();
+            syncVmControlBindings(true);
             initLucideIcons();
         }
 
