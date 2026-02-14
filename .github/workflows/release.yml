@@ -27,6 +27,7 @@ jobs:
     outputs:
       version: ${{ steps.meta.outputs.version }}
       tag: ${{ steps.meta.outputs.tag }}
+      matrix: ${{ steps.meta.outputs.matrix }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -36,6 +37,7 @@ jobs:
         shell: bash
         env:
           DISPATCH_VERSION: ${{ github.event.inputs.version || '' }}
+          DISPATCH_PLATFORM: ${{ github.event.inputs.platform || 'all' }}
         run: |
           set -euo pipefail
 
@@ -58,30 +60,34 @@ jobs:
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
           echo "Preparing release $VERSION"
 
+          case "$DISPATCH_PLATFORM" in
+            all)
+              MATRIX='{"include":[{"name":"macOS Apple Silicon","platform":"macos-14","rust_target":"aarch64-apple-darwin","args":"--target aarch64-apple-darwin"},{"name":"macOS Intel","platform":"macos-latest","rust_target":"x86_64-apple-darwin","args":"--target x86_64-apple-darwin"},{"name":"Windows x64","platform":"windows-latest","rust_target":"x86_64-pc-windows-msvc","args":"--target x86_64-pc-windows-msvc"}]}'
+              ;;
+            macos_arm)
+              MATRIX='{"include":[{"name":"macOS Apple Silicon","platform":"macos-14","rust_target":"aarch64-apple-darwin","args":"--target aarch64-apple-darwin"}]}'
+              ;;
+            macos_intel)
+              MATRIX='{"include":[{"name":"macOS Intel","platform":"macos-latest","rust_target":"x86_64-apple-darwin","args":"--target x86_64-apple-darwin"}]}'
+              ;;
+            windows_x64)
+              MATRIX='{"include":[{"name":"Windows x64","platform":"windows-latest","rust_target":"x86_64-pc-windows-msvc","args":"--target x86_64-pc-windows-msvc"}]}'
+              ;;
+            *)
+              echo "Unsupported platform input: $DISPATCH_PLATFORM"
+              exit 1
+              ;;
+          esac
+
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+
   release:
     needs: prepare-release
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.platform == 'all' || github.event.inputs.platform == matrix.id }}
     permissions:
       contents: write
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - id: macos_arm
-            name: macOS Apple Silicon
-            platform: macos-14
-            rust_target: aarch64-apple-darwin
-            args: --target aarch64-apple-darwin
-          - id: macos_intel
-            name: macOS Intel
-            platform: macos-latest
-            rust_target: x86_64-apple-darwin
-            args: --target x86_64-apple-darwin
-          - id: windows_x64
-            name: Windows x64
-            platform: windows-latest
-            rust_target: x86_64-pc-windows-msvc
-            args: --target x86_64-pc-windows-msvc
+      matrix: ${{ fromJSON(needs.prepare-release.outputs.matrix) }}
 
     runs-on: ${{ matrix.platform }}
     steps:
