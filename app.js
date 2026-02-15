@@ -2755,14 +2755,56 @@ function getStateMachineInputKind(input) {
     if (!input || typeof input !== 'object') {
         return null;
     }
-    if (typeof input.fire === 'function') {
+
+    const runtime = runtimeRegistry[currentRuntime];
+    const runtimeInputTypes = runtime?.StateMachineInputType;
+    const inputType = typeof input.type === 'number' ? input.type : null;
+    if (runtimeInputTypes && inputType !== null) {
+        if (inputType === runtimeInputTypes.Boolean) {
+            return 'boolean';
+        }
+        if (inputType === runtimeInputTypes.Number) {
+            return 'number';
+        }
+        if (inputType === runtimeInputTypes.Trigger) {
+            return 'trigger';
+        }
+    }
+
+    const rawInputTypes = runtime?.SMIInput;
+    if (rawInputTypes && inputType !== null) {
+        if (inputType === rawInputTypes.bool) {
+            return 'boolean';
+        }
+        if (inputType === rawInputTypes.number) {
+            return 'number';
+        }
+        if (inputType === rawInputTypes.trigger) {
+            return 'trigger';
+        }
+    }
+
+    const constructorName = typeof input.constructor?.name === 'string'
+        ? input.constructor.name.toLowerCase()
+        : '';
+    if (constructorName.includes('bool')) {
+        return 'boolean';
+    }
+    if (constructorName.includes('number')) {
+        return 'number';
+    }
+    if (constructorName.includes('trigger')) {
         return 'trigger';
     }
+
     if (typeof input.value === 'boolean') {
         return 'boolean';
     }
     if (typeof input.value === 'number') {
         return 'number';
+    }
+    if (typeof input.fire === 'function') {
+        return 'trigger';
     }
     return null;
 }
@@ -3376,7 +3418,7 @@ function fireStateMachineTriggerByName(triggerName) {
         }
 
         inputs.forEach((input) => {
-            if (!input || input.name !== triggerName || typeof input.fire !== 'function') {
+            if (!input || input.name !== triggerName || getStateMachineInputKind(input) !== 'trigger' || typeof input.fire !== 'function') {
                 return;
             }
             try {

@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.7.2] - 2026-02-15
+
+### Changed
+
+- Bumped app/package/runtime version from `1.7.1` to `1.7.2`.
+
+### Fixed
+
+- Corrected state-machine input type detection so boolean and number inputs are not misclassified as triggers.
+- Trigger controls now fire only actual trigger inputs, restoring expected state-machine transitions and related input updates.
+
 ## [1.7.1] - 2026-02-14
 
 ### Changed
