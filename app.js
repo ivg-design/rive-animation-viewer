@@ -2549,8 +2549,10 @@ function renderVmInputControls() {
     }
 
     if (stateMachineHierarchy?.totalInputs) {
-        // State machine groups stay collapsed by default.
-        tree.appendChild(createVmSectionElement(stateMachineHierarchy, false));
+        // Flatten state machine groups (no extra "State Machines" wrapper).
+        stateMachineHierarchy.children.forEach((stateMachineNode) => {
+            tree.appendChild(createVmSectionElement(stateMachineNode, false));
+        });
     }
     startVmControlSync();
     syncVmControlBindings(true);
@@ -2930,9 +2932,12 @@ function createVmControlRow(descriptor) {
         inputContainer.appendChild(checkbox);
     } else if (descriptor.kind === 'string') {
         const textInput = document.createElement('textarea');
-        textInput.rows = 2;
         textInput.value = typeof accessor?.value === 'string' ? accessor.value : '';
+        updateStringInputRows(textInput, textInput.value);
         textInput.disabled = isDisabled;
+        textInput.addEventListener('input', () => {
+            updateStringInputRows(textInput, textInput.value);
+        });
         textInput.addEventListener('change', () => {
             const liveAccessor = resolveVmAccessor(descriptor.path, 'string');
             if (liveAccessor) {
@@ -3212,6 +3217,14 @@ function stopVmControlSync() {
     }
 }
 
+function updateStringInputRows(input, value) {
+    if (!input || typeof input.rows !== 'number') {
+        return;
+    }
+    const text = typeof value === 'string' ? value : '';
+    input.rows = /\r\n|\r|\n/.test(text) ? 2 : 1;
+}
+
 function isEditingControl(element) {
     return document.activeElement === element;
 }
@@ -3264,11 +3277,13 @@ function syncVmControlBindings(force = false) {
         if (binding.kind === 'string') {
             const next = typeof accessor.value === 'string' ? accessor.value : '';
             if (!force && isEditingControl(binding.input)) {
+                updateStringInputRows(binding.input, binding.input.value);
                 return;
             }
             if (binding.input.value !== next) {
                 binding.input.value = next;
             }
+            updateStringInputRows(binding.input, next);
             return;
         }
 

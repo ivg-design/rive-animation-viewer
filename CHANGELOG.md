@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.7.4] - 2026-02-15
+
+### Changed
+
+- Bumped app/package/runtime version from `1.7.3` to `1.7.4`.
+
+### Fixed
+
+- VM string inputs now default to a single visible row and automatically expand to two rows only when multiline content is present.
+- State machine controls are now flattened to a single group per state machine (no extra nested "State Machines" wrapper), and only rendered when that state machine has inputs.
+
 ## [1.7.3] - 2026-02-15
 
 ### Changed
