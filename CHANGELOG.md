@@ -2,8 +2,6 @@
 
 All notable changes to this project are documented in this file.
 
-> Historical note: entries before `1.6.0` were reconstructed from git commit messages, manifest version bumps, and commit dates. Early repository tags around `1.1.x`-`1.2.0` were offset by the old CI bump flow; this changelog follows the actual `package.json`/Tauri manifest version history.
-
 ## [1.7.1] - 2026-02-14
 
 ### Changed
