@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.7.3] - 2026-02-15
+
+### Changed
+
+- Bumped app/package/runtime version from `1.7.2` to `1.7.3`.
+
+### Fixed
+
+- VM string inputs now use multiline text areas so line breaks are preserved when rendering existing values.
+- Editing string inputs no longer collapses multiline text into a single line.
+
 ## [1.7.2] - 2026-02-15
 
 ### Changed

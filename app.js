@@ -2929,8 +2929,8 @@ function createVmControlRow(descriptor) {
         });
         inputContainer.appendChild(checkbox);
     } else if (descriptor.kind === 'string') {
-        const textInput = document.createElement('input');
-        textInput.type = 'text';
+        const textInput = document.createElement('textarea');
+        textInput.rows = 2;
         textInput.value = typeof accessor?.value === 'string' ? accessor.value : '';
         textInput.disabled = isDisabled;
         textInput.addEventListener('change', () => {

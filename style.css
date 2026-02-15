@@ -192,6 +192,7 @@ body.transparency-mode .center-panel {
 .btn,
 .vm-control-input input[type='text'],
 .vm-control-input input[type='number'],
+.vm-control-input textarea,
 .vm-control-input select,
 .vm-color-control input[type='number'] {
     border: 1px solid var(--border);
@@ -1355,6 +1356,20 @@ body.transparency-mode .event-log-list {
     background: var(--bg-zinc);
     color: var(--text-white);
     font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.vm-control-input textarea {
+    width: 100%;
+    min-height: 52px;
+    padding: 6px 8px;
+    font-size: 11px;
+    border-radius: 5px;
+    border-color: var(--border);
+    background: var(--bg-zinc);
+    color: var(--text-white);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    line-height: 1.3;
+    resize: vertical;
 }
 
 .vm-control-input input[type='checkbox'] {
