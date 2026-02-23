@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.7.5] - 2026-02-23
+
+### Changed
+
+- Bumped app/package/runtime version from `1.7.4` to `1.7.5`.
+- Added runtime semver selector in Settings with `Latest (auto)` plus the latest 3 prior versions and a `Custom` option.
+- Runtime build identifiers now use local system time (instead of UTC) for easier test-build verification.
+
+### Fixed
+
+- Resolved runtime `latest` alias handling so `Latest (auto)` resolves to a concrete semver before cache/load (matching direct semver selection behavior).
+- Added per-file runtime semver persistence so each `.riv` remembers its selected runtime version.
+- Exported standalone demos now embed the exact selected runtime semver.
+- Runtime custom version input row now appears only when `Custom` is selected.
+- Default playback target selection now pre-detects state machines before instantiation (avoids unintended first-animation fallback when no playback target is specified).
+
 ## [1.7.4] - 2026-02-15
 
 ### Changed

@@ -37,15 +37,22 @@ async function loadCodeMirror() {
     }
 }
 
-const RIVE_VERSION = '2.34.3';
+const DEFAULT_RUNTIME_VERSION = '2.34.3';
 const MIN_SCRIPTING_RUNTIME_VERSION = '2.34.0';
 const DEFAULT_CANVAS_COLOR = '#0d1117';
 const TRANSPARENT_CANVAS_COLOR = 'transparent';
 const CLICK_THROUGH_POLL_INTERVAL_MS = 42;
-const runtimeSources = {
-    canvas: `https://cdn.jsdelivr.net/npm/@rive-app/canvas@${RIVE_VERSION}`,
-    webgl2: `https://cdn.jsdelivr.net/npm/@rive-app/webgl2@${RIVE_VERSION}`,
+const DEFAULT_RUNTIME_VERSION_TOKEN = 'latest';
+const RUNTIME_VERSION_PREF_STORAGE_KEY = 'riveRuntimeVersionPreference';
+const RUNTIME_FILE_VERSION_PREFS_STORAGE_KEY = 'riveRuntimeVersionPreferencesByFile';
+const RUNTIME_PACKAGE_NAMES = {
+    canvas: '@rive-app/canvas',
+    webgl2: '@rive-app/webgl2',
 };
+const RUNTIME_VERSION_DISCOVERY_URL = 'https://registry.npmjs.org/@rive-app/webgl2';
+const RUNTIME_VERSION_OPTION_COUNT = 4; // latest + 3 previous
+const FALLBACK_RUNTIME_VERSION_OPTIONS = ['2.34.3', '2.34.2', '2.34.1', '2.34.0'];
+const CURRENT_CUSTOM_RUNTIME_OPTION_VALUE = '__current-custom-runtime__';
 
 const runtimeRegistry = {};
 const runtimePromises = {};
@@ -73,6 +80,8 @@ let riveInstance = null;
 let currentFileUrl = null;
 let currentFileName = null;
 let currentRuntime = 'webgl2';
+let runtimeVersionToken = loadRuntimeVersionPreference();
+let currentFilePreferenceId = null;
 let lastObjectUrl = null;
 let currentLayoutFit = DEFAULT_LAYOUT_FIT;
 let currentFileBuffer = null;
@@ -93,6 +102,11 @@ let clickThroughMonitorInFlight = false;
 let clickThroughPassThroughActive = false;
 let clickThroughRequestSequence = 0;
 const runtimeMeta = loadRuntimeMeta();
+const runtimeVersionByFile = loadRuntimeVersionByFile();
+const runtimeVersionOptionsState = {
+    latest: FALLBACK_RUNTIME_VERSION_OPTIONS[0],
+    versions: FALLBACK_RUNTIME_VERSION_OPTIONS.slice(0, RUNTIME_VERSION_OPTION_COUNT),
+};
 let editorView = null;
 let isAutoFilling = false;
 const eventLogEntries = [];
@@ -156,6 +170,10 @@ const elements = {
     eventLogClearButton: document.getElementById('event-log-clear-btn'),
     settingsButton: document.getElementById('settings-btn'),
     settingsPopover: document.getElementById('settings-popover'),
+    runtimeVersionSelect: document.getElementById('runtime-version-select'),
+    runtimeVersionCustomRow: document.getElementById('runtime-version-custom-row'),
+    runtimeVersionCustomInput: document.getElementById('runtime-version-custom-input'),
+    runtimeVersionApplyButton: document.getElementById('runtime-version-apply-btn'),
 };
 
 init();
@@ -179,6 +197,7 @@ async function init() {
     setupPanelVisibilityToggles();
     setupEventLog();
     setupSettingsPopover();
+    await setupRuntimeVersionPicker();
     setupDragAndDrop();
     await setupTauriOpenFileListener();
     resetVmInputControls('No animation loaded.');
@@ -348,8 +367,11 @@ async function loadRivFromPath(filePath) {
         const buffer = bytes.buffer;
         const blob = new Blob([buffer], { type: 'application/octet-stream' });
         const fileUrl = URL.createObjectURL(blob);
-        setCurrentFile(fileUrl, fileName, true, buffer, blob.type, buffer.byteLength);
+        setCurrentFile(fileUrl, fileName, true, buffer, blob.type, buffer.byteLength, {
+            sourcePath: normalizedPath,
+        });
         hideError();
+        await applyStoredRuntimeVersionForCurrentFile();
         await loadRiveAnimation(fileUrl, fileName);
     } catch (e) {
         console.error('[rive-viewer] loadRivFromPath failed:', e);
@@ -391,8 +413,11 @@ function setupDragAndDrop() {
         updateFileTriggerButton('loaded', file.name);
         const buffer = await file.arrayBuffer();
         const fileUrl = URL.createObjectURL(file);
-        setCurrentFile(fileUrl, file.name, true, buffer, file.type, file.size);
+        setCurrentFile(fileUrl, file.name, true, buffer, file.type, file.size, {
+            lastModified: file.lastModified,
+        });
         hideError();
+        await applyStoredRuntimeVersionForCurrentFile();
         try {
             await loadRiveAnimation(fileUrl, file.name);
         } catch {
@@ -425,6 +450,351 @@ function setupSettingsPopover() {
     });
 }
 
+function getRuntimePackageName(runtimeName) {
+    return RUNTIME_PACKAGE_NAMES[runtimeName] || RUNTIME_PACKAGE_NAMES.webgl2;
+}
+
+function normalizeRuntimeVersionToken(rawToken) {
+    const token = String(rawToken || '').trim();
+    if (!token) {
+        return DEFAULT_RUNTIME_VERSION_TOKEN;
+    }
+    const lowered = token.toLowerCase();
+    if (lowered === 'latest' || lowered === 'custom') {
+        return DEFAULT_RUNTIME_VERSION_TOKEN;
+    }
+    return token;
+}
+
+function getEffectiveRuntimeVersionToken(versionToken = runtimeVersionToken) {
+    const normalized = normalizeRuntimeVersionToken(versionToken);
+    if (normalized !== DEFAULT_RUNTIME_VERSION_TOKEN) {
+        return normalized;
+    }
+    const latestResolved = runtimeVersionOptionsState.latest;
+    if (parseSemverParts(latestResolved)) {
+        return latestResolved;
+    }
+    return DEFAULT_RUNTIME_VERSION;
+}
+
+function getRuntimeCacheKey(runtimeName, versionToken = runtimeVersionToken) {
+    return `${runtimeName}@${getEffectiveRuntimeVersionToken(versionToken)}`;
+}
+
+function getRuntimeSourceUrl(runtimeName, versionToken = runtimeVersionToken) {
+    const packageName = getRuntimePackageName(runtimeName);
+    const resolvedToken = getEffectiveRuntimeVersionToken(versionToken);
+    return `https://cdn.jsdelivr.net/npm/${packageName}@${resolvedToken}`;
+}
+
+function getCurrentRuntimeCacheKey(runtimeName = currentRuntime) {
+    return getRuntimeCacheKey(runtimeName, runtimeVersionToken);
+}
+
+function getCurrentRuntimeVersion(runtimeName = currentRuntime) {
+    const key = getCurrentRuntimeCacheKey(runtimeName);
+    return runtimeVersions[key] || runtimeRegistry[key]?.version || null;
+}
+
+function getCurrentRuntimeSource(runtimeName = currentRuntime) {
+    const key = getCurrentRuntimeCacheKey(runtimeName);
+    return runtimeResolvedUrls[key] || getRuntimeSourceUrl(runtimeName);
+}
+
+function loadRuntimeVersionPreference() {
+    try {
+        return normalizeRuntimeVersionToken(localStorage.getItem(RUNTIME_VERSION_PREF_STORAGE_KEY));
+    } catch {
+        return DEFAULT_RUNTIME_VERSION_TOKEN;
+    }
+}
+
+function persistRuntimeVersionPreference() {
+    try {
+        localStorage.setItem(RUNTIME_VERSION_PREF_STORAGE_KEY, normalizeRuntimeVersionToken(runtimeVersionToken));
+    } catch {
+        /* ignore storage errors */
+    }
+}
+
+function normalizeFileRuntimePreferenceId(rawId) {
+    return String(rawId || '').trim().toLowerCase();
+}
+
+function buildFileRuntimePreferenceId(fileName, fileSizeBytes, metadata = {}) {
+    const normalizedPath = normalizeOpenedFilePath(metadata?.sourcePath || '');
+    if (normalizedPath) {
+        return `path:${normalizeFileRuntimePreferenceId(normalizedPath)}`;
+    }
+    const safeName = normalizeFileRuntimePreferenceId(fileName || '');
+    const safeSize = Number.isFinite(fileSizeBytes) ? Number(fileSizeBytes) : 0;
+    const safeModified = Number.isFinite(metadata?.lastModified) ? Number(metadata.lastModified) : 0;
+    return `name:${safeName}|size:${safeSize}|modified:${safeModified}`;
+}
+
+function loadRuntimeVersionByFile() {
+    try {
+        const raw = localStorage.getItem(RUNTIME_FILE_VERSION_PREFS_STORAGE_KEY);
+        const parsed = raw ? JSON.parse(raw) : {};
+        if (!parsed || typeof parsed !== 'object') {
+            return {};
+        }
+        const normalized = {};
+        Object.entries(parsed).forEach(([key, value]) => {
+            const prefId = normalizeFileRuntimePreferenceId(key);
+            const token = normalizeRuntimeVersionToken(value);
+            if (prefId) {
+                normalized[prefId] = token;
+            }
+        });
+        return normalized;
+    } catch {
+        return {};
+    }
+}
+
+function persistRuntimeVersionByFile() {
+    try {
+        localStorage.setItem(RUNTIME_FILE_VERSION_PREFS_STORAGE_KEY, JSON.stringify(runtimeVersionByFile));
+    } catch {
+        /* ignore storage errors */
+    }
+}
+
+function getStoredRuntimeVersionForCurrentFile() {
+    const prefId = normalizeFileRuntimePreferenceId(currentFilePreferenceId);
+    if (!prefId) {
+        return null;
+    }
+    return runtimeVersionByFile[prefId] || null;
+}
+
+function persistRuntimeVersionForCurrentFile(versionToken = runtimeVersionToken) {
+    const prefId = normalizeFileRuntimePreferenceId(currentFilePreferenceId);
+    if (!prefId) {
+        return;
+    }
+    runtimeVersionByFile[prefId] = normalizeRuntimeVersionToken(versionToken);
+    persistRuntimeVersionByFile();
+}
+
+async function applyStoredRuntimeVersionForCurrentFile() {
+    const storedToken = getStoredRuntimeVersionForCurrentFile();
+    if (!storedToken) {
+        return;
+    }
+    await applyRuntimeVersionToken(storedToken, {
+        reloadCurrentAnimation: false,
+        source: 'file-pref',
+    });
+    renderRuntimeVersionPickerOptions();
+}
+
+function clearRuntimeInMemoryCaches() {
+    Object.keys(runtimePromises).forEach((key) => {
+        delete runtimePromises[key];
+    });
+    Object.keys(runtimeRegistry).forEach((key) => {
+        delete runtimeRegistry[key];
+    });
+    Object.keys(runtimeVersions).forEach((key) => {
+        delete runtimeVersions[key];
+    });
+    Object.keys(runtimeResolvedUrls).forEach((key) => {
+        delete runtimeResolvedUrls[key];
+    });
+    Object.keys(runtimeSourceTexts).forEach((key) => {
+        delete runtimeSourceTexts[key];
+    });
+    Object.keys(runtimeAssets).forEach((key) => {
+        delete runtimeAssets[key];
+    });
+    Object.keys(runtimeBlobUrls).forEach((key) => {
+        const url = runtimeBlobUrls[key];
+        if (url) {
+            URL.revokeObjectURL(url);
+        }
+        delete runtimeBlobUrls[key];
+    });
+}
+
+function compareSemverDescending(versionA, versionB) {
+    const a = parseSemverParts(versionA);
+    const b = parseSemverParts(versionB);
+    if (!a && !b) {
+        return versionA.localeCompare(versionB);
+    }
+    if (!a) {
+        return 1;
+    }
+    if (!b) {
+        return -1;
+    }
+    for (let i = 0; i < 3; i += 1) {
+        if (a[i] > b[i]) return -1;
+        if (a[i] < b[i]) return 1;
+    }
+    return 0;
+}
+
+async function fetchRuntimeVersionOptions() {
+    const response = await fetch(RUNTIME_VERSION_DISCOVERY_URL, { cache: 'no-store' });
+    if (!response.ok) {
+        throw new Error(`Failed to fetch runtime versions (${response.status})`);
+    }
+    const payload = await response.json();
+    const versions = Object.keys(payload?.versions || {})
+        .filter((version) => parseSemverParts(version))
+        .sort(compareSemverDescending);
+
+    const distTagLatest = payload?.['dist-tags']?.latest;
+    const latest = parseSemverParts(distTagLatest) ? distTagLatest : (versions[0] || DEFAULT_RUNTIME_VERSION);
+    const unique = [];
+    [latest, ...versions].forEach((version) => {
+        if (!version || unique.includes(version)) {
+            return;
+        }
+        unique.push(version);
+    });
+
+    return {
+        latest,
+        versions: unique.slice(0, RUNTIME_VERSION_OPTION_COUNT),
+    };
+}
+
+function setRuntimeVersionCustomVisibility(visible) {
+    if (!elements.runtimeVersionCustomRow) {
+        return;
+    }
+    elements.runtimeVersionCustomRow.hidden = !visible;
+}
+
+function renderRuntimeVersionPickerOptions() {
+    const select = elements.runtimeVersionSelect;
+    if (!select) {
+        return;
+    }
+    const { latest, versions } = runtimeVersionOptionsState;
+    const selectedToken = normalizeRuntimeVersionToken(runtimeVersionToken);
+    const matchesKnownOption = selectedToken === DEFAULT_RUNTIME_VERSION_TOKEN || versions.includes(selectedToken);
+    const options = [
+        `<option value="${DEFAULT_RUNTIME_VERSION_TOKEN}">Latest (auto: ${latest})</option>`,
+        ...versions.map((version) => `<option value="${version}">${version}</option>`),
+    ];
+    if (!matchesKnownOption) {
+        options.push(`<option value="${CURRENT_CUSTOM_RUNTIME_OPTION_VALUE}">Current: ${selectedToken}</option>`);
+    }
+    options.push('<option value="custom">Custom</option>');
+    select.innerHTML = options.join('');
+
+    if (matchesKnownOption) {
+        select.value = selectedToken;
+    } else {
+        select.value = CURRENT_CUSTOM_RUNTIME_OPTION_VALUE;
+    }
+    setRuntimeVersionCustomVisibility(false);
+    if (elements.runtimeVersionCustomInput) {
+        elements.runtimeVersionCustomInput.value = '';
+    }
+}
+
+async function applyRuntimeVersionToken(nextToken, { reloadCurrentAnimation = true, source = 'settings' } = {}) {
+    const normalizedCurrent = normalizeRuntimeVersionToken(runtimeVersionToken);
+    const normalizedNext = normalizeRuntimeVersionToken(nextToken);
+    const effectiveCurrent = getEffectiveRuntimeVersionToken(normalizedCurrent);
+    const effectiveNext = getEffectiveRuntimeVersionToken(normalizedNext);
+    if (normalizedNext === normalizedCurrent && effectiveNext === effectiveCurrent) {
+        return;
+    }
+
+    runtimeVersionToken = normalizedNext;
+    persistRuntimeVersionPreference();
+    persistRuntimeVersionForCurrentFile(runtimeVersionToken);
+    clearRuntimeInMemoryCaches();
+    updateVersionInfo('Loading runtime...');
+    refreshInfoStrip();
+    logEvent('ui', 'runtime-version', `Runtime version set to ${runtimeVersionToken} -> ${getEffectiveRuntimeVersionToken(runtimeVersionToken)} (${source}).`);
+
+    try {
+        await ensureRuntime(currentRuntime);
+        updateVersionInfo();
+        if (reloadCurrentAnimation && currentFileUrl && currentFileName) {
+            await loadRiveAnimation(currentFileUrl, currentFileName);
+        }
+    } catch (error) {
+        showError(`Failed to load runtime version ${runtimeVersionToken}: ${error.message}`);
+        logEvent('native', 'runtime-version-load-failed', `Failed to load runtime version ${runtimeVersionToken}.`, error);
+    }
+}
+
+async function setupRuntimeVersionPicker() {
+    const select = elements.runtimeVersionSelect;
+    if (!select) {
+        return;
+    }
+
+    select.innerHTML = '<option value="latest">Loading versions…</option>';
+    select.disabled = true;
+
+    const applyCustom = async () => {
+        const input = elements.runtimeVersionCustomInput;
+        const value = String(input?.value || '').trim();
+        if (!value) {
+            showError('Enter a runtime version before applying custom.');
+            return;
+        }
+        await applyRuntimeVersionToken(value, { source: 'custom' });
+        renderRuntimeVersionPickerOptions();
+    };
+
+    select.addEventListener('change', async (event) => {
+        const selected = event.target.value;
+        if (selected === 'custom') {
+            setRuntimeVersionCustomVisibility(true);
+            elements.runtimeVersionCustomInput?.focus();
+            return;
+        }
+        setRuntimeVersionCustomVisibility(false);
+        const tokenToApply = selected === CURRENT_CUSTOM_RUNTIME_OPTION_VALUE
+            ? normalizeRuntimeVersionToken(runtimeVersionToken)
+            : selected;
+        await applyRuntimeVersionToken(tokenToApply, { source: 'preset' });
+        renderRuntimeVersionPickerOptions();
+    });
+
+    elements.runtimeVersionApplyButton?.addEventListener('click', () => {
+        applyCustom().catch(() => {
+            /* noop */
+        });
+    });
+
+    elements.runtimeVersionCustomInput?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            applyCustom().catch(() => {
+                /* noop */
+            });
+        }
+    });
+
+    try {
+        const discovered = await fetchRuntimeVersionOptions();
+        runtimeVersionOptionsState.latest = discovered.latest || DEFAULT_RUNTIME_VERSION;
+        runtimeVersionOptionsState.versions = discovered.versions?.length
+            ? discovered.versions
+            : [DEFAULT_RUNTIME_VERSION];
+    } catch (error) {
+        console.warn('[rive-viewer] failed to discover runtime versions, using fallback list:', error);
+        runtimeVersionOptionsState.latest = FALLBACK_RUNTIME_VERSION_OPTIONS[0];
+        runtimeVersionOptionsState.versions = FALLBACK_RUNTIME_VERSION_OPTIONS.slice(0, RUNTIME_VERSION_OPTION_COUNT);
+    } finally {
+        renderRuntimeVersionPickerOptions();
+        select.disabled = false;
+    }
+}
+
 function setupFileInput() {
     if (!elements.fileInput) {
         return;
@@ -448,8 +818,11 @@ function setupFileInput() {
 
         const buffer = await selectedFile.arrayBuffer();
         const fileUrl = URL.createObjectURL(selectedFile);
-        setCurrentFile(fileUrl, selectedFile.name, true, buffer, selectedFile.type, selectedFile.size);
+        setCurrentFile(fileUrl, selectedFile.name, true, buffer, selectedFile.type, selectedFile.size, {
+            lastModified: selectedFile.lastModified,
+        });
         hideError();
+        await applyStoredRuntimeVersionForCurrentFile();
         try {
             await loadRiveAnimation(fileUrl, selectedFile.name);
         } catch {
@@ -1480,7 +1853,7 @@ function attachRiveUserEventListeners(runtime, instance) {
     console.log('[rive-viewer] Rive event listener attached successfully');
 }
 
-function setCurrentFile(url, name, isObjectUrl = false, buffer, mimeType, fileSizeBytes) {
+function setCurrentFile(url, name, isObjectUrl = false, buffer, mimeType, fileSizeBytes, metadata = {}) {
     if (lastObjectUrl && lastObjectUrl !== url) {
         URL.revokeObjectURL(lastObjectUrl);
         lastObjectUrl = null;
@@ -1501,6 +1874,11 @@ function setCurrentFile(url, name, isObjectUrl = false, buffer, mimeType, fileSi
     if (Number.isFinite(fileSizeBytes)) {
         currentFileSizeBytes = Number(fileSizeBytes);
     }
+    currentFilePreferenceId = buildFileRuntimePreferenceId(
+        currentFileName,
+        currentFileSizeBytes,
+        metadata,
+    );
     updateFileTriggerButton(name ? 'loaded' : 'empty', name);
     refreshInfoStrip();
 }
@@ -1582,10 +1960,9 @@ async function loadRiveAnimation(fileUrl, fileName, options = {}) {
         const userOnStateChange = config.onStateChange;
         const userOnAdvance = config.onAdvance;
         const configuredStateMachines = normalizeStateMachineSelection(config.stateMachines);
-        const configuredAnimations = normalizeAnimationSelection(config.animations);
-        const userSpecifiedStateMachines = configuredStateMachines.length > 0;
-        let didRestartForStateMachine = false;
-
+        const hasConfiguredAnimation = Array.isArray(config.animations)
+            ? config.animations.some((entry) => typeof entry === 'string' && entry.trim().length > 0)
+            : (typeof config.animations === 'string' && config.animations.trim().length > 0);
         if (config.artboard) {
             currentArtboardName = config.artboard;
         }
@@ -1606,55 +1983,24 @@ async function loadRiveAnimation(fileUrl, fileName, options = {}) {
             config.useOffscreenRenderer = true;
         }
 
+        // If user didn't configure playback target, resolve the default state machine first
+        // and instantiate with it. This avoids runtime defaulting to first timeline animation.
+        if (!configuredStateMachines.length && !hasConfiguredAnimation) {
+            const detectedStateMachine = await detectDefaultStateMachineName(runtime, {
+                fileUrl,
+                fileBuffer: currentFileBuffer,
+                artboardName: config.artboard,
+            });
+            if (detectedStateMachine) {
+                config.stateMachines = detectedStateMachine;
+                console.log('[rive-viewer] default state machine detected pre-init:', detectedStateMachine);
+            } else {
+                console.warn('[rive-viewer] no default state machine detected pre-init; runtime will use default playback target');
+            }
+        }
+
         config.onLoad = () => {
             console.log('[rive-viewer] onLoad fired, riveInstance:', !!riveInstance);
-
-            // Auto-detect state machine: if user didn't specify one, discover from
-            // the artboard and restart the instance with it in the constructor config.
-            if (!didRestartForStateMachine && !userSpecifiedStateMachines) {
-                // Use artboard low-level API (same pattern as rive_dev_playground parser)
-                let detectedSmName = null;
-                try {
-                    const artboard = riveInstance?.artboard;
-                    if (artboard && typeof artboard.stateMachineCount === 'function') {
-                        const count = artboard.stateMachineCount();
-                        if (count > 0) {
-                            const sm = artboard.stateMachineByIndex(0);
-                            if (sm && sm.name) detectedSmName = sm.name;
-                        }
-                    }
-                } catch { /* noop */ }
-
-                // Fallback to high-level API
-                if (!detectedSmName) {
-                    const names = Array.isArray(riveInstance?.stateMachineNames) ? riveInstance.stateMachineNames : [];
-                    if (names.length > 0) detectedSmName = names[0];
-                }
-
-                if (detectedSmName) {
-                    console.log('[rive-viewer] detected state machine:', detectedSmName, '— restarting with it');
-                    didRestartForStateMachine = true;
-
-                    // Clean up current instance
-                    clearRiveEventListeners();
-                    try { riveInstance.cleanup(); } catch { /* noop */ }
-
-                    // Recreate canvas (WebGL context needs a fresh canvas)
-                    container.innerHTML = '';
-                    const newCanvas = document.createElement('canvas');
-                    newCanvas.id = 'rive-canvas';
-                    container.appendChild(newCanvas);
-                    resizeCanvas(newCanvas);
-
-                    // Restart with state machine specified
-                    config.canvas = newCanvas;
-                    config.stateMachines = detectedSmName;
-                    riveInstance = new runtime.Rive(config);
-                    window.riveInst = riveInstance;
-                    attachRiveUserEventListeners(runtime, riveInstance);
-                    return; // New instance will fire onLoad again
-                }
-            }
 
             hideError();
             const activeCanvas = config.canvas;
@@ -1753,6 +2099,7 @@ async function loadRiveAnimation(fileUrl, fileName, options = {}) {
             autoplay: config.autoplay,
             autoBind: config.autoBind,
             stateMachines: config.stateMachines,
+            animations: config.animations,
             configKeys: Object.keys(config),
         });
         riveInstance = new runtime.Rive(config);
@@ -2065,11 +2412,12 @@ async function createDemoBundle() {
         return;
     }
 
-    const runtimeAsset = runtimeAssets[exportRuntime];
+    const runtimeAsset = runtimeAssets[getRuntimeCacheKey(exportRuntime)];
     if (!runtimeAsset?.text) {
         showError(`Runtime data for ${exportRuntime} is not ready yet. Please wait for it to finish loading.`);
         return;
     }
+    const selectedRuntimeSemver = runtimeAsset.version || getEffectiveRuntimeVersionToken(runtimeVersionToken);
 
     const configuredStateMachines = normalizeStateMachineSelection(lastInitConfig.stateMachines);
     const detectedStateMachines = Array.isArray(riveInstance?.stateMachineNames)
@@ -2084,7 +2432,7 @@ async function createDemoBundle() {
         file_name: currentFileName,
         animation_base64: arrayBufferToBase64(currentFileBuffer),
         runtime_name: exportRuntime,
-        runtime_version: runtimeAsset.version,
+        runtime_version: selectedRuntimeSemver,
         runtime_script: runtimeAsset.text,
         autoplay: typeof lastInitConfig.autoplay === 'boolean' ? lastInitConfig.autoplay : true,
         layout_fit: currentLayoutFit,
@@ -2097,7 +2445,7 @@ async function createDemoBundle() {
     };
 
     updateInfo('Building demo bundle...');
-    logEvent('ui', 'demo-build', `Building demo bundle for ${currentFileName} (${exportRuntime}).`);
+    logEvent('ui', 'demo-build', `Building demo bundle for ${currentFileName} (${exportRuntime}@${selectedRuntimeSemver}).`);
     try {
         const outputPath = await invoke('make_demo_bundle', { payload });
         updateInfo(`Demo bundle saved to: ${outputPath}`);
@@ -2152,7 +2500,7 @@ function refreshInfoStrip() {
         elements.runtimeStripRuntime.innerHTML = `<span class="dot dot-sm" aria-hidden="true"></span>Runtime: ${getRuntimeDisplayName(currentRuntime)}`;
     }
     if (elements.runtimeStripVersion) {
-        const runtimeVersion = runtimeVersions[currentRuntime] || runtimeRegistry[currentRuntime]?.version || RIVE_VERSION;
+        const runtimeVersion = getCurrentRuntimeVersion(currentRuntime) || DEFAULT_RUNTIME_VERSION;
         elements.runtimeStripVersion.textContent = `v${runtimeVersion}`;
     }
     if (elements.runtimeStripBuild) {
@@ -2308,19 +2656,21 @@ function updateVersionInfo(statusMessage) {
         return;
     }
 
-    const runtime = runtimeRegistry[currentRuntime];
+    const runtimeKey = getCurrentRuntimeCacheKey(currentRuntime);
+    const runtime = runtimeRegistry[runtimeKey];
     if (!runtime) {
         elements.versionInfo.innerHTML = `${releaseLine}<br>Runtime ${currentRuntime} is loading...${footer}`;
         refreshInfoStrip();
         return;
     }
 
-    const version = runtimeVersions[currentRuntime] || runtime.version || 'resolving...';
-    const source = runtimeResolvedUrls[currentRuntime] || runtimeSources[currentRuntime];
+    const version = getCurrentRuntimeVersion(currentRuntime) || runtime.version || 'resolving...';
+    const source = getCurrentRuntimeSource(currentRuntime);
     elements.versionInfo.innerHTML = `
         ${releaseLine}<br>
         Runtime: ${currentRuntime}<br>
         Version: ${version}<br>
+        Requested: ${runtimeVersionToken}<br>
         Source: ${source}
         ${footer}
     `;
@@ -2328,20 +2678,21 @@ function updateVersionInfo(statusMessage) {
 }
 
 function loadRuntime(runtimeName) {
-    if (runtimeRegistry[runtimeName]) {
-        return Promise.resolve(runtimeRegistry[runtimeName]);
+    const cacheKey = getRuntimeCacheKey(runtimeName);
+    if (runtimeRegistry[cacheKey]) {
+        return Promise.resolve(runtimeRegistry[cacheKey]);
     }
 
-    if (runtimePromises[runtimeName]) {
-        return runtimePromises[runtimeName];
-    }
-
-    const scriptUrl = runtimeSources[runtimeName];
+    const scriptUrl = getRuntimeSourceUrl(runtimeName);
     if (!scriptUrl) {
         return Promise.reject(new Error(`Unknown runtime: ${runtimeName}`));
     }
 
-    runtimePromises[runtimeName] = (async () => {
+    if (runtimePromises[cacheKey]) {
+        return runtimePromises[cacheKey];
+    }
+
+    runtimePromises[cacheKey] = (async () => {
         const asset = await prepareRuntimeAsset(runtimeName);
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
@@ -2352,7 +2703,7 @@ function loadRuntime(runtimeName) {
                     reject(new Error('Runtime did not expose the expected API'));
                     return;
                 }
-                runtimeRegistry[runtimeName] = window.rive;
+                runtimeRegistry[cacheKey] = window.rive;
                 if (runtimeName === currentRuntime) {
                     updateVersionInfo();
                 }
@@ -2363,38 +2714,39 @@ function loadRuntime(runtimeName) {
         });
     })();
 
-    return runtimePromises[runtimeName];
+    return runtimePromises[cacheKey];
 }
 
 async function prepareRuntimeAsset(runtimeName) {
-    if (runtimeAssets[runtimeName]) {
-        return runtimeAssets[runtimeName];
+    const cacheKey = getRuntimeCacheKey(runtimeName);
+    if (runtimeAssets[cacheKey]) {
+        return runtimeAssets[cacheKey];
     }
 
-    const scriptUrl = runtimeSources[runtimeName];
+    const scriptUrl = getRuntimeSourceUrl(runtimeName);
     if (!scriptUrl) {
         throw new Error(`Unknown runtime: ${runtimeName}`);
     }
 
-    const { resolvedUrl, version } = await resolveRuntimeSource(scriptUrl, runtimeName);
+    const { resolvedUrl, version } = await resolveRuntimeSource(scriptUrl, cacheKey);
     const asset = await fetchRuntimeAsset(resolvedUrl);
     const record = {
         objectUrl: asset.objectUrl,
         text: asset.text,
         resolvedUrl,
-        version: version || runtimeMeta[runtimeName]?.version || extractVersionFromUrl(resolvedUrl) || 'unknown',
+        version: version || runtimeMeta[cacheKey]?.version || extractVersionFromUrl(resolvedUrl) || 'unknown',
     };
 
-    if (runtimeBlobUrls[runtimeName]) {
-        URL.revokeObjectURL(runtimeBlobUrls[runtimeName]);
+    if (runtimeBlobUrls[cacheKey]) {
+        URL.revokeObjectURL(runtimeBlobUrls[cacheKey]);
     }
 
-    runtimeBlobUrls[runtimeName] = record.objectUrl;
-    runtimeSourceTexts[runtimeName] = record.text;
-    runtimeResolvedUrls[runtimeName] = resolvedUrl;
-    runtimeVersions[runtimeName] = record.version;
-    runtimeAssets[runtimeName] = record;
-    persistRuntimeMeta(runtimeName, {
+    runtimeBlobUrls[cacheKey] = record.objectUrl;
+    runtimeSourceTexts[cacheKey] = record.text;
+    runtimeResolvedUrls[cacheKey] = resolvedUrl;
+    runtimeVersions[cacheKey] = record.version;
+    runtimeAssets[cacheKey] = record;
+    persistRuntimeMeta(cacheKey, {
         resolvedUrl,
         version: record.version,
         cachedAt: Date.now(),
@@ -2453,7 +2805,8 @@ async function ensureRuntime(runtimeName) {
 }
 
 function warnIfRuntimeLacksScripting(runtimeName) {
-    const version = runtimeVersions[runtimeName] || runtimeRegistry[runtimeName]?.version;
+    const cacheKey = getRuntimeCacheKey(runtimeName);
+    const version = runtimeVersions[cacheKey] || runtimeRegistry[cacheKey]?.version;
     if (!version || isSemverAtLeast(version, MIN_SCRIPTING_RUNTIME_VERSION)) {
         return;
     }
@@ -2758,7 +3111,7 @@ function getStateMachineInputKind(input) {
         return null;
     }
 
-    const runtime = runtimeRegistry[currentRuntime];
+    const runtime = runtimeRegistry[getCurrentRuntimeCacheKey(currentRuntime)];
     const runtimeInputTypes = runtime?.StateMachineInputType;
     const inputType = typeof input.type === 'number' ? input.type : null;
     if (runtimeInputTypes && inputType !== null) {
@@ -3554,8 +3907,8 @@ window.injectCodeSnippet = injectCodeSnippet;
 window.handleFileButtonClick = handleFileButtonClick;
 window.refreshVmInputControls = renderVmInputControls;
 window.__riveRuntimeCache = {
-    getRuntimeSourceText: (runtimeName) => runtimeSourceTexts[runtimeName] || null,
-    getRuntimeVersion: (runtimeName) => runtimeVersions[runtimeName] || null,
+    getRuntimeSourceText: (runtimeName) => runtimeSourceTexts[getRuntimeCacheKey(runtimeName || currentRuntime)] || null,
+    getRuntimeVersion: (runtimeName) => runtimeVersions[getRuntimeCacheKey(runtimeName || currentRuntime)] || null,
 };
 window.__riveAnimationCache = {
     getBuffer: () => currentFileBuffer,
@@ -3587,14 +3940,149 @@ function normalizeStateMachineSelection(value) {
     return [];
 }
 
-function normalizeAnimationSelection(value) {
-    if (Array.isArray(value)) {
-        return value.filter((entry) => typeof entry === 'string' && entry.trim().length > 0);
+async function detectDefaultStateMachineName(runtime, { fileUrl, fileBuffer, artboardName } = {}) {
+    const fileApiDetected = await detectDefaultStateMachineFromRiveFile(runtime, {
+        fileUrl,
+        fileBuffer,
+        artboardName,
+    });
+    if (fileApiDetected) {
+        return fileApiDetected;
     }
-    if (typeof value === 'string' && value.trim().length > 0) {
-        return [value];
+
+    return detectDefaultStateMachineFromProbeInstance(runtime, {
+        fileUrl,
+        fileBuffer,
+        artboardName,
+    });
+}
+
+async function detectDefaultStateMachineFromRiveFile(runtime, { fileUrl, fileBuffer, artboardName } = {}) {
+    if (!runtime || typeof runtime.RiveFile !== 'function') {
+        return null;
     }
-    return [];
+
+    let probeFile = null;
+    try {
+        const fileConfig = (fileBuffer instanceof ArrayBuffer)
+            ? { buffer: fileBuffer.slice(0) }
+            : { src: fileUrl };
+        probeFile = new runtime.RiveFile(fileConfig);
+        if (typeof probeFile.init === 'function') {
+            await probeFile.init();
+        }
+
+        let artboard = null;
+        if (artboardName && typeof probeFile.artboardByName === 'function') {
+            artboard = probeFile.artboardByName(artboardName);
+        }
+        if (!artboard && typeof probeFile.defaultArtboard === 'function') {
+            artboard = probeFile.defaultArtboard();
+        }
+        if (!artboard && typeof probeFile.artboardByIndex === 'function') {
+            artboard = probeFile.artboardByIndex(0);
+        }
+        if (!artboard) {
+            return null;
+        }
+
+        if (typeof artboard.stateMachineCount === 'function' && typeof artboard.stateMachineByIndex === 'function') {
+            const count = artboard.stateMachineCount();
+            if (count > 0) {
+                const stateMachine = artboard.stateMachineByIndex(0);
+                if (stateMachine?.name) {
+                    return stateMachine.name;
+                }
+            }
+        }
+
+        if (Array.isArray(artboard.stateMachineNames) && artboard.stateMachineNames.length > 0) {
+            return artboard.stateMachineNames[0];
+        }
+    } catch (error) {
+        console.warn('[rive-viewer] RiveFile state machine detection failed:', error);
+    } finally {
+        try {
+            probeFile?.cleanup?.();
+        } catch {
+            /* noop */
+        }
+    }
+    return null;
+}
+
+function detectDefaultStateMachineFromProbeInstance(runtime, { fileUrl, fileBuffer, artboardName } = {}) {
+    if (!runtime || typeof runtime.Rive !== 'function') {
+        return Promise.resolve(null);
+    }
+
+    return new Promise((resolve) => {
+        let probeInstance = null;
+        let settled = false;
+        const probeCanvas = document.createElement('canvas');
+        probeCanvas.width = 1;
+        probeCanvas.height = 1;
+
+        const finalize = (name) => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            try {
+                probeInstance?.cleanup?.();
+            } catch {
+                /* noop */
+            }
+            if (typeof name === 'string' && name.trim().length > 0) {
+                resolve(name.trim());
+            } else {
+                resolve(null);
+            }
+        };
+
+        const timeoutId = setTimeout(() => {
+            console.warn('[rive-viewer] probe instance detection timed out');
+            finalize(null);
+        }, 5000);
+
+        const finish = (name) => {
+            clearTimeout(timeoutId);
+            finalize(name);
+        };
+
+        const probeConfig = {
+            canvas: probeCanvas,
+            autoplay: false,
+            autoBind: false,
+            onLoad: () => {
+                const names = Array.isArray(probeInstance?.stateMachineNames)
+                    ? probeInstance.stateMachineNames
+                    : [];
+                finish(names[0] || null);
+            },
+            onLoadError: (error) => {
+                console.warn('[rive-viewer] probe instance onLoadError:', error);
+                finish(null);
+            },
+        };
+
+        if (fileBuffer instanceof ArrayBuffer) {
+            probeConfig.buffer = fileBuffer.slice(0);
+        } else {
+            probeConfig.src = fileUrl;
+        }
+        if (artboardName) {
+            probeConfig.artboard = artboardName;
+        }
+
+        try {
+            probeInstance = new runtime.Rive(probeConfig);
+        } catch (error) {
+            clearTimeout(timeoutId);
+            console.warn('[rive-viewer] probe instance creation failed:', error);
+            finalize(null);
+        }
+    });
 }
 
 function getTauriInvoker() {
@@ -3726,8 +4214,8 @@ function loadRuntimeMeta() {
     }
 }
 
-function persistRuntimeMeta(runtimeName, meta) {
-    runtimeMeta[runtimeName] = meta;
+function persistRuntimeMeta(metaKey, meta) {
+    runtimeMeta[metaKey] = meta;
     try {
         localStorage.setItem(RUNTIME_META_STORAGE_KEY, JSON.stringify(runtimeMeta));
     } catch {
@@ -3735,7 +4223,7 @@ function persistRuntimeMeta(runtimeName, meta) {
     }
 }
 
-async function resolveRuntimeSource(scriptUrl, runtimeName) {
+async function resolveRuntimeSource(scriptUrl, metaKey) {
     try {
         const response = await fetch(scriptUrl, { method: 'HEAD' });
         if (!response.ok) {
@@ -3748,7 +4236,7 @@ async function resolveRuntimeSource(scriptUrl, runtimeName) {
             version: headerVersion || extractVersionFromUrl(resolvedUrl),
         };
     } catch (error) {
-        const stored = runtimeMeta[runtimeName];
+        const stored = runtimeMeta[metaKey];
         if (stored?.resolvedUrl) {
             console.warn('Falling back to cached runtime metadata', error);
             return {
@@ -3789,6 +4277,7 @@ function clearCurrentFile() {
     currentFileName = null;
     currentFileBuffer = null;
     currentFileSizeBytes = 0;
+    currentFilePreferenceId = null;
     currentArtboardName = null;
     updateFileTriggerButton('empty');
     elements.canvasContainer.innerHTML = `

@@ -69,6 +69,26 @@
                             </select>
                         </div>
                         <div class="settings-row">
+                            <label class="settings-label" for="runtime-version-select">Runtime Ver</label>
+                            <div class="settings-controls settings-controls-runtime">
+                                <select id="runtime-version-select" class="header-select settings-select runtime-version-select"></select>
+                            </div>
+                        </div>
+                        <div class="settings-row settings-row-runtime-custom" id="runtime-version-custom-row" hidden>
+                            <label class="settings-label" for="runtime-version-custom-input">Custom</label>
+                            <div class="settings-controls settings-controls-runtime">
+                                <input
+                                    type="text"
+                                    id="runtime-version-custom-input"
+                                    class="settings-input"
+                                    placeholder="Version, e.g. 2.35.0"
+                                    autocomplete="off"
+                                    spellcheck="false"
+                                >
+                                <button type="button" id="runtime-version-apply-btn" class="settings-toggle">SET</button>
+                            </div>
+                        </div>
+                        <div class="settings-row">
                             <label class="settings-label" for="canvas-color-input">BG Color</label>
                             <div class="settings-controls">
                                 <input type="color" id="canvas-color-input" value="#0d1117" class="color-input">

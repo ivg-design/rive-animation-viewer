@@ -447,7 +447,7 @@ body.transparency-mode .center-panel {
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
-    min-width: 220px;
+    min-width: 520px;
     background: var(--bg-zinc);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
@@ -487,6 +487,40 @@ body.transparency-mode .center-panel {
     display: inline-flex;
     align-items: center;
     gap: 8px;
+}
+
+.settings-controls-runtime {
+    justify-content: flex-end;
+    width: min(100%, 340px);
+}
+
+.settings-row-runtime-custom .settings-label {
+    opacity: 0.85;
+}
+
+.settings-row-runtime-custom[hidden] {
+    display: none !important;
+}
+
+.runtime-version-select {
+    min-width: 220px;
+}
+
+.settings-input {
+    width: 170px;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    outline: none;
+}
+
+.settings-input:focus {
+    border-color: var(--border-bright);
 }
 
 .settings-toggle {
