@@ -279,6 +279,22 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
+            if let tauri::RunEvent::WindowEvent {
+                event: tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }),
+                ..
+            } = &event
+            {
+                for path in paths {
+                    let value = path.to_string_lossy().to_string();
+                    if !looks_like_riv_file(&value) {
+                        continue;
+                    }
+                    // Queue for startup handoff + immediately forward to frontend.
+                    queue_pending_opened_file(app, &value);
+                    try_emit_open_file(app, value);
+                }
+            }
+
             #[cfg(any(target_os = "macos", target_os = "ios"))]
             if let tauri::RunEvent::Opened { urls } = event {
                 let opened_files: Vec<String> = urls

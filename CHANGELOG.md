@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.7.6] - 2026-02-23
+
+### Changed
+
+- Bumped app/package/runtime version from `1.7.5` to `1.7.6`.
+- Build numbering now auto-increments per local build using a persisted counter (`.cache/build-counter.txt`) instead of staying pinned to git commit count.
+
+### Fixed
+
+- Restored reliable desktop drag/drop file opening by handling window-level drop payloads and fallback URI/path payloads (`text/uri-list` / `text/plain`) in the frontend.
+- Added native Tauri drag/drop forwarding (`WindowEvent::DragDrop`) to the existing open-file handoff path, so `.riv` drops are received even when browser-style file payloads are absent.
+
 ## [1.7.5] - 2026-02-23
 
 ### Changed

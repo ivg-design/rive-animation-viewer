@@ -349,7 +349,7 @@ function getFileNameFromPath(filePath) {
     return segments[segments.length - 1] || normalized;
 }
 
-async function loadRivFromPath(filePath) {
+async function loadRivFromPath(filePath, { source = 'open-with' } = {}) {
     const invoke = getTauriInvoker();
     if (!invoke) return;
     try {
@@ -359,7 +359,11 @@ async function loadRivFromPath(filePath) {
             showError(`Unsupported file type: ${fileName}`);
             return;
         }
-        logEvent('ui', 'open-with', `Opened via system: ${fileName}`);
+        if (source === 'drop-path') {
+            logEvent('ui', 'file-dropped', `Dropped file: ${fileName}`);
+        } else {
+            logEvent('ui', 'open-with', `Opened via system: ${fileName}`);
+        }
         const base64 = await invoke('read_riv_file', { path: normalizedPath });
         const binary = atob(base64);
         const bytes = new Uint8Array(binary.length);
@@ -388,40 +392,143 @@ function initLucideIcons() {
 function setupDragAndDrop() {
     const container = elements.canvasContainer;
     if (!container) return;
+    const setDragActive = (active) => {
+        container.classList.toggle('drag-active', active);
+    };
 
-    container.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
-        container.classList.add('drag-active');
-    });
+    const getDroppedFileFromDataTransfer = (dataTransfer) => {
+        const directFiles = Array.from(dataTransfer?.files || []);
+        if (directFiles.length > 0) {
+            return directFiles[0];
+        }
+        const items = Array.from(dataTransfer?.items || []);
+        for (const item of items) {
+            if (item?.kind !== 'file') {
+                continue;
+            }
+            const file = item.getAsFile?.();
+            if (file) {
+                return file;
+            }
+        }
+        return null;
+    };
 
-    container.addEventListener('dragleave', () => {
-        container.classList.remove('drag-active');
-    });
+    const getDroppedFilePathFromDataTransfer = (dataTransfer) => {
+        if (!dataTransfer || typeof dataTransfer.getData !== 'function') {
+            return '';
+        }
+        const uriList = dataTransfer.getData('text/uri-list') || '';
+        const plainText = dataTransfer.getData('text/plain') || '';
+        const lines = `${uriList}\n${plainText}`
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter((line) => line && !line.startsWith('#'));
 
-    container.addEventListener('drop', async (e) => {
-        e.preventDefault();
-        container.classList.remove('drag-active');
-        const file = e.dataTransfer?.files?.[0];
-        if (!file) return;
-        if (!file.name.toLowerCase().endsWith('.riv')) {
-            showError('Please drop a .riv file');
-            logEvent('ui', 'drop-invalid', `Rejected dropped file: ${file.name}`);
+        const candidate = lines.find((line) => /^file:\/\//i.test(line))
+            || lines.find((line) => /^([A-Za-z]:[\\/]|\/)/.test(line));
+        return candidate || '';
+    };
+
+    const hasFileDropPayload = (dataTransfer) => {
+        if (!dataTransfer) {
+            return false;
+        }
+        if ((dataTransfer.files?.length || 0) > 0) {
+            return true;
+        }
+        if (Array.from(dataTransfer.items || []).some((item) => item?.kind === 'file')) {
+            return true;
+        }
+        return Boolean(getDroppedFilePathFromDataTransfer(dataTransfer));
+    };
+
+    const handleDroppedPayload = async (dataTransfer) => {
+        const droppedFile = getDroppedFileFromDataTransfer(dataTransfer);
+        if (droppedFile) {
+            if (!droppedFile.name.toLowerCase().endsWith('.riv')) {
+                showError('Please drop a .riv file');
+                logEvent('ui', 'drop-invalid', `Rejected dropped file: ${droppedFile.name}`);
+                return;
+            }
+            logEvent('ui', 'file-dropped', `Dropped file: ${droppedFile.name}`);
+            updateFileTriggerButton('loaded', droppedFile.name);
+            const buffer = await droppedFile.arrayBuffer();
+            const fileUrl = URL.createObjectURL(droppedFile);
+            setCurrentFile(fileUrl, droppedFile.name, true, buffer, droppedFile.type, droppedFile.size, {
+                lastModified: droppedFile.lastModified,
+            });
+            hideError();
+            await applyStoredRuntimeVersionForCurrentFile();
+            try {
+                await loadRiveAnimation(fileUrl, droppedFile.name);
+            } catch {
+                logEvent('native', 'load-failed', `Failed to load dropped ${droppedFile.name}.`);
+            }
             return;
         }
-        logEvent('ui', 'file-dropped', `Dropped file: ${file.name}`);
-        updateFileTriggerButton('loaded', file.name);
-        const buffer = await file.arrayBuffer();
-        const fileUrl = URL.createObjectURL(file);
-        setCurrentFile(fileUrl, file.name, true, buffer, file.type, file.size, {
-            lastModified: file.lastModified,
-        });
-        hideError();
-        await applyStoredRuntimeVersionForCurrentFile();
+
+        const droppedPath = getDroppedFilePathFromDataTransfer(dataTransfer);
+        if (droppedPath) {
+            const fileName = getFileNameFromPath(normalizeOpenedFilePath(droppedPath));
+            if (!/\.riv$/i.test(fileName)) {
+                showError('Please drop a .riv file');
+                logEvent('ui', 'drop-invalid', `Rejected dropped path: ${fileName || droppedPath}`);
+                return;
+            }
+            await loadRivFromPath(droppedPath, { source: 'drop-path' });
+            return;
+        }
+
+        showError('No readable file payload found in drop event.');
+        logEvent('ui', 'drop-invalid', 'Drop payload was empty or unreadable.');
+    };
+
+    let windowDragDepth = 0;
+
+    window.addEventListener('dragenter', (event) => {
+        if (!hasFileDropPayload(event.dataTransfer)) {
+            return;
+        }
+        event.preventDefault();
+        windowDragDepth += 1;
+        setDragActive(true);
+    });
+
+    window.addEventListener('dragover', (event) => {
+        if (!hasFileDropPayload(event.dataTransfer)) {
+            return;
+        }
+        event.preventDefault();
+        if (event.dataTransfer) {
+            event.dataTransfer.dropEffect = 'copy';
+        }
+        setDragActive(true);
+    });
+
+    window.addEventListener('dragleave', () => {
+        if (windowDragDepth === 0) {
+            return;
+        }
+        windowDragDepth = Math.max(0, windowDragDepth - 1);
+        if (windowDragDepth === 0) {
+            setDragActive(false);
+        }
+    });
+
+    window.addEventListener('drop', async (event) => {
+        if (!hasFileDropPayload(event.dataTransfer)) {
+            return;
+        }
+        event.preventDefault();
+        windowDragDepth = 0;
+        setDragActive(false);
         try {
-            await loadRiveAnimation(fileUrl, file.name);
-        } catch {
-            logEvent('native', 'load-failed', `Failed to load dropped ${file.name}.`);
+            await handleDroppedPayload(event.dataTransfer);
+        } catch (error) {
+            console.error('[rive-viewer] dropped file load failed:', error);
+            showError(`Failed to load dropped file: ${error?.message || error}`);
+            logEvent('native', 'load-failed', 'Dropped file load failed.', error);
         }
     });
 }

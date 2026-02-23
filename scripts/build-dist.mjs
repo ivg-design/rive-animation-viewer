@@ -5,6 +5,7 @@ import { execSync } from 'child_process';
 
 const root = process.cwd();
 const distDir = path.join(root, 'dist');
+const buildCounterFile = path.join(root, '.cache', 'build-counter.txt');
 const pkg = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
 
 function getGitShortSha() {
@@ -58,6 +59,25 @@ function normalizeBuildNumber(value) {
   return String(Number.parseInt(raw, 10));
 }
 
+async function getAutoIncrementBuildNumber(gitBuildNumber) {
+  const gitNumber = Number.parseInt(normalizeBuildNumber(gitBuildNumber) || '0', 10);
+  let stored = 0;
+  try {
+    const raw = await fs.readFile(buildCounterFile, 'utf8');
+    const parsed = Number.parseInt(String(raw).trim(), 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      stored = parsed;
+    }
+  } catch {
+    // first build on this machine/worktree, no persisted counter yet
+  }
+
+  const next = Math.max(stored + 1, gitNumber || 0);
+  await ensureDir(path.dirname(buildCounterFile));
+  await fs.writeFile(buildCounterFile, `${next}\n`, 'utf8');
+  return String(next);
+}
+
 async function ensureDir(dir) {
   await fs.mkdir(dir, { recursive: true });
 }
@@ -87,7 +107,12 @@ async function build() {
   const cliBuildNumber = parseCliBuildNumber(process.argv.slice(2));
   const envBuildNumber = normalizeBuildNumber(process.env.APP_BUILD_NUMBER);
   const gitBuildNumber = normalizeBuildNumber(getGitCommitCount());
-  const buildNumber = cliBuildNumber || envBuildNumber || gitBuildNumber || '0';
+  const buildNumber = cliBuildNumber || envBuildNumber || await getAutoIncrementBuildNumber(gitBuildNumber);
+  const buildNumberSource = cliBuildNumber
+    ? 'cli'
+    : envBuildNumber
+      ? 'env'
+      : 'auto-counter';
   const numberedPrefix = `b${buildNumber.padStart(4, '0')}`;
   const buildId = process.env.APP_BUILD_ID || `${numberedPrefix}-${getBuildTimestamp()}-${getGitShortSha()}`;
 
@@ -130,7 +155,7 @@ async function build() {
   }
 
   console.log(`Built static bundle in ${distDir} (build ${buildId})`);
-  console.log(`Build number source: cli/env/git -> ${buildNumber}`);
+  console.log(`Build number source: ${buildNumberSource} -> ${buildNumber}`);
 }
 
 build().catch((error) => {

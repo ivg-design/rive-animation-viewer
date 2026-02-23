@@ -4,7 +4,7 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `1.7.5` (2026-02-23)
+- Current release: `1.7.6` (2026-02-23)
 
 ## Quick Start
 
@@ -16,7 +16,7 @@ npm start  # Opens browser at http://localhost:8080
 ## Features
 
 ### Core Viewer
-- **File Loading**: Standard file input to load `.riv` files
+- **File Loading**: Open button plus drag/drop file loading for `.riv` files
 - **Runtime Selection**: Toggle between Canvas and WebGL2 renderers
 - **Runtime Version Selection**: Pick runtime semver (`Latest (auto)`, pinned versions, or `Custom`) from Settings
 - **Layout Options**: Choose from contain, cover, fill, fit-width, fit-height, scale-down, scale-up
@@ -105,7 +105,7 @@ npm run tauri build # Production build
 ### Test Build Numbering
 
 `npm run build` now stamps builds as `bNNNN-YYYYMMDD-HHMM-<gitsha>`:
-- `bNNNN` defaults to git commit count (`git rev-list --count HEAD`)
+- `bNNNN` auto-increments on every local build via `.cache/build-counter.txt`
 - Timestamp uses local system time
 - Tail is short git SHA
 
