@@ -4,7 +4,7 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `1.7.6` (2026-02-23)
+- Current release: `1.8.1` (2026-03-31)
 
 ## Quick Start
 
@@ -24,7 +24,7 @@ npm start  # Opens browser at http://localhost:8080
 - **Transparency Mode**: Toggle transparent canvas/window mode for overlay-style playback
 - **Click-through (Desktop)**: Cursor-synced transparent-pixel click-through while keeping the viewer topmost in transparency mode
 - **Playback Controls**: Play, pause, and reset/restart (reset reloads animation with autoplay and restores control values)
-- **Event Console**: Source toggles (`Native`, `Rive User`, `UI`) and text search filters
+- **Event Console**: Source toggles (`Native`, `Rive User`, `UI`, `MCP`) and text search filters
 - **State Machine Detection**: Automatically detects and initializes available state machines
 
 ### Code Editor Panel
@@ -66,6 +66,62 @@ vmPaths                      // List all property paths
 
 The explorer displays a comprehensive usage guide in the console when injected.
 
+### MCP Integration (Claude Code)
+
+RAV includes a built-in MCP (Model Context Protocol) server that lets Claude Code control the viewer remotely — open files, inspect ViewModels, drive playback, manipulate inputs, and more.
+
+#### Architecture
+
+```
+Claude Code ←(stdio)→ MCP Server ←(WebSocket :9274)→ RAV Frontend
+```
+
+The MCP server (`mcp-server/`) communicates with RAV's frontend via a WebSocket bridge. The frontend bridge (`mcp-bridge.js`) auto-connects when RAV starts and reconnects with exponential backoff.
+
+#### Setup
+
+```bash
+# Install MCP server dependencies
+cd mcp-server && npm install
+
+# Register with Claude Code
+claude mcp add rav-mcp node /path/to/rive-animation-viewer/mcp-server/index.js
+```
+
+Then start RAV — the connection indicator in the runtime strip lights up indigo when connected.
+
+#### Available Tools (22)
+
+| Tool | Description |
+|------|-------------|
+| `rav_status` | App status: file, runtime, playback, ViewModel summary |
+| `rav_open_file` | Open a .riv file by absolute path |
+| `rav_play` / `rav_pause` / `rav_reset` | Playback controls |
+| `rav_get_artboards` | List artboard names |
+| `rav_get_state_machines` | List state machine names |
+| `rav_get_vm_tree` | Full ViewModel hierarchy |
+| `rav_vm_get` / `rav_vm_set` / `rav_vm_fire` | Read, write, and fire ViewModel properties |
+| `rav_get_event_log` | Recent event log entries (filterable by source) |
+| `rav_get_editor_code` / `rav_set_editor_code` | Read/write the script editor |
+| `rav_apply_code` | Apply editor code and reload animation |
+| `rav_set_runtime` | Switch runtime (webgl2/canvas) |
+| `rav_set_layout` | Set layout fit mode |
+| `rav_set_canvas_color` | Set background color or transparent |
+| `rav_export_demo` | Export standalone HTML demo |
+| `rav_get_sm_inputs` / `rav_set_sm_input` | State machine input access |
+| `rav_eval` | Evaluate JS in RAV's browser context |
+
+#### Event Console
+
+All MCP commands, responses, and connection events appear in the event console with the `MCP` source tag (indigo). Messages are formatted as human-readable summaries with elapsed time — no raw JSON. Use the `MCP` filter toggle to show/hide MCP traffic.
+
+#### Configuration
+
+| Environment Variable | Default | Description |
+|---------------------|---------|-------------|
+| `RAV_MCP_PORT` | `9274` | WebSocket bridge port |
+| `RAV_MCP_TIMEOUT` | `15000` | Command timeout in ms |
+
 ### Desktop Features (Tauri)
 - **Native App**: Runs as a desktop application on macOS/Windows/Linux
 - **Demo Bundle Export**: Create self-contained HTML files with embedded animations
@@ -78,9 +134,14 @@ The explorer displays a comprehensive usage guide in the console when injected.
 ```
 rive-local/
 ├── app.js                    # Main application logic
+├── mcp-bridge.js            # MCP WebSocket bridge client (frontend)
 ├── vm-explorer-snippet.js   # ViewModelInstance explorer tool
 ├── index.html               # Main UI
 ├── style.css                # Styles
+├── mcp-server/
+│   ├── index.js             # MCP server (stdio + WebSocket bridge)
+│   ├── package.json         # MCP server dependencies
+│   └── README.md            # MCP setup and usage guide
 ├── vendor/
 │   └── codemirror-bundle.js # Bundled CodeMirror
 ├── scripts/

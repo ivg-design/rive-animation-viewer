@@ -1,6 +1,6 @@
 {
   "name": "rive-animation-viewer",
-  "version": "1.7.6",
+  "version": "1.8.1",
   "description": "Simple local server to preview Rive animations",
   "main": "index.html",
   "scripts": {

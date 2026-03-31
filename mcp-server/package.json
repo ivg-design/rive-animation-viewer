@@ -1,0 +1,17 @@
+{
+  "name": "rav-mcp-server",
+  "version": "1.0.1",
+  "description": "MCP server for Rive Animation Viewer — control RAV from Claude Code",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "rav-mcp": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "ws": "^8.18.0"
+  }
+}

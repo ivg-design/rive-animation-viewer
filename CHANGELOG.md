@@ -2,6 +2,42 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.8.1] - 2026-03-31
+
+### Fixed
+
+- **MCP artboard/state machine tools** — `rav_get_artboards` and `rav_get_state_machines` now correctly read `contents`, `stateMachineNames`, and `animationNames` as properties (not function calls), returning full artboard data including animations and state machines.
+- **MCP ViewModel tree** — `rav_get_vm_tree` now reads `viewModelInstance` directly from the Rive instance instead of depending on the vm-explorer-snippet injection. Returns property kinds, paths, and current values out of the box.
+- **MCP vm_get/vm_set/vm_fire** — All ViewModel accessors now fall back to direct `viewModelInstance` property access with path navigation for nested ViewModels, removing the hard dependency on the vm-explorer-snippet.
+- **MCP trigger firing** — `rav_vm_fire` now calls `.trigger()` (the correct Rive VM accessor method) instead of the nonexistent `.fire()`.
+- **MCP SM input tools** — `rav_get_sm_inputs` and `rav_set_sm_input` read `stateMachineNames` as a property.
+
+### Added
+
+- **MCP dialog-free export** — `rav_export_demo` now accepts an optional `output_path` parameter that saves the demo HTML directly to disk without opening a native save dialog. Uses a new Tauri `make_demo_bundle_to_path` command. Without `output_path`, the original dialog-based flow is preserved.
+- **MCP agent instructions** — The MCP server now sends comprehensive usage instructions on connect, covering recommended workflow, Rive API gotchas (properties vs functions, `.trigger()` not `.fire()`), ViewModel path format, and debugging tips.
+- **MCP indicator three-state design** — The runtime strip MCP chip now shows three distinct visual states: OFF (very dim, bridge disabled), WAITING (dim indigo with pulsing dot, looking for agent), CONNECTED (bright indigo with glow). Clickable to toggle bridge on/off.
+- **MCP indicator repositioned** — Moved to the left side of the runtime strip before the runtime dot so long filenames cannot clip it.
+
+### Changed
+
+- Bumped app/package/runtime version from `1.8.0` to `1.8.1`.
+
+## [1.8.0] - 2026-03-31
+
+### Added
+
+- **MCP Server** (`mcp-server/`): Model Context Protocol server that exposes 22 tools for controlling RAV from Claude Code or any MCP client — open files, inspect ViewModels, drive playback, manipulate inputs, read event logs, edit scripts, and export demos.
+- **MCP Bridge** (`mcp-bridge.js`): Frontend WebSocket client that auto-connects to the MCP server's bridge on `ws://127.0.0.1:9274` with exponential backoff reconnection.
+- **MCP connection indicator** in the runtime strip — a dot + "MCP" chip that lights up indigo when the bridge is connected.
+- **MCP event filter** in the event console — a new "MCP" toggle button alongside Native/Rive User/UI filters, with indigo accent color.
+- **Formatted MCP event logging** — all MCP commands, responses, connections, and errors are logged to the event console with human-readable summaries (no raw JSON), elapsed time, and structured result formatting.
+
+### Changed
+
+- Bumped app/package/runtime version from `1.7.6` to `1.8.0`.
+- Build dist script now includes `mcp-bridge.js` in the distribution bundle.
+
 ## [1.7.6] - 2026-02-23
 
 ### Changed

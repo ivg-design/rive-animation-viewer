@@ -116,7 +116,7 @@ async function build() {
   const numberedPrefix = `b${buildNumber.padStart(4, '0')}`;
   const buildId = process.env.APP_BUILD_ID || `${numberedPrefix}-${getBuildTimestamp()}-${getGitShortSha()}`;
 
-  const filesToCopy = ['index.html', 'style.css', 'app.js', 'vm-explorer-snippet.js', 'README.md', 'package.json'];
+  const filesToCopy = ['index.html', 'style.css', 'app.js', 'mcp-bridge.js', 'vm-explorer-snippet.js', 'README.md', 'package.json'];
 
   for (const file of filesToCopy) {
     const src = path.join(root, file);

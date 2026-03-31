@@ -114,6 +114,7 @@ const eventFilterState = {
     native: true,
     riveUser: true,
     ui: true,
+    mcp: true,
     search: '',
 };
 let eventLogSequence = 0;
@@ -1730,9 +1731,12 @@ function setupEventLog() {
         element.setAttribute('aria-pressed', String(active));
     };
 
+    const mcpToggle = document.getElementById('event-filter-mcp');
+
     syncFilterToggle(nativeToggle, eventFilterState.native);
     syncFilterToggle(riveUserToggle, eventFilterState.riveUser);
     syncFilterToggle(uiToggle, eventFilterState.ui);
+    if (mcpToggle) syncFilterToggle(mcpToggle, eventFilterState.mcp);
     searchInput.value = '';
 
     nativeToggle.addEventListener('click', () => {
@@ -1750,6 +1754,13 @@ function setupEventLog() {
         syncFilterToggle(uiToggle, eventFilterState.ui);
         renderEventLog();
     });
+    if (mcpToggle) {
+        mcpToggle.addEventListener('click', () => {
+            eventFilterState.mcp = !eventFilterState.mcp;
+            syncFilterToggle(mcpToggle, eventFilterState.mcp);
+            renderEventLog();
+        });
+    }
     searchInput.addEventListener('input', () => {
         eventFilterState.search = searchInput.value.trim().toLowerCase();
         renderEventLog();
@@ -1818,6 +1829,9 @@ function renderEventLog() {
         if (entry.source === 'ui' && !eventFilterState.ui) {
             return false;
         }
+        if (entry.source === 'mcp' && !eventFilterState.mcp) {
+            return false;
+        }
         if (eventFilterState.search) {
             const haystack = `${entry.source} ${entry.type} ${entry.message} ${entry.payload ? safeJson(entry.payload) : ''}`.toLowerCase();
             if (!haystack.includes(eventFilterState.search)) {
@@ -1847,7 +1861,7 @@ function renderEventLog() {
 
         const source = document.createElement('span');
         source.className = `event-row-kind ${entry.source}`;
-        source.textContent = entry.source === 'rive-user' ? 'USER' : entry.source;
+        source.textContent = entry.source === 'rive-user' ? 'USER' : entry.source.toUpperCase();
 
         const message = document.createElement('span');
         message.className = 'event-row-message';
@@ -4021,6 +4035,88 @@ window.__riveAnimationCache = {
     getBuffer: () => currentFileBuffer,
     getName: () => currentFileName,
     getMimeType: () => currentFileMimeType,
+};
+
+// MCP Bridge hooks — expose internals for the mcp-bridge.js module
+window._mcpSetCurrentFile = setCurrentFile;
+window._mcpLoadAnimation = loadRiveAnimation;
+window._mcpGetEventLog = () => eventLogEntries.slice();
+window._mcpGetEditorCode = () => editorView ? editorView.state.doc.toString() : undefined;
+window._mcpSetEditorCode = (code) => {
+    if (editorView) {
+        isAutoFilling = true;
+        editorView.dispatch({
+            changes: { from: 0, to: editorView.state.doc.length, insert: code },
+        });
+        isAutoFilling = false;
+    }
+};
+window._mcpLogEvent = (type, message, payload) => logEvent('mcp', type, message, payload);
+
+/**
+ * Update the MCP status indicator.
+ * @param {'off'|'waiting'|'connected'} state
+ */
+window._mcpUpdateStatus = (state) => {
+    const chip = document.getElementById('mcp-status-chip');
+    if (!chip) return;
+    chip.dataset.mcpState = state;
+    const labels = {
+        off: 'MCP Bridge: disabled (click to enable)',
+        waiting: 'MCP Bridge: waiting for connection (click to disable)',
+        connected: 'MCP Bridge: connected (click to disable)',
+    };
+    chip.title = labels[state] || labels.off;
+};
+
+// MCP chip toggle — click to enable/disable bridge
+document.getElementById('mcp-status-chip')?.addEventListener('click', () => {
+    if (typeof window._mcpBridge?.toggle === 'function') {
+        window._mcpBridge.toggle();
+    }
+});
+
+/**
+ * MCP export bypass — saves demo bundle to a given path without opening a dialog.
+ * Uses the Tauri make_demo_bundle_to_path command.
+ */
+window._mcpExportDemoToPath = async (outputPath) => {
+    const invoke = getTauriInvoker();
+    if (!invoke) throw new Error('Export requires the Tauri desktop app');
+    if (!currentFileBuffer || !currentFileName) throw new Error('No file loaded');
+
+    const exportRuntime = elements.runtimeSelect?.value || currentRuntime;
+    await ensureRuntime(exportRuntime);
+
+    const runtimeAsset = runtimeAssets[getRuntimeCacheKey(exportRuntime)];
+    if (!runtimeAsset?.text) throw new Error('Runtime data not ready');
+
+    const selectedRuntimeSemver = runtimeAsset.version || getEffectiveRuntimeVersionToken(runtimeVersionToken);
+    const configuredStateMachines = normalizeStateMachineSelection(lastInitConfig.stateMachines);
+    const detectedStateMachines = Array.isArray(riveInstance?.stateMachineNames) ? riveInstance.stateMachineNames : [];
+    const stateMachines = configuredStateMachines.length ? configuredStateMachines : detectedStateMachines;
+    const vmHierarchy = serializeVmHierarchy();
+
+    const payload = {
+        file_name: currentFileName,
+        animation_base64: arrayBufferToBase64(currentFileBuffer),
+        runtime_name: exportRuntime,
+        runtime_version: selectedRuntimeSemver,
+        runtime_script: runtimeAsset.text,
+        autoplay: typeof lastInitConfig.autoplay === 'boolean' ? lastInitConfig.autoplay : true,
+        layout_fit: currentLayoutFit,
+        state_machines: stateMachines,
+        artboard_name: currentArtboardName,
+        canvas_color: isCanvasEffectivelyTransparent() ? null : currentCanvasColor,
+        canvas_transparent: isCanvasEffectivelyTransparent(),
+        layout_state: JSON.stringify(captureLayoutStateForExport()),
+        vm_hierarchy: vmHierarchy ? JSON.stringify(vmHierarchy) : null,
+    };
+
+    logEvent('mcp', 'export', `Exporting demo to ${outputPath}`);
+    const result = await invoke('make_demo_bundle_to_path', { payload, outputPath });
+    logEvent('mcp', 'export-complete', `Demo saved: ${result}`);
+    return result;
 };
 
 function arrayBufferToBase64(buffer) {

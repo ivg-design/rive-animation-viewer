@@ -155,6 +155,10 @@
 
                 <div class="runtime-strip" id="runtime-strip">
                     <div class="runtime-strip-left">
+                        <button type="button" class="runtime-chip runtime-chip-mcp" id="mcp-status-chip" data-mcp-state="waiting" title="MCP Bridge: waiting for connection (click to toggle)">
+                            <span class="mcp-dot" aria-hidden="true"></span>MCP
+                        </button>
+                        <span class="runtime-strip-sep" aria-hidden="true">|</span>
                         <span class="runtime-chip runtime-chip-runtime" id="runtime-strip-runtime"><span class="dot dot-sm" aria-hidden="true"></span>Runtime: WebGL</span>
                         <span class="runtime-chip" id="runtime-strip-version">v2.34.3</span>
                         <span class="runtime-chip" id="runtime-strip-build">b --</span>
@@ -184,6 +188,7 @@
                                 <button type="button" id="event-filter-native" class="event-filter-toggle is-active" aria-pressed="true">NATIVE</button>
                                 <button type="button" id="event-filter-rive-user" class="event-filter-toggle is-active" aria-pressed="true">RIVE USER</button>
                                 <button type="button" id="event-filter-ui" class="event-filter-toggle is-active" aria-pressed="true">UI</button>
+                                <button type="button" id="event-filter-mcp" class="event-filter-toggle is-active" aria-pressed="true">MCP</button>
                             </div>
                             <input type="search" id="event-filter-search" class="event-filter-search" placeholder="SEARCH">
                             <button type="button" class="btn-compact" id="event-log-clear-btn">CLEAR</button>
@@ -220,5 +225,6 @@
     </div>
 
     <script type="module" src="app.js"></script>
+    <script src="mcp-bridge.js" defer></script>
 </body>
 </html>

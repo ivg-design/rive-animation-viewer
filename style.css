@@ -977,6 +977,63 @@ body.transparency-mode .event-log-list {
     white-space: nowrap;
 }
 
+/* MCP indicator — three states: off, waiting, connected */
+.runtime-chip-mcp {
+    gap: 4px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    font: inherit;
+    transition: color 0.3s ease, opacity 0.3s ease;
+    flex-shrink: 0;
+}
+
+.mcp-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* OFF — bridge disabled, very dim */
+.runtime-chip-mcp[data-mcp-state="off"] {
+    color: #3f3f46;
+    opacity: 0.5;
+}
+
+.runtime-chip-mcp[data-mcp-state="off"] .mcp-dot {
+    background: #3f3f46;
+    box-shadow: none;
+}
+
+/* WAITING — bridge active, looking for agent */
+.runtime-chip-mcp[data-mcp-state="waiting"] {
+    color: #6366f180;
+}
+
+.runtime-chip-mcp[data-mcp-state="waiting"] .mcp-dot {
+    background: #6366f180;
+    box-shadow: none;
+    animation: mcp-pulse 2s ease-in-out infinite;
+}
+
+@keyframes mcp-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+/* CONNECTED — agent is live */
+.runtime-chip-mcp[data-mcp-state="connected"] {
+    color: #a5b4fc;
+}
+
+.runtime-chip-mcp[data-mcp-state="connected"] .mcp-dot {
+    background: #a5b4fc;
+    box-shadow: 0 0 8px #818cf8a0, 0 0 3px #a5b4fc80;
+    animation: none;
+}
+
 /* ── Resizers ─────────────────────────────────────────────── */
 
 .panel-resizer {
@@ -1569,6 +1626,12 @@ body.transparency-mode .event-log-list {
     background: #c4f82a18;
 }
 
+.event-filter-toggle#event-filter-mcp.is-active {
+    border-color: #818cf866;
+    color: #818cf8;
+    background: #818cf818;
+}
+
 .event-filter-search {
     height: 24px;
     width: 128px;
@@ -1653,6 +1716,11 @@ body.transparency-mode .event-log-list {
 .event-row-kind.ui {
     color: var(--text-muted);
     background: var(--bg-elevated);
+}
+
+.event-row-kind.mcp {
+    color: #818cf8;
+    background: #818cf820;
 }
 
 .event-row-message {

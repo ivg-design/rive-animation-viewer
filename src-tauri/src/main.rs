@@ -136,6 +136,24 @@ async fn make_demo_bundle(payload: DemoBundlePayload) -> Result<String, String> 
     Ok(path.to_string_lossy().to_string())
 }
 
+#[tauri::command]
+async fn make_demo_bundle_to_path(
+    payload: DemoBundlePayload,
+    output_path: String,
+) -> Result<String, String> {
+    if output_path.trim().is_empty() {
+        return Err("output_path is empty".into());
+    }
+    let path = std::path::PathBuf::from(&output_path);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create directory {}: {}", parent.display(), e))?;
+    }
+    let html = build_demo_html(&payload).map_err(|error| error.to_string())?;
+    fs::write(&path, html).map_err(|error| error.to_string())?;
+    Ok(path.to_string_lossy().to_string())
+}
+
 fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Error> {
     use serde_json::json;
 
@@ -268,6 +286,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             make_demo_bundle,
+            make_demo_bundle_to_path,
             open_devtools,
             get_opened_file,
             read_riv_file,
