@@ -19,6 +19,8 @@ struct DemoBundlePayload {
     autoplay: bool,
     layout_fit: String,
     state_machines: Vec<String>,
+    #[serde(default)]
+    animations: Vec<String>,
     artboard_name: Option<String>,
     canvas_color: Option<String>,
     #[serde(default)]
@@ -170,6 +172,7 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       "autoplay": payload.autoplay,
       "layoutFit": payload.layout_fit,
       "stateMachines": payload.state_machines,
+      "animations": payload.animations,
       "artboardName": payload.artboard_name,
       "canvasColor": payload
         .canvas_color

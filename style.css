@@ -1250,6 +1250,22 @@ body.transparency-mode .event-log-list {
 
 /* ── VM controls ──────────────────────────────────────────── */
 
+.artboard-switcher {
+    margin-bottom: 4px;
+}
+
+.artboard-switcher-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 4px 2px 2px;
+}
+
+.artboard-switcher-actions .btn-compact {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
 .vm-controls-tree {
     display: flex;
     flex-direction: column;

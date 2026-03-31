@@ -2,6 +2,61 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.9.3] - 2026-03-31
+
+### Fixed
+
+- **Export cancel no longer shows error** — Dismissing the native save dialog without saving now shows "Export cancelled." in the info strip instead of a red error banner. Cancellation is detected by checking for "cancel" in the Tauri error message.
+
+### Changed
+
+- Bumped app/package/runtime version from `1.9.2` to `1.9.3`.
+
+## [1.9.2] - 2026-03-31
+
+### Fixed
+
+- **VM Instance selector scoped to current artboard** — The VM Instance dropdown now only shows instances belonging to the current artboard's own ViewModel definition (via `defaultViewModel()`). Previously it incorrectly enumerated ALL ViewModel definitions across the entire file, polluting the dropdown with unrelated instances from other artboards and nested VMs.
+- **VM Instance switching** — Selecting an instance from the dropdown now correctly calls `bindViewModelInstance()` on the current artboard's ViewModel definition and re-renders the VM controls with that instance's values. Removed the broken composite key format.
+- **VM section label casing** — Section labels now preserve the exact original spelling from the ViewModel (lowercase, dashes, special characters). The forced `toUpperCase()` call was removed.
+
+### Changed
+
+- Bumped app/package/runtime version from `1.9.1` to `1.9.2`.
+
+## [1.9.1] - 2026-03-31
+
+### Fixed
+
+- **ViewModel section label** — The root VM section now shows the actual ViewModel name (e.g. "RIGHT-BADGE-UNIT-VM") instead of the hardcoded "Root VM". Uses `viewModelName` or `name` from the ViewModel instance.
+- **One-shot animation replay** — Pressing Play on a finished one-shot animation now restarts it from the beginning instead of doing nothing. Calls `stop()` then `play(animationName)` when the animation has ended.
+- **VM instance selector** — Fixed the VM Instance dropdown never populating. `instanceCount` and `instanceNames` are properties (not functions) on the Rive ViewModel definition. The selector now correctly enumerates named instances and supports switching via `instanceByName()` or `instanceByIndex()`.
+
+### Changed
+
+- Bumped app/package/runtime version from `1.9.0` to `1.9.1`.
+- VM instance switching now tries `replaceViewModel()` as a fallback if `setViewModelInstance()` is not available.
+
+## [1.9.0] - 2026-03-31
+
+### Added
+
+- **Artboard / Animation Switcher** — New collapsible control section in the Properties panel with two auto-populating dropdowns:
+  - **Artboard selector** — lists all artboards in the loaded .riv file
+  - **Playback selector** — lists state machines (prefixed "SM:") and timeline animations for the selected artboard
+  - **VM Instance selector** — appears when multiple ViewModel instances are available
+  - **Default button** — resets to the default artboard and state machine detected on first load
+- Switching artboard or playback target auto-plays immediately and re-populates ViewModel controls for the new artboard.
+- Export now captures the exact artboard/animation setup shown in the viewer, including animation-only playback targets.
+- **MCP tools**: `rav_switch_artboard` and `rav_reset_artboard` for remote artboard/animation control.
+- `rav_status` now includes `artboard` state (current artboard, playback type/name, defaults, file contents).
+
+### Changed
+
+- Bumped app/package/runtime version from `1.8.1` to `1.9.0`.
+- `loadRiveAnimation` now accepts `configOverrides` parameter for programmatic artboard/playback switching without modifying the script editor.
+- `DemoBundlePayload` (Rust) now includes `animations` field alongside `state_machines` for animation-only exports.
+
 ## [1.8.1] - 2026-03-31
 
 ### Fixed

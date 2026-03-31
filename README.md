@@ -4,7 +4,7 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `1.8.1` (2026-03-31)
+- Current release: `1.9.3` (2026-03-31)
 
 ## Quick Start
 
@@ -25,6 +25,7 @@ npm start  # Opens browser at http://localhost:8080
 - **Click-through (Desktop)**: Cursor-synced transparent-pixel click-through while keeping the viewer topmost in transparency mode
 - **Playback Controls**: Play, pause, and reset/restart (reset reloads animation with autoplay and restores control values)
 - **Event Console**: Source toggles (`Native`, `Rive User`, `UI`, `MCP`) and text search filters
+- **Artboard Switcher**: Auto-populating dropdowns for artboards and playback targets (state machines + animations), VM instance selector, reset-to-default button
 - **State Machine Detection**: Automatically detects and initializes available state machines
 
 ### Code Editor Panel
@@ -90,7 +91,7 @@ claude mcp add rav-mcp node /path/to/rive-animation-viewer/mcp-server/index.js
 
 Then start RAV — the connection indicator in the runtime strip lights up indigo when connected.
 
-#### Available Tools (22)
+#### Available Tools (24)
 
 | Tool | Description |
 |------|-------------|
@@ -99,6 +100,7 @@ Then start RAV — the connection indicator in the runtime strip lights up indig
 | `rav_play` / `rav_pause` / `rav_reset` | Playback controls |
 | `rav_get_artboards` | List artboard names |
 | `rav_get_state_machines` | List state machine names |
+| `rav_switch_artboard` / `rav_reset_artboard` | Switch artboard/animation, reset to default |
 | `rav_get_vm_tree` | Full ViewModel hierarchy |
 | `rav_vm_get` / `rav_vm_set` / `rav_vm_fire` | Read, write, and fire ViewModel properties |
 | `rav_get_event_log` | Recent event log entries (filterable by source) |

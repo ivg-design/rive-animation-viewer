@@ -91,6 +91,12 @@ let lastInitConfig = {};
 let configDirty = false;
 let errorTimeoutId = null;
 let currentArtboardName = null;
+let currentPlaybackType = null;
+let currentPlaybackName = null;
+let defaultArtboardName = null;
+let defaultPlaybackKey = null;
+let fileContentsCache = null;
+let artboardSwitchOverrides = null;
 let currentCanvasColor = DEFAULT_CANVAS_COLOR;
 let lastSolidCanvasColor = DEFAULT_CANVAS_COLOR;
 let isLeftPanelVisible = false;
@@ -175,6 +181,13 @@ const elements = {
     runtimeVersionCustomRow: document.getElementById('runtime-version-custom-row'),
     runtimeVersionCustomInput: document.getElementById('runtime-version-custom-input'),
     runtimeVersionApplyButton: document.getElementById('runtime-version-apply-btn'),
+    artboardSwitcher: document.getElementById('artboard-switcher'),
+    artboardSelect: document.getElementById('artboard-select'),
+    playbackSelect: document.getElementById('playback-select'),
+    vmInstanceSelect: document.getElementById('vm-instance-select'),
+    vmInstanceRow: document.getElementById('vm-instance-row'),
+    artboardResetBtn: document.getElementById('artboard-reset-btn'),
+    artboardSwitcherCount: document.getElementById('artboard-switcher-count'),
 };
 
 init();
@@ -197,6 +210,7 @@ async function init() {
     setupCenterResizer();
     setupPanelVisibilityToggles();
     setupEventLog();
+    setupArtboardSwitcher();
     setupSettingsPopover();
     await setupRuntimeVersionPicker();
     setupDragAndDrop();
@@ -1986,6 +2000,13 @@ function setCurrentFile(url, name, isObjectUrl = false, buffer, mimeType, fileSi
 
     currentFileUrl = url;
     currentFileName = name;
+    // Reset artboard switcher state for new file
+    defaultArtboardName = null;
+    defaultPlaybackKey = null;
+    fileContentsCache = null;
+    artboardSwitchOverrides = null;
+    currentPlaybackType = null;
+    currentPlaybackName = null;
     if (buffer instanceof ArrayBuffer) {
         currentFileBuffer = buffer;
     }
@@ -2007,6 +2028,7 @@ function setCurrentFile(url, name, isObjectUrl = false, buffer, mimeType, fileSi
 async function loadRiveAnimation(fileUrl, fileName, options = {}) {
     const {
         forceAutoplay = false,
+        configOverrides = null,
         onLoaded = null,
         onLoadError = null,
     } = options || {};
@@ -2067,6 +2089,10 @@ async function loadRiveAnimation(fileUrl, fileName, options = {}) {
 
         const userConfig = getEditorConfig();
         const effectiveUserConfig = forceAutoplay ? { ...userConfig, autoplay: true } : { ...userConfig };
+        // Apply artboard switcher overrides (dropdown selections take precedence)
+        if (configOverrides && typeof configOverrides === 'object') {
+            Object.assign(effectiveUserConfig, configOverrides);
+        }
         lastInitConfig = { ...effectiveUserConfig };
         const config = { ...effectiveUserConfig };
         console.log('[rive-viewer] config:', JSON.stringify(Object.keys(config)));
@@ -2086,6 +2112,15 @@ async function loadRiveAnimation(fileUrl, fileName, options = {}) {
             : (typeof config.animations === 'string' && config.animations.trim().length > 0);
         if (config.artboard) {
             currentArtboardName = config.artboard;
+        }
+        // Track current playback target for artboard switcher
+        if (configuredStateMachines.length) {
+            currentPlaybackType = 'stateMachine';
+            currentPlaybackName = configuredStateMachines[0];
+        } else if (hasConfiguredAnimation) {
+            currentPlaybackType = 'animation';
+            currentPlaybackName = Array.isArray(config.animations)
+                ? config.animations[0] : config.animations;
         }
         config.src = fileUrl;
         config.canvas = canvas;
@@ -2171,6 +2206,7 @@ async function loadRiveAnimation(fileUrl, fileName, options = {}) {
             }
 
             renderVmInputControls();
+            populateArtboardSwitcher();
             notifyLoadSuccess();
         };
 
@@ -2254,7 +2290,13 @@ async function applyCodeAndReload() {
 function play() {
     console.log('[rive-viewer] play() called, riveInstance:', !!riveInstance);
     if (riveInstance) {
-        riveInstance.play();
+        // If playing a one-shot animation that has finished, restart from beginning
+        if (!riveInstance.isPlaying && currentPlaybackType === 'animation' && currentPlaybackName) {
+            riveInstance.stop();
+            riveInstance.play(currentPlaybackName);
+        } else {
+            riveInstance.play();
+        }
         updateInfo('Playing');
         logEvent('ui', 'play', 'Playback started from UI.');
     } else {
@@ -2558,6 +2600,7 @@ async function createDemoBundle() {
         autoplay: typeof lastInitConfig.autoplay === 'boolean' ? lastInitConfig.autoplay : true,
         layout_fit: currentLayoutFit,
         state_machines: stateMachines,
+        animations: currentPlaybackType === 'animation' && currentPlaybackName ? [currentPlaybackName] : [],
         artboard_name: currentArtboardName,
         canvas_color: isCanvasEffectivelyTransparent() ? null : currentCanvasColor,
         canvas_transparent: isCanvasEffectivelyTransparent(),
@@ -2572,8 +2615,14 @@ async function createDemoBundle() {
         updateInfo(`Demo bundle saved to: ${outputPath}`);
         logEvent('ui', 'demo-build-success', `Demo bundle saved: ${outputPath}`);
     } catch (error) {
-        showError(`Failed to create demo bundle: ${error.message || error}`);
-        logEvent('ui', 'demo-build-failed', 'Failed to build demo bundle.', error);
+        const msg = String(error?.message || error || '');
+        if (msg.toLowerCase().includes('cancel')) {
+            updateInfo('Export cancelled.');
+            logEvent('ui', 'demo-build-cancelled', 'Export cancelled by user.');
+        } else {
+            showError(`Failed to create demo bundle: ${msg}`);
+            logEvent('ui', 'demo-build-failed', 'Failed to build demo bundle.', error);
+        }
     }
 }
 
@@ -2727,6 +2776,7 @@ function handleResize() {
 function cleanupInstance() {
     clearRiveEventListeners();
     resetPlaybackChips();
+    if (elements.artboardSwitcher) elements.artboardSwitcher.hidden = true;
     stopClickThroughMonitor();
     disableClickThroughPassThrough().catch(() => {
         /* noop */
@@ -2964,6 +3014,296 @@ function parseSemverParts(rawVersion) {
     return [Number(match[1]), Number(match[2]), Number(match[3])];
 }
 
+// ── Artboard / Animation Switcher ───────────────────────────
+
+function parsePlaybackTarget(target) {
+    if (!target) return { type: null, name: null };
+    if (target.startsWith('sm:')) return { type: 'stateMachine', name: target.slice(3) };
+    if (target.startsWith('anim:')) return { type: 'animation', name: target.slice(5) };
+    return { type: 'stateMachine', name: target };
+}
+
+function populateArtboardSwitcher() {
+    const switcher = elements.artboardSwitcher;
+    const abSelect = elements.artboardSelect;
+    if (!switcher || !abSelect || !riveInstance) {
+        if (switcher) switcher.hidden = true;
+        return;
+    }
+
+    const contents = riveInstance.contents;
+    if (!contents?.artboards?.length) {
+        switcher.hidden = true;
+        return;
+    }
+    fileContentsCache = contents;
+
+    abSelect.innerHTML = '';
+    const artboards = contents.artboards;
+    artboards.forEach((ab) => {
+        const name = typeof ab === 'string' ? ab : ab.name;
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        if (name === currentArtboardName) option.selected = true;
+        abSelect.appendChild(option);
+    });
+
+    // Capture defaults on first load of this file
+    if (defaultArtboardName === null) {
+        defaultArtboardName = currentArtboardName || (artboards[0]?.name ?? artboards[0]);
+    }
+
+    populatePlaybackSelect();
+    populateVmInstanceSelect();
+
+    const totalItems = artboards.length;
+    if (elements.artboardSwitcherCount) {
+        elements.artboardSwitcherCount.textContent = String(totalItems);
+    }
+
+    switcher.hidden = false;
+    initLucideIcons();
+}
+
+function populatePlaybackSelect() {
+    const select = elements.playbackSelect;
+    if (!select || !fileContentsCache) return;
+
+    select.innerHTML = '';
+    const selectedArtboardName = elements.artboardSelect?.value || currentArtboardName;
+    const artboards = fileContentsCache?.artboards || [];
+    const artboard = artboards.find((ab) => {
+        const name = typeof ab === 'string' ? ab : ab.name;
+        return name === selectedArtboardName;
+    });
+
+    if (!artboard || typeof artboard === 'string') return;
+
+    // State machines first (preferred playback target)
+    const stateMachines = artboard.stateMachines || [];
+    stateMachines.forEach((sm) => {
+        const name = typeof sm === 'string' ? sm : sm.name;
+        const option = document.createElement('option');
+        option.value = `sm:${name}`;
+        option.textContent = `SM: ${name}`;
+        select.appendChild(option);
+    });
+
+    // Timeline animations
+    const animations = artboard.animations || [];
+    animations.forEach((anim) => {
+        const name = typeof anim === 'string' ? anim : anim.name;
+        const option = document.createElement('option');
+        option.value = `anim:${name}`;
+        option.textContent = name;
+        select.appendChild(option);
+    });
+
+    // Select current playback target
+    if (currentPlaybackName) {
+        const currentKey = currentPlaybackType === 'animation'
+            ? `anim:${currentPlaybackName}`
+            : `sm:${currentPlaybackName}`;
+        const match = select.querySelector(`option[value="${CSS.escape(currentKey)}"]`);
+        if (match) select.value = currentKey;
+    }
+
+    // Capture default on first load
+    if (defaultPlaybackKey === null && select.options.length > 0) {
+        defaultPlaybackKey = select.value;
+    }
+}
+
+function populateVmInstanceSelect() {
+    const row = elements.vmInstanceRow;
+    const select = elements.vmInstanceSelect;
+    if (!row || !select || !riveInstance) {
+        if (row) row.hidden = true;
+        return;
+    }
+
+    select.innerHTML = '';
+
+    try {
+        // Only check the CURRENT artboard's ViewModel definition
+        const vmDef = typeof riveInstance.defaultViewModel === 'function'
+            ? riveInstance.defaultViewModel() : null;
+        if (!vmDef) { row.hidden = true; return; }
+
+        const instanceCount = typeof vmDef.instanceCount === 'number'
+            ? vmDef.instanceCount : 0;
+        if (instanceCount <= 1) { row.hidden = true; return; }
+
+        const instanceNames = Array.isArray(vmDef.instanceNames)
+            ? vmDef.instanceNames : [];
+
+        if (instanceNames.length > 0) {
+            instanceNames.forEach((name) => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+        } else {
+            for (let i = 0; i < instanceCount; i++) {
+                const option = document.createElement('option');
+                option.value = String(i);
+                option.textContent = `Instance ${i}`;
+                select.appendChild(option);
+            }
+        }
+
+        // Pre-select the currently bound instance
+        const currentVmi = riveInstance.viewModelInstance;
+        if (currentVmi?.name) {
+            const match = select.querySelector(`option[value="${CSS.escape(currentVmi.name)}"]`);
+            if (match) select.value = currentVmi.name;
+        }
+
+        row.hidden = false;
+    } catch (err) {
+        console.warn('[rive-viewer] VM instance enumeration failed:', err);
+        row.hidden = true;
+    }
+}
+
+async function switchArtboard(artboardName, playbackTarget) {
+    if (!currentFileUrl || !currentFileName) return;
+
+    const { type: playbackType, name: playbackName } = parsePlaybackTarget(playbackTarget);
+
+    logEvent('ui', 'artboard-switch',
+        `Switching to artboard "${artboardName}" ${playbackType ? `with ${playbackType} "${playbackName}"` : '(auto)'}.`);
+    updateInfo(`Switching to "${artboardName}"...`);
+
+    const prevArtboard = currentArtboardName;
+    currentArtboardName = artboardName;
+    currentPlaybackType = playbackType;
+    currentPlaybackName = playbackName;
+
+    const overrides = { artboard: artboardName, autoplay: true, autoBind: true };
+    if (playbackType === 'stateMachine' && playbackName) {
+        overrides.stateMachines = playbackName;
+        delete overrides.animations;
+    } else if (playbackType === 'animation' && playbackName) {
+        overrides.animations = playbackName;
+        delete overrides.stateMachines;
+    }
+
+    try {
+        await new Promise((resolve, reject) => {
+            let settled = false;
+            const resolveOnce = () => { if (!settled) { settled = true; resolve(); } };
+            const rejectOnce = (err) => { if (!settled) { settled = true; reject(err || new Error('Switch failed')); } };
+
+            loadRiveAnimation(currentFileUrl, currentFileName, {
+                forceAutoplay: true,
+                configOverrides: overrides,
+                onLoaded: resolveOnce,
+                onLoadError: rejectOnce,
+            }).catch(rejectOnce);
+        });
+        updateInfo(`Playing "${artboardName}"`);
+    } catch (err) {
+        showError(`Failed to switch artboard: ${err?.message || err}`);
+        currentArtboardName = prevArtboard;
+    }
+}
+
+function resetToDefaultArtboard() {
+    if (!defaultArtboardName) {
+        showError('No default artboard. Reload the file.');
+        return;
+    }
+
+    currentPlaybackType = null;
+    currentPlaybackName = null;
+    artboardSwitchOverrides = null;
+
+    const playbackTarget = defaultPlaybackKey || null;
+    logEvent('ui', 'artboard-reset', `Reset to default artboard "${defaultArtboardName}".`);
+    switchArtboard(defaultArtboardName, playbackTarget);
+}
+
+function switchVmInstance(instanceKey) {
+    if (!riveInstance || !instanceKey) return;
+
+    try {
+        // Get the current artboard's ViewModel definition
+        const vmDef = typeof riveInstance.defaultViewModel === 'function'
+            ? riveInstance.defaultViewModel() : null;
+        if (!vmDef) {
+            console.warn('[rive-viewer] No ViewModel definition for current artboard');
+            return;
+        }
+
+        // Resolve the instance by name or index
+        let newInstance = null;
+        if (typeof vmDef.instanceByName === 'function') {
+            try { newInstance = vmDef.instanceByName(instanceKey); } catch { /* not found */ }
+        }
+        if (!newInstance) {
+            const index = parseInt(instanceKey, 10);
+            if (!Number.isNaN(index) && typeof vmDef.instanceByIndex === 'function') {
+                newInstance = vmDef.instanceByIndex(index);
+            }
+        }
+
+        if (!newInstance) {
+            console.warn('[rive-viewer] VM instance not found:', instanceKey);
+            return;
+        }
+
+        // Bind the new instance
+        if (typeof riveInstance.bindViewModelInstance === 'function') {
+            riveInstance.bindViewModelInstance(newInstance);
+            renderVmInputControls();
+            logEvent('ui', 'vm-instance-switch',
+                `Bound instance "${instanceKey}" from ${vmDef.name || 'ViewModel'}`);
+            return;
+        }
+
+        console.warn('[rive-viewer] bindViewModelInstance not available on this runtime version');
+    } catch (err) {
+        console.warn('[rive-viewer] VM instance switch failed:', err);
+    }
+}
+
+function setupArtboardSwitcher() {
+    const abSelect = elements.artboardSelect;
+    const pbSelect = elements.playbackSelect;
+    const vmSelect = elements.vmInstanceSelect;
+    const resetBtn = elements.artboardResetBtn;
+
+    if (abSelect) {
+        abSelect.addEventListener('change', () => {
+            populatePlaybackSelect();
+            const playbackTarget = elements.playbackSelect?.value || null;
+            switchArtboard(abSelect.value, playbackTarget);
+        });
+    }
+
+    if (pbSelect) {
+        pbSelect.addEventListener('change', () => {
+            const artboard = elements.artboardSelect?.value || currentArtboardName;
+            switchArtboard(artboard, pbSelect.value);
+        });
+    }
+
+    if (vmSelect) {
+        vmSelect.addEventListener('change', () => {
+            switchVmInstance(vmSelect.value);
+        });
+    }
+
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            resetToDefaultArtboard();
+        });
+    }
+}
+
 function resetVmInputControls(message = 'No bound ViewModel inputs detected.') {
     const count = elements.vmControlsCount;
     const empty = elements.vmControlsEmpty;
@@ -3062,7 +3402,7 @@ function createVmSectionElement(node, isTopLevel = false, depth = 0) {
     sectionBar.style.background = depthColor;
 
     const titleText = document.createElement('span');
-    titleText.textContent = node.label.toUpperCase();
+    titleText.textContent = node.label;
 
     const inputCountBadge = document.createElement('span');
     inputCountBadge.className = 'vm-section-count';
@@ -3222,7 +3562,8 @@ function buildVmHierarchy(rootVm) {
         return node;
     };
 
-    const rootNode = walk(rootVm, 'Root VM', '', 'vm');
+    const vmName = rootVm.viewModelName || rootVm.name || 'Root VM';
+    const rootNode = walk(rootVm, vmName, '', 'vm');
     rootNode.totalInputs = totalInputs;
     return rootNode;
 }
@@ -4106,6 +4447,7 @@ window._mcpExportDemoToPath = async (outputPath) => {
         autoplay: typeof lastInitConfig.autoplay === 'boolean' ? lastInitConfig.autoplay : true,
         layout_fit: currentLayoutFit,
         state_machines: stateMachines,
+        animations: currentPlaybackType === 'animation' && currentPlaybackName ? [currentPlaybackName] : [],
         artboard_name: currentArtboardName,
         canvas_color: isCanvasEffectivelyTransparent() ? null : currentCanvasColor,
         canvas_transparent: isCanvasEffectivelyTransparent(),
@@ -4118,6 +4460,18 @@ window._mcpExportDemoToPath = async (outputPath) => {
     logEvent('mcp', 'export-complete', `Demo saved: ${result}`);
     return result;
 };
+
+// MCP artboard switcher hooks
+window._mcpSwitchArtboard = switchArtboard;
+window._mcpResetArtboard = resetToDefaultArtboard;
+window._mcpGetArtboardState = () => ({
+    currentArtboard: currentArtboardName,
+    currentPlaybackType,
+    currentPlaybackName,
+    defaultArtboard: defaultArtboardName,
+    defaultPlaybackKey,
+    contents: fileContentsCache,
+});
 
 function arrayBufferToBase64(buffer) {
     if (!(buffer instanceof ArrayBuffer)) {

@@ -57,8 +57,22 @@ const commandHandlers = {
         hasRoot: !!window.vmRootInstance,
         pathCount: window.vmPaths?.length || 0,
       },
+      artboard: window._mcpGetArtboardState?.() || null,
     };
     return status;
+  },
+
+  async rav_switch_artboard({ artboard, playback }) {
+    if (!artboard) throw new Error('artboard is required');
+    if (typeof window._mcpSwitchArtboard !== 'function') throw new Error('Artboard switcher not available');
+    await window._mcpSwitchArtboard(artboard, playback || null);
+    return { ok: true, artboard, playback };
+  },
+
+  async rav_reset_artboard() {
+    if (typeof window._mcpResetArtboard !== 'function') throw new Error('Artboard switcher not available');
+    window._mcpResetArtboard();
+    return { ok: true };
   },
 
   async rav_open_file({ path }) {

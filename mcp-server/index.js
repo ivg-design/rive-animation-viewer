@@ -178,6 +178,35 @@ const TOOLS = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
+    name: 'rav_switch_artboard',
+    description:
+      'Switch to a different artboard and/or playback target (state machine or animation). ' +
+      'Auto-plays immediately. ViewModel controls re-populate for the new artboard.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        artboard: {
+          type: 'string',
+          description: 'Artboard name to switch to',
+        },
+        playback: {
+          type: 'string',
+          description:
+            'Playback target. Prefix with "sm:" for state machine or "anim:" for timeline animation. ' +
+            'E.g. "sm:State Machine 1" or "anim:idle". Omit to use the first available.',
+        },
+      },
+      required: ['artboard'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'rav_reset_artboard',
+    description:
+      'Reset to the default artboard and default state machine that was detected when the file was first loaded.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
     name: 'rav_get_vm_tree',
     description:
       'Get the full ViewModel hierarchy tree for the loaded animation. Returns ' +

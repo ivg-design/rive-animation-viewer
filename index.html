@@ -217,6 +217,41 @@
                     </div>
                 </div>
                 <div class="properties-panel-body" id="vm-controls-panel">
+                    <div class="artboard-switcher" id="artboard-switcher" hidden>
+                        <details class="vm-section" open>
+                            <summary class="vm-section-header">
+                                <i data-lucide="chevron-down" class="lucide-12 vm-section-chevron"></i>
+                                <span class="vm-section-bar" style="background: #FB923C;"></span>
+                                <span>ARTBOARD / ANIMATION</span>
+                                <span class="vm-section-count" id="artboard-switcher-count">0</span>
+                            </summary>
+                            <div class="vm-section-body">
+                                <div class="vm-control-row">
+                                    <label class="vm-control-label" for="artboard-select">Artboard</label>
+                                    <div class="vm-control-input">
+                                        <select id="artboard-select"></select>
+                                    </div>
+                                </div>
+                                <div class="vm-control-row">
+                                    <label class="vm-control-label" for="playback-select">Playback</label>
+                                    <div class="vm-control-input">
+                                        <select id="playback-select"></select>
+                                    </div>
+                                </div>
+                                <div class="vm-control-row" id="vm-instance-row" hidden>
+                                    <label class="vm-control-label" for="vm-instance-select">VM Instance</label>
+                                    <div class="vm-control-input">
+                                        <select id="vm-instance-select"></select>
+                                    </div>
+                                </div>
+                                <div class="artboard-switcher-actions">
+                                    <button type="button" class="btn-compact" id="artboard-reset-btn">
+                                        <i data-lucide="rotate-ccw" class="lucide-10"></i> DEFAULT
+                                    </button>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
                     <p class="empty-state" id="vm-controls-empty">No bound ViewModel inputs detected.</p>
                     <div class="vm-controls-tree" id="vm-controls-tree"></div>
                 </div>
