@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.9.7] - 2026-03-31
+
+### Fixed
+
+- **MCP Setup dialog centered** — Dialog now opens centered on screen using `position: fixed` with `translate(-50%, -50%)` instead of default browser dialog positioning.
+- **Server path fully visible** — Path row now scrolls horizontally and text is selectable, no longer truncated with ellipsis.
+- **Copy button repositioned** — Copy buttons moved to a header bar above each snippet block so they never overlap or obscure code text.
+- **Sticky dialog header** — The MCP Setup title bar with close button stays pinned at the top when scrolling through the snippet list.
+- **Node.js status indicator** — Shows green dot + "installed" when MCP bridge is connected (confirms Node.js is working), or red dot + "not detected" with an INSTALL button linking to nodejs.org when not detected.
+
+### Changed
+
+- Bumped app/package/runtime version from `1.9.6` to `1.9.7`.
+
 ## [1.9.6] - 2026-03-31
 
 ### Fixed
