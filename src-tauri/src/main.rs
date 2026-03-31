@@ -51,6 +51,21 @@ fn open_devtools(_window: tauri::WebviewWindow) {
 }
 
 #[tauri::command]
+fn get_mcp_server_path(app: tauri::AppHandle) -> Result<String, String> {
+    let resource_path = app
+        .path()
+        .resource_dir()
+        .map_err(|e| format!("Failed to resolve resource dir: {}", e))?
+        .join("resources")
+        .join("rav-mcp-server.js");
+    if resource_path.exists() {
+        Ok(resource_path.to_string_lossy().to_string())
+    } else {
+        Err(format!("MCP server not found at {}", resource_path.display()))
+    }
+}
+
+#[tauri::command]
 fn get_opened_file(state: tauri::State<'_, OpenedFiles>) -> Option<String> {
     state.0.lock().ok().and_then(|mut guard| guard.pop_front())
 }
@@ -291,6 +306,7 @@ fn main() {
             make_demo_bundle,
             make_demo_bundle_to_path,
             open_devtools,
+            get_mcp_server_path,
             get_opened_file,
             read_riv_file,
             set_window_transparency_mode,

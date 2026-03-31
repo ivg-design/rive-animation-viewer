@@ -79,17 +79,23 @@ Claude Code ←(stdio)→ MCP Server ←(WebSocket :9274)→ RAV Frontend
 
 The MCP server (`mcp-server/`) communicates with RAV's frontend via a WebSocket bridge. The frontend bridge (`mcp-bridge.js`) auto-connects when RAV starts and reconnects with exponential backoff.
 
-#### Setup
+#### Setup (one-time)
+
+Requires [Node.js 18+](https://nodejs.org/) installed.
 
 ```bash
-# Install MCP server dependencies
-cd mcp-server && npm install
+# 1. Clone the repo (if you only have the desktop app)
+git clone https://github.com/ivg-design/rive-animation-viewer.git
 
-# Register with Claude Code
-claude mcp add rav-mcp node /path/to/rive-animation-viewer/mcp-server/index.js
+# 2. Install the MCP server
+cd rive-animation-viewer/mcp-server
+npm install
+
+# 3. Register with Claude Code (adjust path to where you cloned)
+claude mcp add rav-mcp node ~/rive-animation-viewer/mcp-server/index.js
 ```
 
-Then start RAV — the connection indicator in the runtime strip lights up indigo when connected.
+Open the RAV desktop app — the **MCP** indicator in the runtime strip turns indigo when connected. From then on, Claude Code can control RAV whenever both are running.
 
 #### Available Tools (24)
 

@@ -1034,6 +1034,157 @@ body.transparency-mode .event-log-list {
     animation: none;
 }
 
+/* ── MCP Setup Dialog ────────────────────────────────────── */
+
+.mcp-setup-dialog {
+    border: 1px solid var(--border-bright);
+    border-radius: var(--radius-lg);
+    background: var(--bg-zinc);
+    color: var(--text-dim);
+    padding: 0;
+    max-width: 600px;
+    width: 90vw;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 20px 60px #00000080;
+}
+
+.mcp-setup-dialog::backdrop {
+    background: #0a0a0acc;
+}
+
+.mcp-setup-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+    overflow-y: auto;
+    max-height: 80vh;
+}
+
+.mcp-setup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.mcp-setup-header h2 {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-white);
+    margin: 0;
+}
+
+.mcp-setup-intro {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+
+.mcp-setup-intro a {
+    color: var(--neon);
+    text-decoration: none;
+}
+
+.mcp-setup-path-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-void);
+    border: 1px solid var(--border);
+    font-size: 11px;
+}
+
+.mcp-setup-path-row label {
+    color: var(--text-muted);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.mcp-setup-path-row code {
+    color: var(--neon);
+    font-family: "Space Mono", monospace;
+    font-size: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mcp-setup-snippets {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.mcp-snippet-section h3 {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-white);
+    margin: 0 0 4px;
+}
+
+.mcp-snippet-section p {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0 0 6px;
+}
+
+.mcp-snippet-section code {
+    font-family: "Space Mono", monospace;
+    font-size: 10px;
+    color: #a5b4fc;
+}
+
+.mcp-snippet-block {
+    position: relative;
+    background: var(--bg-void);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    overflow-x: auto;
+}
+
+.mcp-snippet-block pre {
+    margin: 0;
+    font-family: "Space Mono", monospace;
+    font-size: 10px;
+    line-height: 1.6;
+    color: var(--text-dim);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.mcp-copy-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    height: 22px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    font-family: "Space Mono", monospace;
+    font-size: 9px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.mcp-copy-btn:hover {
+    border-color: var(--neon);
+    color: var(--neon);
+}
+
+.mcp-copy-btn.copied {
+    border-color: #34d399;
+    color: #34d399;
+}
+
 /* ── Resizers ─────────────────────────────────────────────── */
 
 .panel-resizer {

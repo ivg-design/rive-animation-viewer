@@ -596,24 +596,62 @@ export default function DocsPage() {
             drive playback, manipulate inputs, read event logs, edit scripts, and export demos.
           </p>
 
-          <h3>Architecture</h3>
+          <h3>What is MCP?</h3>
           <p>
-            The MCP server communicates with RAV&apos;s frontend via a local WebSocket bridge.
-            Claude Code connects to the MCP server via stdio; the server forwards commands to RAV
-            over WebSocket on port 9274.
+            <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener noreferrer">MCP (Model Context Protocol)</a>{" "}
+            is an open standard that lets AI tools like{" "}
+            <a href="https://claude.ai/code" target="_blank" rel="noopener noreferrer">Claude Code</a>{" "}
+            connect to external applications. With RAV&apos;s MCP server, Claude can open your .riv
+            files, inspect their structure, drive playback, modify ViewModel values, and export demos
+            &mdash; all through natural language commands.
           </p>
-          <pre><code>Claude Code &lt;-(stdio)-&gt; MCP Server &lt;-(WebSocket :9274)-&gt; RAV Frontend</code></pre>
 
-          <h3>Setup</h3>
+          <h3>How it works</h3>
+          <p>
+            RAV includes a small MCP server that acts as a bridge between Claude Code and the RAV
+            desktop app. When both are running, Claude can control RAV remotely:
+          </p>
+          <pre><code>Claude Code &lt;-(stdio)-&gt; MCP Server &lt;-(WebSocket)-&gt; RAV App</code></pre>
+          <p>
+            The RAV app automatically tries to connect to the MCP server when it starts. You&apos;ll
+            see the <strong>MCP</strong> indicator in the bottom-left of the window light up when
+            connected.
+          </p>
+
+          <h3>Setup (one-time)</h3>
+          <p>
+            The MCP server is included in the{" "}
+            <a href="https://github.com/ivg-design/rive-animation-viewer" target="_blank" rel="noopener noreferrer">
+              RAV GitHub repository
+            </a>. You need <strong>Node.js 18+</strong> installed.
+          </p>
           <ol>
-            <li>Install the MCP server dependencies:
-              <pre><code>cd mcp-server{"\n"}npm install</code></pre>
+            <li>
+              <strong>Clone the repository</strong> (if you haven&apos;t already):
+              <pre><code>git clone https://github.com/ivg-design/rive-animation-viewer.git</code></pre>
             </li>
-            <li>Register the server with Claude Code:
-              <pre><code>claude mcp add rav-mcp node /path/to/rive-animation-viewer/mcp-server/index.js</code></pre>
+            <li>
+              <strong>Install the MCP server</strong>:
+              <pre><code>cd rive-animation-viewer/mcp-server{"\n"}npm install</code></pre>
             </li>
-            <li>Start RAV &mdash; the connection indicator in the runtime strip lights up indigo when connected</li>
+            <li>
+              <strong>Register with Claude Code</strong> &mdash; run this once to tell Claude Code
+              where the MCP server lives:
+              <pre><code>claude mcp add rav-mcp node ~/rive-animation-viewer/mcp-server/index.js</code></pre>
+              <p>
+                Replace the path with wherever you cloned the repository.
+              </p>
+            </li>
+            <li>
+              <strong>Open RAV</strong> &mdash; launch the desktop app. The <strong>MCP</strong>{" "}
+              indicator in the runtime strip turns indigo when the connection is established.
+            </li>
           </ol>
+          <p>
+            That&apos;s it. From now on, whenever both RAV and Claude Code are running, Claude can
+            control the viewer. Try asking Claude: &quot;Open my animation file in RAV and show me
+            the ViewModel tree.&quot;
+          </p>
 
           <h3>Available Tools (24)</h3>
           <table>

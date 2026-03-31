@@ -1,13 +1,13 @@
 {
   "name": "rive-animation-viewer",
-  "version": "1.9.3",
+  "version": "1.9.5",
   "description": "Desktop and web viewer for .riv files with ViewModel controls, artboard/animation switching, script editor, event console, standalone export, and MCP remote control",
   "main": "index.html",
   "scripts": {
     "start": "vite --host 0.0.0.0 --port 8080 --open",
     "serve": "vite --host 0.0.0.0 --port 8080",
     "dev": "vite",
-    "build": "node scripts/build-dist.mjs",
+    "build": "node scripts/bundle-mcp-server.mjs && node scripts/build-dist.mjs",
     "tauri": "tauri",
     "build:full": "npm run build && npm run tauri build",
     "sync": "node scripts/sync-version.mjs"

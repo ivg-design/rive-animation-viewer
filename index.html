@@ -106,8 +106,70 @@
                         <p class="settings-note">Click-through works only in desktop mode and is sampled on transparent canvas pixels.</p>
                     </div>
                 </div>
+                <button type="button" id="mcp-setup-btn" class="icon-btn icon-btn-ghost" title="MCP Setup" aria-label="MCP Setup" onclick="showMcpSetup()">
+                    <i data-lucide="cable" class="lucide-18"></i>
+                </button>
             </div>
         </header>
+
+        <dialog id="mcp-setup-dialog" class="mcp-setup-dialog">
+            <div class="mcp-setup-content">
+                <div class="mcp-setup-header">
+                    <h2>MCP Setup</h2>
+                    <button type="button" class="icon-btn icon-btn-ghost" onclick="document.getElementById('mcp-setup-dialog').close()" aria-label="Close">
+                        <i data-lucide="x" class="lucide-18"></i>
+                    </button>
+                </div>
+                <p class="mcp-setup-intro">
+                    Connect AI tools to RAV using the Model Context Protocol. The MCP server is bundled
+                    with this app &mdash; no installation or cloning required. Just copy the snippet for
+                    your AI tool below.
+                </p>
+                <p class="mcp-setup-intro" id="mcp-setup-node-warning" hidden>
+                    <strong>Node.js is required.</strong> Install it from
+                    <a href="https://nodejs.org" target="_blank" rel="noopener noreferrer">nodejs.org</a>
+                    (v18 or later).
+                </p>
+                <div class="mcp-setup-path-row">
+                    <label>Server path:</label>
+                    <code id="mcp-server-path-display">Resolving...</code>
+                </div>
+                <div class="mcp-setup-snippets" id="mcp-setup-snippets">
+                    <div class="mcp-snippet-section">
+                        <h3>Claude Code (CLI)</h3>
+                        <p>Run this once in your terminal:</p>
+                        <div class="mcp-snippet-block">
+                            <pre id="snippet-claude-code"></pre>
+                            <button type="button" class="mcp-copy-btn" data-target="snippet-claude-code">COPY</button>
+                        </div>
+                    </div>
+                    <div class="mcp-snippet-section">
+                        <h3>Claude Desktop</h3>
+                        <p>Add to <code>~/Library/Application Support/Claude/claude_desktop_config.json</code> (macOS) or <code>%APPDATA%\Claude\claude_desktop_config.json</code> (Windows):</p>
+                        <div class="mcp-snippet-block">
+                            <pre id="snippet-claude-desktop"></pre>
+                            <button type="button" class="mcp-copy-btn" data-target="snippet-claude-desktop">COPY</button>
+                        </div>
+                    </div>
+                    <div class="mcp-snippet-section">
+                        <h3>OpenAI Codex / ChatGPT</h3>
+                        <p>MCP server configuration:</p>
+                        <div class="mcp-snippet-block">
+                            <pre id="snippet-codex"></pre>
+                            <button type="button" class="mcp-copy-btn" data-target="snippet-codex">COPY</button>
+                        </div>
+                    </div>
+                    <div class="mcp-snippet-section">
+                        <h3>Generic MCP Client</h3>
+                        <p>Standard stdio transport configuration for any MCP-compatible agent:</p>
+                        <div class="mcp-snippet-block">
+                            <pre id="snippet-generic"></pre>
+                            <button type="button" class="mcp-copy-btn" data-target="snippet-generic">COPY</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </dialog>
 
         <div class="error" id="error-message"></div>
 

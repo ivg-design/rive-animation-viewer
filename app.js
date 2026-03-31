@@ -4473,6 +4473,85 @@ window._mcpGetArtboardState = () => ({
     contents: fileContentsCache,
 });
 
+// ── MCP Setup Dialog ────────────────────────────────────────
+
+let mcpServerResolvedPath = null;
+
+async function showMcpSetup() {
+    const dialog = document.getElementById('mcp-setup-dialog');
+    if (!dialog) return;
+
+    // Resolve the bundled MCP server path
+    const pathDisplay = document.getElementById('mcp-server-path-display');
+    if (!mcpServerResolvedPath) {
+        const invoke = getTauriInvoker();
+        if (invoke) {
+            try {
+                mcpServerResolvedPath = await invoke('get_mcp_server_path');
+            } catch (e) {
+                console.warn('[rive-viewer] MCP server path not found:', e);
+            }
+        }
+    }
+
+    const serverPath = mcpServerResolvedPath || '/path/to/Rive Animation Viewer.app/Contents/Resources/resources/rav-mcp-server.js';
+    if (pathDisplay) pathDisplay.textContent = serverPath;
+
+    // Populate snippets
+    const escaped = serverPath.replace(/'/g, "'\\''");
+
+    document.getElementById('snippet-claude-code').textContent =
+        `claude mcp add rav-mcp node '${escaped}'`;
+
+    document.getElementById('snippet-claude-desktop').textContent =
+        JSON.stringify({
+            mcpServers: {
+                'rav-mcp': {
+                    command: 'node',
+                    args: [serverPath],
+                },
+            },
+        }, null, 2);
+
+    document.getElementById('snippet-codex').textContent =
+        JSON.stringify({
+            'rav-mcp': {
+                command: 'node',
+                args: [serverPath],
+                transport: 'stdio',
+            },
+        }, null, 2);
+
+    document.getElementById('snippet-generic').textContent =
+        JSON.stringify({
+            name: 'rav-mcp',
+            transport: { type: 'stdio', command: 'node', args: [serverPath] },
+        }, null, 2);
+
+    // Wire up copy buttons
+    dialog.querySelectorAll('.mcp-copy-btn').forEach((btn) => {
+        btn.onclick = () => {
+            const targetId = btn.dataset.target;
+            const pre = document.getElementById(targetId);
+            if (pre) {
+                navigator.clipboard.writeText(pre.textContent).then(() => {
+                    btn.textContent = 'COPIED';
+                    btn.classList.add('copied');
+                    setTimeout(() => {
+                        btn.textContent = 'COPY';
+                        btn.classList.remove('copied');
+                    }, 2000);
+                });
+            }
+        };
+    });
+
+    dialog.showModal();
+    initLucideIcons();
+}
+
+window.showMcpSetup = showMcpSetup;
+
 function arrayBufferToBase64(buffer) {
     if (!(buffer instanceof ArrayBuffer)) {
         return '';
