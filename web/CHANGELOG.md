@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.9.6] - 2026-03-31
+
+### Fixed
+
+- **CI build failure** — MCP server bundler now auto-installs its npm dependencies before esbuild runs, fixing the Windows/macOS CI builds that failed because `mcp-server/node_modules` wasn't present.
+
+### Changed
+
+- Bumped app/package/runtime version from `1.9.5` to `1.9.6`.
+
 ## [1.9.5] - 2026-03-31
 
 ### Added
