@@ -43,6 +43,21 @@
     padding: 0;
 }
 
+/* Block text selection on UI chrome — allow only in editable/copyable areas */
+body {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+input, textarea, select,
+.cm-content,
+.mcp-snippet-block pre,
+.mcp-setup-path-code,
+[contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
 html,
 body {
     height: 100%;
@@ -1036,7 +1051,7 @@ body.transparency-mode .event-log-list {
 
 /* ── MCP Setup Dialog ────────────────────────────────────── */
 
-/* Center the dialog */
+/* dialog[open] is set by the browser — never override display on <dialog> itself */
 .mcp-setup-dialog {
     border: 1px solid var(--border-bright);
     border-radius: var(--radius-lg);
@@ -1045,30 +1060,27 @@ body.transparency-mode .event-log-list {
     padding: 0;
     max-width: 600px;
     width: 90vw;
-    max-height: 80vh;
-    overflow: hidden;
+    height: 70vh;
     box-shadow: 0 20px 60px #00000080;
     margin: auto;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    position: fixed;
 }
 
 .mcp-setup-dialog::backdrop {
     background: #0a0a0acc;
 }
 
-.mcp-setup-content {
+.mcp-setup-dialog[open] > .mcp-setup-content {
     display: flex;
     flex-direction: column;
-    gap: 0;
-    padding: 0;
+    height: 100%;
     overflow: hidden;
-    max-height: 80vh;
 }
 
-/* Sticky header */
+.mcp-setup-content {
+    display: none;
+    height: 100%;
+}
+
 .mcp-setup-header {
     display: flex;
     align-items: center;
@@ -1076,9 +1088,6 @@ body.transparency-mode .event-log-list {
     padding: 16px 20px 12px;
     background: var(--bg-zinc);
     border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 1;
     flex-shrink: 0;
 }
 
@@ -1090,7 +1099,6 @@ body.transparency-mode .event-log-list {
     margin: 0;
 }
 
-/* Scrollable body below sticky header */
 .mcp-setup-body {
     display: flex;
     flex-direction: column;
@@ -1166,33 +1174,24 @@ body.transparency-mode .event-log-list {
     border-color: #a5b4fc;
 }
 
-/* Server path — scrollable, not truncated */
-.mcp-setup-path-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
-    border-radius: var(--radius-sm);
-    background: var(--bg-void);
-    border: 1px solid var(--border);
-    font-size: 11px;
-    overflow-x: auto;
+/* Server path — wrapping block with copy button */
+.mcp-setup-path-section h3 {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-white);
+    margin: 0 0 4px;
 }
 
-.mcp-setup-path-row label {
-    color: var(--text-muted);
-    font-weight: 600;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-.mcp-setup-path-row code {
-    color: var(--neon);
+.mcp-setup-path-code {
+    margin: 0;
+    padding: 10px 12px;
     font-family: "Space Mono", monospace;
     font-size: 10px;
-    white-space: nowrap;
-    user-select: all;
-    cursor: text;
+    line-height: 1.6;
+    color: var(--neon);
+    white-space: pre-wrap;
+    word-break: break-all;
 }
 
 .mcp-setup-snippets {

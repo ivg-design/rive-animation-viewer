@@ -546,6 +546,28 @@ export default function DocsPage() {
   }
 }`}</code></pre>
 
+          <h3>Apply &amp; Reload</h3>
+          <p>
+            The <strong>Apply &amp; Reload</strong> button (circular arrow with checkmark) in the
+            script editor toolbar takes the JavaScript config object you&apos;ve written, evaluates it,
+            tears down the current Rive instance, and creates a new one with that configuration.
+            This is how you apply any changes you make in the editor &mdash; artboard selection,
+            state machine targeting, autoplay settings, custom callbacks, and layout options.
+          </p>
+          <p>
+            The config object supports all Rive constructor options including:
+          </p>
+          <ul>
+            <li><code>artboard</code> &mdash; select a specific artboard by name</li>
+            <li><code>stateMachines</code> &mdash; target a state machine (string or array)</li>
+            <li><code>animations</code> &mdash; target a timeline animation (string or array)</li>
+            <li><code>autoplay</code> &mdash; start playback immediately (default true)</li>
+            <li><code>autoBind</code> &mdash; bind ViewModels automatically (default true, required for VM controls)</li>
+            <li><code>layout</code> &mdash; set fit and alignment (<code>{`{ fit: "contain", alignment: "center" }`}</code>)</li>
+            <li><code>useOffscreenRenderer</code> &mdash; improves glow/shadow quality for transparent overlays</li>
+            <li><code>onLoad</code>, <code>onPlay</code>, <code>onPause</code>, <code>onStateChange</code> &mdash; lifecycle callbacks</li>
+          </ul>
+
           <h3>Renderer Selection</h3>
           <p>
             Choose between <strong>Canvas</strong> and <strong>WebGL2</strong> renderers.

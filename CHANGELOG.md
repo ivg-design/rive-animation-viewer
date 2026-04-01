@@ -2,6 +2,34 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.9.9] - 2026-04-01
+
+### Fixed
+
+- **Text selection blocked on UI chrome** — Drag-select is now disabled across all UI labels, headers, buttons, and panel text. Selection remains enabled in editable fields (inputs, textareas, script editor) and copyable areas (MCP snippet blocks, server path).
+- **Server path wraps and is copyable** — The MCP Setup dialog server path is now displayed as a wrapping snippet block with its own copy button, matching the other snippet sections. No more horizontal scrolling or truncation.
+- **VM Explorer inject button hidden** — The terminal icon in the script editor toolbar is hidden until the browser console feature is rolled out. The underlying `injectCodeSnippet()` function is preserved.
+- **Apply & Reload tooltip** — Updated to "Apply editor config and reload animation" for clarity.
+
+### Added
+
+- **Apply & Reload documentation** — Full docs section on the website under Configuration explaining the button's purpose, workflow, and all supported Rive constructor options (artboard, stateMachines, animations, autoplay, autoBind, layout, callbacks).
+
+### Changed
+
+- Bumped app/package/runtime version from `1.9.8` to `1.9.9`.
+
+## [1.9.8] - 2026-03-31
+
+### Fixed
+
+- **MCP Setup dialog clipped at top** — Removed `position: fixed` + `transform` centering that conflicted with native `<dialog>` positioning. Now uses `margin: auto` (the correct method for `<dialog>` elements), which centers the dialog properly without clipping the header.
+- **Dialog header visible** — The "MCP Setup" title and close button are now always visible at the top of the dialog. The body scrolls independently below it.
+
+### Changed
+
+- Bumped app/package/runtime version from `1.9.7` to `1.9.8`.
+
 ## [1.9.7] - 2026-03-31
 
 ### Fixed

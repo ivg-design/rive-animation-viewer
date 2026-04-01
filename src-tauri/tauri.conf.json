@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Rive Animation Viewer",
-  "version": "1.9.7",
+  "version": "1.9.9",
   "identifier": "app.rive.animation.viewer",
   "build": {
     "beforeBuildCommand": "npm run build",
