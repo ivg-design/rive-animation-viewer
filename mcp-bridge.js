@@ -30,10 +30,92 @@ let connectionAttempts = 0;
 // Command handlers — each returns a JSON-serializable value
 // ---------------------------------------------------------------------------
 
+function buildViewModelSnapshot() {
+  const inst = window.riveInst;
+  const directVm = inst?.viewModelInstance || null;
+
+  if (window.vmTree) {
+    return {
+      hasRoot: !!(window.vmRootInstance || directVm),
+      tree: window.vmTree,
+      paths: window.vmPaths || [],
+      inputs: window.vmInputs || [],
+    };
+  }
+
+  if (!inst) {
+    return {
+      hasRoot: false,
+      tree: null,
+      paths: [],
+      inputs: [],
+      message: 'No animation loaded',
+    };
+  }
+
+  if (!directVm) {
+    return {
+      hasRoot: false,
+      tree: null,
+      paths: [],
+      inputs: [],
+      message: 'No ViewModel bound — ensure autoBind: true',
+    };
+  }
+
+  const accessorKinds = ['number', 'boolean', 'string', 'enum', 'color', 'trigger'];
+  const inputs = [];
+
+  function walkVm(instance, basePath) {
+    const node = { label: basePath || 'root', path: basePath || '', inputs: [], children: [] };
+    const props = instance.properties || [];
+    for (const prop of props) {
+      const name = prop?.name;
+      if (!name) continue;
+      const fullPath = basePath ? `${basePath}/${name}` : name;
+
+      for (const kind of accessorKinds) {
+        try {
+          const accessor = instance[kind]?.(name);
+          if (accessor !== undefined && accessor !== null) {
+            let value;
+            if (kind === 'trigger') {
+              value = null;
+            } else {
+              try { value = accessor.value; } catch { value = null; }
+            }
+            const entry = { name, path: fullPath, kind, value };
+            node.inputs.push(entry);
+            inputs.push(entry);
+            break;
+          }
+        } catch { /* accessor not available for this kind */ }
+      }
+
+      try {
+        const nested = instance.viewModelInstance?.(name) || instance.viewModel?.(name);
+        if (nested && nested !== instance && nested.properties) {
+          node.children.push(walkVm(nested, fullPath));
+        }
+      } catch { /* not a nested VM */ }
+    }
+    return node;
+  }
+
+  const tree = walkVm(directVm, '');
+  return {
+    hasRoot: true,
+    tree,
+    paths: inputs.map((input) => input.path),
+    inputs,
+  };
+}
+
 const commandHandlers = {
 
   async rav_status() {
     const inst = window.riveInst;
+    const vmSnapshot = buildViewModelSnapshot();
     const status = {
       connected: true,
       file: {
@@ -54,8 +136,8 @@ const commandHandlers = {
         canvasColor: document.getElementById('canvas-color-input')?.value || '#0d1117',
       },
       viewModel: {
-        hasRoot: !!window.vmRootInstance,
-        pathCount: window.vmPaths?.length || 0,
+        hasRoot: vmSnapshot.hasRoot,
+        pathCount: vmSnapshot.paths.length,
       },
       artboard: window._mcpGetArtboardState?.() || null,
     };
@@ -181,67 +263,15 @@ const commandHandlers = {
   },
 
   async rav_get_vm_tree() {
-    // If the vm-explorer-snippet has been injected, use its richer tree
-    if (window.vmTree) {
-      return {
-        tree: window.vmTree,
-        paths: window.vmPaths || [],
-        inputs: window.vmInputs || [],
-      };
-    }
-
-    // Otherwise, read directly from riveInstance.viewModelInstance
     const inst = window.riveInst;
     if (!inst) throw new Error('No animation loaded');
-
-    const vm = inst.viewModelInstance;
-    if (!vm) return { tree: null, paths: [], inputs: [], message: 'No ViewModel bound — ensure autoBind: true' };
-
-    const accessorKinds = ['number', 'boolean', 'string', 'enum', 'color', 'trigger'];
-    const inputs = [];
-
-    function walkVm(instance, basePath) {
-      const node = { label: basePath || 'root', path: basePath || '', inputs: [], children: [] };
-      const props = instance.properties || [];
-      for (const prop of props) {
-        const name = prop?.name;
-        if (!name) continue;
-        const fullPath = basePath ? `${basePath}/${name}` : name;
-
-        // Try each accessor kind
-        for (const kind of accessorKinds) {
-          try {
-            const accessor = instance[kind]?.(name);
-            if (accessor !== undefined && accessor !== null) {
-              let value;
-              if (kind === 'trigger') {
-                value = null;
-              } else {
-                try { value = accessor.value; } catch { value = null; }
-              }
-              const entry = { name, path: fullPath, kind, value };
-              node.inputs.push(entry);
-              inputs.push(entry);
-              break;
-            }
-          } catch { /* accessor not available for this kind */ }
-        }
-
-        // Check for nested ViewModel instances
-        try {
-          const nested = instance.viewModelInstance?.(name) || instance.viewModel?.(name);
-          if (nested && nested !== instance && nested.properties) {
-            node.children.push(walkVm(nested, fullPath));
-          }
-        } catch { /* not a nested VM */ }
-      }
-      return node;
-    }
-
-    const tree = walkVm(vm, '');
-    const paths = inputs.map(i => i.path);
-
-    return { tree, paths, inputs };
+    const snapshot = buildViewModelSnapshot();
+    return {
+      tree: snapshot.tree,
+      paths: snapshot.paths,
+      inputs: snapshot.inputs,
+      ...(snapshot.message ? { message: snapshot.message } : {}),
+    };
   },
 
   async rav_vm_get({ path }) {
@@ -364,7 +394,7 @@ const commandHandlers = {
   },
 
   async rav_get_editor_code() {
-    const code = window._mcpGetEditorCode?.();
+    const code = await window._mcpGetEditorCode?.();
     if (code !== undefined) {
       return { code };
     }
@@ -374,7 +404,10 @@ const commandHandlers = {
   async rav_set_editor_code({ code }) {
     if (typeof code !== 'string') throw new Error('code must be a string');
     if (typeof window._mcpSetEditorCode === 'function') {
-      window._mcpSetEditorCode(code);
+      const applied = await window._mcpSetEditorCode(code);
+      if (applied === false) {
+        throw new Error('Editor not available');
+      }
       return { ok: true };
     }
     throw new Error('Editor not available');

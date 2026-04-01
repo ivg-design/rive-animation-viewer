@@ -165,7 +165,7 @@ export default function DocsPage() {
           <p>
             RAV can also run as a local web server for quick inspection without installing:
           </p>
-          <pre><code>git clone https://github.com/ivg-design/rive-animation-viewer.git{"\n"}cd rive-animation-viewer{"\n"}npm install{"\n"}npm start  # Opens browser at http://localhost:8080</code></pre>
+          <pre><code>git clone https://github.com/ivg-design/rive-animation-viewer.git{"\n"}cd rive-animation-viewer{"\n"}npm install{"\n"}npm start  # Opens browser at http://localhost:1420</code></pre>
 
           <hr />
 

@@ -10,7 +10,7 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ```bash
 npm install
-npm start  # Opens browser at http://localhost:8080
+npm start  # Opens browser at http://localhost:1420
 ```
 
 ## Features

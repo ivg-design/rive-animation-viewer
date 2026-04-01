@@ -140,7 +140,7 @@ async function build() {
     }
   }
 
-  const dirsToCopy = ['icons', 'vendor'];
+  const dirsToCopy = ['icons', 'styles', 'src', 'vendor'];
   for (const dir of dirsToCopy) {
     const srcDir = path.join(root, dir);
     try {

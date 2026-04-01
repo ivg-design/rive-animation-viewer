@@ -1,0 +1,227 @@
+/* ── MCP Setup Dialog ────────────────────────────────────── */
+
+/* dialog[open] is set by the browser — never override display on <dialog> itself */
+.mcp-setup-dialog {
+    border: 1px solid var(--border-bright);
+    border-radius: var(--radius-lg);
+    background: var(--bg-zinc);
+    color: var(--text-dim);
+    padding: 0;
+    max-width: 600px;
+    width: 90vw;
+    height: 70vh;
+    box-shadow: 0 20px 60px #00000080;
+    margin: auto;
+}
+
+.mcp-setup-dialog::backdrop {
+    background: #0a0a0acc;
+}
+
+.mcp-setup-dialog[open] > .mcp-setup-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.mcp-setup-content {
+    display: none;
+    height: 100%;
+}
+
+.mcp-setup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 12px;
+    background: var(--bg-zinc);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.mcp-setup-header h2 {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-white);
+    margin: 0;
+}
+
+.mcp-setup-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 20px 20px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+}
+
+.mcp-setup-intro {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+
+.mcp-setup-intro a {
+    color: var(--neon);
+    text-decoration: none;
+}
+
+/* Node.js status indicator */
+.mcp-node-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-void);
+    border: 1px solid var(--border);
+    font-size: 11px;
+    font-family: "Space Mono", monospace;
+}
+
+.mcp-node-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    flex-shrink: 0;
+}
+
+.mcp-node-status.is-installed .mcp-node-dot {
+    background: #34d399;
+    box-shadow: 0 0 6px #34d39960;
+}
+
+.mcp-node-status.is-missing .mcp-node-dot {
+    background: #ef4444;
+    box-shadow: 0 0 6px #ef444460;
+}
+
+.mcp-node-status .mcp-node-label {
+    color: var(--text-dim);
+    flex: 1;
+}
+
+.mcp-node-status.is-missing .mcp-node-label {
+    color: #ef4444;
+}
+
+.mcp-node-install-link {
+    color: #a5b4fc;
+    font-size: 10px;
+    text-decoration: none;
+    border: 1px solid #a5b4fc40;
+    border-radius: var(--radius-sm);
+    padding: 2px 8px;
+    transition: all 0.15s ease;
+}
+
+.mcp-node-install-link:hover {
+    background: #a5b4fc18;
+    border-color: #a5b4fc;
+}
+
+/* Server path — wrapping block with copy button */
+.mcp-setup-path-section h3 {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-white);
+    margin: 0 0 4px;
+}
+
+.mcp-setup-path-code {
+    margin: 0;
+    padding: 10px 12px;
+    font-family: "Space Mono", monospace;
+    font-size: 10px;
+    line-height: 1.6;
+    color: var(--neon);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.mcp-setup-snippets {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.mcp-snippet-section h3 {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-white);
+    margin: 0 0 4px;
+}
+
+.mcp-snippet-section p {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0 0 6px;
+}
+
+.mcp-snippet-section code {
+    font-family: "Space Mono", monospace;
+    font-size: 10px;
+    color: #a5b4fc;
+}
+
+/* Copy button above the snippet, not overlapping */
+.mcp-snippet-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: var(--bg-void);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.mcp-snippet-block-header {
+    display: flex;
+    justify-content: flex-end;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-elevated);
+}
+
+.mcp-snippet-block pre {
+    margin: 0;
+    padding: 10px 12px;
+    font-family: "Space Mono", monospace;
+    font-size: 10px;
+    line-height: 1.6;
+    color: var(--text-dim);
+    white-space: pre-wrap;
+    word-break: break-all;
+    overflow-x: auto;
+    user-select: all;
+}
+
+.mcp-copy-btn {
+    height: 20px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-zinc);
+    color: var(--text-muted);
+    font-family: "Space Mono", monospace;
+    font-size: 9px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.mcp-copy-btn:hover {
+    border-color: var(--neon);
+    color: var(--neon);
+}
+
+.mcp-copy-btn.copied {
+    border-color: #34d399;
+    color: #34d399;
+}
+

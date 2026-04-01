@@ -1,0 +1,145 @@
+/* ── Runtime strip ────────────────────────────────────────── */
+
+.runtime-strip {
+    height: 36px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-zinc);
+    color: var(--text-dim);
+    font-size: 10px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-weight: 500;
+}
+
+.runtime-strip-left,
+.runtime-strip-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.runtime-strip-left {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.runtime-strip-right {
+    flex: 0 1 38%;
+    justify-content: flex-end;
+    overflow: hidden;
+}
+
+.runtime-strip-sep {
+    color: var(--border-bright);
+    font-size: 10px;
+}
+
+.runtime-chip {
+    height: auto;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: var(--text-dim);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.runtime-chip-runtime .dot {
+    width: 6px;
+    height: 6px;
+}
+
+.runtime-chip-runtime {
+    color: var(--text-ghost);
+}
+
+.runtime-chip-file {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-dim);
+}
+
+.runtime-chip-status {
+    color: var(--text-ghost);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* MCP indicator — three states: off, waiting, connected */
+.runtime-chip-mcp {
+    gap: 4px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    font: inherit;
+    transition: color 0.3s ease, opacity 0.3s ease;
+    flex-shrink: 0;
+}
+
+.mcp-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* OFF — bridge disabled, very dim */
+.runtime-chip-mcp[data-mcp-state="off"] {
+    color: #3f3f46;
+    opacity: 0.5;
+}
+
+.runtime-chip-mcp[data-mcp-state="off"] .mcp-dot {
+    background: #3f3f46;
+    box-shadow: none;
+}
+
+/* WAITING — bridge active, looking for agent */
+.runtime-chip-mcp[data-mcp-state="waiting"] {
+    color: #6366f180;
+}
+
+.runtime-chip-mcp[data-mcp-state="waiting"] .mcp-dot {
+    background: #6366f180;
+    box-shadow: none;
+    animation: mcp-pulse 2s ease-in-out infinite;
+}
+
+@keyframes mcp-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+/* CONNECTED — agent is live */
+.runtime-chip-mcp[data-mcp-state="connected"] {
+    color: #a5b4fc;
+}
+
+.runtime-chip-mcp[data-mcp-state="connected"] .mcp-dot {
+    background: #a5b4fc;
+    box-shadow: 0 0 8px #818cf8a0, 0 0 3px #a5b4fc80;
+    animation: none;
+}
+
