@@ -30,16 +30,33 @@ function buildElements() {
 }
 
 describe('ui/mcp-setup', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
     it('populates setup snippets and shows the dialog', async () => {
         const clipboardWrite = vi.fn().mockResolvedValue(undefined);
         Object.assign(navigator, {
             clipboard: { writeText: clipboardWrite },
         });
         const elements = buildElements();
+        const invoke = vi.fn(async (command) => {
+            if (command === 'get_mcp_server_path') {
+                return '/Applications/RAV/resources/rav-mcp-server.js';
+            }
+            if (command === 'detect_node_runtime') {
+                return {
+                    installed: true,
+                    path: '/opt/homebrew/bin/node',
+                    version: 'v25.8.0',
+                };
+            }
+            return null;
+        });
         const controller = createMcpSetupController({
             elements,
             getBridgeConnected: () => true,
-            getTauriInvoker: () => vi.fn().mockResolvedValue('/Applications/RAV/resources/rav-mcp-server.js'),
+            getTauriInvoker: () => invoke,
             initLucideIcons: vi.fn(),
         });
 
@@ -56,18 +73,66 @@ describe('ui/mcp-setup', () => {
         expect(clipboardWrite).toHaveBeenCalledWith(elements.snippetClaudeCode.textContent);
     });
 
-    it('shows a Node install hint when the bridge is not connected', async () => {
+    it('shows detected Node details even when the MCP bridge is not connected', async () => {
         const elements = buildElements();
+        const invoke = vi.fn(async (command) => {
+            if (command === 'detect_node_runtime') {
+                return {
+                    installed: true,
+                    path: '/opt/homebrew/bin/node',
+                    version: 'v25.8.0',
+                };
+            }
+            return null;
+        });
         const controller = createMcpSetupController({
             elements,
             getBridgeConnected: () => false,
-            getTauriInvoker: () => null,
+            getTauriInvoker: () => invoke,
             initLucideIcons: vi.fn(),
         });
 
         await controller.showMcpSetup();
 
+        expect(elements.mcpNodeLabel.textContent).toContain('Node.js: installed');
+        expect(elements.mcpNodeLabel.textContent).toContain('/opt/homebrew/bin/node');
+        expect(elements.mcpNodeStatus.classList.contains('is-installed')).toBe(true);
+    });
+
+    it('opens the installer URL when Node is missing and refreshes on subsequent opens', async () => {
+        const elements = buildElements();
+        const invoke = vi.fn(async (command, args) => {
+            if (command === 'detect_node_runtime') {
+                return invoke.detected.shift();
+            }
+            if (command === 'open_external_url') {
+                return args.url;
+            }
+            return null;
+        });
+        invoke.detected = [
+            { installed: false, path: null, version: null },
+            { installed: true, path: '/usr/local/bin/node', version: 'v22.0.0' },
+        ];
+        const windowOpen = vi.spyOn(window, 'open').mockImplementation(() => null);
+        const controller = createMcpSetupController({
+            elements,
+            getBridgeConnected: () => false,
+            getTauriInvoker: () => invoke,
+            initLucideIcons: vi.fn(),
+        });
+
+        await controller.showMcpSetup();
+        const link = elements.mcpNodeStatus.querySelector('a');
         expect(elements.mcpNodeLabel.innerHTML).toContain('Node.js: not detected');
-        expect(elements.mcpNodeStatus.querySelector('a')?.href).toContain('https://nodejs.org');
+        expect(link?.href).toContain('https://nodejs.org/en/download');
+
+        link.click();
+        await Promise.resolve();
+        expect(invoke).toHaveBeenCalledWith('open_external_url', { url: 'https://nodejs.org/en/download' });
+        expect(windowOpen).not.toHaveBeenCalled();
+
+        await controller.showMcpSetup();
+        expect(elements.mcpNodeLabel.textContent).toContain('/usr/local/bin/node');
     });
 });

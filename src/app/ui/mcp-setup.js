@@ -4,8 +4,35 @@ export function createMcpSetupController({
     getTauriInvoker,
     initLucideIcons,
 }) {
-    let mcpNodeChecked = false;
     let mcpServerResolvedPath = null;
+    const NODE_INSTALL_URL = 'https://nodejs.org/en/download';
+
+    async function invokeDesktop(command, args = {}) {
+        const invoke = getTauriInvoker();
+        if (!invoke) {
+            return null;
+        }
+        try {
+            return await invoke(command, args);
+        } catch (error) {
+            console.warn(`[rive-viewer] ${command} failed:`, error);
+            return null;
+        }
+    }
+
+    async function openNodeInstallPage() {
+        const opened = await invokeDesktop('open_external_url', { url: NODE_INSTALL_URL });
+        if (opened !== null) {
+            return;
+        }
+
+        if (typeof window.open === 'function') {
+            window.open(NODE_INSTALL_URL, '_blank', 'noopener,noreferrer');
+            return;
+        }
+
+        window.location.href = NODE_INSTALL_URL;
+    }
 
     async function showMcpSetup() {
         const dialog = elements.mcpSetupDialog;
@@ -27,10 +54,7 @@ export function createMcpSetupController({
             elements.mcpServerPathDisplay.textContent = serverPath;
         }
 
-        if (!mcpNodeChecked) {
-            mcpNodeChecked = true;
-            checkNodeInstalled();
-        }
+        await checkNodeInstalled();
 
         const escaped = serverPath.replace(/'/g, "'\\''");
 
@@ -91,23 +115,43 @@ export function createMcpSetupController({
         if (!statusEl || !labelEl) return;
 
         try {
+            statusEl.classList.remove('is-installed', 'is-missing');
+            statusEl.querySelectorAll('.mcp-node-install-link').forEach((node) => node.remove());
+
             const bridgeConnected = getBridgeConnected();
             if (bridgeConnected) {
-                statusEl.classList.remove('is-missing');
                 statusEl.classList.add('is-installed');
                 labelEl.textContent = 'Node.js: installed (MCP server running)';
                 return;
             }
 
-            statusEl.classList.remove('is-installed');
+            const nodeRuntime = await invokeDesktop('detect_node_runtime');
+            if (nodeRuntime?.installed) {
+                const parts = [];
+                if (nodeRuntime.version) {
+                    parts.push(nodeRuntime.version);
+                }
+                if (nodeRuntime.path) {
+                    parts.push(nodeRuntime.path);
+                }
+                const detail = parts.length ? ` (${parts.join(' • ')})` : '';
+                statusEl.classList.add('is-installed');
+                labelEl.textContent = `Node.js: installed${detail} — MCP bridge not connected yet`;
+                return;
+            }
+
             statusEl.classList.add('is-missing');
             labelEl.innerHTML = 'Node.js: not detected &mdash; required for MCP';
             const link = document.createElement('a');
-            link.href = 'https://nodejs.org';
+            link.href = NODE_INSTALL_URL;
             link.target = '_blank';
             link.rel = 'noopener noreferrer';
             link.className = 'mcp-node-install-link';
             link.textContent = 'INSTALL';
+            link.addEventListener('click', async (event) => {
+                event.preventDefault();
+                await openNodeInstallPage();
+            });
             statusEl.appendChild(link);
         } catch {
             /* noop */
