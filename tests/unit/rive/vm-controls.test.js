@@ -340,6 +340,27 @@ describe('rive/vm-controls', () => {
             }),
         ]));
 
+        harness.controller.setVmControlBaselineSnapshot(snapshot);
+        harness.accessors.rootNumber.value = 11;
+        harness.accessors.rootString.value = 'updated again';
+        const changedSnapshot = harness.controller.getChangedVmControlSnapshot();
+        expect(changedSnapshot).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                kind: 'number',
+                value: 11,
+            }),
+            expect.objectContaining({
+                kind: 'string',
+                value: 'updated again',
+            }),
+        ]));
+        expect(changedSnapshot).not.toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                kind: 'enum',
+                value: 'slow',
+            }),
+        ]));
+
         harness.accessors.rootNumber.value = 99;
         harness.accessors.rootString.value = 'server value';
         harness.controller.syncVmControlBindings(true);
@@ -369,6 +390,13 @@ describe('rive/vm-controls', () => {
                 value: 'slow',
             }),
         ]));
+        const controlHierarchy = harness.controller.serializeControlHierarchy();
+        expect(controlHierarchy.children).toHaveLength(2);
+        expect(controlHierarchy.children[1].inputs[0]).toMatchObject({
+            name: 'armed',
+            source: 'state-machine',
+            stateMachineName: 'Machine',
+        });
 
         harness.controller.resetVmInputControls('No animation loaded.');
         expect(harness.elements.vmControlsCount.textContent).toBe('0');
@@ -426,6 +454,7 @@ describe('rive/vm-controls', () => {
 
         emptyController.renderVmInputControls();
         expect(emptyController.captureVmControlSnapshot()).toEqual([]);
+        expect(emptyController.getChangedVmControlSnapshot()).toEqual([]);
         expect(emptyController.applyVmControlSnapshot(null)).toBe(0);
         expect(emptyController.serializeVmHierarchy()).toBeNull();
 

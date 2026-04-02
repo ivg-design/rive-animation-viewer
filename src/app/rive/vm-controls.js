@@ -241,6 +241,16 @@ export function getStateMachineInputKind(input, runtime) {
     return null;
 }
 
+export function controlSnapshotKeyForDescriptor(descriptor) {
+    if (!descriptor) {
+        return null;
+    }
+    if (descriptor.source === 'state-machine') {
+        return `sm:${descriptor.stateMachineName || ''}:${descriptor.name || ''}:${descriptor.kind || ''}`;
+    }
+    return `vm:${descriptor.path || ''}:${descriptor.kind || ''}`;
+}
+
 export function createVmControlsController({
     callbacks = {},
     documentRef = globalThis.document,
@@ -258,6 +268,7 @@ export function createVmControlsController({
 
     let vmControlBindings = [];
     let vmControlSyncTimer = null;
+    let baselineVmControlSnapshot = [];
 
     function getDepthColor(depth) {
         return VM_DEPTH_COLORS[depth % VM_DEPTH_COLORS.length];
@@ -275,6 +286,17 @@ export function createVmControlsController({
 
     function clearVmControlBindings() {
         vmControlBindings = [];
+    }
+
+    function cloneSnapshotEntry(entry) {
+        if (!entry?.descriptor) {
+            return null;
+        }
+        return {
+            descriptor: { ...entry.descriptor },
+            kind: entry.kind,
+            value: entry.value,
+        };
     }
 
     function registerVmControlBinding(descriptor, binding) {
@@ -536,16 +558,6 @@ export function createVmControlsController({
 
     function isEditingControl(element) {
         return documentRef.activeElement === element;
-    }
-
-    function vmSnapshotKeyForDescriptor(descriptor) {
-        if (!descriptor) {
-            return null;
-        }
-        if (descriptor.source === 'state-machine') {
-            return `sm:${descriptor.stateMachineName || ''}:${descriptor.name || ''}:${descriptor.kind || ''}`;
-        }
-        return `vm:${descriptor.path || ''}:${descriptor.kind || ''}`;
     }
 
     function syncVmControlBindings(force = false) {
@@ -914,6 +926,7 @@ export function createVmControlsController({
         count.textContent = '0';
         empty.hidden = false;
         empty.textContent = message;
+        baselineVmControlSnapshot = [];
         clearVmControlBindings();
         stopVmControlSync();
     }
@@ -988,7 +1001,7 @@ export function createVmControlsController({
             }
 
             const descriptor = binding.descriptor;
-            const key = vmSnapshotKeyForDescriptor(descriptor);
+            const key = controlSnapshotKeyForDescriptor(descriptor);
             if (!key || seen.has(key)) {
                 return;
             }
@@ -1026,6 +1039,42 @@ export function createVmControlsController({
         });
 
         return snapshot;
+    }
+
+    function setVmControlBaselineSnapshot(snapshot = captureVmControlSnapshot()) {
+        baselineVmControlSnapshot = Array.isArray(snapshot)
+            ? snapshot.map(cloneSnapshotEntry).filter(Boolean)
+            : [];
+        return baselineVmControlSnapshot.length;
+    }
+
+    function getChangedVmControlSnapshot(snapshot = captureVmControlSnapshot()) {
+        const currentSnapshot = Array.isArray(snapshot)
+            ? snapshot.map(cloneSnapshotEntry).filter(Boolean)
+            : [];
+        if (!baselineVmControlSnapshot.length) {
+            return currentSnapshot;
+        }
+
+        const baselineByKey = new Map();
+        baselineVmControlSnapshot.forEach((entry) => {
+            const key = controlSnapshotKeyForDescriptor(entry?.descriptor);
+            if (key) {
+                baselineByKey.set(key, entry);
+            }
+        });
+
+        return currentSnapshot.filter((entry) => {
+            const key = controlSnapshotKeyForDescriptor(entry?.descriptor);
+            if (!key) {
+                return false;
+            }
+            const baselineEntry = baselineByKey.get(key);
+            if (!baselineEntry) {
+                return true;
+            }
+            return baselineEntry.kind !== entry.kind || baselineEntry.value !== entry.value;
+        });
     }
 
     function applyVmControlSnapshot(snapshot) {
@@ -1081,6 +1130,76 @@ export function createVmControlsController({
         return applied;
     }
 
+    function stripNestedRootVmInputs(hierarchy) {
+        if (!hierarchy?.children?.length) {
+            return hierarchy;
+        }
+
+        const childPaths = new Set();
+        const collectChildPaths = (node) => {
+            if (node.inputs) {
+                node.inputs.forEach((input) => childPaths.add(input.path));
+            }
+            if (node.children) {
+                node.children.forEach(collectChildPaths);
+            }
+        };
+        hierarchy.children.forEach(collectChildPaths);
+        hierarchy.inputs = hierarchy.inputs.filter((input) => !childPaths.has(input.path));
+        return hierarchy;
+    }
+
+    function serializeHierarchyNode(node) {
+        const serializeNode = (node) => ({
+            children: (node.children || []).map(serializeNode),
+            inputs: (node.inputs || []).map((input) => {
+                const descriptor = {
+                    kind: input.kind,
+                    name: input.name,
+                    path: input.path,
+                    source: input.source,
+                    stateMachineName: input.stateMachineName,
+                };
+                let value = null;
+                try {
+                    const accessor = resolveControlAccessor(descriptor);
+                    if (accessor && input.kind !== 'trigger') {
+                        value = accessor.value;
+                    }
+                    if (accessor && input.kind === 'enum' && Array.isArray(accessor.values)) {
+                        return {
+                            descriptor,
+                            enumValues: accessor.values,
+                            kind: input.kind,
+                            name: input.name,
+                            path: input.path,
+                            source: input.source,
+                            stateMachineName: input.stateMachineName,
+                            value,
+                        };
+                    }
+                } catch {
+                    /* noop */
+                }
+
+                return {
+                    descriptor,
+                    kind: input.kind,
+                    name: input.name,
+                    path: input.path,
+                    source: input.source,
+                    stateMachineName: input.stateMachineName,
+                    value,
+                };
+            }),
+            kind: node.kind,
+            label: node.label,
+            path: node.path,
+        });
+
+        return serializeNode(node);
+    }
+
     function serializeVmHierarchy() {
         const rootVm = resolveVmRootInstance(getRiveInstance());
         if (!rootVm) {
@@ -1092,49 +1211,48 @@ export function createVmControlsController({
             return null;
         }
 
-        const serializeNode = (node) => ({
-            children: (node.children || []).map(serializeNode),
-            inputs: (node.inputs || []).map((input) => {
-                let value = null;
-                try {
-                    const accessor = resolveVmAccessor(input.path, input.kind);
-                    if (accessor && input.kind !== 'trigger') {
-                        value = accessor.value;
-                    }
-                    if (accessor && input.kind === 'enum' && Array.isArray(accessor.values)) {
-                        return {
-                            enumValues: accessor.values,
-                            kind: input.kind,
-                            name: input.name,
-                            path: input.path,
-                            value,
-                        };
-                    }
-                } catch {
-                    /* noop */
-                }
+        return serializeHierarchyNode(stripNestedRootVmInputs(hierarchy));
+    }
 
-                return {
-                    kind: input.kind,
-                    name: input.name,
-                    path: input.path,
-                    value,
-                };
-            }),
-            kind: node.kind,
-            label: node.label,
-            path: node.path,
-        });
+    function serializeControlHierarchy() {
+        const rootVm = resolveVmRootInstance(getRiveInstance());
+        const vmHierarchy = rootVm ? stripNestedRootVmInputs(buildVmHierarchy(rootVm)) : null;
+        const stateMachineHierarchy = buildStateMachineHierarchy();
+        const children = [];
 
-        return serializeNode(hierarchy);
+        if (vmHierarchy && (vmHierarchy.inputs.length || vmHierarchy.children.length)) {
+            children.push(serializeHierarchyNode(vmHierarchy));
+        }
+
+        if (stateMachineHierarchy?.children?.length) {
+            stateMachineHierarchy.children.forEach((node) => {
+                children.push(serializeHierarchyNode(node));
+            });
+        }
+
+        if (!children.length) {
+            return null;
+        }
+
+        return {
+            children,
+            inputs: [],
+            kind: 'controls',
+            label: 'Controls',
+            path: '__controls__',
+        };
     }
 
     return {
         applyVmControlSnapshot,
         captureVmControlSnapshot,
+        controlSnapshotKeyForDescriptor,
+        getChangedVmControlSnapshot,
         renderVmInputControls,
         resetVmInputControls,
+        serializeControlHierarchy,
         serializeVmHierarchy,
+        setVmControlBaselineSnapshot,
         stopVmControlSync,
         syncVmControlBindings,
     };

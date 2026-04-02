@@ -52,6 +52,8 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 - Use **rav_set_editor_code** then **rav_apply_code** to change configuration and reload.
 - **rav_status** returns the live instantiation source and whether the editor has unapplied draft changes.
 - **generate_web_instantiation_code** returns the canonical copy-paste snippet for the live mode currently running in RAV.
+- The returned snippet defaults to the `cdn` form unless you explicitly request `package_source: "local"`.
+- The returned snippet restores the current ViewModel/state-machine values on load and exposes `window.ravRive` helpers for VM and state-machine control.
 
 ### State Machines vs ViewModels
 - **State machine inputs** are the legacy way to control animations (boolean, number, trigger).
@@ -66,7 +68,8 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 - **rav_console_read** returns captured console.* output (all calls since app start).
 - **rav_console_exec** evaluates code in the REPL with output shown in the console panel.
 - **rav_export_demo** creates a self-contained HTML file with the current animation, runtime, and settings baked in.
-- **generate_web_instantiation_code** is the preferred way to get a web snippet. It bakes in the current runtime package, artboard/playback selection, layout fit/alignment, background mode, and the active instantiation source."#;
+- **generate_web_instantiation_code** is the preferred way to get a web snippet. It bakes in the current runtime package, artboard/playback selection, layout fit/alignment, background mode, the active instantiation source, and the currently selected bound control values.
+- **rav_toggle_instantiation_controls_dialog** opens the in-app control-selection dialog so a human can choose exactly which values will be serialized into snippets and exported demos."#;
 
 #[derive(Default)]
 struct BridgeState {
@@ -374,11 +377,22 @@ fn tools_list() -> Value {
         },
         {
             "name": "generate_web_instantiation_code",
-            "description": "Generate a copy-paste-ready web instantiation snippet for the animation currently loaded in RAV. The snippet mirrors the live source mode that is actually running in RAV: either internal wiring or the last applied editor code. Supports either CDN or local npm package usage.",
+            "description": "Generate a copy-paste-ready web instantiation snippet for the animation currently loaded in RAV. The snippet mirrors the live source mode that is actually running in RAV: either internal wiring or the last applied editor code. Supports either CDN or local npm package usage, restores the current ViewModel/state-machine values on load, and exposes helper controls on window.ravRive.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "package_source": { "type": "string", "enum": ["cdn", "local"], "description": "Use a CDN/global runtime snippet or a local npm package import snippet." }
+                },
+                "additionalProperties": false
+            }
+        },
+        {
+            "name": "rav_toggle_instantiation_controls_dialog",
+            "description": "Open, close, or toggle the Snippet & Export Controls dialog inside RAV. Use this when a human user should choose exactly which bound controls are serialized into snippets and demos.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "action": { "type": "string", "enum": ["open", "close", "toggle"], "description": "Whether to open, close, or toggle the dialog. Defaults to toggle." }
                 },
                 "additionalProperties": false
             }

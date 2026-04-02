@@ -41,6 +41,7 @@ describe('platform/global-bindings', () => {
         const setEditorCode = vi.fn().mockReturnValue(true);
         const showMcpSetup = vi.fn();
         const switchArtboard = vi.fn();
+        const toggleInstantiationControlsDialog = vi.fn().mockResolvedValue({ open: true });
         const toggleLiveConfigSource = vi.fn().mockResolvedValue(undefined);
         const windowRef = {
             _mcpBridge: {
@@ -84,6 +85,7 @@ describe('platform/global-bindings', () => {
                 setEditorCode,
                 showMcpSetup,
                 switchArtboard,
+                toggleInstantiationControlsDialog,
                 toggleLiveConfigSource,
             },
             elements: {
@@ -130,6 +132,7 @@ describe('platform/global-bindings', () => {
         windowRef._mcpResetArtboard();
         expect(windowRef._mcpGetArtboardState()).toEqual({ currentArtboard: 'Main' });
         windowRef.showMcpSetup();
+        await expect(windowRef._mcpToggleInstantiationControlsDialog('open')).resolves.toEqual({ open: true });
 
         expect(applyCodeAndReload).toHaveBeenCalled();
         expect(createDemoBundle).toHaveBeenCalled();
@@ -145,6 +148,7 @@ describe('platform/global-bindings', () => {
         expect(switchArtboard).toHaveBeenCalledWith('Main', 'sm:Main');
         expect(resetToDefaultArtboard).toHaveBeenCalled();
         expect(showMcpSetup).toHaveBeenCalled();
+        expect(toggleInstantiationControlsDialog).toHaveBeenCalledWith('open');
         expect(openScriptConsole).toHaveBeenCalled();
         expect(execScriptConsole).toHaveBeenCalledWith('1 + 1');
         expect(closeScriptConsole).toHaveBeenCalled();
@@ -158,7 +162,9 @@ describe('platform/global-bindings', () => {
         await expect(windowRef._mcpGenerateWebInstantiationCode('cdn')).resolves.toEqual({ code: '<script></script>' });
         expect(generateWebInstantiationCode).toHaveBeenCalledWith('cdn');
         expect(windowRef._mcpGetLiveConfigState()).toEqual({ draftDirty: true, sourceMode: 'editor' });
+        await expect(windowRef._mcpToggleInstantiationControlsDialog('toggle')).resolves.toEqual({ open: true });
         await expect(windowRef._mcpToggleLiveConfigSource()).resolves.toBeUndefined();
+        expect(toggleInstantiationControlsDialog).toHaveBeenCalledWith('toggle');
         expect(toggleLiveConfigSource).toHaveBeenCalled();
     });
 
@@ -211,6 +217,7 @@ describe('platform/global-bindings', () => {
         windowRef._mcpResetArtboard();
         expect(windowRef._mcpGetArtboardState()).toEqual({});
         expect(windowRef._mcpGetLiveConfigState()).toEqual({ draftDirty: false, sourceMode: 'internal' });
+        await expect(windowRef._mcpToggleInstantiationControlsDialog('toggle')).resolves.toEqual({ open: false });
         await expect(windowRef._mcpToggleLiveConfigSource()).resolves.toBeUndefined();
         windowRef.showMcpSetup();
         chip.click();

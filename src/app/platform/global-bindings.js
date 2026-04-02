@@ -54,6 +54,7 @@ export function createGlobalBindingsController({
         setEditorCode = () => {},
         showMcpSetup = () => {},
         switchArtboard = () => {},
+        toggleInstantiationControlsDialog = async () => ({ open: false }),
         toggleLiveConfigSource = async () => {},
     } = callbacks;
 
@@ -108,6 +109,7 @@ export function createGlobalBindingsController({
         windowRef._mcpResetArtboard = resetToDefaultArtboard;
         windowRef._mcpGetArtboardState = () => getArtboardStateSnapshot();
         windowRef._mcpGetLiveConfigState = () => getLiveConfigState();
+        windowRef._mcpToggleInstantiationControlsDialog = async (action) => toggleInstantiationControlsDialog(action);
         windowRef._mcpToggleLiveConfigSource = async () => toggleLiveConfigSource();
         windowRef.showMcpSetup = showMcpSetup;
 

@@ -67,6 +67,10 @@
             </div>
 
             <div class="header-right">
+                <button type="button" id="snippet-dialog-btn" class="btn btn-muted">
+                    <i data-lucide="code-xml" class="lucide-16"></i>
+                    <span>SNIPPET</span>
+                </button>
                 <button type="button" id="demo-bundle-btn" class="btn btn-primary">
                     <i data-lucide="download" class="lucide-16"></i>
                     <span>EXPORT DEMO</span>
@@ -195,6 +199,51 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </dialog>
+
+        <dialog id="instantiation-controls-dialog" class="instantiation-controls-dialog">
+            <div class="instantiation-controls-content">
+                <div class="instantiation-controls-header">
+                    <div>
+                        <h2>Snippet &amp; Export Controls</h2>
+                        <p>Choose exactly which bound ViewModel and state-machine values should be serialized into generated snippets and exported demos.</p>
+                    </div>
+                    <button type="button" id="instantiation-controls-close-btn" class="icon-btn icon-btn-ghost" aria-label="Close">
+                        <i data-lucide="x" class="lucide-18"></i>
+                    </button>
+                </div>
+                <div class="instantiation-controls-body">
+                    <div class="instantiation-controls-toolbar">
+                        <span id="instantiation-selection-summary" class="instantiation-selection-summary">Loading controls…</span>
+                        <div class="instantiation-controls-toolbar-actions">
+                            <button type="button" id="instantiation-preset-changed-btn" class="btn-compact">CHANGED ONLY</button>
+                            <button type="button" id="instantiation-preset-all-btn" class="btn-compact">SELECT ALL</button>
+                            <button type="button" id="instantiation-preset-none-btn" class="btn-compact">CLEAR</button>
+                            <select id="instantiation-package-source-select" class="header-select header-select-compact" aria-label="Snippet package source">
+                                <option value="cdn" selected>SNIPPET: CDN</option>
+                                <option value="local">SNIPPET: LOCAL</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="instantiation-controls-grid">
+                        <section class="instantiation-controls-panel">
+                            <p class="instantiation-controls-note">Branch checkboxes select every nested control. Individual line items only affect that one serialized value.</p>
+                            <div id="instantiation-controls-tree" class="instantiation-controls-tree"></div>
+                        </section>
+                        <section class="instantiation-preview-panel">
+                            <div class="instantiation-preview-header">
+                                <span id="instantiation-preview-status" class="instantiation-preview-status">Snippet preview not generated yet.</span>
+                                <button type="button" id="copy-instantiation-preview-btn" class="btn-compact" disabled>COPY</button>
+                            </div>
+                            <pre id="instantiation-preview-output" class="instantiation-preview-output">// Generate a snippet to preview it here.</pre>
+                        </section>
+                    </div>
+                </div>
+                <div class="instantiation-controls-footer">
+                    <button type="button" id="instantiation-dialog-snippet-btn" class="btn btn-muted">GENERATE SNIPPET</button>
+                    <button type="button" id="instantiation-dialog-export-btn" class="btn btn-primary">EXPORT DEMO</button>
                 </div>
             </div>
         </dialog>

@@ -704,7 +704,8 @@ export default function DocsPage() {
               <tr><td><code>rav_set_layout</code></td><td>Set canvas layout fit mode</td></tr>
               <tr><td><code>rav_set_canvas_color</code></td><td>Set background color or transparent</td></tr>
               <tr><td><code>rav_export_demo</code></td><td>Export a standalone HTML demo</td></tr>
-              <tr><td><code>generate_web_instantiation_code</code></td><td>Generate the live canonical web snippet for <code>cdn</code> or <code>local</code> usage</td></tr>
+              <tr><td><code>generate_web_instantiation_code</code></td><td>Generate the live canonical web snippet for <code>cdn</code> or <code>local</code> usage, including <code>window.ravRive</code> helpers and current control values</td></tr>
+              <tr><td><code>rav_toggle_instantiation_controls_dialog</code></td><td>Open or close the in-app Snippet &amp; Export Controls dialog for manual control curation</td></tr>
               <tr><td><code>rav_get_sm_inputs</code> / <code>rav_set_sm_input</code></td><td>State machine input access</td></tr>
               <tr><td><code>rav_eval</code></td><td>Evaluate JavaScript in RAV&apos;s browser context</td></tr>
               <tr><td><code>rav_console_open</code> / <code>rav_console_close</code></td><td>Toggle the JS console panel</td></tr>
@@ -717,7 +718,10 @@ export default function DocsPage() {
             <li><code>rav_status</code> reports whether the live runtime is in <code>internal</code> or <code>editor</code> mode</li>
             <li><code>rav_apply_code</code> switches the live runtime to the last applied editor config</li>
             <li><code>generate_web_instantiation_code</code> always mirrors what is actually running, not the unsaved draft buffer</li>
-            <li>Exported demos mirror the active live mode and expose a <strong>Copy Instantiation Code</strong> toolbar button</li>
+            <li><code>generate_web_instantiation_code</code> defaults to the CDN form unless you explicitly request <code>package_source: &quot;local&quot;</code></li>
+            <li>Generated snippets restore only the checked ViewModel/state-machine values on load and expose helper methods on <code>window.ravRive</code></li>
+            <li>The <strong>Snippet &amp; Export Controls</strong> dialog lets you choose exactly which values are serialized; if you never touch it, RAV defaults to the changed-control set</li>
+            <li>Exported demos mirror the active live mode, surface fit/alignment in the main toolbar, and expose a <strong>Copy Instantiation Code</strong> toolbar button</li>
           </ul>
 
           <h3>Event Console</h3>

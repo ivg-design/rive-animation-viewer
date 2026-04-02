@@ -15,6 +15,7 @@ describe('ui/action-bindings', () => {
             resetButton: createButton('reset'),
             playButton: createButton('play'),
             pauseButton: createButton('pause'),
+            snippetDialogButton: createButton('snippet'),
             demoBundleButton: createButton('demo'),
             mcpSetupButton: createButton('mcp'),
             injectVmExplorerButton: createButton('inject'),
@@ -27,7 +28,8 @@ describe('ui/action-bindings', () => {
             reset: vi.fn(),
             play: vi.fn(),
             pause: vi.fn(),
-            createDemoBundle: vi.fn(),
+            showInstantiationControlsDialogForExport: vi.fn(),
+            showInstantiationControlsDialogForSnippet: vi.fn(),
             showMcpSetup: vi.fn(),
             injectCodeSnippet: vi.fn(),
             applyCodeAndReload: vi.fn(),
@@ -39,6 +41,7 @@ describe('ui/action-bindings', () => {
         elements.resetButton.click();
         elements.playButton.click();
         elements.pauseButton.click();
+        elements.snippetDialogButton.click();
         elements.demoBundleButton.click();
         elements.mcpSetupButton.click();
         elements.injectVmExplorerButton.click();
@@ -49,7 +52,8 @@ describe('ui/action-bindings', () => {
         expect(actions.reset).toHaveBeenCalledTimes(1);
         expect(actions.play).toHaveBeenCalledTimes(1);
         expect(actions.pause).toHaveBeenCalledTimes(1);
-        expect(actions.createDemoBundle).toHaveBeenCalledTimes(1);
+        expect(actions.showInstantiationControlsDialogForSnippet).toHaveBeenCalledTimes(1);
+        expect(actions.showInstantiationControlsDialogForExport).toHaveBeenCalledTimes(1);
         expect(actions.showMcpSetup).toHaveBeenCalledTimes(1);
         expect(actions.injectCodeSnippet).toHaveBeenCalledTimes(1);
         expect(actions.applyCodeAndReload).toHaveBeenCalledTimes(1);

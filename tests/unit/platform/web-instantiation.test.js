@@ -68,8 +68,10 @@ describe('platform/web-instantiation', () => {
 
         const code = generateWebInstantiationCode(descriptor, { packageSource: 'local' });
         expect(code).toContain('import * as rive from "@rive-app/webgl2";');
+        expect(code).toContain('const ravRive = createRavWebController(() => riveInst);');
         expect(code).toContain('const userConfig = (');
         expect(code).toContain('...userConfig,');
+        expect(code).toContain('ravRive.applySnapshot();');
         expect(code).toContain('stateMachines: "main-sm"');
         expect(code).toContain('canvas.style.background = "#112233";');
     });
@@ -97,8 +99,10 @@ describe('platform/web-instantiation', () => {
         expect(result.packageSource).toBe('cdn');
         expect(result.sourceMode).toBe('internal');
         expect(result.code).toContain('<script src="https://unpkg.com/@rive-app/canvas@2.35.0"></script>');
+        expect(result.code).toContain('window.ravRive = ravRive;');
         expect(result.code).toContain('animations: "idle"');
         expect(result.code).toContain('canvas.style.background = "transparent";');
+        expect(result.helperApi.global).toBe('window.ravRive');
         expect(result.notes[1]).toContain('internal wiring');
     });
 });

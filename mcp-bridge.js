@@ -195,7 +195,7 @@ const commandHandlers = {
       });
     }
     if (typeof window._mcpLoadAnimation === 'function') {
-      await window._mcpLoadAnimation(fileUrl, fileName);
+      await window._mcpLoadAnimation(fileUrl, fileName, { forceAutoplay: true });
     }
 
     return { ok: true, file: fileName, sizeBytes: buffer.byteLength };
@@ -477,11 +477,18 @@ const commandHandlers = {
     throw new Error('Export not available');
   },
 
-  async generate_web_instantiation_code({ package_source = 'local' } = {}) {
+  async generate_web_instantiation_code({ package_source = 'cdn' } = {}) {
     if (typeof window._mcpGenerateWebInstantiationCode === 'function') {
       return await window._mcpGenerateWebInstantiationCode(package_source);
     }
     throw new Error('Web instantiation generator not available');
+  },
+
+  async rav_toggle_instantiation_controls_dialog({ action = 'toggle' } = {}) {
+    if (typeof window._mcpToggleInstantiationControlsDialog === 'function') {
+      return await window._mcpToggleInstantiationControlsDialog(action);
+    }
+    throw new Error('Instantiation controls dialog not available');
   },
 
   async rav_get_sm_inputs() {

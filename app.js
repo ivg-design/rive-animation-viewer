@@ -33,6 +33,7 @@ import { bindUiActionHandlers } from './src/app/ui/action-bindings.js';
 import { createCodeEditorController } from './src/app/ui/code-editor.js';
 import { createEventLogController } from './src/app/ui/event-log.js';
 import { createMcpSetupController } from './src/app/ui/mcp-setup.js';
+import { createInstantiationControlsDialogController } from './src/app/ui/instantiation-controls-dialog.js';
 import { createScriptConsoleController } from './src/app/ui/script-console.js';
 import { createShellController } from './src/app/ui/shell-controller.js';
 import {
@@ -94,6 +95,7 @@ const APP_BUILD_PLACEHOLDER = '__APP' + '_BUILD__';
 let demoExportController = null;
 let fileSessionController = null;
 let instanceController = null;
+let instantiationControlsDialogController = null;
 let shellController = null;
 let statusController = null;
 let updaterController = null;
@@ -303,9 +305,12 @@ const vmControlsController = createVmControlsController({
 const {
     applyVmControlSnapshot,
     captureVmControlSnapshot,
+    getChangedVmControlSnapshot,
     renderVmInputControls,
     resetVmInputControls,
+    serializeControlHierarchy,
     serializeVmHierarchy,
+    setVmControlBaselineSnapshot,
 } = vmControlsController;
 const artboardSwitcherController = createArtboardSwitcherController({
     elements,
@@ -388,6 +393,7 @@ instanceController = createRiveInstanceController({
         renderVmInputControls,
         resetPlaybackChips,
         resetVmInputControls,
+        setVmControlBaselineSnapshot,
         showError,
         syncArtboardStateAfterLoad,
         syncArtboardStateFromConfig,
@@ -441,6 +447,7 @@ demoExportController = createDemoExportController({
         showError,
         updateInfo,
     },
+    captureVmControlSnapshot,
     getArtboardStateSnapshot,
     getCurrentFileBuffer,
     getCurrentFileName,
@@ -454,8 +461,26 @@ demoExportController = createDemoExportController({
     getRuntimeAsset,
     getLiveConfigState,
     getRuntimeVersionToken: () => runtimeVersionToken,
+    getSelectedControlKeys: () => instantiationControlsDialogController?.getSelectedControlKeys() ?? null,
     getTransparencyStateSnapshot,
+    getChangedVmControlSnapshot,
     serializeVmHierarchy,
+});
+instantiationControlsDialogController = createInstantiationControlsDialogController({
+    callbacks: {
+        createDemoBundle: (options) => demoExportController.createDemoBundle(options),
+        generateWebInstantiationCode: (options) => demoExportController.generateWebInstantiationCode(options),
+        getCurrentFileName,
+        getTauriInvoker,
+        initLucideIcons,
+        logEvent,
+        showError,
+        updateInfo,
+    },
+    captureVmControlSnapshot,
+    elements,
+    getChangedVmControlSnapshot,
+    serializeControlHierarchy,
 });
 const globalBindingsController = createGlobalBindingsController({
     callbacks: {
@@ -501,6 +526,7 @@ const globalBindingsController = createGlobalBindingsController({
         setEditorCode,
         showMcpSetup,
         switchArtboard,
+        toggleInstantiationControlsDialog: (action) => instantiationControlsDialogController?.toggleDialog(action),
         toggleLiveConfigSource,
     },
     elements,
@@ -724,12 +750,13 @@ async function init() {
         elements,
         actions: {
             applyCodeAndReload,
-            createDemoBundle,
             handleFileButtonClick: () => fileSessionController?.handleFileButtonClick(),
             injectCodeSnippet,
             pause,
             play,
             reset,
+            showInstantiationControlsDialogForExport: () => instantiationControlsDialogController?.openDialog(),
+            showInstantiationControlsDialogForSnippet: () => instantiationControlsDialogController?.openDialog(),
             showMcpSetup,
         },
     });
@@ -743,6 +770,7 @@ async function init() {
     setupCanvasColor();
     setupTransparencyControls();
     setupEventLog();
+    instantiationControlsDialogController?.setup();
     scriptConsoleController.setup();
     updateConsoleModeChip();
     setupArtboardSwitcher();

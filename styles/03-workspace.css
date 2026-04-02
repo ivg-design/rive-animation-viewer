@@ -126,10 +126,40 @@
     margin-left: auto;
 }
 
+#config-panel .panel-heading {
+    min-height: 40px;
+    height: auto;
+    align-items: flex-start;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+#config-panel .panel-heading-main {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    row-gap: 6px;
+}
+
+#config-panel .panel-heading-main > span:nth-of-type(2) {
+    min-width: 0;
+}
+
 .editor-live-mode-chip {
     margin-left: auto;
     cursor: pointer;
     transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    display: inline-grid;
+    place-items: center;
+    flex-shrink: 0;
+    min-height: 18px;
+    height: auto;
+    max-width: 100%;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    line-height: 1.15;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .editor-live-mode-chip[data-live-source="internal"] {

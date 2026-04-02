@@ -40,7 +40,10 @@ describe('platform/demo-export', () => {
             animations: ['idle'],
             autoplay: false,
             canvas_color: '#112233',
+            control_snapshot: null,
+            default_instantiation_package_source: 'cdn',
             file_name: 'demo.riv',
+            instantiation_snippets: null,
             layout_alignment: 'topLeft',
             layout_fit: 'cover',
             runtime_name: 'webgl2',
@@ -53,9 +56,30 @@ describe('platform/demo-export', () => {
 
     it('creates demo bundles and exports directly to a path', async () => {
         const buffer = Uint8Array.from([1, 2]).buffer;
+        const fullSnapshot = [
+            {
+                descriptor: {
+                    kind: 'number',
+                    name: 'progress',
+                    path: 'progress',
+                },
+                kind: 'number',
+                value: 0.5,
+            },
+            {
+                descriptor: {
+                    kind: 'string',
+                    name: 'title',
+                    path: 'title',
+                },
+                kind: 'string',
+                value: 'ignore me',
+            },
+        ];
         const invoke = vi.fn(async (command, payload) => {
             if (command === 'make_demo_bundle') {
                 expect(payload.payload.file_name).toBe('demo.riv');
+                expect(JSON.parse(payload.payload.control_snapshot)).toEqual([fullSnapshot[0]]);
                 return '/tmp/demo-app';
             }
             if (command === 'make_demo_bundle_to_path') {
@@ -77,6 +101,7 @@ describe('platform/demo-export', () => {
                 currentPlaybackName: 'idle',
                 currentPlaybackType: 'animation',
             }),
+            captureVmControlSnapshot: () => fullSnapshot,
             getCurrentFileBuffer: () => buffer,
             getCurrentFileName: () => 'demo.riv',
             getCurrentLayoutAlignment: () => 'center',
@@ -92,10 +117,12 @@ describe('platform/demo-export', () => {
             getRiveInstance: () => ({ stateMachineNames: ['fallback-sm'] }),
             getRuntimeAsset: () => ({ text: 'runtime();', version: '2.0.0' }),
             getRuntimeVersionToken: () => 'latest',
+            getSelectedControlKeys: () => ['vm:progress:number'],
             getTransparencyStateSnapshot: () => ({
                 canvasColor: '#abcdef',
                 canvasTransparent: false,
             }),
+            getChangedVmControlSnapshot: () => [fullSnapshot[0]],
             serializeVmHierarchy: () => ({ root: 'vm' }),
         });
 
@@ -103,6 +130,10 @@ describe('platform/demo-export', () => {
         await expect(controller.exportDemoToPath('/tmp/out')).resolves.toBe('/tmp/out');
         await expect(controller.generateWebInstantiationCode({ packageSource: 'cdn' })).resolves.toEqual(
             expect.objectContaining({
+                code: expect.stringContaining('<script src="https://unpkg.com/@rive-app/webgl2@2.0.0"></script>'),
+                helperApi: expect.objectContaining({
+                    global: 'window.ravRive',
+                }),
                 packageSource: 'cdn',
                 runtimeName: 'webgl2',
                 sourceMode: 'internal',
@@ -267,7 +298,7 @@ describe('platform/demo-export', () => {
         await expect(controller.exportDemoToPath('/tmp/out')).resolves.toBe('/tmp/out');
         await expect(controller.generateWebInstantiationCode()).resolves.toEqual(
             expect.objectContaining({
-                packageSource: 'local',
+                packageSource: 'cdn',
                 runtimePackageName: '@rive-app/webgl2',
             }),
         );

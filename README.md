@@ -128,7 +128,8 @@ Open the RAV desktop app and enable the MCP bridge — the **MCP** indicator in 
 | `rav_set_layout` | Set layout fit mode |
 | `rav_set_canvas_color` | Set background color or transparent |
 | `rav_export_demo` | Export standalone HTML demo |
-| `generate_web_instantiation_code` | Generate the canonical live web-instantiation snippet (`local` npm package or `cdn`) |
+| `generate_web_instantiation_code` | Generate the canonical live web-instantiation snippet (`local` npm package or `cdn`) with `window.ravRive` helpers and current control values |
+| `rav_toggle_instantiation_controls_dialog` | Open/close the in-app Snippet & Export Controls dialog so a human can choose which controls are serialized |
 | `rav_get_sm_inputs` / `rav_set_sm_input` | State machine input access |
 | `rav_eval` | Evaluate JS in RAV's browser context |
 | `rav_console_open` / `rav_console_close` | Toggle the JS console remotely |
@@ -141,7 +142,11 @@ Open the RAV desktop app and enable the MCP bridge — the **MCP** indicator in 
 - Unsaved editor draft changes do not change the running animation until applied.
 - `rav_status` reports the active instantiation source and whether the editor draft is dirty.
 - `generate_web_instantiation_code` always reflects what is actually running.
-- Exported demos mirror the active live source and now include a **Copy Instantiation Code** button in the demo toolbar.
+- `generate_web_instantiation_code` defaults to the CDN form unless you explicitly request `package_source: "local"`.
+- Generated snippets restore the checked ViewModel/state-machine values on load and expose helper methods on `window.ravRive`.
+- The **Snippet & Export Controls** dialog lets you choose exactly which controls are serialized. Branch checkboxes select nested controls; individual rows affect one value only.
+- If you never open the dialog, RAV defaults to serializing only the controls that differ from the load-time baseline.
+- Exported demos mirror the active live source, keep fit/alignment in the main toolbar, and include a **Copy Instantiation Code** button in the demo toolbar.
 
 #### Event Console
 

@@ -31,6 +31,7 @@ export function createRiveInstanceController({
         renderVmInputControls = () => {},
         resetPlaybackChips = () => {},
         resetVmInputControls = () => {},
+        setVmControlBaselineSnapshot = () => {},
         showError = () => {},
         syncArtboardStateAfterLoad = () => {},
         syncArtboardStateFromConfig = () => {},
@@ -269,6 +270,7 @@ export function createRiveInstanceController({
                 }
 
                 renderVmInputControls();
+                setVmControlBaselineSnapshot();
                 populateArtboardSwitcher();
                 notifyLoadSuccess();
             };

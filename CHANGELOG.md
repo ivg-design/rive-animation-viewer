@@ -9,13 +9,16 @@ All notable changes to this project are documented in this file.
 - **Native `rav-mcp` sidecar** — The desktop app now bundles a Rust MCP sidecar binary instead of relying on `node rav-mcp-server.js` for packaged installs.
 - **One-click MCP client installs** — The MCP Setup dialog now detects Codex, Claude Code, and Claude Desktop targets and can install the `rav-mcp` config directly from the app.
 - **`generate_web_instantiation_code` MCP tool** — Generates a canonical copy-paste web snippet for the live animation using either `local` npm packages or CDN runtime loading.
+- **Snippet & Export Controls dialog** — New in-app dialog for choosing exactly which ViewModel and state-machine values are serialized into generated snippets and standalone demos, with branch-level checkboxes, presets, and inline snippet preview/copy.
 - **Demo toolbar code copy** — Exported standalone demos now include a **Copy Instantiation Code** button whenever the live session exposes a generated web snippet.
+- **`rav_toggle_instantiation_controls_dialog` MCP tool** — Lets an MCP client open or close the in-app selection dialog so a human can curate which controls will be exported.
 
 ### Changed
 
 - **MCP Setup dialog** — Replaced the old Node.js prerequisite messaging with bundled-sidecar status, per-client detection badges, and native-binary snippets for Codex / Claude / generic MCP clients.
 - **Script editor live mode** — The editor now makes the active source explicit with a `LIVE: INTERNAL` / `LIVE: EDITOR` chip, and the running animation follows the live source instead of the unsaved draft buffer.
 - **Demo export semantics** — Exports now mirror the active live source mode and embed the same instantiation snippet returned through MCP.
+- **Snippet/export serialization** — Snippets and demos now serialize only the checked controls from the new dialog, defaulting to the changed-control set instead of dumping every bound value.
 - **Build pipeline** — `npm run build` now compiles the native `rav-mcp` sidecar before the frontend dist build.
 
 ## [1.9.9] - 2026-04-01

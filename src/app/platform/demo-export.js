@@ -1,4 +1,5 @@
 import { normalizeStateMachineSelection } from '../rive/default-state-machine.js';
+import { controlSnapshotKeyForDescriptor } from '../rive/vm-controls.js';
 import {
     buildEffectiveInstantiationDescriptor,
     buildWebInstantiationResult,
@@ -25,12 +26,15 @@ export function resolveExportStateMachines(configStateMachines, detectedStateMac
 
 export function buildDemoBundlePayload({
     artboardState = {},
+    controlSnapshot = null,
     currentFileBuffer,
     currentLayoutAlignment = 'center',
     currentFileName,
     currentLayoutFit = 'contain',
+    defaultInstantiationPackageSource = 'cdn',
     editorConfig = {},
     layoutState = {},
+    instantiationSnippets = null,
     runtimeName,
     runtimeScript,
     runtimeVersion,
@@ -54,7 +58,10 @@ export function buildDemoBundlePayload({
         artboard_name: artboardState.currentArtboard,
         canvas_color: transparencyState.canvasTransparent ? null : transparencyState.canvasColor,
         canvas_transparent: transparencyState.canvasTransparent,
+        control_snapshot: controlSnapshot ? JSON.stringify(controlSnapshot) : null,
+        default_instantiation_package_source: defaultInstantiationPackageSource,
         instantiation_code: instantiationCode,
+        instantiation_snippets: instantiationSnippets ? JSON.stringify(instantiationSnippets) : null,
         instantiation_source_mode: instantiationSourceMode,
         layout_state: JSON.stringify(layoutState),
         vm_hierarchy: vmHierarchy ? JSON.stringify(vmHierarchy) : null,
@@ -64,6 +71,7 @@ export function buildDemoBundlePayload({
 export function createDemoExportController({
     callbacks = {},
     getArtboardStateSnapshot = () => ({}),
+    captureVmControlSnapshot = () => [],
     getCurrentFileBuffer = () => null,
     getCurrentFileName = () => null,
     getCurrentLayoutAlignment = () => 'center',
@@ -79,7 +87,9 @@ export function createDemoExportController({
     getRiveInstance = () => null,
     getRuntimeAsset = () => null,
     getRuntimeVersionToken = () => 'latest',
+    getSelectedControlKeys = () => null,
     getTransparencyStateSnapshot = () => ({}),
+    getChangedVmControlSnapshot = () => [],
     serializeVmHierarchy = () => null,
 } = {}) {
     const {
@@ -90,7 +100,30 @@ export function createDemoExportController({
         updateInfo = () => {},
     } = callbacks;
 
-    async function buildInstantiationContext({ packageSource = 'local' } = {}) {
+    function resolveSelectedControlSnapshot(selectedControlKeys) {
+        const explicitKeys = Array.isArray(selectedControlKeys)
+            ? selectedControlKeys
+            : getSelectedControlKeys();
+        if (!Array.isArray(explicitKeys)) {
+            return getChangedVmControlSnapshot();
+        }
+
+        const allowedKeys = new Set(
+            explicitKeys
+                .filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
+                .map((entry) => entry.trim()),
+        );
+        if (!allowedKeys.size) {
+            return [];
+        }
+
+        return captureVmControlSnapshot().filter((entry) => {
+            const key = controlSnapshotKeyForDescriptor(entry?.descriptor);
+            return Boolean(key) && allowedKeys.has(key);
+        });
+    }
+
+    async function buildInstantiationContext({ packageSource = 'local', selectedControlKeys } = {}) {
         const currentFileName = getCurrentFileName();
         if (!currentFileName) {
             throw new Error('Please load a Rive file first.');
@@ -101,6 +134,7 @@ export function createDemoExportController({
         const runtimeAsset = getRuntimeAsset(runtimeName);
         const selectedRuntimeSemver = runtimeAsset?.version || getEffectiveRuntimeVersionToken(getRuntimeVersionToken());
         const liveConfigState = getLiveConfigState();
+        const controlSnapshot = resolveSelectedControlSnapshot(selectedControlKeys);
         const descriptor = buildEffectiveInstantiationDescriptor({
             artboardState: getArtboardStateSnapshot(),
             currentFileName,
@@ -118,12 +152,16 @@ export function createDemoExportController({
         });
 
         return {
+            controlSnapshot,
             descriptor,
-            result: buildWebInstantiationResult(descriptor, { packageSource }),
+            result: buildWebInstantiationResult(descriptor, {
+                controlSnapshot,
+                packageSource,
+            }),
         };
     }
 
-    async function buildExportContext() {
+    async function buildExportContext({ selectedControlKeys } = {}) {
         const currentFileBuffer = getCurrentFileBuffer();
         const currentFileName = getCurrentFileName();
         if (!currentFileBuffer || !currentFileName) {
@@ -139,23 +177,53 @@ export function createDemoExportController({
         }
 
         const selectedRuntimeSemver = runtimeAsset.version || getEffectiveRuntimeVersionToken(getRuntimeVersionToken());
-        const instantiationContext = await buildInstantiationContext({ packageSource: 'local' });
-        const { descriptor, result: instantiationResult } = instantiationContext;
+        const controlSnapshot = resolveSelectedControlSnapshot(selectedControlKeys);
+        const descriptor = buildEffectiveInstantiationDescriptor({
+            artboardState: getArtboardStateSnapshot(),
+            currentFileName,
+            currentLayoutAlignment: getCurrentLayoutAlignment(),
+            currentLayoutFit: getCurrentLayoutFit(),
+            detectedStateMachines: Array.isArray(getRiveInstance()?.stateMachineNames)
+                ? getRiveInstance().stateMachineNames
+                : [],
+            editorCode: getLiveConfigState().appliedEditorCode,
+            editorConfig: getEditorConfig(),
+            runtimeName,
+            runtimeVersion: selectedRuntimeSemver,
+            sourceMode: getLiveConfigState().sourceMode,
+            transparencyState: getTransparencyStateSnapshot(),
+        });
+        const instantiationSnippets = {
+            cdn: buildWebInstantiationResult(descriptor, {
+                controlSnapshot,
+                packageSource: 'cdn',
+            }),
+            local: buildWebInstantiationResult(descriptor, {
+                controlSnapshot,
+                packageSource: 'local',
+            }),
+        };
         const payload = buildDemoBundlePayload({
             artboardState: {
                 currentArtboard: descriptor.artboard,
                 currentPlaybackName: descriptor.animations[0] || descriptor.stateMachines[0] || null,
                 currentPlaybackType: descriptor.animations.length > 0 ? 'animation' : (descriptor.stateMachines.length > 0 ? 'stateMachine' : null),
             },
+            controlSnapshot,
             currentFileBuffer,
             currentFileName,
             currentLayoutAlignment: getCurrentLayoutAlignment(),
             currentLayoutFit: getCurrentLayoutFit(),
+            defaultInstantiationPackageSource: 'cdn',
             editorConfig: {
                 autoplay: descriptor.autoplay,
             },
-            instantiationCode: instantiationResult.code,
-            instantiationSourceMode: instantiationResult.sourceMode,
+            instantiationCode: instantiationSnippets.cdn.code,
+            instantiationSnippets: {
+                cdn: instantiationSnippets.cdn.code,
+                local: instantiationSnippets.local.code,
+            },
+            instantiationSourceMode: instantiationSnippets.cdn.sourceMode,
             layoutState: getLayoutStateSnapshot(),
             runtimeName,
             runtimeScript: runtimeAsset.text,
@@ -167,14 +235,15 @@ export function createDemoExportController({
 
         return {
             currentFileName,
-            instantiationResult,
+            instantiationResult: instantiationSnippets.cdn,
+            instantiationSnippets,
             payload,
             runtimeName,
             runtimeVersion: selectedRuntimeSemver,
         };
     }
 
-    async function createDemoBundle() {
+    async function createDemoBundle(options = {}) {
         const invoke = getTauriInvoker();
         if (!invoke) {
             showError('Demo bundles can only be created inside the desktop app.');
@@ -184,7 +253,7 @@ export function createDemoExportController({
         const runtimeName = getCurrentRuntime();
         let context;
         try {
-            context = await buildExportContext();
+            context = await buildExportContext(options);
         } catch (error) {
             const message = String(error?.message || error || 'Failed to create demo bundle.');
             showError(message);
@@ -220,21 +289,21 @@ export function createDemoExportController({
         }
     }
 
-    async function exportDemoToPath(outputPath) {
+    async function exportDemoToPath(outputPath, options = {}) {
         const invoke = getTauriInvoker();
         if (!invoke) {
             throw new Error('Export requires the Tauri desktop app');
         }
 
-        const context = await buildExportContext();
+        const context = await buildExportContext(options);
         logEvent('mcp', 'export', `Exporting demo to ${outputPath}`);
         const result = await invoke('make_demo_bundle_to_path', { payload: context.payload, outputPath });
         logEvent('mcp', 'export-complete', `Demo saved: ${result}`);
         return result;
     }
 
-    async function generateWebInstantiationCode({ packageSource = 'local' } = {}) {
-        const context = await buildInstantiationContext({ packageSource });
+    async function generateWebInstantiationCode({ packageSource = 'cdn', selectedControlKeys } = {}) {
+        const context = await buildInstantiationContext({ packageSource, selectedControlKeys });
         return context.result;
     }
 

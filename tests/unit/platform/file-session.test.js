@@ -71,7 +71,7 @@ describe('platform/file-session', () => {
         await expect(controller.checkOpenedFile()).resolves.toBe(true);
         expect(createObjectURL).toHaveBeenCalled();
         expect(applyStoredRuntimeVersionForCurrentFile).toHaveBeenCalled();
-        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:demo', 'demo.riv');
+        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:demo', 'demo.riv', { forceAutoplay: true });
         expect(controller.getCurrentFileUrl()).toBe('blob:demo');
         expect(controller.getCurrentFileName()).toBe('demo.riv');
         expect(controller.getCurrentFileMimeType()).toBe('application/octet-stream');
@@ -192,7 +192,7 @@ describe('platform/file-session', () => {
         expect(controller.getCurrentFileUrl()).toBe('blob:valid');
         expect(hideError).toHaveBeenCalled();
         expect(applyStoredRuntimeVersionForCurrentFile).toHaveBeenCalled();
-        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:valid', 'demo.riv');
+        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:valid', 'demo.riv', { forceAutoplay: true });
 
         controller.handleFileButtonClick();
 
@@ -265,7 +265,7 @@ describe('platform/file-session', () => {
 
         await listeners.drop(fileDropEvent);
         expect(fileDropEvent.preventDefault).toHaveBeenCalled();
-        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:dropped', 'drop.riv');
+        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:dropped', 'drop.riv', { forceAutoplay: true });
         expect(elements.canvasContainer.classList.contains('drag-active')).toBe(false);
 
         const pathDropEvent = {
@@ -347,13 +347,13 @@ describe('platform/file-session', () => {
 
         await expect(controller.checkOpenedFile()).resolves.toBe(true);
         expect(invoke).toHaveBeenCalledWith('read_riv_file', { path: '/Users/test/startup-open.riv' });
-        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:startup-open', 'startup-open.riv');
+        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:startup-open', 'startup-open.riv', { forceAutoplay: true });
 
         await controller.setupTauriOpenFileListener();
         await listen.handler({ payload: { filePath: 'file:///Users/test/double-click-open.riv' } });
 
         expect(invoke).toHaveBeenCalledWith('read_riv_file', { path: '/Users/test/double-click-open.riv' });
-        expect(loadRiveAnimation).toHaveBeenLastCalledWith('blob:double-click-open', 'double-click-open.riv');
+        expect(loadRiveAnimation).toHaveBeenLastCalledWith('blob:double-click-open', 'double-click-open.riv', { forceAutoplay: true });
         expect(controller.getCurrentFileName()).toBe('double-click-open.riv');
     });
 

@@ -212,7 +212,7 @@ export function createFileSessionController({
             });
             hideError();
             await applyStoredRuntimeVersionForCurrentFile();
-            await loadRiveAnimation(fileUrl, fileName);
+            await loadRiveAnimation(fileUrl, fileName, { forceAutoplay: true });
         } catch (error) {
             console.error('[rive-viewer] loadRivFromPath failed:', error);
             showError(`Failed to open file: ${error.message || error}`);
@@ -325,7 +325,7 @@ export function createFileSessionController({
             hideError();
             await applyStoredRuntimeVersionForCurrentFile();
             try {
-                await loadRiveAnimation(fileUrl, selectedFile.name);
+                await loadRiveAnimation(fileUrl, selectedFile.name, { forceAutoplay: true });
             } catch {
                 logEvent('native', 'load-failed', `Failed to load ${selectedFile.name}.`);
             } finally {
@@ -409,7 +409,7 @@ export function createFileSessionController({
                 hideError();
                 await applyStoredRuntimeVersionForCurrentFile();
                 try {
-                    await loadRiveAnimation(fileUrl, droppedFile.name);
+                    await loadRiveAnimation(fileUrl, droppedFile.name, { forceAutoplay: true });
                 } catch {
                     logEvent('native', 'load-failed', `Failed to load dropped ${droppedFile.name}.`);
                 }

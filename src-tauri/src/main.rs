@@ -33,7 +33,13 @@ struct DemoBundlePayload {
     #[serde(default)]
     canvas_transparent: bool,
     #[serde(default)]
+    control_snapshot: Option<String>,
+    #[serde(default)]
+    default_instantiation_package_source: String,
+    #[serde(default)]
     instantiation_code: String,
+    #[serde(default)]
+    instantiation_snippets: Option<String>,
     #[serde(default)]
     instantiation_source_mode: String,
     layout_state: Option<String>,
@@ -801,7 +807,22 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       "runtimeVersion": payload.runtime_version,
       "animationBase64": payload.animation_base64,
       "autoplay": payload.autoplay,
+      "controlSnapshot": payload
+        .control_snapshot
+        .as_deref()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+        .unwrap_or_else(|| json!([])),
+      "defaultInstantiationPackageSource": if payload.default_instantiation_package_source.trim().eq_ignore_ascii_case("local") {
+        "local"
+      } else {
+        "cdn"
+      },
       "instantiationCode": payload.instantiation_code,
+      "instantiationSnippets": payload
+        .instantiation_snippets
+        .as_deref()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+        .unwrap_or_else(|| json!({})),
       "instantiationSourceMode": payload.instantiation_source_mode,
       "layoutAlignment": payload.layout_alignment,
       "layoutFit": payload.layout_fit,
@@ -816,7 +837,7 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       "layoutState": layout_state
     });
     let config_json = serde_json::to_string(&config)?;
-    let escaped_config = config_json.replace('\\', "\\\\").replace('\'', "\\'");
+    let escaped_config = escape_embedded_script_json(&config_json);
     let escaped_runtime = payload.runtime_script.replace("</script", "<\\/script");
     let canvas_color = payload.canvas_color.as_deref().unwrap_or("#0d1117");
     let runtime_display = if payload.runtime_name == "canvas" {
@@ -833,8 +854,8 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
         .vm_hierarchy
         .as_deref()
         .unwrap_or("null")
-        .replace('\\', "\\\\")
-        .replace('\'', "\\'");
+        .to_string();
+    let escaped_vm_hierarchy = escape_embedded_script_json(&vm_hierarchy_json);
     let title = format!("{} – Rive Demo", payload.file_name);
 
     let template = include_str!("demo-template.html");
@@ -844,13 +865,19 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
         .replace("__CANVAS_COLOR__", canvas_color)
         .replace("__CONFIG_JSON__", &escaped_config)
         .replace("__RUNTIME_SCRIPT__", &escaped_runtime)
-        .replace("__VM_HIERARCHY_JSON__", &vm_hierarchy_json)
+        .replace("__VM_HIERARCHY_JSON__", &escaped_vm_hierarchy)
         .replace("__FILE_NAME__", &payload.file_name)
         .replace("__RUNTIME_DISPLAY__", runtime_display)
         .replace("__APP_ICON_DATA_URL__", &app_icon_data_url)
         .replace("__RUNTIME_VERSION__", runtime_version);
 
     Ok(html)
+}
+
+fn escape_embedded_script_json(raw: &str) -> String {
+    raw.replace('\\', "\\\\")
+        .replace('\'', "\\'")
+        .replace("</script", "<\\/script")
 }
 
 fn looks_like_riv_file(value: &str) -> bool {
@@ -999,7 +1026,10 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{extract_opened_riv_file_args_from_iter, looks_like_riv_file};
+    use super::{
+        build_demo_html, escape_embedded_script_json, extract_opened_riv_file_args_from_iter,
+        looks_like_riv_file, DemoBundlePayload,
+    };
 
     #[test]
     fn detects_riv_files_for_double_click_and_open_with_args() {
@@ -1030,5 +1060,49 @@ mod tests {
         assert!(!looks_like_riv_file("/tmp/demo.riv.backup"));
         assert!(!looks_like_riv_file("/tmp/demo.txt"));
         assert!(!looks_like_riv_file(""));
+    }
+
+    #[test]
+    fn escapes_script_closing_sequences_in_embedded_demo_json() {
+        let raw = r#"{"instantiationCode":"<script>demo()</script>","vm":"</script>"}"#;
+        let escaped = escape_embedded_script_json(raw);
+
+        assert!(!escaped.contains("</script"));
+        assert!(escaped.contains("<\\/script"));
+    }
+
+    #[test]
+    fn demo_html_escapes_instantiation_snippets_before_embedding_config() {
+        let payload = DemoBundlePayload {
+            animation_base64: "AQID".into(),
+            animations: vec![],
+            artboard_name: Some("Main".into()),
+            autoplay: true,
+            canvas_color: Some("#0d1117".into()),
+            canvas_transparent: false,
+            control_snapshot: Some(r#"[{"descriptor":{"path":"root/value","kind":"number"},"kind":"number","value":42}]"#.into()),
+            default_instantiation_package_source: "cdn".into(),
+            file_name: "demo.riv".into(),
+            instantiation_code: "<canvas></canvas>\n<script type=\"module\">\nconsole.log('ok');\n</script>".into(),
+            instantiation_snippets: Some(r#"{"cdn":"<script src=\"https://unpkg.com/demo\"></script>","local":"<script type=\"module\"></script>"}"#.into()),
+            instantiation_source_mode: "internal".into(),
+            layout_alignment: "center".into(),
+            layout_fit: "contain".into(),
+            layout_state: Some("{}".into()),
+            runtime_name: "webgl2".into(),
+            runtime_script: "console.log('runtime');".into(),
+            runtime_version: Some("2.36.0".into()),
+            state_machines: vec!["main-sm".into()],
+            vm_hierarchy: Some(r#"{"label":"root","text":"</script>"}"#.into()),
+        };
+
+        let html = build_demo_html(&payload).expect("demo html");
+
+        assert!(html.contains("<\\/script>"));
+        assert!(html.contains("const CONFIG = JSON.parse('"));
+        assert!(html.contains("const VM_HIERARCHY = JSON.parse('"));
+        assert!(html.contains("defaultInstantiationPackageSource"));
+        assert!(html.contains("instantiationSnippets"));
+        assert!(html.contains("controlSnapshot"));
     }
 }
