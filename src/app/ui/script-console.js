@@ -27,6 +27,8 @@ export function createScriptConsoleController({
 } = {}) {
     const {
         logEvent = () => {},
+        onOpenChange = () => {},
+        onToggleRequested = null,
         renderEventLog = () => {},
     } = callbacks;
 
@@ -477,16 +479,29 @@ export function createScriptConsoleController({
     }
 
     async function openConsole() {
+        if (state.isOpen && state.erudaReady) {
+            return { open: true };
+        }
+
         state.isOpen = true;
         syncUi();
-        await ensureErudaReady();
-        return { open: true };
+        try {
+            await ensureErudaReady();
+            onOpenChange(true);
+            return { open: true };
+        } catch (error) {
+            state.isOpen = false;
+            syncUi();
+            onOpenChange(false);
+            throw error;
+        }
     }
 
     function closeConsole() {
         state.isOpen = false;
         syncUi();
         renderEventLog();
+        onOpenChange(false);
         return { open: false };
     }
 
@@ -538,6 +553,11 @@ export function createScriptConsoleController({
         state.setupDone = true;
 
         const toggleHandler = () => {
+            if (typeof onToggleRequested === 'function') {
+                onToggleRequested();
+                return;
+            }
+
             if (state.isOpen) {
                 closeConsole();
             } else {
@@ -608,6 +628,9 @@ export function createScriptConsoleController({
     function destroy() {
         state.cleanupFns.splice(0).forEach((cleanup) => cleanup());
         state.setupDone = false;
+        state.isOpen = false;
+        syncUi();
+        onOpenChange(false);
 
         if (elements.scriptConsoleReplInput && state.replKeydownHandler) {
             elements.scriptConsoleReplInput.removeEventListener('keydown', state.replKeydownHandler);

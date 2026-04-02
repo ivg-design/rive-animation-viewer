@@ -1498,6 +1498,7 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
         const VM_DEPTH_COLORS = ['#C4F82A', '#38BDF8', '#A78BFA', '#FB923C', '#F472B6', '#34D399'];
 
         let riveInstance = null;
+        let currentLayoutAlignment = CONFIG.layoutAlignment || 'center';
         let currentLayoutFit = CONFIG.layoutFit || 'contain';
         let lastSolidCanvasColor = normalizeCanvasColor(CONFIG.canvasColor) || DEFAULT_CANVAS_COLOR;
         let currentCanvasColor = CONFIG.canvasTransparent ? TRANSPARENT_CANVAS_COLOR : lastSolidCanvasColor;
@@ -2977,7 +2978,7 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                 if (rive.Layout) {
                     riveConfig.layout = new rive.Layout({
                         fit: currentLayoutFit,
-                        alignment: 'center',
+                        alignment: currentLayoutAlignment,
                     });
                 }
                 if (isCanvasEffectivelyTransparent() && CONFIG.runtimeName !== 'canvas' && typeof riveConfig.useOffscreenRenderer === 'undefined') {

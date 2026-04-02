@@ -12,6 +12,7 @@ use std::process::Command;
 use std::sync::Mutex;
 use tauri::menu::Menu;
 use tauri::{Emitter, Manager};
+use tauri_plugin_updater::UpdaterExt;
 
 #[derive(Deserialize)]
 struct DemoBundlePayload {
@@ -21,6 +22,7 @@ struct DemoBundlePayload {
     runtime_version: Option<String>,
     runtime_script: String,
     autoplay: bool,
+    layout_alignment: String,
     layout_fit: String,
     state_machines: Vec<String>,
     #[serde(default)]
@@ -48,6 +50,22 @@ struct NodeRuntimeStatus {
     path: Option<String>,
     version: Option<String>,
     source: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AppUpdateStatus {
+    available: bool,
+    current_version: String,
+    version: Option<String>,
+    body: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AppUpdateInstallResult {
+    installed: bool,
+    version: Option<String>,
 }
 
 #[cfg(debug_assertions)]
@@ -317,6 +335,57 @@ fn get_window_cursor_position(window: tauri::WebviewWindow) -> Option<WindowCurs
 }
 
 #[tauri::command]
+async fn check_for_app_update(app: tauri::AppHandle) -> Result<AppUpdateStatus, String> {
+    let updater = app.updater().map_err(|error| error.to_string())?;
+    let current_version = app.package_info().version.to_string();
+    let update = updater.check().await.map_err(|error| error.to_string())?;
+
+    Ok(match update {
+        Some(update) => AppUpdateStatus {
+            available: true,
+            current_version,
+            version: Some(update.version.clone()),
+            body: update.body.clone(),
+        },
+        None => AppUpdateStatus {
+            available: false,
+            current_version,
+            version: None,
+            body: None,
+        },
+    })
+}
+
+#[tauri::command]
+async fn install_app_update(app: tauri::AppHandle) -> Result<AppUpdateInstallResult, String> {
+    let updater = app.updater().map_err(|error| error.to_string())?;
+    let update = updater.check().await.map_err(|error| error.to_string())?;
+
+    let Some(update) = update else {
+        return Ok(AppUpdateInstallResult {
+            installed: false,
+            version: None,
+        });
+    };
+
+    update
+        .download_and_install(|_, _| {}, || {})
+        .await
+        .map_err(|error| error.to_string())?;
+
+    Ok(AppUpdateInstallResult {
+        installed: true,
+        version: Some(update.version.clone()),
+    })
+}
+
+#[tauri::command]
+fn relaunch_app(app: tauri::AppHandle) -> bool {
+    app.request_restart();
+    true
+}
+
+#[tauri::command]
 async fn make_demo_bundle(payload: DemoBundlePayload) -> Result<String, String> {
     let suggested = format!(
         "{}-demo.html",
@@ -371,6 +440,7 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       "runtimeVersion": payload.runtime_version,
       "animationBase64": payload.animation_base64,
       "autoplay": payload.autoplay,
+      "layoutAlignment": payload.layout_alignment,
       "layoutFit": payload.layout_fit,
       "stateMachines": payload.state_machines,
       "animations": payload.animations,
@@ -500,8 +570,11 @@ fn main() {
             open_devtools,
             get_mcp_server_path,
             detect_node_runtime,
+            check_for_app_update,
             get_opened_file,
+            install_app_update,
             open_external_url,
+            relaunch_app,
             read_riv_file,
             set_window_transparency_mode,
             set_window_click_through,

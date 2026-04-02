@@ -60,6 +60,20 @@
     text-overflow: ellipsis;
 }
 
+.runtime-chip-console,
+.runtime-chip-mcp,
+.runtime-chip-update {
+    position: relative;
+    cursor: pointer;
+    transition: color 0.2s ease, opacity 0.2s ease, text-shadow 0.2s ease;
+}
+
+.runtime-chip-console:hover,
+.runtime-chip-mcp:hover,
+.runtime-chip-update:hover {
+    color: var(--text-white);
+}
+
 .runtime-chip-runtime .dot {
     width: 6px;
     height: 6px;
@@ -89,12 +103,23 @@
 /* MCP indicator — three states: off, waiting, connected */
 .runtime-chip-mcp {
     gap: 4px;
-    cursor: pointer;
     border: none;
     background: none;
     font: inherit;
-    transition: color 0.3s ease, opacity 0.3s ease;
     flex-shrink: 0;
+}
+
+.runtime-chip-mcp::after {
+    content: '';
+    position: absolute;
+    left: -1px;
+    right: -1px;
+    top: 50%;
+    height: 1px;
+    background: transparent;
+    transform: rotate(-13deg);
+    transform-origin: center;
+    pointer-events: none;
 }
 
 .mcp-dot {
@@ -105,25 +130,31 @@
     transition: background 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* OFF — bridge disabled, very dim */
+/* OFF — bridge disabled, crossed out */
 .runtime-chip-mcp[data-mcp-state="off"] {
-    color: #3f3f46;
-    opacity: 0.5;
+    color: #fda4af;
+    opacity: 0.42;
 }
 
 .runtime-chip-mcp[data-mcp-state="off"] .mcp-dot {
-    background: #3f3f46;
+    background: #fb7185;
     box-shadow: none;
 }
 
-/* WAITING — bridge active, looking for agent */
+.runtime-chip-mcp[data-mcp-state="off"]::after {
+    background: #fb7185;
+    opacity: 0.72;
+}
+
+/* WAITING — bridge enabled, no client connected */
 .runtime-chip-mcp[data-mcp-state="waiting"] {
-    color: #6366f180;
+    color: #fbbf24;
+    opacity: 0.88;
 }
 
 .runtime-chip-mcp[data-mcp-state="waiting"] .mcp-dot {
-    background: #6366f180;
-    box-shadow: none;
+    background: #fbbf24;
+    box-shadow: 0 0 0 1px #f59e0b40;
     animation: mcp-pulse 2s ease-in-out infinite;
 }
 
@@ -134,22 +165,46 @@
 
 /* CONNECTED — agent is live */
 .runtime-chip-mcp[data-mcp-state="connected"] {
-    color: #a5b4fc;
+    color: #d9fb70;
+    opacity: 1;
+    text-shadow: 0 0 12px #c4f82a40;
 }
 
 .runtime-chip-mcp[data-mcp-state="connected"] .mcp-dot {
-    background: #a5b4fc;
-    box-shadow: 0 0 8px #818cf8a0, 0 0 3px #a5b4fc80;
+    background: var(--neon);
+    box-shadow: 0 0 10px #c4f82a80, 0 0 4px #c4f82a66;
     animation: none;
+}
+
+.runtime-chip-console {
+    gap: 4px;
+    border: none;
+    background: none;
+    font: inherit;
+    flex-shrink: 0;
+}
+
+.runtime-chip-console[data-console-mode="closed"] {
+    color: var(--text-ghost);
+    opacity: 0.72;
+}
+
+.runtime-chip-console[data-console-mode="events"] {
+    color: #93c5fd;
+    opacity: 0.92;
+}
+
+.runtime-chip-console[data-console-mode="js"] {
+    color: var(--neon);
+    opacity: 1;
+    text-shadow: 0 0 10px #c4f82a2e;
 }
 
 .runtime-chip-update {
     border: none;
     background: none;
     font: inherit;
-    cursor: pointer;
     flex-shrink: 0;
-    transition: color 0.2s ease, opacity 0.2s ease;
 }
 
 .runtime-chip-update[hidden] {

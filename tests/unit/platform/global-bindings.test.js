@@ -18,7 +18,8 @@ describe('platform/global-bindings', () => {
     it('binds window globals and MCP bridge hooks', async () => {
         document.body.innerHTML = '<button id="chip"></button>';
         const chip = document.getElementById('chip');
-        const toggle = vi.fn();
+        const enable = vi.fn();
+        const disable = vi.fn();
         const ensureEditorReady = vi.fn().mockResolvedValue(true);
         const applyCodeAndReload = vi.fn();
         const createDemoBundle = vi.fn().mockResolvedValue('/tmp/demo');
@@ -41,7 +42,9 @@ describe('platform/global-bindings', () => {
         const switchArtboard = vi.fn();
         const windowRef = {
             _mcpBridge: {
-                toggle,
+                state: 'connected',
+                disable,
+                enable,
             },
         };
         const controller = createGlobalBindingsController({
@@ -104,7 +107,7 @@ describe('platform/global-bindings', () => {
         expect(chip.dataset.mcpState).toBe('waiting');
 
         chip.click();
-        expect(toggle).toHaveBeenCalledTimes(1);
+        expect(disable).toHaveBeenCalledTimes(1);
 
         await windowRef.applyCodeAndReload();
         await windowRef.createDemoBundle();
@@ -140,6 +143,10 @@ describe('platform/global-bindings', () => {
         expect(openScriptConsole).toHaveBeenCalled();
         expect(execScriptConsole).toHaveBeenCalledWith('1 + 1');
         expect(closeScriptConsole).toHaveBeenCalled();
+
+        windowRef._mcpBridge.state = 'off';
+        chip.click();
+        expect(enable).toHaveBeenCalledTimes(1);
 
         await expect(windowRef._mcpExportDemoToPath('/tmp/out')).resolves.toBe('/tmp/out');
         expect(exportDemoToPath).toHaveBeenCalledWith('/tmp/out');

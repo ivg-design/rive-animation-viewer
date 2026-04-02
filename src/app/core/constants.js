@@ -58,6 +58,18 @@ export const FALLBACK_RUNTIME_VERSION_OPTIONS = buildFallbackRuntimeVersionOptio
 export const CURRENT_CUSTOM_RUNTIME_OPTION_VALUE = '__current-custom-runtime__';
 export const DEFAULT_LAYOUT_FIT = 'contain';
 export const LAYOUT_FITS = ['cover', 'contain', 'fill', 'fitWidth', 'fitHeight', 'scaleDown', 'none', 'layout'];
+export const DEFAULT_LAYOUT_ALIGNMENT = 'center';
+export const LAYOUT_ALIGNMENTS = [
+    'topLeft',
+    'topCenter',
+    'topRight',
+    'centerLeft',
+    'center',
+    'centerRight',
+    'bottomLeft',
+    'bottomCenter',
+    'bottomRight',
+];
 export const RUNTIME_CACHE_NAME = 'rive-runtime-cache-v1';
 export const RUNTIME_META_STORAGE_KEY = 'riveRuntimeMeta';
 export const VM_CONTROL_KINDS = new Set(['number', 'boolean', 'string', 'enum', 'color', 'trigger']);

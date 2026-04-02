@@ -16,6 +16,10 @@ function createElements() {
             <option value="contain">contain</option>
             <option value="cover">cover</option>
         </select>
+        <select id="alignment-select">
+            <option value="center">center</option>
+            <option value="topLeft">topLeft</option>
+        </select>
         <button id="demo-bundle-btn"></button>
         <div id="main-grid"></div>
         <div id="config-panel"></div>
@@ -42,6 +46,7 @@ function createElements() {
         configPanel,
         demoBundleButton: document.getElementById('demo-bundle-btn'),
         eventLogPanel: document.getElementById('event-log-panel'),
+        alignmentSelect: document.getElementById('alignment-select'),
         layoutSelect: document.getElementById('layout-select'),
         leftResizer: document.getElementById('left-resizer'),
         mainGrid: document.getElementById('main-grid'),
@@ -68,9 +73,19 @@ describe('ui/shell-controller', () => {
     it('handles runtime and layout changes and captures layout state', async () => {
         const elements = createElements();
         const ensureRuntime = vi.fn().mockResolvedValue(undefined);
-        const loadRiveAnimation = vi.fn().mockResolvedValue(undefined);
-        const setCurrentRuntime = vi.fn();
-        const setCurrentLayoutFit = vi.fn();
+        const reloadCurrentAnimation = vi.fn().mockResolvedValue(undefined);
+        let currentRuntime = 'webgl2';
+        let currentLayoutAlignment = 'center';
+        let currentLayoutFit = 'contain';
+        const setCurrentRuntime = vi.fn((value) => {
+            currentRuntime = value;
+        });
+        const setCurrentLayoutAlignment = vi.fn((value) => {
+            currentLayoutAlignment = value;
+        });
+        const setCurrentLayoutFit = vi.fn((value) => {
+            currentLayoutFit = value;
+        });
         const handleResize = vi.fn();
         const timeoutCallbacks = [];
         const windowListeners = {};
@@ -96,8 +111,9 @@ describe('ui/shell-controller', () => {
                 ensureRuntime,
                 getCurrentFileName: () => 'demo.riv',
                 getCurrentFileUrl: () => 'blob:demo',
-                getCurrentLayoutFit: () => 'contain',
-                getCurrentRuntime: () => 'webgl2',
+                getCurrentLayoutAlignment: () => currentLayoutAlignment,
+                getCurrentLayoutFit: () => currentLayoutFit,
+                getCurrentRuntime: () => currentRuntime,
                 getEventLogFilterState: () => ({ native: true }),
                 getTauriInvoker: () => vi.fn(),
                 getTransparencyStateSnapshot: () => ({
@@ -105,9 +121,10 @@ describe('ui/shell-controller', () => {
                     transparencyMode: 'transparent',
                 }),
                 handleResize,
-                loadRiveAnimation,
+                reloadCurrentAnimation,
                 logEvent: vi.fn(),
                 refreshInfoStrip: vi.fn(),
+                setCurrentLayoutAlignment,
                 setCurrentLayoutFit,
                 setCurrentRuntime,
                 showError: vi.fn(),
@@ -124,6 +141,7 @@ describe('ui/shell-controller', () => {
         });
 
         controller.setupRuntimeSelect();
+        controller.setupAlignmentSelect();
         controller.setupLayoutSelect();
         controller.setupPanelVisibilityToggles();
 
@@ -132,12 +150,17 @@ describe('ui/shell-controller', () => {
         await Promise.resolve();
         expect(setCurrentRuntime).toHaveBeenCalledWith('canvas');
         expect(ensureRuntime).toHaveBeenCalledWith('canvas');
-        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:demo', 'demo.riv');
+        expect(reloadCurrentAnimation).toHaveBeenCalledTimes(1);
 
         elements.layoutSelect.value = 'cover';
         elements.layoutSelect.dispatchEvent(new Event('change'));
         await Promise.resolve();
         expect(setCurrentLayoutFit).toHaveBeenCalledWith('cover');
+
+        elements.alignmentSelect.value = 'topLeft';
+        elements.alignmentSelect.dispatchEvent(new Event('change'));
+        await Promise.resolve();
+        expect(setCurrentLayoutAlignment).toHaveBeenCalledWith('topLeft');
 
         elements.toggleRightPanelButton.click();
         timeoutCallbacks[timeoutCallbacks.length - 1]();
@@ -148,6 +171,8 @@ describe('ui/shell-controller', () => {
             clickThroughMode: 'passthrough',
             eventFilters: { native: true },
             eventLogHeight: 211,
+            layoutAlignment: 'topLeft',
+            layoutFit: 'cover',
             rightPanelVisible: false,
             rightPanelWidth: 388,
             transparencyMode: 'transparent',
@@ -199,6 +224,7 @@ describe('ui/shell-controller', () => {
         const elements = createElements();
         const listeners = {};
         elements.mainGrid.getBoundingClientRect = () => ({ width: 1200 });
+        elements.centerPanel.getBoundingClientRect = () => ({ height: 900 });
         const handleResize = vi.fn();
         const controller = createShellController({
             callbacks: {
@@ -226,9 +252,9 @@ describe('ui/shell-controller', () => {
         expect(elements.mainGrid.style.getPropertyValue('--right-width')).toBe('380px');
 
         elements.centerResizer.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientY: 300 }));
-        listeners.mousemove(new MouseEvent('mousemove', { clientY: 250 }));
-        listeners.mouseup(new MouseEvent('mouseup', { clientY: 250 }));
-        expect(elements.centerPanel.style.getPropertyValue('--center-log-height')).toBe('280px');
+        listeners.mousemove(new MouseEvent('mousemove', { clientY: 0 }));
+        listeners.mouseup(new MouseEvent('mouseup', { clientY: 0 }));
+        expect(elements.centerPanel.style.getPropertyValue('--center-log-height')).toBe('530px');
         expect(handleResize).toHaveBeenCalled();
     });
 
@@ -243,6 +269,7 @@ describe('ui/shell-controller', () => {
                 ensureRuntime: vi.fn().mockRejectedValue(new Error('runtime failed')),
                 getCurrentFileName: () => null,
                 getCurrentFileUrl: () => null,
+                getCurrentLayoutAlignment: () => 'center',
                 getCurrentLayoutFit: () => 'contain',
                 getCurrentRuntime: () => 'webgl2',
                 logEvent,
@@ -261,6 +288,7 @@ describe('ui/shell-controller', () => {
         });
 
         controller.setupRuntimeSelect();
+        controller.setupAlignmentSelect();
         controller.setupLayoutSelect();
         controller.setupSettingsPopover();
 
@@ -279,6 +307,12 @@ describe('ui/shell-controller', () => {
         await Promise.resolve();
         expect(showError).toHaveBeenCalledWith('Unsupported layout fit: bogus');
 
+        elements.alignmentSelect.appendChild(new Option('bogus', 'bogus'));
+        elements.alignmentSelect.value = 'bogus';
+        elements.alignmentSelect.dispatchEvent(new Event('change'));
+        await Promise.resolve();
+        expect(showError).toHaveBeenCalledWith('Unsupported layout alignment: bogus');
+
         elements.settingsButton.click();
         document.dispatchEvent(new MouseEvent('click', { bubbles: true }));
         expect(elements.settingsPopover.hidden).toBe(true);
@@ -291,6 +325,7 @@ describe('ui/shell-controller', () => {
         const clearTimeoutFn = vi.fn();
         const controller = createShellController({
             callbacks: {
+                getCurrentLayoutAlignment: () => 'center',
                 getCurrentLayoutFit: () => 'contain',
                 getCurrentRuntime: () => 'webgl2',
                 handleResize,
@@ -343,12 +378,15 @@ describe('ui/shell-controller', () => {
                 ensureRuntime: vi.fn(),
                 getCurrentFileName: () => null,
                 getCurrentFileUrl: () => null,
+                getCurrentLayoutAlignment: () => 'center',
                 getCurrentLayoutFit: () => 'contain',
                 getCurrentRuntime: () => 'webgl2',
                 getTauriInvoker: () => tauriInvoker,
                 handleResize: vi.fn(),
                 loadRiveAnimation: vi.fn(),
                 logEvent: vi.fn(),
+                reloadCurrentAnimation: vi.fn(),
+                setCurrentLayoutAlignment: vi.fn(),
                 setCurrentLayoutFit: vi.fn(),
                 setCurrentRuntime: vi.fn(),
                 syncTransparencyControls: vi.fn(),

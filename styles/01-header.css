@@ -124,6 +124,15 @@
     color: var(--text-dim);
 }
 
+.header-select-toolbar {
+    min-width: 118px;
+    background: var(--bg-void);
+}
+
+.header-select-alignment {
+    min-width: 152px;
+}
+
 #file-trigger-btn {
     min-width: 118px;
     max-width: 210px;
@@ -346,4 +355,3 @@
     width: 6px;
     height: 6px;
 }
-

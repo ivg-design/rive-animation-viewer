@@ -1,6 +1,10 @@
 const EVENT_LOG_LIMIT = 500;
 
-export function createEventLogController({ elements, handleResize }) {
+export function createEventLogController({
+    elements,
+    handleResize,
+    onCollapsedChange = () => {},
+}) {
     const eventLogEntries = [];
     const eventFilterState = {
         native: true,
@@ -71,12 +75,28 @@ export function createEventLogController({ elements, handleResize }) {
         if (elements.eventLogHeader && elements.eventLogPanel && elements.centerPanel) {
             elements.eventLogHeader.addEventListener('click', (event) => {
                 if (event.target.closest('.event-log-summary-right')) return;
-                const isCollapsed = elements.centerPanel.classList.toggle('event-log-collapsed');
-                elements.eventLogPanel.classList.toggle('collapsed', isCollapsed);
-                handleResize();
-                setTimeout(handleResize, 300);
+                setCollapsed(!isCollapsed());
             });
         }
+    }
+
+    function isCollapsed() {
+        return Boolean(
+            elements.centerPanel?.classList.contains('event-log-collapsed')
+            || elements.eventLogPanel?.classList.contains('collapsed'),
+        );
+    }
+
+    function setCollapsed(collapsed) {
+        const nextCollapsed = Boolean(collapsed);
+        elements.centerPanel?.classList.toggle('event-log-collapsed', nextCollapsed);
+        elements.eventLogPanel?.classList.toggle('collapsed', nextCollapsed);
+        if (elements.showEventLogButton) {
+            elements.showEventLogButton.hidden = !nextCollapsed;
+        }
+        handleResize();
+        setTimeout(handleResize, 300);
+        onCollapsedChange(nextCollapsed);
     }
 
     function resetEventLog() {
@@ -212,9 +232,11 @@ export function createEventLogController({ elements, handleResize }) {
     return {
         getEntriesSnapshot,
         getFilterStateSnapshot,
+        isCollapsed,
         logEvent,
         resetEventLog,
         renderEventLog,
+        setCollapsed,
         setupEventLog,
     };
 }

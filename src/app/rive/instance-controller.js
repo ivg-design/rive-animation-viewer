@@ -12,6 +12,7 @@ export function safelyInvokeUserCallback(callback, event, callbackName) {
 export function createRiveInstanceController({
     callbacks = {},
     elements,
+    getCurrentLayoutAlignment = () => 'center',
     getCurrentFileBuffer = () => null,
     getCurrentLayoutFit = () => 'contain',
     getCurrentRuntime = () => 'webgl2',
@@ -214,10 +215,10 @@ export function createRiveInstanceController({
                 config.autoBind = true;
             }
             const layoutFromConfig = config.layout && typeof config.layout === 'object' ? config.layout : {};
-            const { alignment, fit: _ignoredFit, ...otherLayoutProps } = layoutFromConfig;
+            const { fit: _ignoredFit, ...otherLayoutProps } = layoutFromConfig;
             config.layout = new runtime.Layout({
                 fit: getCurrentLayoutFit(),
-                alignment: alignment || 'center',
+                alignment: getCurrentLayoutAlignment(),
                 ...otherLayoutProps,
             });
             if (isCanvasEffectivelyTransparent() && getCurrentRuntime() !== 'canvas' && typeof config.useOffscreenRenderer === 'undefined') {

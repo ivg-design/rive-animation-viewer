@@ -1,4 +1,4 @@
-import { LAYOUT_FITS } from '../core/constants.js';
+import { LAYOUT_ALIGNMENTS, LAYOUT_FITS } from '../core/constants.js';
 import { getRuntimeDisplayName } from './status-controller.js';
 
 export function clamp(value, min, max) {
@@ -24,6 +24,7 @@ export function createShellController({
         ensureRuntime = async () => {},
         getCurrentFileName = () => null,
         getCurrentFileUrl = () => null,
+        getCurrentLayoutAlignment = () => 'center',
         getCurrentLayoutFit = () => 'contain',
         getCurrentRuntime = () => 'webgl2',
         getEventLogFilterState = () => ({}),
@@ -37,7 +38,9 @@ export function createShellController({
         handleResize = () => {},
         loadRiveAnimation = async () => {},
         logEvent = () => {},
+        reloadCurrentAnimation = async () => {},
         refreshInfoStrip = () => {},
+        setCurrentLayoutAlignment = () => {},
         setCurrentLayoutFit = () => {},
         setCurrentRuntime = () => {},
         showError = () => {},
@@ -50,6 +53,19 @@ export function createShellController({
     let isLeftPanelVisible = false;
     let isRightPanelVisible = true;
     let visibilityResizeTimeoutId = null;
+
+    async function reloadActiveAnimation() {
+        const currentFileUrl = getCurrentFileUrl();
+        const currentFileName = getCurrentFileName();
+        if (!currentFileUrl || !currentFileName) {
+            return;
+        }
+        if (typeof reloadCurrentAnimation === 'function') {
+            await reloadCurrentAnimation();
+            return;
+        }
+        await loadRiveAnimation(currentFileUrl, currentFileName);
+    }
 
     function setupSettingsPopover() {
         const button = elements.settingsButton;
@@ -96,11 +112,7 @@ export function createShellController({
             try {
                 await ensureRuntime(selected);
                 updateVersionInfo();
-                const currentFileUrl = getCurrentFileUrl();
-                const currentFileName = getCurrentFileName();
-                if (currentFileUrl && currentFileName) {
-                    await loadRiveAnimation(currentFileUrl, currentFileName);
-                }
+                await reloadActiveAnimation();
             } catch (error) {
                 showError(`Failed to load runtime: ${error.message}`);
                 logEvent('native', 'runtime-load-failed', `Failed to load runtime ${selected}.`, error);
@@ -127,14 +139,37 @@ export function createShellController({
             setCurrentLayoutFit(selected);
             updateInfo(`Layout fit set to: ${selected}`);
             logEvent('ui', 'layout-change', `Layout fit set to ${selected}`);
-            const currentFileUrl = getCurrentFileUrl();
-            const currentFileName = getCurrentFileName();
-            if (currentFileUrl && currentFileName) {
-                try {
-                    await loadRiveAnimation(currentFileUrl, currentFileName);
-                } catch {
-                    /* loadRiveAnimation already reports errors */
-                }
+            try {
+                await reloadActiveAnimation();
+            } catch {
+                /* reloadCurrentAnimation already reports errors */
+            }
+        });
+    }
+
+    function setupAlignmentSelect() {
+        const select = elements.alignmentSelect;
+        if (!select) {
+            return;
+        }
+
+        select.value = getCurrentLayoutAlignment();
+        select.addEventListener('change', async (event) => {
+            const selected = event.target.value;
+            if (!selected || selected === getCurrentLayoutAlignment()) {
+                return;
+            }
+            if (!LAYOUT_ALIGNMENTS.includes(selected)) {
+                showError(`Unsupported layout alignment: ${selected}`);
+                return;
+            }
+            setCurrentLayoutAlignment(selected);
+            updateInfo(`Layout alignment set to: ${selected}`);
+            logEvent('ui', 'alignment-change', `Layout alignment set to ${selected}`);
+            try {
+                await reloadActiveAnimation();
+            } catch {
+                /* reloadCurrentAnimation already reports errors */
             }
         });
     }
@@ -258,6 +293,16 @@ export function createShellController({
             return;
         }
 
+        const getMaxLogHeight = () => {
+            const panelHeight = centerPanel.getBoundingClientRect?.().height || 0;
+            if (!panelHeight) {
+                return Number.MAX_SAFE_INTEGER;
+            }
+            const minCanvasHeight = 96;
+            const reservedHeight = 36 + 2 + minCanvasHeight;
+            return Math.max(120, Math.floor(panelHeight - reservedHeight));
+        };
+
         centerResizer.addEventListener('mousedown', (event) => {
             event.preventDefault();
             const startY = event.clientY;
@@ -271,7 +316,7 @@ export function createShellController({
 
             const onMove = (moveEvent) => {
                 const deltaY = moveEvent.clientY - startY;
-                const nextHeight = clamp(startHeight - deltaY, 120, 420);
+                const nextHeight = clamp(startHeight - deltaY, 120, getMaxLogHeight());
                 centerPanel.style.setProperty('--center-log-height', `${Math.round(nextHeight)}px`);
                 handleResize();
             };
@@ -364,6 +409,8 @@ export function createShellController({
             rightPanelWidth: rightWidth,
             eventLogCollapsed: Boolean(centerPanel?.classList.contains('event-log-collapsed') || eventLogPanel?.classList.contains('collapsed')),
             eventLogHeight,
+            layoutAlignment: getCurrentLayoutAlignment(),
+            layoutFit: getCurrentLayoutFit(),
             eventFilters: {
                 ...getEventLogFilterState(),
             },
@@ -386,6 +433,7 @@ export function createShellController({
     function setup() {
         setupRuntimeSelect();
         setupLayoutSelect();
+        setupAlignmentSelect();
         setupDemoButton();
         setupPanelResizers();
         setupCenterResizer();
@@ -397,6 +445,7 @@ export function createShellController({
         captureLayoutStateForExport,
         dispose,
         setup,
+        setupAlignmentSelect,
         setupCenterResizer,
         setupDemoButton,
         setupLayoutSelect,

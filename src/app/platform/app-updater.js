@@ -1,18 +1,3 @@
-function formatBytes(bytes) {
-    if (!Number.isFinite(bytes) || bytes <= 0) {
-        return '0 B';
-    }
-
-    const units = ['B', 'KB', 'MB', 'GB'];
-    let value = bytes;
-    let unitIndex = 0;
-    while (value >= 1024 && unitIndex < units.length - 1) {
-        value /= 1024;
-        unitIndex += 1;
-    }
-    return `${value >= 10 || unitIndex === 0 ? Math.round(value) : value.toFixed(1)} ${units[unitIndex]}`;
-}
-
 function getUpdateBody(update) {
     return String(update?.body || update?.notes || '').trim();
 }
@@ -20,9 +5,8 @@ function getUpdateBody(update) {
 export function createAppUpdaterController({
     callbacks = {},
     elements,
+    getTauriInvoker = () => null,
     isTauriEnvironment = () => false,
-    loadProcessApi = () => import('@tauri-apps/plugin-process'),
-    loadUpdaterApi = () => import('@tauri-apps/plugin-updater'),
 } = {}) {
     const {
         logEvent = () => {},
@@ -62,6 +46,14 @@ export function createAppUpdaterController({
         renderChip('', { hidden: true, stateName: 'idle' });
     }
 
+    async function invokeDesktop(command, args = {}) {
+        const invoke = getTauriInvoker();
+        if (!invoke) {
+            throw new Error('Desktop updater bridge is unavailable');
+        }
+        return invoke(command, args);
+    }
+
     async function checkForUpdatesOnLaunch({ force = false } = {}) {
         if (!isTauriEnvironment()) {
             hideChip();
@@ -74,26 +66,32 @@ export function createAppUpdaterController({
 
         state.checkingPromise = (async () => {
             state.updateState = 'checking';
-            try {
-                const { check } = await loadUpdaterApi();
-                const update = await check();
-                state.pendingUpdate = update || null;
 
-                if (!update) {
+            try {
+                const result = await invokeDesktop('check_for_app_update');
+                if (!result?.available || !result?.version) {
+                    state.pendingUpdate = null;
                     state.updateState = 'idle';
                     hideChip();
                     return null;
                 }
 
-                const body = getUpdateBody(update);
+                const update = {
+                    body: getUpdateBody(result),
+                    currentVersion: result.currentVersion || result.current_version || null,
+                    version: result.version,
+                };
+
+                state.pendingUpdate = update;
                 state.updateState = 'available';
                 renderChip(`UPDATE ${update.version}`, {
                     stateName: 'available',
-                    title: body ? `Update ${update.version}\n\n${body}` : `Update ${update.version} available`,
+                    title: update.body ? `Update ${update.version}\n\n${update.body}` : `Update ${update.version} available`,
                 });
                 updateInfo(`Update ${update.version} ready`);
                 logEvent('ui', 'update-available', `Update ${update.version} available`, {
-                    notes: body || null,
+                    currentVersion: update.currentVersion,
+                    notes: update.body || null,
                     version: update.version,
                 });
                 return update;
@@ -124,9 +122,6 @@ export function createAppUpdaterController({
 
         state.installPromise = (async () => {
             const update = state.pendingUpdate;
-            const { relaunch } = await loadProcessApi();
-            let downloaded = 0;
-            let contentLength = 0;
 
             state.updateState = 'downloading';
             renderChip(`UPDATING ${update.version}`, {
@@ -137,48 +132,25 @@ export function createAppUpdaterController({
             logEvent('ui', 'update-download-started', `Downloading update ${update.version}`);
 
             try {
-                await update.downloadAndInstall((event) => {
-                    if (event.event === 'Started') {
-                        contentLength = event.data.contentLength || 0;
-                        renderChip(`UPDATING ${update.version}`, {
-                            disabled: true,
-                            stateName: 'downloading',
-                            title: `Downloading ${formatBytes(contentLength)}`,
-                        });
-                        return;
-                    }
-
-                    if (event.event === 'Progress') {
-                        downloaded += event.data.chunkLength || 0;
-                        const progressLabel = contentLength
-                            ? `UPDATING ${Math.max(1, Math.min(99, Math.round((downloaded / contentLength) * 100)))}%`
-                            : `UPDATING ${formatBytes(downloaded)}`;
-                        renderChip(progressLabel, {
-                            disabled: true,
-                            stateName: 'downloading',
-                            title: contentLength
-                                ? `Downloaded ${formatBytes(downloaded)} of ${formatBytes(contentLength)}`
-                                : `Downloaded ${formatBytes(downloaded)}`,
-                        });
-                        return;
-                    }
-
-                    if (event.event === 'Finished') {
-                        renderChip('RESTARTING', {
-                            disabled: true,
-                            stateName: 'restarting',
-                            title: `Update ${update.version} installed`,
-                        });
-                    }
-                });
+                const result = await invokeDesktop('install_app_update');
+                if (!result?.installed) {
+                    state.pendingUpdate = null;
+                    state.updateState = 'idle';
+                    hideChip();
+                    return false;
+                }
 
                 state.updateState = 'restarting';
+                renderChip('RESTARTING', {
+                    disabled: true,
+                    stateName: 'restarting',
+                    title: `Update ${update.version} installed`,
+                });
                 logEvent('ui', 'update-installed', `Installed update ${update.version}`);
-                await relaunch();
+                await invokeDesktop('relaunch_app');
                 return true;
             } catch (error) {
                 state.updateState = 'error';
-                state.pendingUpdate = null;
                 renderChip('UPDATE RETRY', {
                     stateName: 'error',
                     title: `Update failed: ${error.message}`,

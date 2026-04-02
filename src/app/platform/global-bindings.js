@@ -6,7 +6,7 @@ export function updateMcpStatusChip(chip, state) {
     chip.dataset.mcpState = state;
     const labels = {
         off: 'MCP Bridge: disabled (click to enable)',
-        waiting: 'MCP Bridge: waiting for connection (click to disable)',
+        waiting: 'MCP Bridge: disconnected (click to disable)',
         connected: 'MCP Bridge: connected (click to disable)',
     };
     chip.title = labels[state] || labels.off;
@@ -103,8 +103,21 @@ export function createGlobalBindingsController({
         windowRef.showMcpSetup = showMcpSetup;
 
         elements.mcpStatusChip?.addEventListener('click', () => {
-            if (typeof windowRef._mcpBridge?.toggle === 'function') {
-                windowRef._mcpBridge.toggle();
+            const bridge = windowRef._mcpBridge;
+            const bridgeState = bridge?.state;
+
+            if (bridgeState === 'off' && typeof bridge?.enable === 'function') {
+                bridge.enable();
+                return;
+            }
+
+            if ((bridgeState === 'waiting' || bridgeState === 'connected') && typeof bridge?.disable === 'function') {
+                bridge.disable();
+                return;
+            }
+
+            if (typeof bridge?.toggle === 'function') {
+                bridge.toggle();
             }
         });
 

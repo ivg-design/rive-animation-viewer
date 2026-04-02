@@ -1,4 +1,5 @@
 import {
+    DEFAULT_LAYOUT_ALIGNMENT,
     DEFAULT_LAYOUT_FIT,
     FALLBACK_RUNTIME_VERSION_OPTIONS,
     RUNTIME_VERSION_OPTION_COUNT,
@@ -97,7 +98,10 @@ let statusController = null;
 let updaterController = null;
 let currentRuntime = 'webgl2';
 let runtimeVersionToken = loadRuntimeVersionPreference();
+let currentLayoutAlignment = DEFAULT_LAYOUT_ALIGNMENT;
 let currentLayoutFit = DEFAULT_LAYOUT_FIT;
+let currentConsoleMode = 'events';
+let syncingConsoleMode = false;
 const runtimeMeta = loadRuntimeMeta();
 const runtimeVersionByFile = loadRuntimeVersionByFile();
 const runtimeVersionOptionsState = {
@@ -112,6 +116,7 @@ const getCurrentFilePreferenceId = () => fileSessionController?.getCurrentFilePr
 const getCurrentFileSizeBytes = () => fileSessionController?.getCurrentFileSizeBytes() ?? 0;
 const getCurrentFileUrl = () => fileSessionController?.getCurrentFileUrl() ?? null;
 const getCurrentRuntime = () => currentRuntime;
+const getCurrentLayoutAlignment = () => currentLayoutAlignment;
 const getCurrentLayoutFit = () => currentLayoutFit;
 
 function refreshInfoStrip() {
@@ -139,7 +144,11 @@ async function resolveAppVersion() {
 }
 
 const elements = getElements();
-const eventLogController = createEventLogController({ elements, handleResize });
+const eventLogController = createEventLogController({
+    elements,
+    handleResize,
+    onCollapsedChange: handleEventLogCollapsedChange,
+});
 const {
     getEntriesSnapshot: getEventLogEntries,
     getFilterStateSnapshot: getEventLogFilterState,
@@ -156,6 +165,8 @@ const { showMcpSetup } = createMcpSetupController({
 const scriptConsoleController = createScriptConsoleController({
     callbacks: {
         logEvent,
+        onOpenChange: handleScriptConsoleOpenChange,
+        onToggleRequested: handleScriptConsoleToggleRequest,
         renderEventLog: eventLogController.renderEventLog,
     },
     elements,
@@ -165,6 +176,7 @@ const codeEditorController = createCodeEditorController({
         getTauriInvoker,
         loadRiveAnimation,
         logEvent,
+        refreshCurrentState,
         showError,
         updateInfo,
     },
@@ -188,6 +200,7 @@ updaterController = createAppUpdaterController({
         updateInfo,
     },
     elements,
+    getTauriInvoker,
     isTauriEnvironment,
 });
 const runtimeLoaderController = createRuntimeLoaderController({
@@ -216,6 +229,7 @@ const runtimeLoaderController = createRuntimeLoaderController({
     callbacks: {
         loadRiveAnimation,
         logEvent,
+        reloadCurrentAnimation: refreshCurrentState,
         refreshInfoStrip,
         showError,
         updateVersionInfo,
@@ -377,6 +391,7 @@ instanceController = createRiveInstanceController({
         updatePlaybackChips,
     },
     elements,
+    getCurrentLayoutAlignment,
     getCurrentFileBuffer,
     getCurrentLayoutFit,
     getCurrentRuntime,
@@ -387,6 +402,7 @@ shellController = createShellController({
         ensureRuntime,
         getCurrentFileName,
         getCurrentFileUrl,
+        getCurrentLayoutAlignment,
         getCurrentLayoutFit,
         getCurrentRuntime,
         getEventLogFilterState,
@@ -395,7 +411,11 @@ shellController = createShellController({
         handleResize,
         loadRiveAnimation,
         logEvent,
+        reloadCurrentAnimation: refreshCurrentState,
         refreshInfoStrip,
+        setCurrentLayoutAlignment: (nextLayoutAlignment) => {
+            currentLayoutAlignment = nextLayoutAlignment;
+        },
         setCurrentLayoutFit: (nextLayoutFit) => {
             currentLayoutFit = nextLayoutFit;
         },
@@ -420,6 +440,7 @@ demoExportController = createDemoExportController({
     getArtboardStateSnapshot,
     getCurrentFileBuffer,
     getCurrentFileName,
+    getCurrentLayoutAlignment,
     getCurrentLayoutFit,
     getCurrentRuntime,
     getEditorConfig,
@@ -451,10 +472,19 @@ const globalBindingsController = createGlobalBindingsController({
         injectCodeSnippet,
         loadRiveAnimation,
         logEvent,
-        closeScriptConsole: () => scriptConsoleController.close(),
-        execScriptConsole: (code) => scriptConsoleController.exec(code),
+        closeScriptConsole: () => {
+            void setConsoleMode('events');
+            return { open: false };
+        },
+        execScriptConsole: async (code) => {
+            await setConsoleMode('js');
+            return scriptConsoleController.exec(code);
+        },
         isScriptConsoleOpen: () => scriptConsoleController.isOpen(),
-        openScriptConsole: () => scriptConsoleController.open(),
+        openScriptConsole: async () => {
+            await setConsoleMode('js');
+            return { open: true };
+        },
         pause,
         play,
         refreshVmInputControls: renderVmInputControls,
@@ -469,6 +499,189 @@ const globalBindingsController = createGlobalBindingsController({
 });
 
 scriptConsoleController.installCapture();
+
+function deriveConsoleModeFromControllers() {
+    if (eventLogController?.isCollapsed?.()) {
+        return 'closed';
+    }
+    if (scriptConsoleController?.isOpen?.()) {
+        return 'js';
+    }
+    return 'events';
+}
+
+function updateConsoleModeChip() {
+    const chip = elements.consoleModeChip;
+    if (!chip) {
+        return;
+    }
+
+    const labels = {
+        closed: 'CLOSED',
+        events: 'EVENTS',
+        js: 'JS',
+    };
+    const titles = {
+        closed: 'Console closed (click to open events)',
+        events: 'Event console open (click to open JavaScript console)',
+        js: 'JavaScript console open (click to close console)',
+    };
+
+    chip.dataset.consoleMode = currentConsoleMode;
+    chip.title = titles[currentConsoleMode] || titles.closed;
+    if (elements.consoleModeChipLabel) {
+        elements.consoleModeChipLabel.textContent = labels[currentConsoleMode] || labels.closed;
+    } else {
+        chip.textContent = labels[currentConsoleMode] || labels.closed;
+    }
+}
+
+async function setConsoleMode(mode) {
+    const normalizedMode = ['closed', 'events', 'js'].includes(mode) ? mode : 'events';
+    syncingConsoleMode = true;
+    try {
+        if (normalizedMode === 'closed') {
+            scriptConsoleController.close();
+            eventLogController.setCollapsed(true);
+        } else if (normalizedMode === 'events') {
+            eventLogController.setCollapsed(false);
+            scriptConsoleController.close();
+        } else {
+            eventLogController.setCollapsed(false);
+            await scriptConsoleController.open();
+        }
+        currentConsoleMode = normalizedMode;
+    } catch (error) {
+        currentConsoleMode = deriveConsoleModeFromControllers();
+        showError(`Failed to open JavaScript console: ${error.message}`);
+        logEvent('ui', 'console-open-failed', error.message);
+        throw error;
+    } finally {
+        syncingConsoleMode = false;
+        updateConsoleModeChip();
+    }
+}
+
+function handleEventLogCollapsedChange(collapsed) {
+    if (syncingConsoleMode) {
+        return;
+    }
+
+    if (collapsed && scriptConsoleController?.isOpen()) {
+        scriptConsoleController.close();
+    }
+
+    currentConsoleMode = collapsed
+        ? 'closed'
+        : (scriptConsoleController?.isOpen() ? 'js' : 'events');
+    updateConsoleModeChip();
+}
+
+function handleScriptConsoleOpenChange(isOpen) {
+    if (syncingConsoleMode) {
+        return;
+    }
+
+    currentConsoleMode = isOpen
+        ? 'js'
+        : (eventLogController?.isCollapsed?.() ? 'closed' : 'events');
+    updateConsoleModeChip();
+}
+
+function handleScriptConsoleToggleRequest() {
+    const nextMode = deriveConsoleModeFromControllers() === 'js' ? 'events' : 'js';
+    setConsoleMode(nextMode).catch(() => {
+        /* setConsoleMode already reports errors */
+    });
+}
+
+async function cycleConsoleMode() {
+    const modeOrder = ['closed', 'events', 'js'];
+    currentConsoleMode = deriveConsoleModeFromControllers();
+    const currentIndex = modeOrder.indexOf(currentConsoleMode);
+    const nextMode = modeOrder[(currentIndex + 1) % modeOrder.length];
+    await setConsoleMode(nextMode);
+}
+
+async function refreshCurrentState() {
+    const currentFileUrl = getCurrentFileUrl();
+    const currentFileName = getCurrentFileName();
+    if (!currentFileUrl || !currentFileName) {
+        showError('Please load a Rive file first');
+        return false;
+    }
+
+    const currentArtboardState = getArtboardStateSnapshot();
+    const viewModelSnapshot = captureVmControlSnapshot();
+    const wasPlaying = Boolean(getRiveInstance()?.isPlaying);
+    const configOverrides = {
+        autoBind: true,
+        autoplay: true,
+    };
+
+    if (currentArtboardState.currentArtboard) {
+        configOverrides.artboard = currentArtboardState.currentArtboard;
+    }
+    if (currentArtboardState.currentPlaybackType === 'stateMachine' && currentArtboardState.currentPlaybackName) {
+        configOverrides.stateMachines = currentArtboardState.currentPlaybackName;
+        delete configOverrides.animations;
+    } else if (currentArtboardState.currentPlaybackType === 'animation' && currentArtboardState.currentPlaybackName) {
+        configOverrides.animations = currentArtboardState.currentPlaybackName;
+        delete configOverrides.stateMachines;
+    }
+
+    updateInfo(`Refreshing ${currentFileName}...`);
+    logEvent('ui', 'refresh-start', `Refreshing ${currentFileName}.`, {
+        artboard: currentArtboardState.currentArtboard || null,
+        controls: viewModelSnapshot.length,
+        playback: currentArtboardState.currentPlaybackName || null,
+        wasPlaying,
+    });
+
+    let restoredControls = 0;
+    try {
+        await new Promise((resolve, reject) => {
+            let settled = false;
+            const resolveOnce = () => {
+                if (!settled) {
+                    settled = true;
+                    resolve();
+                }
+            };
+            const rejectOnce = (error) => {
+                if (!settled) {
+                    settled = true;
+                    reject(error || new Error('Animation refresh failed'));
+                }
+            };
+
+            loadRiveAnimation(currentFileUrl, currentFileName, {
+                configOverrides,
+                onLoaded: () => {
+                    restoredControls = applyVmControlSnapshot(viewModelSnapshot);
+                    if (!wasPlaying) {
+                        getRiveInstance()?.pause?.();
+                    }
+                    resolveOnce();
+                },
+                onLoadError: rejectOnce,
+            }).catch(rejectOnce);
+        });
+
+        updateInfo(`Refreshed ${currentFileName}`);
+        logEvent('ui', 'refresh-complete', `Refreshed ${currentFileName}.`, {
+            artboard: currentArtboardState.currentArtboard || null,
+            playback: currentArtboardState.currentPlaybackName || null,
+            restoredControls,
+            wasPlaying,
+        });
+        return true;
+    } catch (error) {
+        showError(`Failed to refresh animation: ${error?.message || error}`);
+        logEvent('ui', 'refresh-failed', 'Failed to refresh current animation state.', error);
+        return false;
+    }
+}
 
 init();
 
@@ -492,12 +705,18 @@ async function init() {
             showMcpSetup,
         },
     });
+    elements.consoleModeChip?.addEventListener('click', () => {
+        cycleConsoleMode().catch(() => {
+            /* setConsoleMode already reports errors */
+        });
+    });
     fileSessionController.setupFileInput();
     fileSessionController.updateFileTriggerButton('empty');
     setupCanvasColor();
     setupTransparencyControls();
     setupEventLog();
     scriptConsoleController.setup();
+    updateConsoleModeChip();
     setupArtboardSwitcher();
     shellController?.setup();
     updaterController?.setup();

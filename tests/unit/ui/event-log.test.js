@@ -53,9 +53,11 @@ describe('ui/event-log', () => {
 
     it('filters, clears, and toggles collapse state', () => {
         const handleResize = vi.fn();
+        const onCollapsedChange = vi.fn();
         const controller = createEventLogController({
             elements: buildElements(),
             handleResize,
+            onCollapsedChange,
         });
 
         controller.setupEventLog();
@@ -70,8 +72,12 @@ describe('ui/event-log', () => {
         expect(document.getElementById('event-log-list').textContent).toContain('Native load');
 
         document.getElementById('event-log-header').dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        expect(document.getElementById('center-panel').classList.contains('event-log-collapsed')).toBe(true);
+        expect(controller.isCollapsed()).toBe(true);
         expect(handleResize).toHaveBeenCalled();
+        expect(onCollapsedChange).toHaveBeenCalledWith(true);
+
+        controller.setCollapsed(false);
+        expect(controller.isCollapsed()).toBe(false);
 
         document.getElementById('event-filter-search').value = '';
         document.getElementById('event-filter-search').dispatchEvent(new Event('input'));

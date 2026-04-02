@@ -14,17 +14,21 @@ describe('platform/app-updater', () => {
 
     it('stays hidden when no update is available', async () => {
         const elements = createElements();
+        const invoke = vi.fn().mockResolvedValue({
+            available: false,
+            currentVersion: '1.9.9',
+            version: null,
+        });
         const controller = createAppUpdaterController({
             elements,
+            getTauriInvoker: () => invoke,
             isTauriEnvironment: () => true,
-            loadUpdaterApi: async () => ({
-                check: vi.fn().mockResolvedValue(null),
-            }),
         });
 
         controller.setup();
         await expect(controller.checkForUpdatesOnLaunch()).resolves.toBeNull();
         expect(elements.updateChip.hidden).toBe(true);
+        expect(invoke).toHaveBeenCalledWith('check_for_app_update', {});
     });
 
     it('no-ops cleanly outside Tauri and when there is no pending install', async () => {
@@ -42,11 +46,22 @@ describe('platform/app-updater', () => {
 
     it('shows an update chip and installs the update on click', async () => {
         const elements = createElements();
-        const relaunch = vi.fn().mockResolvedValue(undefined);
-        const downloadAndInstall = vi.fn(async (onEvent) => {
-            onEvent({ event: 'Started', data: { contentLength: 100 } });
-            onEvent({ event: 'Progress', data: { chunkLength: 40 } });
-            onEvent({ event: 'Finished', data: {} });
+        const invoke = vi.fn(async (command) => {
+            if (command === 'check_for_app_update') {
+                return {
+                    available: true,
+                    body: 'Release notes',
+                    currentVersion: '1.9.9',
+                    version: '1.10.0',
+                };
+            }
+            if (command === 'install_app_update') {
+                return { installed: true, version: '1.10.0' };
+            }
+            if (command === 'relaunch_app') {
+                return true;
+            }
+            throw new Error(`Unexpected command: ${command}`);
         });
         const controller = createAppUpdaterController({
             callbacks: {
@@ -54,15 +69,8 @@ describe('platform/app-updater', () => {
                 updateInfo: vi.fn(),
             },
             elements,
+            getTauriInvoker: () => invoke,
             isTauriEnvironment: () => true,
-            loadProcessApi: async () => ({ relaunch }),
-            loadUpdaterApi: async () => ({
-                check: vi.fn().mockResolvedValue({
-                    body: 'Release notes',
-                    downloadAndInstall,
-                    version: '1.10.0',
-                }),
-            }),
         });
 
         controller.setup();
@@ -72,25 +80,28 @@ describe('platform/app-updater', () => {
         expect(elements.updateChip.textContent).toContain('1.10.0');
 
         elements.updateChip.click();
-        await Promise.resolve();
-        await Promise.resolve();
-
-        expect(downloadAndInstall).toHaveBeenCalled();
-        expect(relaunch).toHaveBeenCalled();
+        await vi.waitFor(() => {
+            expect(invoke).toHaveBeenCalledWith('install_app_update', {});
+            expect(invoke).toHaveBeenCalledWith('relaunch_app', {});
+        });
     });
 
     it('shows retry state when the update check fails', async () => {
         const elements = createElements();
-        const check = vi.fn()
+        const invoke = vi.fn()
             .mockRejectedValueOnce(new Error('network down'))
-            .mockResolvedValueOnce(null);
+            .mockResolvedValueOnce({
+                available: false,
+                currentVersion: '1.9.9',
+                version: null,
+            });
         const controller = createAppUpdaterController({
             callbacks: {
                 logEvent: vi.fn(),
             },
             elements,
+            getTauriInvoker: () => invoke,
             isTauriEnvironment: () => true,
-            loadUpdaterApi: async () => ({ check }),
         });
 
         controller.setup();
@@ -100,30 +111,36 @@ describe('platform/app-updater', () => {
         expect(elements.updateChip.dataset.updateState).toBe('error');
 
         elements.updateChip.click();
-        await Promise.resolve();
-        await Promise.resolve();
-
-        expect(check).toHaveBeenCalledTimes(2);
-        expect(elements.updateChip.hidden).toBe(true);
+        await vi.waitFor(() => {
+            expect(invoke).toHaveBeenCalledTimes(2);
+            expect(elements.updateChip.hidden).toBe(true);
+        });
     });
 
     it('surfaces install failures and keeps a retry state', async () => {
         const elements = createElements();
         const showError = vi.fn();
+        const invoke = vi.fn(async (command) => {
+            if (command === 'check_for_app_update') {
+                return {
+                    available: true,
+                    currentVersion: '1.9.9',
+                    version: '1.10.1',
+                };
+            }
+            if (command === 'install_app_update') {
+                throw new Error('install blocked');
+            }
+            return true;
+        });
         const controller = createAppUpdaterController({
             callbacks: {
                 logEvent: vi.fn(),
                 showError,
             },
             elements,
+            getTauriInvoker: () => invoke,
             isTauriEnvironment: () => true,
-            loadProcessApi: async () => ({ relaunch: vi.fn() }),
-            loadUpdaterApi: async () => ({
-                check: vi.fn().mockResolvedValue({
-                    downloadAndInstall: vi.fn().mockRejectedValue(new Error('install blocked')),
-                    version: '1.10.1',
-                }),
-            }),
         });
 
         controller.setup();

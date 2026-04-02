@@ -34,7 +34,7 @@ describe('ui/code-editor', () => {
     it('boots the fallback editor, reloads the animation, and toggles the VM explorer snippet', async () => {
         document.body.innerHTML = '<div id="code-editor"></div>';
 
-        const loadRiveAnimation = vi.fn().mockResolvedValue(undefined);
+        const refreshCurrentState = vi.fn().mockResolvedValue(true);
         const fetchImpl = vi.fn(async () => ({
             ok: true,
             text: async () => 'const vmExplorerSnippet = `onLoad: () => { vmExplore(); }`;',
@@ -42,7 +42,7 @@ describe('ui/code-editor', () => {
         const controller = createCodeEditorController({
             callbacks: {
                 getTauriInvoker: () => vi.fn().mockResolvedValue(undefined),
-                loadRiveAnimation,
+                refreshCurrentState,
                 logEvent: vi.fn(),
                 showError: vi.fn(),
                 updateInfo: vi.fn(),
@@ -66,7 +66,7 @@ describe('ui/code-editor', () => {
         }));
 
         await controller.applyCodeAndReload();
-        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:demo', 'demo.riv');
+        expect(refreshCurrentState).toHaveBeenCalledTimes(1);
 
         await controller.injectCodeSnippet();
         expect(fetchImpl).toHaveBeenCalledWith('/vm-explorer-snippet.js');

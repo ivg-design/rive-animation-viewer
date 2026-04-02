@@ -9,6 +9,8 @@ describe('core/elements', () => {
             <button id="reset-btn"></button>
             <button id="play-btn"></button>
             <button id="pause-btn"></button>
+            <select id="alignment-select"></select>
+            <button id="console-mode-chip"></button>
             <button id="apply-editor-config-btn"></button>
         `;
 
@@ -20,6 +22,8 @@ describe('core/elements', () => {
         expect(elements.resetButton?.id).toBe('reset-btn');
         expect(elements.playButton?.id).toBe('play-btn');
         expect(elements.pauseButton?.id).toBe('pause-btn');
+        expect(elements.alignmentSelect?.id).toBe('alignment-select');
+        expect(elements.consoleModeChip?.id).toBe('console-mode-chip');
         expect(elements.applyEditorConfigButton?.id).toBe('apply-editor-config-btn');
     });
 

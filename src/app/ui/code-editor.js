@@ -146,6 +146,7 @@ export function createCodeEditorController({
         getTauriInvoker = () => null,
         loadRiveAnimation = async () => {},
         logEvent = () => {},
+        refreshCurrentState = async () => {},
         showError = () => {},
         updateInfo = () => {},
     } = callbacks;
@@ -331,11 +332,11 @@ export function createCodeEditorController({
             return;
         }
 
-        logEvent('ui', 'apply-reload', 'Applied editor config and reloaded animation.');
+        logEvent('ui', 'apply-refresh', 'Applied editor config and refreshed the current view.');
         try {
-            await loadRiveAnimation(currentFileUrl, currentFileName);
+            await refreshCurrentState();
         } catch {
-            /* loadRiveAnimation already reports the error */
+            /* refreshCurrentState already reports the error */
         }
     }
 

@@ -78,6 +78,7 @@ describe('rive/instance-controller', () => {
         const controller = createRiveInstanceController({
             callbacks,
             elements,
+            getCurrentLayoutAlignment: () => 'topLeft',
             getCurrentFileBuffer: () => new ArrayBuffer(4),
             getCurrentLayoutFit: () => 'contain',
             getCurrentRuntime: () => 'webgl2',
@@ -99,7 +100,7 @@ describe('rive/instance-controller', () => {
             useOffscreenRenderer: true,
         }));
         expect(capturedConfig.layout).toEqual(expect.objectContaining({
-            alignment: 'center',
+            alignment: 'topLeft',
             fit: 'contain',
         }));
         expect(controller.getRiveInstance()).toBe(instance);

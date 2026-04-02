@@ -135,6 +135,7 @@ export function createRuntimeLoaderController({
     const {
         loadRiveAnimation = async () => {},
         logEvent = () => {},
+        reloadCurrentAnimation = null,
         refreshInfoStrip = () => {},
         showError = () => {},
         updateVersionInfo = () => {},
@@ -227,7 +228,7 @@ export function createRuntimeLoaderController({
             return;
         }
         await applyRuntimeVersionToken(storedToken, {
-            reloadCurrentAnimation: false,
+            reloadAnimation: false,
             source: 'file-pref',
         });
         renderRuntimeVersionPickerOptions();
@@ -297,7 +298,7 @@ export function createRuntimeLoaderController({
         }
     }
 
-    async function applyRuntimeVersionToken(nextToken, { reloadCurrentAnimation = true, source = 'settings' } = {}) {
+    async function applyRuntimeVersionToken(nextToken, { reloadAnimation = true, source = 'settings' } = {}) {
         const normalizedCurrent = normalizeRuntimeVersionToken(getRuntimeVersionToken());
         const normalizedNext = normalizeRuntimeVersionToken(nextToken);
         const effectiveCurrent = getEffectiveRuntimeVersionToken(normalizedCurrent);
@@ -321,7 +322,12 @@ export function createRuntimeLoaderController({
         try {
             await ensureRuntime(getCurrentRuntime());
             updateVersionInfo();
-            if (reloadCurrentAnimation && getCurrentFileUrl() && getCurrentFileName()) {
+            if (!reloadAnimation) {
+                return;
+            }
+            if (typeof reloadCurrentAnimation === 'function' && getCurrentFileUrl() && getCurrentFileName()) {
+                await reloadCurrentAnimation();
+            } else if (getCurrentFileUrl() && getCurrentFileName()) {
                 await loadRiveAnimation(getCurrentFileUrl(), getCurrentFileName());
             }
         } catch (error) {
