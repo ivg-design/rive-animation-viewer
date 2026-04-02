@@ -556,3 +556,39 @@ fn main() {
             }
         });
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{extract_opened_riv_file_args_from_iter, looks_like_riv_file};
+
+    #[test]
+    fn detects_riv_files_for_double_click_and_open_with_args() {
+        let args = vec![
+            "--flag",
+            "\"/Users/test/Documents/demo.riv\"",
+            "file:///Users/test/Desktop/another.riv",
+            "notes.txt",
+            "-psn_0_12345",
+            "/Users/test/Desktop/not-rive.mov",
+        ];
+
+        let parsed = extract_opened_riv_file_args_from_iter(args.iter().copied());
+
+        assert_eq!(
+            parsed,
+            vec![
+                "/Users/test/Documents/demo.riv".to_string(),
+                "file:///Users/test/Desktop/another.riv".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn only_accepts_riv_payloads_for_drag_drop_and_opened_events() {
+        assert!(looks_like_riv_file("/tmp/demo.riv"));
+        assert!(looks_like_riv_file("FILE:///Users/test/drop-target.riv"));
+        assert!(!looks_like_riv_file("/tmp/demo.riv.backup"));
+        assert!(!looks_like_riv_file("/tmp/demo.txt"));
+        assert!(!looks_like_riv_file(""));
+    }
+}

@@ -280,6 +280,81 @@ describe('platform/file-session', () => {
         await listeners.drop(pathDropEvent);
         expect(logEvent).toHaveBeenCalledWith('ui', 'file-dropped', 'Dropped file: from-path.riv');
         expect(showError).not.toHaveBeenCalledWith('Please drop a .riv file');
+
+        const uriListDropEvent = {
+            dataTransfer: {
+                files: [],
+                getData: (type) => {
+                    if (type === 'text/uri-list') {
+                        return '# Finder export\nfile:///Users/test/from-uri-list.riv';
+                    }
+                    return '';
+                },
+                items: [],
+            },
+            preventDefault: vi.fn(),
+        };
+
+        await listeners.drop(uriListDropEvent);
+        expect(logEvent).toHaveBeenCalledWith('ui', 'file-dropped', 'Dropped file: from-uri-list.riv');
+    });
+
+    it('loads startup and double-click open-file payloads from structured file URLs', async () => {
+        const elements = createElements();
+        const loadRiveAnimation = vi.fn().mockResolvedValue(undefined);
+        const listen = vi.fn(async (_eventName, handler) => {
+            listen.handler = handler;
+            return vi.fn();
+        });
+        const invoke = vi.fn(async (command, payload) => {
+            if (command === 'get_opened_file') {
+                return { paths: ['file:///Users/test/startup-open.riv'] };
+            }
+            if (command === 'read_riv_file') {
+                return payload.path.includes('startup-open') ? 'AQI=' : 'AwQ=';
+            }
+            return null;
+        });
+        const controller = createFileSessionController({
+            callbacks: {
+                applyStoredRuntimeVersionForCurrentFile: vi.fn().mockResolvedValue(undefined),
+                buildFileRuntimePreferenceId: vi.fn(() => 'pref-open-with'),
+                ensureTauriBridge: vi.fn().mockResolvedValue(undefined),
+                getTauriEventListener: async () => listen,
+                getTauriInvoker: () => invoke,
+                hideError: vi.fn(),
+                initLucideIcons: vi.fn(),
+                isTauriEnvironment: () => true,
+                loadRiveAnimation,
+                logEvent: vi.fn(),
+                refreshInfoStrip: vi.fn(),
+                resetArtboardSwitcherState: vi.fn(),
+                resetVmInputControls: vi.fn(),
+                showError: vi.fn(),
+            },
+            elements,
+            urlApi: {
+                createObjectURL: vi.fn()
+                    .mockReturnValueOnce('blob:startup-open')
+                    .mockReturnValueOnce('blob:double-click-open'),
+                revokeObjectURL: vi.fn(),
+            },
+            windowRef: {
+                addEventListener: vi.fn(),
+                atob: () => '\u0001\u0002',
+            },
+        });
+
+        await expect(controller.checkOpenedFile()).resolves.toBe(true);
+        expect(invoke).toHaveBeenCalledWith('read_riv_file', { path: '/Users/test/startup-open.riv' });
+        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:startup-open', 'startup-open.riv');
+
+        await controller.setupTauriOpenFileListener();
+        await listen.handler({ payload: { filePath: 'file:///Users/test/double-click-open.riv' } });
+
+        expect(invoke).toHaveBeenCalledWith('read_riv_file', { path: '/Users/test/double-click-open.riv' });
+        expect(loadRiveAnimation).toHaveBeenLastCalledWith('blob:double-click-open', 'double-click-open.riv');
+        expect(controller.getCurrentFileName()).toBe('double-click-open.riv');
     });
 
     it('covers bridge edge cases for open-file polling and listener registration', async () => {
