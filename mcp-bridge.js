@@ -548,6 +548,27 @@ const commandHandlers = {
       throw new Error(`Eval error: ${e.message}`);
     }
   },
+
+  async rav_console_open() {
+    if (typeof window._mcpConsoleOpen !== 'function') throw new Error('Console not available');
+    return window._mcpConsoleOpen();
+  },
+
+  async rav_console_close() {
+    if (typeof window._mcpConsoleClose !== 'function') throw new Error('Console not available');
+    return window._mcpConsoleClose();
+  },
+
+  async rav_console_read({ limit = 50 } = {}) {
+    if (typeof window._mcpConsoleRead !== 'function') throw new Error('Console not available');
+    return window._mcpConsoleRead(limit);
+  },
+
+  async rav_console_exec({ code }) {
+    if (!code) throw new Error('code is required');
+    if (typeof window._mcpConsoleExec !== 'function') throw new Error('Console not available');
+    return window._mcpConsoleExec(code);
+  },
 };
 
 // ---------------------------------------------------------------------------

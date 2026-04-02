@@ -471,6 +471,7 @@ fn main() {
     let opened_files = extract_opened_riv_file_args();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             for path in
                 extract_opened_riv_file_args_from_iter(argv.iter().skip(1).map(String::as_str))
@@ -483,6 +484,7 @@ fn main() {
                 let _ = window.set_focus();
             }
         }))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(OpenedFiles(Mutex::new(VecDeque::from(opened_files))))
         .setup(|app| {
             #[cfg(desktop)]

@@ -53,6 +53,7 @@ input, textarea, select,
 .cm-content,
 .mcp-snippet-block pre,
 .mcp-setup-path-code,
+.script-console-output,
 [contenteditable="true"] {
     -webkit-user-select: text;
     user-select: text;
@@ -102,4 +103,3 @@ body.transparency-mode .center-panel {
 .lucide-16 { width: 16px; height: 16px; }
 .lucide-18 { width: 18px; height: 18px; }
 .lucide-24 { width: 24px; height: 24px; }
-

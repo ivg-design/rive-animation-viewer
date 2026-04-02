@@ -5,6 +5,7 @@ import {
 } from './src/app/core/constants.js';
 import { getElements } from './src/app/core/elements.js';
 import { createDemoExportController } from './src/app/platform/demo-export.js';
+import { createAppUpdaterController } from './src/app/platform/app-updater.js';
 import {
     createFileSessionController,
     normalizeOpenedFilePath,
@@ -30,6 +31,7 @@ import { bindUiActionHandlers } from './src/app/ui/action-bindings.js';
 import { createCodeEditorController } from './src/app/ui/code-editor.js';
 import { createEventLogController } from './src/app/ui/event-log.js';
 import { createMcpSetupController } from './src/app/ui/mcp-setup.js';
+import { createScriptConsoleController } from './src/app/ui/script-console.js';
 import { createShellController } from './src/app/ui/shell-controller.js';
 import {
     createStatusController,
@@ -92,6 +94,7 @@ let fileSessionController = null;
 let instanceController = null;
 let shellController = null;
 let statusController = null;
+let updaterController = null;
 let currentRuntime = 'webgl2';
 let runtimeVersionToken = loadRuntimeVersionPreference();
 let currentLayoutFit = DEFAULT_LAYOUT_FIT;
@@ -150,6 +153,13 @@ const { showMcpSetup } = createMcpSetupController({
     getTauriInvoker,
     initLucideIcons,
 });
+const scriptConsoleController = createScriptConsoleController({
+    callbacks: {
+        logEvent,
+        renderEventLog: eventLogController.renderEventLog,
+    },
+    elements,
+});
 const codeEditorController = createCodeEditorController({
     callbacks: {
         getTauriInvoker,
@@ -171,6 +181,15 @@ const {
     injectCodeSnippet,
     setEditorCode,
 } = codeEditorController;
+updaterController = createAppUpdaterController({
+    callbacks: {
+        logEvent,
+        showError,
+        updateInfo,
+    },
+    elements,
+    isTauriEnvironment,
+});
 const runtimeLoaderController = createRuntimeLoaderController({
     elements,
     state: {
@@ -425,12 +444,17 @@ const globalBindingsController = createGlobalBindingsController({
         getCurrentRuntime,
         getEditorCode,
         getEventLogEntries,
+        getScriptConsoleEntries: (limit) => scriptConsoleController.readCaptured(limit),
         getRuntimeSourceText,
         getRuntimeVersion,
         handleFileButtonClick: () => fileSessionController?.handleFileButtonClick(),
         injectCodeSnippet,
         loadRiveAnimation,
         logEvent,
+        closeScriptConsole: () => scriptConsoleController.close(),
+        execScriptConsole: (code) => scriptConsoleController.exec(code),
+        isScriptConsoleOpen: () => scriptConsoleController.isOpen(),
+        openScriptConsole: () => scriptConsoleController.open(),
         pause,
         play,
         refreshVmInputControls: renderVmInputControls,
@@ -443,6 +467,8 @@ const globalBindingsController = createGlobalBindingsController({
     },
     elements,
 });
+
+scriptConsoleController.installCapture();
 
 init();
 
@@ -471,8 +497,10 @@ async function init() {
     setupCanvasColor();
     setupTransparencyControls();
     setupEventLog();
+    scriptConsoleController.setup();
     setupArtboardSwitcher();
     shellController?.setup();
+    updaterController?.setup();
     await ensureEditorReady();
     window.setTimeout(() => {
         ensureEditorReady().catch(() => {
@@ -487,6 +515,7 @@ async function init() {
     refreshInfoStrip();
     window.addEventListener('resize', handleResize);
     window.addEventListener('beforeunload', () => {
+        scriptConsoleController.destroy();
         shellController?.dispose();
         fileSessionController?.dispose();
         cleanupTransparencyRuntime().catch(() => {
@@ -494,6 +523,9 @@ async function init() {
         });
     });
     console.log('[rive-viewer] setup complete, loading runtime...');
+    updaterController?.checkForUpdatesOnLaunch().catch((error) => {
+        console.warn('[rive-viewer] updater check failed:', error);
+    });
     ensureRuntime(currentRuntime)
         .then(async () => {
             updateVersionInfo();

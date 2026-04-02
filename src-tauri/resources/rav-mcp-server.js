@@ -24805,6 +24805,45 @@ var TOOLS = [
       required: ["expression"],
       additionalProperties: false
     }
+  },
+  {
+    name: "rav_console_open",
+    description: "Open the JavaScript console panel (switches from Event Console to JS Console mode).",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false }
+  },
+  {
+    name: "rav_console_close",
+    description: "Close the JavaScript console panel (switches back to Event Console mode).",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false }
+  },
+  {
+    name: "rav_console_read",
+    description: "Read captured console output (console.log/warn/error/info/debug). Returns the most recent entries with method, timestamp, and args.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "number",
+          description: "Maximum entries to return (default 50)"
+        }
+      },
+      additionalProperties: false
+    }
+  },
+  {
+    name: "rav_console_exec",
+    description: "Execute JavaScript in the REPL console. The code is evaluated in the browser context with output displayed in the console panel. Opens the console automatically if not already open.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        code: {
+          type: "string",
+          description: "JavaScript code to execute in the console REPL"
+        }
+      },
+      required: ["code"],
+      additionalProperties: false
+    }
   }
 ];
 var SERVER_INSTRUCTIONS = `
@@ -24847,6 +24886,9 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 - If rav_get_vm_tree returns empty but you suspect there's a ViewModel, ensure the editor config includes \`autoBind: true\` and \`stateMachines\` is set, then call rav_apply_code.
 - Use **rav_eval** for anything not covered by the dedicated tools \u2014 it runs JS in the browser context with access to \`window.riveInst\` and all globals.
 - **rav_get_event_log** shows runtime events, user events, UI events, and MCP events \u2014 useful for debugging what happened.
+- **rav_console_open** / **rav_console_close** toggle the JS console panel.
+- **rav_console_read** returns captured console.* output (all calls since app start).
+- **rav_console_exec** evaluates code in the REPL with output shown in the console panel.
 - **rav_export_demo** creates a self-contained HTML file with the current animation, runtime, and settings baked in.
 `.trim();
 var server = new Server(

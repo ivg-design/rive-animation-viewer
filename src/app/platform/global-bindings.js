@@ -29,12 +29,17 @@ export function createGlobalBindingsController({
         getCurrentRuntime = () => 'webgl2',
         getEditorCode = () => '',
         getEventLogEntries = () => [],
+        getScriptConsoleEntries = () => ({ total: 0, returned: 0, entries: [] }),
         getRuntimeSourceText = () => '',
         getRuntimeVersion = () => '',
         handleFileButtonClick = () => {},
         injectCodeSnippet = async () => {},
         loadRiveAnimation = async () => {},
         logEvent = () => {},
+        closeScriptConsole = () => ({ open: false }),
+        execScriptConsole = async () => ({ ok: false }),
+        isScriptConsoleOpen = () => false,
+        openScriptConsole = async () => ({ open: true }),
         pause = () => {},
         play = () => {},
         refreshVmInputControls = () => {},
@@ -74,6 +79,11 @@ export function createGlobalBindingsController({
         windowRef._mcpSetCurrentFile = (...args) => setCurrentFile(...args);
         windowRef._mcpLoadAnimation = loadRiveAnimation;
         windowRef._mcpGetEventLog = getEventLogEntries;
+        windowRef._mcpConsoleOpen = async () => openScriptConsole();
+        windowRef._mcpConsoleClose = () => closeScriptConsole();
+        windowRef._mcpConsoleIsOpen = () => isScriptConsoleOpen();
+        windowRef._mcpConsoleRead = (limit) => getScriptConsoleEntries(limit);
+        windowRef._mcpConsoleExec = async (code) => execScriptConsole(code);
         windowRef._mcpGetEditorCode = async () => {
             await ensureEditorReady();
             return getEditorCode();

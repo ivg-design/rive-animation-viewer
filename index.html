@@ -195,6 +195,9 @@
                         <span>SCRIPT EDITOR</span>
                     </div>
                     <div class="panel-heading-actions">
+                        <button type="button" id="toggle-script-console-btn" class="icon-btn-sm" title="Toggle JavaScript Console" aria-label="Toggle JavaScript Console" aria-pressed="false">
+                            <i data-lucide="square-terminal" class="lucide-14"></i>
+                        </button>
                         <button type="button" id="inject-vm-explorer-btn" class="icon-btn-sm" title="Inject VM Explorer" aria-label="Inject VM Explorer" hidden>
                             <i data-lucide="terminal" class="lucide-14"></i>
                         </button>
@@ -242,6 +245,7 @@
                         <span class="runtime-chip runtime-chip-file" id="runtime-strip-file"><i data-lucide="file" class="lucide-10"></i>No animation loaded</span>
                     </div>
                     <div class="runtime-strip-right">
+                        <button type="button" class="runtime-chip runtime-chip-update" id="update-chip" hidden>UPDATE</button>
                         <span class="runtime-chip runtime-chip-status" id="info">Ready to load animation</span>
                     </div>
                 </div>
@@ -256,10 +260,10 @@
                     <div class="event-log-header" id="event-log-header">
                         <div class="event-log-summary-left">
                             <i data-lucide="chevron-down" class="lucide-14 event-log-chevron"></i>
-                            <span>EVENT CONSOLE</span>
+                            <span id="event-log-title">EVENT CONSOLE</span>
                             <span class="pill" id="event-log-count">0</span>
                         </div>
-                        <div class="event-log-summary-right">
+                        <div class="event-log-summary-right" id="event-log-filter-controls">
                             <div class="event-filter-toggles" role="group" aria-label="Event source filters">
                                 <button type="button" id="event-filter-native" class="event-filter-toggle is-active" aria-pressed="true">NATIVE</button>
                                 <button type="button" id="event-filter-rive-user" class="event-filter-toggle is-active" aria-pressed="true">RIVE USER</button>
@@ -269,9 +273,27 @@
                             <input type="search" id="event-filter-search" class="event-filter-search" placeholder="SEARCH">
                             <button type="button" class="btn-compact" id="event-log-clear-btn">CLEAR</button>
                         </div>
+                        <div class="event-log-summary-right script-console-summary-right" id="script-console-summary-right" hidden>
+                            <div class="event-filter-toggles script-console-filter-toggles" role="group" aria-label="Console level filters">
+                                <button type="button" id="script-console-filter-all" class="event-filter-toggle is-active" aria-pressed="true">ALL</button>
+                                <button type="button" id="script-console-filter-info" class="event-filter-toggle" aria-pressed="false">INFO</button>
+                                <button type="button" id="script-console-filter-warning" class="event-filter-toggle" aria-pressed="false">WARNING</button>
+                                <button type="button" id="script-console-filter-error" class="event-filter-toggle" aria-pressed="false">ERROR</button>
+                            </div>
+                            <input type="search" id="script-console-filter-search" class="event-filter-search" placeholder="SEARCH">
+                            <button type="button" class="btn-compact" id="script-console-copy-btn">COPY</button>
+                            <button type="button" class="btn-compact" id="script-console-clear-btn">CLEAR</button>
+                        </div>
                     </div>
                     <div class="event-log-body">
                         <div class="event-log-list" id="event-log-list"></div>
+                        <div class="script-console-view" id="script-console-view" hidden>
+                            <div class="script-console-output" id="script-console-output" aria-label="JavaScript Console"></div>
+                            <div class="script-console-repl" id="script-console-repl">
+                                <span class="script-console-repl-prompt">&gt;</span>
+                                <input type="text" id="script-console-repl-input" class="script-console-repl-input" placeholder="Type JS and press Enter" autocomplete="off" spellcheck="false">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
