@@ -66,7 +66,52 @@ describe('platform/web-instantiation', () => {
             stateMachines: ['main-sm'],
         }));
 
-        const code = generateWebInstantiationCode(descriptor, { packageSource: 'local' });
+        const code = generateWebInstantiationCode(descriptor, {
+            packageSource: 'local',
+            controlSnapshot: [
+                {
+                    descriptor: {
+                        kind: 'enum',
+                        name: 'chart-picker',
+                        path: 'card-vm/chart-picker',
+                        source: 'view-model',
+                    },
+                    enumValues: ['bar', 'line', 'area'],
+                    kind: 'enum',
+                    value: 'bar',
+                },
+                {
+                    descriptor: {
+                        kind: 'color',
+                        name: 'accent-color',
+                        path: 'card-vm/accent-color',
+                        source: 'view-model',
+                    },
+                    kind: 'color',
+                    value: 0xff336699,
+                },
+                {
+                    descriptor: {
+                        kind: 'trigger',
+                        name: 'refresh',
+                        path: 'card-vm/refresh',
+                        source: 'view-model',
+                    },
+                    kind: 'trigger',
+                    value: null,
+                },
+                {
+                    descriptor: {
+                        kind: 'number',
+                        name: 'progress',
+                        source: 'state-machine',
+                        stateMachineName: 'main-sm',
+                    },
+                    kind: 'number',
+                    value: 0.5,
+                },
+            ],
+        });
         expect(code).toContain('import * as rive from "@rive-app/webgl2";');
         expect(code).toContain('const ravRive = createRavWebController(() => riveInst);');
         expect(code).toContain('const userConfig = (');
@@ -74,6 +119,13 @@ describe('platform/web-instantiation', () => {
         expect(code).toContain('ravRive.applySnapshot();');
         expect(code).toContain('stateMachines: "main-sm"');
         expect(code).toContain('canvas.style.background = "#112233";');
+        expect(code).toContain('const VM_OVERRIDES = {');
+        expect(code).toContain('"card-vm/chart-picker": "bar", // enum: bar | line | area');
+        expect(code).toContain('"card-vm/accent-color": "#FF336699", // color (ARGB hex)');
+        expect(code).toContain('const VM_STARTUP_TRIGGERS = [');
+        expect(code).toContain('"card-vm/refresh", // trigger');
+        expect(code).toContain('"main-sm": {');
+        expect(code).toContain('"progress": 0.5, // number');
     });
 
     it('generates CDN/internal snippets and returns metadata', () => {
@@ -103,6 +155,8 @@ describe('platform/web-instantiation', () => {
         expect(result.code).toContain('animations: "idle"');
         expect(result.code).toContain('canvas.style.background = "transparent";');
         expect(result.helperApi.global).toBe('window.ravRive');
+        expect(result.helperApi.methods).toContain('window.ravRive.applyVmOverrides()');
+        expect(result.helperApi.methods).toContain('window.ravRive.fireStartupTriggers()');
         expect(result.notes[1]).toContain('internal wiring');
     });
 });

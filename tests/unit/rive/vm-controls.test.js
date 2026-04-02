@@ -336,7 +336,12 @@ describe('rive/vm-controls', () => {
             }),
             expect.objectContaining({
                 kind: 'enum',
+                enumValues: ['slow', 'fast'],
                 value: 'slow',
+            }),
+            expect.objectContaining({
+                kind: 'trigger',
+                value: null,
             }),
         ]));
 

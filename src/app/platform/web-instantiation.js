@@ -205,8 +205,9 @@ function normalizeControlSnapshot(controlSnapshot = []) {
     if (!Array.isArray(controlSnapshot)) {
         return [];
     }
+
     return controlSnapshot
-        .filter((entry) => entry && entry.descriptor && entry.kind !== 'trigger')
+        .filter((entry) => entry && entry.descriptor)
         .map((entry) => ({
             descriptor: {
                 kind: entry.descriptor.kind,
@@ -215,20 +216,205 @@ function normalizeControlSnapshot(controlSnapshot = []) {
                 source: entry.descriptor.source,
                 stateMachineName: entry.descriptor.stateMachineName,
             },
-            kind: entry.kind,
-            value: entry.value,
-        }));
+            enumValues: Array.isArray(entry.enumValues)
+                ? entry.enumValues
+                    .map((value) => String(value ?? '').trim())
+                    .filter((value) => value.length > 0)
+                : [],
+            kind: entry.kind || entry.descriptor.kind,
+            value: (entry.kind || entry.descriptor.kind) === 'trigger' ? null : entry.value,
+        }))
+        .sort((left, right) => {
+            const leftSortKey = left.descriptor.source === 'state-machine'
+                ? `sm:${left.descriptor.stateMachineName || ''}/${left.descriptor.name || ''}`
+                : `vm:${left.descriptor.path || ''}`;
+            const rightSortKey = right.descriptor.source === 'state-machine'
+                ? `sm:${right.descriptor.stateMachineName || ''}/${right.descriptor.name || ''}`
+                : `vm:${right.descriptor.path || ''}`;
+            return leftSortKey.localeCompare(rightSortKey);
+        });
+}
+
+function formatArgbHex(value) {
+    const rawValue = Number.isFinite(Number(value)) ? Number(value) >>> 0 : 0xff000000;
+    return `#${rawValue.toString(16).padStart(8, '0').toUpperCase()}`;
+}
+
+function formatSectionLabel(path = '') {
+    return String(path || '')
+        .split('/')
+        .filter((segment) => segment && segment.trim().length > 0)
+        .map((segment) => segment.trim().toUpperCase())
+        .join(' / ');
+}
+
+function formatControlValueLiteral(entry) {
+    if (entry.kind === 'color') {
+        return JSON.stringify(formatArgbHex(entry.value));
+    }
+    return JSON.stringify(entry.value);
+}
+
+function formatControlComment(entry) {
+    if (entry.kind === 'enum') {
+        return entry.enumValues.length
+            ? `enum: ${entry.enumValues.join(' | ')}`
+            : 'enum';
+    }
+    if (entry.kind === 'color') {
+        return 'color (ARGB hex)';
+    }
+    if (entry.kind === 'trigger') {
+        return 'trigger';
+    }
+    return entry.kind;
+}
+
+function buildVmOverrideObjectLines(controlSnapshot = []) {
+    const vmEntries = normalizeControlSnapshot(controlSnapshot).filter(
+        (entry) => entry.descriptor.source !== 'state-machine' && entry.kind !== 'trigger' && entry.descriptor.path,
+    );
+
+    if (!vmEntries.length) {
+        return [
+            '  // Add any ViewModel overrides here.',
+            '  // Example: "card-vm/title": "Revenue",',
+        ];
+    }
+
+    const lines = [];
+    let lastRoot = null;
+    let lastPrefix = null;
+
+    vmEntries.forEach((entry, index) => {
+        const path = entry.descriptor.path;
+        const segments = path.split('/');
+        const root = segments[0] || path;
+        const prefix = segments.slice(0, -1).join('/');
+
+        if (root !== lastRoot) {
+            if (index > 0) {
+                lines.push('');
+            }
+            lines.push(`  // ${formatSectionLabel(root)}`);
+            lastRoot = root;
+            lastPrefix = root;
+        }
+
+        if (prefix && prefix !== root && prefix !== lastPrefix) {
+            lines.push(`  // ${formatSectionLabel(prefix)}`);
+            lastPrefix = prefix;
+        }
+
+        lines.push(`  ${JSON.stringify(path)}: ${formatControlValueLiteral(entry)}, // ${formatControlComment(entry)}`);
+    });
+
+    return lines;
+}
+
+function buildStateMachineOverrideObjectLines(controlSnapshot = []) {
+    const stateMachineEntries = normalizeControlSnapshot(controlSnapshot).filter(
+        (entry) => entry.descriptor.source === 'state-machine' && entry.kind !== 'trigger',
+    );
+
+    if (!stateMachineEntries.length) {
+        return [
+            '  // Add state machine input overrides here.',
+            '  // Example: "main-sm": { "progress": 0.5 },',
+        ];
+    }
+
+    const groups = new Map();
+    stateMachineEntries.forEach((entry) => {
+        const name = entry.descriptor.stateMachineName || 'default';
+        if (!groups.has(name)) {
+            groups.set(name, []);
+        }
+        groups.get(name).push(entry);
+    });
+
+    const lines = [];
+    Array.from(groups.keys()).sort().forEach((stateMachineName, index) => {
+        if (index > 0) {
+            lines.push('');
+        }
+        lines.push(`  ${JSON.stringify(stateMachineName)}: {`);
+        groups.get(stateMachineName).forEach((entry) => {
+            lines.push(`    ${JSON.stringify(entry.descriptor.name)}: ${formatControlValueLiteral(entry)}, // ${formatControlComment(entry)}`);
+        });
+        lines.push('  },');
+    });
+    return lines;
+}
+
+function buildVmTriggerLines(controlSnapshot = []) {
+    const triggerEntries = normalizeControlSnapshot(controlSnapshot).filter(
+        (entry) => entry.descriptor.source !== 'state-machine' && entry.kind === 'trigger' && entry.descriptor.path,
+    );
+
+    if (!triggerEntries.length) {
+        return [
+            '  // Add any VM triggers you want to fire on load.',
+            '  // "card-vm/refresh",',
+        ];
+    }
+
+    const lines = [];
+    let lastRoot = null;
+    triggerEntries.forEach((entry, index) => {
+        const root = entry.descriptor.path.split('/')[0] || entry.descriptor.path;
+        if (root !== lastRoot) {
+            if (index > 0) {
+                lines.push('');
+            }
+            lines.push(`  // ${formatSectionLabel(root)}`);
+            lastRoot = root;
+        }
+        lines.push(`  ${JSON.stringify(entry.descriptor.path)}, // trigger`);
+    });
+    return lines;
+}
+
+function buildStateMachineTriggerLines(controlSnapshot = []) {
+    const triggerEntries = normalizeControlSnapshot(controlSnapshot).filter(
+        (entry) => entry.descriptor.source === 'state-machine' && entry.kind === 'trigger',
+    );
+
+    if (!triggerEntries.length) {
+        return [
+            '  // Add any state machine triggers you want to fire on load.',
+            '  // { stateMachine: "main-sm", input: "pulse" },',
+        ];
+    }
+
+    return triggerEntries.map((entry) => (
+        `  { stateMachine: ${JSON.stringify(entry.descriptor.stateMachineName || 'default')}, input: ${JSON.stringify(entry.descriptor.name)} }, // trigger`
+    ));
 }
 
 function buildControlHelperLines(controlSnapshot = []) {
-    const normalizedSnapshot = normalizeControlSnapshot(controlSnapshot);
-    const snapshotLiteral = JSON.stringify(normalizedSnapshot, null, 2)
-        .split('\n')
-        .map((line) => `  ${line}`)
-        .join('\n');
-
     return [
-        `  const initialControlSnapshot = ${snapshotLiteral};`,
+        '  // =============================================================================',
+        '  // CONTROL OVERRIDES',
+        '  // - VM_OVERRIDES applies ViewModel values on load.',
+        '  // - STATE_MACHINE_OVERRIDES applies state machine input values on load.',
+        '  // - *_STARTUP_TRIGGERS fire event-style triggers after the instance loads.',
+        '  // =============================================================================',
+        '  const VM_OVERRIDES = {',
+        ...buildVmOverrideObjectLines(controlSnapshot),
+        '  };',
+        '',
+        '  const STATE_MACHINE_OVERRIDES = {',
+        ...buildStateMachineOverrideObjectLines(controlSnapshot),
+        '  };',
+        '',
+        '  const VM_STARTUP_TRIGGERS = [',
+        ...buildVmTriggerLines(controlSnapshot),
+        '  ];',
+        '',
+        '  const STATE_MACHINE_STARTUP_TRIGGERS = [',
+        ...buildStateMachineTriggerLines(controlSnapshot),
+        '  ];',
         '',
         '  function safeRavVmCall(target, methodName, ...args) {',
         '    if (!target || typeof target[methodName] !== "function") return null;',
@@ -328,11 +514,34 @@ function buildControlHelperLines(controlSnapshot = []) {
         '    }',
         '  }',
         '',
+        '  function parseRavArgbHex(value) {',
+        '    const cleanValue = typeof value === "string" ? value.trim() : "";',
+        '    const normalized = cleanValue.startsWith("#") ? cleanValue.slice(1) : cleanValue;',
+        '    if (!/^[0-9a-fA-F]{8}$/.test(normalized)) return null;',
+        '    return Number.parseInt(normalized, 16) >>> 0;',
+        '  }',
+        '',
         '  function setRavVmValue(path, value, expectedKind, instance = riveInst) {',
-        '    const accessor = getRavVmAccessor(path, expectedKind, instance);',
-        '    if (!accessor || !("value" in accessor)) return false;',
-        '    accessor.value = value;',
-        '    return true;',
+        '    const colorValue = typeof value === "number" && Number.isFinite(value)',
+        '      ? value >>> 0',
+        '      : parseRavArgbHex(value);',
+        '    const probeKinds = expectedKind',
+        '      ? [expectedKind]',
+        '      : typeof value === "boolean"',
+        '        ? ["boolean"]',
+        '        : typeof value === "number"',
+        '          ? ["number"]',
+        '          : colorValue !== null',
+        '            ? ["color"]',
+        '            : ["enum", "string"];',
+        '',
+        '    for (const kind of probeKinds) {',
+        '      const accessor = getRavVmAccessor(path, kind, instance);',
+        '      if (!accessor || !("value" in accessor)) continue;',
+        '      accessor.value = kind === "color" ? colorValue : value;',
+        '      return true;',
+        '    }',
+        '    return false;',
         '  }',
         '',
         '  function fireRavVmTrigger(path, instance = riveInst) {',
@@ -362,25 +571,48 @@ function buildControlHelperLines(controlSnapshot = []) {
         '    return true;',
         '  }',
         '',
-        '  function applyRavControlSnapshot(instance = riveInst, snapshot = initialControlSnapshot) {',
-        '    if (!instance || !Array.isArray(snapshot) || snapshot.length === 0) return 0;',
+        '  function applyRavVmOverrides(instance = riveInst, overrides = VM_OVERRIDES) {',
+        '    if (!instance || !overrides || typeof overrides !== "object") return 0;',
         '    let applied = 0;',
-        '    snapshot.forEach((entry) => {',
-        '      const descriptor = entry?.descriptor || {};',
-        '      const kind = entry?.kind || descriptor.kind;',
-        '      if (descriptor.source === "state-machine") {',
-        '        const didApply = kind === "trigger"',
-        '          ? fireRavStateMachineInput(descriptor.stateMachineName, descriptor.name, instance)',
-        '          : setRavStateMachineInput(descriptor.stateMachineName, descriptor.name, entry.value, instance);',
-        '        if (didApply) applied += 1;',
-        '        return;',
-        '      }',
-        '',
-        '      const didApply = kind === "trigger"',
-        '        ? fireRavVmTrigger(descriptor.path, instance)',
-        '        : setRavVmValue(descriptor.path, entry.value, kind, instance);',
-        '      if (didApply) applied += 1;',
+        '    Object.entries(overrides).forEach(([path, value]) => {',
+        '      if (setRavVmValue(path, value, undefined, instance)) applied += 1;',
         '    });',
+        '    return applied;',
+        '  }',
+        '',
+        '  function applyRavStateMachineOverrides(instance = riveInst, overrides = STATE_MACHINE_OVERRIDES) {',
+        '    if (!instance || !overrides || typeof overrides !== "object") return 0;',
+        '    let applied = 0;',
+        '    Object.entries(overrides).forEach(([stateMachineName, inputs]) => {',
+        '      if (!inputs || typeof inputs !== "object") return;',
+        '      Object.entries(inputs).forEach(([inputName, value]) => {',
+        '        if (setRavStateMachineInput(stateMachineName, inputName, value, instance)) applied += 1;',
+        '      });',
+        '    });',
+        '    return applied;',
+        '  }',
+        '',
+        '  function fireRavStartupTriggers(instance = riveInst, vmTriggers = VM_STARTUP_TRIGGERS, stateMachineTriggers = STATE_MACHINE_STARTUP_TRIGGERS) {',
+        '    let fired = 0;',
+        '    if (Array.isArray(vmTriggers)) {',
+        '      vmTriggers.forEach((path) => {',
+        '        if (fireRavVmTrigger(path, instance)) fired += 1;',
+        '      });',
+        '    }',
+        '    if (Array.isArray(stateMachineTriggers)) {',
+        '      stateMachineTriggers.forEach((entry) => {',
+        '        if (fireRavStateMachineInput(entry?.stateMachine, entry?.input, instance)) fired += 1;',
+        '      });',
+        '    }',
+        '    return fired;',
+        '  }',
+        '',
+        '  function applyRavControlSnapshot(instance = riveInst) {',
+        '    if (!instance) return 0;',
+        '    let applied = 0;',
+        '    applied += applyRavVmOverrides(instance);',
+        '    applied += applyRavStateMachineOverrides(instance);',
+        '    applied += fireRavStartupTriggers(instance);',
         '    return applied;',
         '  }',
         '',
@@ -391,6 +623,15 @@ function buildControlHelperLines(controlSnapshot = []) {
         '      },',
         '      applySnapshot() {',
         '        return applyRavControlSnapshot(getInstance());',
+        '      },',
+        '      applyStateMachineOverrides() {',
+        '        return applyRavStateMachineOverrides(getInstance());',
+        '      },',
+        '      applyVmOverrides() {',
+        '        return applyRavVmOverrides(getInstance());',
+        '      },',
+        '      fireStartupTriggers() {',
+        '        return fireRavStartupTriggers(getInstance());',
         '      },',
         '      fireStateMachineInput(stateMachineName, inputName) {',
         '        return fireRavStateMachineInput(stateMachineName, inputName, getInstance());',
@@ -426,12 +667,34 @@ function buildControlUsageExamples(controlSnapshot = []) {
     const seen = new Set();
 
     normalizedSnapshot.forEach((entry) => {
-        if (!entry?.descriptor || examples.length >= 4) {
+        if (!entry?.descriptor || examples.length >= 6) {
             return;
         }
 
         const descriptor = entry.descriptor;
-        const valueLiteral = JSON.stringify(entry.value);
+        const valueLiteral = entry.kind === 'color'
+            ? JSON.stringify(formatArgbHex(entry.value))
+            : JSON.stringify(entry.value);
+
+        if (entry.kind === 'trigger') {
+            if (descriptor.source === 'state-machine' && descriptor.stateMachineName && descriptor.name) {
+                const example = `window.ravRive.fireStateMachineInput(${JSON.stringify(descriptor.stateMachineName)}, ${JSON.stringify(descriptor.name)});`;
+                if (!seen.has(example)) {
+                    seen.add(example);
+                    examples.push(example);
+                }
+                return;
+            }
+
+            if (descriptor.path) {
+                const example = `window.ravRive.fireVmTrigger(${JSON.stringify(descriptor.path)});`;
+                if (!seen.has(example)) {
+                    seen.add(example);
+                    examples.push(example);
+                }
+            }
+            return;
+        }
 
         if (descriptor.source === 'state-machine' && descriptor.stateMachineName && descriptor.name) {
             const example = `window.ravRive.setStateMachineInput(${JSON.stringify(descriptor.stateMachineName)}, ${JSON.stringify(descriptor.name)}, ${valueLiteral});`;
@@ -520,6 +783,9 @@ export function buildWebInstantiationResult(descriptor, { packageSource = 'cdn',
             methods: [
                 'window.ravRive.instance',
                 'window.ravRive.applySnapshot()',
+                'window.ravRive.applyVmOverrides()',
+                'window.ravRive.applyStateMachineOverrides()',
+                'window.ravRive.fireStartupTriggers()',
                 'window.ravRive.getVmRoot()',
                 'window.ravRive.resolveVmAccessor(path, expectedKind?)',
                 'window.ravRive.setVmValue(path, value, expectedKind?)',
@@ -543,7 +809,7 @@ export function buildWebInstantiationResult(descriptor, { packageSource = 'cdn',
                 ? `The CDN form uses the global runtime exposed by ${descriptor.runtimeCdnUrl}.`
                 : `The local-package form imports ${descriptor.runtimePackageName} from your app bundle.`,
             normalizeControlSnapshot(controlSnapshot).length > 0
-                ? 'The snippet restores the current ViewModel/state-machine values on load and exposes helper methods on window.ravRive.'
+                ? 'The snippet organizes the selected controls into readable VM/state-machine override blocks, including enum option comments and startup trigger sections.'
                 : 'The snippet exposes helper methods on window.ravRive for ViewModel and state-machine control.',
         ],
     };

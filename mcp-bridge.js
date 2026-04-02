@@ -16,8 +16,10 @@
 
 const MCP_BRIDGE_PORT = 9274;
 const MCP_BRIDGE_URL = `ws://127.0.0.1:${MCP_BRIDGE_PORT}`;
-const RECONNECT_DELAY_MS = 5000;
-const MAX_RECONNECT_DELAY_MS = 30000;
+const RECONNECT_DELAY_MS = 1000;
+const MAX_RECONNECT_DELAY_MS = 4000;
+const CONNECT_TIMEOUT_MS = 2000;
+const WATCHDOG_INTERVAL_MS = 1500;
 
 let ws = null;
 let reconnectTimer = null;
@@ -25,6 +27,9 @@ let reconnectDelay = RECONNECT_DELAY_MS;
 let connected = false;
 let enabled = true;
 let connectionAttempts = 0;
+let connectTimeoutTimer = null;
+let connectStartedAt = 0;
+let watchdogTimer = null;
 
 // ---------------------------------------------------------------------------
 // Command handlers — each returns a JSON-serializable value
@@ -710,6 +715,25 @@ function syncState() {
   }
 }
 
+function clearConnectTimeout() {
+  if (!connectTimeoutTimer) return;
+  clearTimeout(connectTimeoutTimer);
+  connectTimeoutTimer = null;
+}
+
+function armConnectTimeout(socket) {
+  clearConnectTimeout();
+  connectTimeoutTimer = setTimeout(() => {
+    if (ws !== socket) return;
+    if (!socket || socket.readyState !== WebSocket.CONNECTING) return;
+    try {
+      socket.close();
+    } catch {
+      ws = null;
+    }
+  }, CONNECT_TIMEOUT_MS);
+}
+
 function connect() {
   if (!enabled) return;
   if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
@@ -720,6 +744,8 @@ function connect() {
   syncState(); // show "waiting"
   try {
     ws = new WebSocket(MCP_BRIDGE_URL);
+    connectStartedAt = Date.now();
+    armConnectTimeout(ws);
   } catch {
     scheduleReconnect();
     return;
@@ -728,6 +754,7 @@ function connect() {
   ws.onopen = () => {
     connected = true;
     reconnectDelay = RECONNECT_DELAY_MS;
+    clearConnectTimeout();
     syncState();
     mcpLog('connected', `Bridge connected to MCP server on port ${MCP_BRIDGE_PORT}`);
     console.log(`[rav-mcp-bridge] Connected to MCP server at ${MCP_BRIDGE_URL}`);
@@ -771,6 +798,7 @@ function connect() {
   ws.onclose = () => {
     const wasConnected = connected;
     connected = false;
+    clearConnectTimeout();
     ws = null;
     syncState();
     if (wasConnected) {
@@ -788,12 +816,42 @@ function connect() {
 function scheduleReconnect() {
   if (!enabled) return;
   if (reconnectTimer) return;
+  const delay = Math.max(100, Math.min(reconnectDelay, MAX_RECONNECT_DELAY_MS));
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
     connect();
-  }, reconnectDelay);
-  // Exponential backoff capped at MAX_RECONNECT_DELAY_MS
-  reconnectDelay = Math.min(reconnectDelay * 1.5, MAX_RECONNECT_DELAY_MS);
+  }, delay);
+  reconnectDelay = Math.min(delay * 1.5, MAX_RECONNECT_DELAY_MS);
+}
+
+function reconnectNow() {
+  if (!enabled || connected) return;
+  disconnect();
+  reconnectDelay = RECONNECT_DELAY_MS;
+  connect();
+}
+
+function startWatchdog() {
+  if (watchdogTimer) return;
+  watchdogTimer = setInterval(() => {
+    if (!enabled || connected) return;
+
+    if (ws && ws.readyState === WebSocket.CONNECTING) {
+      if ((Date.now() - connectStartedAt) >= CONNECT_TIMEOUT_MS) {
+        try {
+          ws.close();
+        } catch {
+          ws = null;
+        }
+      }
+      return;
+    }
+
+    if (!ws && !reconnectTimer) {
+      reconnectDelay = RECONNECT_DELAY_MS;
+      connect();
+    }
+  }, WATCHDOG_INTERVAL_MS);
 }
 
 // ---------------------------------------------------------------------------
@@ -805,6 +863,7 @@ function disconnect() {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
   }
+  clearConnectTimeout();
   if (ws) {
     ws.onclose = null; // prevent reconnect from onclose handler
     ws.close(1000, 'Bridge disabled');
@@ -855,6 +914,16 @@ window._mcpBridge = {
   },
 };
 
+window.addEventListener('focus', reconnectNow);
+window.addEventListener('pageshow', reconnectNow);
+window.addEventListener('online', reconnectNow);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    reconnectNow();
+  }
+});
+
 // Start connection
 syncState();
+startWatchdog();
 connect();

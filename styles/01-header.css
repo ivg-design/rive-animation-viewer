@@ -87,6 +87,10 @@
     line-height: 1;
 }
 
+.brand-text-compact {
+    display: none;
+}
+
 #file-input {
     position: absolute;
     width: 1px;

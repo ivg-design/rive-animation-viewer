@@ -59,6 +59,16 @@
     }
 }
 
+@media (max-width: 1330px) {
+    .brand-text-full {
+        display: none;
+    }
+
+    .brand-text-compact {
+        display: inline;
+    }
+}
+
 @media (max-width: 1089px) {
     :root {
         --left-width: 300px;

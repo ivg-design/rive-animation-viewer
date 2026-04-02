@@ -846,6 +846,10 @@ export function createVmControlsController({
                     logEvent('ui', source, `No trigger accessor or state machine trigger matched ${descriptor.path}`);
                 }
             });
+            registerVmControlBinding(descriptor, {
+                button,
+                kind: 'trigger',
+            });
             inputContainer.appendChild(button);
         }
 
@@ -996,7 +1000,7 @@ export function createVmControlsController({
         const snapshot = [];
         const seen = new Set();
         vmControlBindings.forEach((binding) => {
-            if (!binding || binding.kind === 'trigger') {
+            if (!binding) {
                 return;
             }
 
@@ -1007,11 +1011,12 @@ export function createVmControlsController({
             }
 
             const accessor = resolveControlAccessor(descriptor);
-            if (!accessor || !('value' in accessor)) {
+            if (!accessor || (binding.kind !== 'trigger' && !('value' in accessor))) {
                 return;
             }
 
-            let value = accessor.value;
+            let value = binding.kind === 'trigger' ? null : accessor.value;
+            let enumValues = null;
             if (binding.kind === 'number') {
                 const numericValue = Number(value);
                 if (!Number.isFinite(numericValue)) {
@@ -1028,14 +1033,26 @@ export function createVmControlsController({
                     return;
                 }
                 value = numericColor >>> 0;
+            } else if (binding.kind === 'trigger') {
+                value = null;
+            }
+
+            if (binding.kind === 'enum' && Array.isArray(accessor.values)) {
+                enumValues = accessor.values
+                    .map((entry) => (entry == null ? '' : String(entry).trim()))
+                    .filter((entry) => entry.length > 0);
             }
 
             seen.add(key);
-            snapshot.push({
+            const snapshotEntry = {
                 descriptor: { ...descriptor },
                 kind: binding.kind,
                 value,
-            });
+            };
+            if (enumValues?.length) {
+                snapshotEntry.enumValues = enumValues;
+            }
+            snapshot.push(snapshotEntry);
         });
 
         return snapshot;
