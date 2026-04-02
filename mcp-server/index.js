@@ -389,6 +389,24 @@ const TOOLS = [
     },
   },
   {
+    name: 'generate_web_instantiation_code',
+    description:
+      'Generate a copy-paste-ready web instantiation snippet for the animation currently loaded in RAV. ' +
+      'The snippet mirrors the live source mode that is actually running in RAV: either internal wiring ' +
+      'or the last applied editor code. Supports either CDN or local npm package usage.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        package_source: {
+          type: 'string',
+          enum: ['cdn', 'local'],
+          description: 'Use a CDN/global runtime snippet or a local npm package import snippet.',
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'rav_get_sm_inputs',
     description:
       'Get all state machine inputs for the current animation, with their ' +
@@ -509,9 +527,14 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 
 ### Script Editor
 - The editor holds a JavaScript object literal that configures the Rive instance.
+- RAV has two live instantiation modes: \`internal\` and \`editor\`.
+- \`internal\` means the running animation is using RAV's built-in wiring and the current toolbar/artboard state.
+- \`editor\` means the running animation is using the last applied editor code, not necessarily the current unsaved draft in the panel.
 - \`autoBind: true\` is required for ViewModel access.
 - \`stateMachines: "Name"\` must be set to activate a state machine.
 - Use **rav_set_editor_code** then **rav_apply_code** to change configuration and reload.
+- **rav_status** returns the live instantiation source and whether the editor has unapplied draft changes.
+- **generate_web_instantiation_code** returns the canonical copy-paste snippet for the live mode currently running in RAV.
 
 ### State Machines vs ViewModels
 - **State machine inputs** are the legacy way to control animations (boolean, number, trigger).
@@ -526,6 +549,7 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 - **rav_console_read** returns captured console.* output (all calls since app start).
 - **rav_console_exec** evaluates code in the REPL with output shown in the console panel.
 - **rav_export_demo** creates a self-contained HTML file with the current animation, runtime, and settings baked in.
+- **generate_web_instantiation_code** is the preferred way to get a web snippet. It bakes in the current runtime package, artboard/playback selection, layout fit/alignment, background mode, and the active instantiation source.
 `.trim();
 
 const server = new Server(

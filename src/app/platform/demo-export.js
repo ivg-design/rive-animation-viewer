@@ -1,4 +1,8 @@
 import { normalizeStateMachineSelection } from '../rive/default-state-machine.js';
+import {
+    buildEffectiveInstantiationDescriptor,
+    buildWebInstantiationResult,
+} from './web-instantiation.js';
 
 export function arrayBufferToBase64(buffer) {
     if (!(buffer instanceof ArrayBuffer)) {
@@ -33,6 +37,8 @@ export function buildDemoBundlePayload({
     stateMachines = [],
     transparencyState = {},
     vmHierarchy = null,
+    instantiationCode = '',
+    instantiationSourceMode = 'internal',
 } = {}) {
     return {
         file_name: currentFileName,
@@ -48,6 +54,8 @@ export function buildDemoBundlePayload({
         artboard_name: artboardState.currentArtboard,
         canvas_color: transparencyState.canvasTransparent ? null : transparencyState.canvasColor,
         canvas_transparent: transparencyState.canvasTransparent,
+        instantiation_code: instantiationCode,
+        instantiation_source_mode: instantiationSourceMode,
         layout_state: JSON.stringify(layoutState),
         vm_hierarchy: vmHierarchy ? JSON.stringify(vmHierarchy) : null,
     };
@@ -63,6 +71,10 @@ export function createDemoExportController({
     getCurrentRuntime = () => 'webgl2',
     getEditorConfig = () => ({}),
     getEffectiveRuntimeVersionToken = (token) => token,
+    getLiveConfigState = () => ({
+        appliedEditorCode: '',
+        sourceMode: 'internal',
+    }),
     getLayoutStateSnapshot = () => ({}),
     getRiveInstance = () => null,
     getRuntimeAsset = () => null,
@@ -77,6 +89,39 @@ export function createDemoExportController({
         showError = () => {},
         updateInfo = () => {},
     } = callbacks;
+
+    async function buildInstantiationContext({ packageSource = 'local' } = {}) {
+        const currentFileName = getCurrentFileName();
+        if (!currentFileName) {
+            throw new Error('Please load a Rive file first.');
+        }
+
+        const runtimeName = getCurrentRuntime();
+        await ensureRuntime(runtimeName);
+        const runtimeAsset = getRuntimeAsset(runtimeName);
+        const selectedRuntimeSemver = runtimeAsset?.version || getEffectiveRuntimeVersionToken(getRuntimeVersionToken());
+        const liveConfigState = getLiveConfigState();
+        const descriptor = buildEffectiveInstantiationDescriptor({
+            artboardState: getArtboardStateSnapshot(),
+            currentFileName,
+            currentLayoutAlignment: getCurrentLayoutAlignment(),
+            currentLayoutFit: getCurrentLayoutFit(),
+            detectedStateMachines: Array.isArray(getRiveInstance()?.stateMachineNames)
+                ? getRiveInstance().stateMachineNames
+                : [],
+            editorCode: liveConfigState.appliedEditorCode,
+            editorConfig: getEditorConfig(),
+            runtimeName,
+            runtimeVersion: selectedRuntimeSemver,
+            sourceMode: liveConfigState.sourceMode,
+            transparencyState: getTransparencyStateSnapshot(),
+        });
+
+        return {
+            descriptor,
+            result: buildWebInstantiationResult(descriptor, { packageSource }),
+        };
+    }
 
     async function buildExportContext() {
         const currentFileBuffer = getCurrentFileBuffer();
@@ -93,30 +138,36 @@ export function createDemoExportController({
             throw new Error(`Runtime data for ${runtimeName} is not ready yet. Please wait for it to finish loading.`);
         }
 
-        const editorConfig = getEditorConfig();
         const selectedRuntimeSemver = runtimeAsset.version || getEffectiveRuntimeVersionToken(getRuntimeVersionToken());
-        const detectedStateMachines = Array.isArray(getRiveInstance()?.stateMachineNames)
-            ? getRiveInstance().stateMachineNames
-            : [];
-        const stateMachines = resolveExportStateMachines(editorConfig.stateMachines, detectedStateMachines);
+        const instantiationContext = await buildInstantiationContext({ packageSource: 'local' });
+        const { descriptor, result: instantiationResult } = instantiationContext;
         const payload = buildDemoBundlePayload({
-            artboardState: getArtboardStateSnapshot(),
+            artboardState: {
+                currentArtboard: descriptor.artboard,
+                currentPlaybackName: descriptor.animations[0] || descriptor.stateMachines[0] || null,
+                currentPlaybackType: descriptor.animations.length > 0 ? 'animation' : (descriptor.stateMachines.length > 0 ? 'stateMachine' : null),
+            },
             currentFileBuffer,
             currentFileName,
             currentLayoutAlignment: getCurrentLayoutAlignment(),
             currentLayoutFit: getCurrentLayoutFit(),
-            editorConfig,
+            editorConfig: {
+                autoplay: descriptor.autoplay,
+            },
+            instantiationCode: instantiationResult.code,
+            instantiationSourceMode: instantiationResult.sourceMode,
             layoutState: getLayoutStateSnapshot(),
             runtimeName,
             runtimeScript: runtimeAsset.text,
             runtimeVersion: selectedRuntimeSemver,
-            stateMachines,
+            stateMachines: descriptor.stateMachines,
             transparencyState: getTransparencyStateSnapshot(),
             vmHierarchy: serializeVmHierarchy(),
         });
 
         return {
             currentFileName,
+            instantiationResult,
             payload,
             runtimeName,
             runtimeVersion: selectedRuntimeSemver,
@@ -182,9 +233,15 @@ export function createDemoExportController({
         return result;
     }
 
+    async function generateWebInstantiationCode({ packageSource = 'local' } = {}) {
+        const context = await buildInstantiationContext({ packageSource });
+        return context.result;
+    }
+
     return {
         buildExportContext,
         createDemoBundle,
         exportDemoToPath,
+        generateWebInstantiationCode,
     };
 }

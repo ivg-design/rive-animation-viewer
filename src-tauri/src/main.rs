@@ -13,6 +13,7 @@ use std::sync::Mutex;
 use tauri::menu::Menu;
 use tauri::{Emitter, Manager};
 use tauri_plugin_updater::UpdaterExt;
+use toml_edit::{value, Array, DocumentMut};
 
 #[derive(Deserialize)]
 struct DemoBundlePayload {
@@ -31,6 +32,10 @@ struct DemoBundlePayload {
     canvas_color: Option<String>,
     #[serde(default)]
     canvas_transparent: bool,
+    #[serde(default)]
+    instantiation_code: String,
+    #[serde(default)]
+    instantiation_source_mode: String,
     layout_state: Option<String>,
     vm_hierarchy: Option<String>,
 }
@@ -68,6 +73,34 @@ struct AppUpdateInstallResult {
     version: Option<String>,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct McpClientStatus {
+    id: String,
+    label: String,
+    available: bool,
+    installed: bool,
+    method: String,
+    cli_path: Option<String>,
+    config_path: Option<String>,
+    detail: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct McpSetupStatus {
+    server_path: String,
+    targets: Vec<McpClientStatus>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct McpInstallResult {
+    target: String,
+    installed: bool,
+    detail: String,
+}
+
 #[cfg(debug_assertions)]
 #[tauri::command]
 fn open_devtools(window: tauri::WebviewWindow) {
@@ -80,22 +113,31 @@ fn open_devtools(_window: tauri::WebviewWindow) {
     println!("DevTools are only available in debug builds");
 }
 
-#[tauri::command]
-fn get_mcp_server_path(app: tauri::AppHandle) -> Result<String, String> {
+fn resolve_mcp_server_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let binary_name = if cfg!(target_os = "windows") {
+        "rav-mcp.exe"
+    } else {
+        "rav-mcp"
+    };
     let resource_path = app
         .path()
         .resource_dir()
         .map_err(|e| format!("Failed to resolve resource dir: {}", e))?
         .join("resources")
-        .join("rav-mcp-server.js");
+        .join(binary_name);
     if resource_path.exists() {
-        Ok(resource_path.to_string_lossy().to_string())
+        Ok(resource_path)
     } else {
         Err(format!(
             "MCP server not found at {}",
             resource_path.display()
         ))
     }
+}
+
+#[tauri::command]
+fn get_mcp_server_path(app: tauri::AppHandle) -> Result<String, String> {
+    resolve_mcp_server_path(&app).map(|path| path.to_string_lossy().to_string())
 }
 
 fn normalize_node_version(output: &[u8]) -> Option<String> {
@@ -223,6 +265,325 @@ fn detect_node_runtime() -> NodeRuntimeStatus {
         path: None,
         version: None,
         source: None,
+    }
+}
+
+fn home_dir() -> Option<PathBuf> {
+    env::var_os("HOME")
+        .map(PathBuf::from)
+        .or_else(|| env::var_os("USERPROFILE").map(PathBuf::from))
+}
+
+#[cfg(target_os = "windows")]
+fn appdata_dir() -> Option<PathBuf> {
+    env::var_os("APPDATA").map(PathBuf::from)
+}
+
+fn codex_config_path() -> Option<PathBuf> {
+    home_dir().map(|path| path.join(".codex").join("config.toml"))
+}
+
+fn claude_desktop_config_path() -> Option<PathBuf> {
+    #[cfg(target_os = "macos")]
+    {
+        return home_dir().map(|path| {
+            path.join("Library")
+                .join("Application Support")
+                .join("Claude")
+                .join("claude_desktop_config.json")
+        });
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        return appdata_dir()
+            .map(|path| path.join("Claude").join("claude_desktop_config.json"));
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        return home_dir().map(|path| {
+            path.join(".config")
+                .join("Claude")
+                .join("claude_desktop_config.json")
+        });
+    }
+}
+
+fn command_candidates(command: &str) -> Vec<PathBuf> {
+    let binary_name = if cfg!(target_os = "windows") {
+        format!("{command}.exe")
+    } else {
+        command.to_string()
+    };
+
+    let mut candidates = Vec::new();
+    if let Some(path_var) = env::var_os("PATH") {
+        candidates.extend(env::split_paths(&path_var).map(|entry| entry.join(&binary_name)));
+    }
+
+    if let Some(home) = home_dir() {
+        candidates.push(home.join(".local").join("bin").join(&binary_name));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        candidates.push(PathBuf::from("/opt/homebrew/bin").join(&binary_name));
+        candidates.push(PathBuf::from("/usr/local/bin").join(&binary_name));
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(local_app_data) = env::var_os("LOCALAPPDATA").map(PathBuf::from) {
+            candidates.push(
+                local_app_data
+                    .join("Programs")
+                    .join(command)
+                    .join(&binary_name),
+            );
+        }
+    }
+
+    let mut seen = HashSet::new();
+    candidates.retain(|candidate| seen.insert(candidate.clone()));
+    candidates
+}
+
+fn find_command_path(command: &str) -> Option<PathBuf> {
+    command_candidates(command)
+        .into_iter()
+        .find(|candidate| candidate.exists())
+}
+
+fn codex_has_server(path: &Path) -> bool {
+    let Ok(raw) = fs::read_to_string(path) else {
+        return false;
+    };
+    let Ok(doc) = raw.parse::<DocumentMut>() else {
+        return false;
+    };
+    doc.get("mcp_servers")
+        .and_then(|item| item.get("rav-mcp"))
+        .is_some()
+}
+
+fn claude_desktop_has_server(path: &Path) -> bool {
+    let Ok(raw) = fs::read_to_string(path) else {
+        return false;
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) else {
+        return false;
+    };
+    value
+        .get("mcpServers")
+        .and_then(serde_json::Value::as_object)
+        .map(|servers| servers.contains_key("rav-mcp"))
+        .unwrap_or(false)
+}
+
+fn claude_code_has_server(command_path: &Path) -> bool {
+    Command::new(command_path)
+        .args(["mcp", "get", "rav-mcp"])
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
+
+fn build_mcp_targets() -> Vec<McpClientStatus> {
+    let codex_config = codex_config_path();
+    let codex_cli = find_command_path("codex");
+    let codex_available = codex_config.is_some() || codex_cli.is_some();
+    let codex_installed = codex_config
+        .as_deref()
+        .map(codex_has_server)
+        .unwrap_or(false);
+
+    let claude_code_cli = find_command_path("claude");
+    let claude_code_available = claude_code_cli.is_some();
+    let claude_code_installed = claude_code_cli
+        .as_deref()
+        .map(claude_code_has_server)
+        .unwrap_or(false);
+
+    let claude_desktop_config = claude_desktop_config_path();
+    let claude_desktop_available = claude_desktop_config
+        .as_deref()
+        .and_then(Path::parent)
+        .map(Path::exists)
+        .unwrap_or(false)
+        || claude_desktop_config
+            .as_deref()
+            .map(Path::exists)
+            .unwrap_or(false);
+    let claude_desktop_installed = claude_desktop_config
+        .as_deref()
+        .map(claude_desktop_has_server)
+        .unwrap_or(false);
+
+    vec![
+        McpClientStatus {
+            id: "codex".into(),
+            label: "Codex".into(),
+            available: codex_available,
+            installed: codex_installed,
+            method: "config-file".into(),
+            cli_path: codex_cli.map(|path| path.to_string_lossy().to_string()),
+            config_path: codex_config.map(|path| path.to_string_lossy().to_string()),
+            detail: Some("Shared Codex config for CLI/Desktop".into()),
+        },
+        McpClientStatus {
+            id: "claude-code".into(),
+            label: "Claude Code".into(),
+            available: claude_code_available,
+            installed: claude_code_installed,
+            method: "cli".into(),
+            cli_path: claude_code_cli.map(|path| path.to_string_lossy().to_string()),
+            config_path: None,
+            detail: Some("Uses claude mcp add-json in user scope".into()),
+        },
+        McpClientStatus {
+            id: "claude-desktop".into(),
+            label: "Claude Desktop".into(),
+            available: claude_desktop_available,
+            installed: claude_desktop_installed,
+            method: "config-file".into(),
+            cli_path: None,
+            config_path: claude_desktop_config.map(|path| path.to_string_lossy().to_string()),
+            detail: Some("Desktop app config file".into()),
+        },
+    ]
+}
+
+fn ensure_parent_directory(path: &Path) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Failed to create {}: {}", parent.display(), error))?;
+    }
+    Ok(())
+}
+
+fn install_codex_mcp(server_path: &Path) -> Result<McpInstallResult, String> {
+    let config_path = codex_config_path().ok_or_else(|| "Codex config path could not be resolved".to_string())?;
+    ensure_parent_directory(&config_path)?;
+
+    let raw = fs::read_to_string(&config_path).unwrap_or_default();
+    let mut doc = raw.parse::<DocumentMut>().unwrap_or_default();
+    let args = Array::new();
+
+    doc["mcp_servers"]["rav-mcp"]["command"] = value(server_path.to_string_lossy().to_string());
+    doc["mcp_servers"]["rav-mcp"]["args"] = value(args);
+
+    fs::write(&config_path, doc.to_string())
+        .map_err(|error| format!("Failed to write {}: {}", config_path.display(), error))?;
+
+    Ok(McpInstallResult {
+        target: "codex".into(),
+        installed: true,
+        detail: format!("Installed rav-mcp into {}", config_path.display()),
+    })
+}
+
+fn install_claude_desktop_mcp(server_path: &Path) -> Result<McpInstallResult, String> {
+    let config_path = claude_desktop_config_path()
+        .ok_or_else(|| "Claude Desktop config path could not be resolved".to_string())?;
+    ensure_parent_directory(&config_path)?;
+
+    let mut root = fs::read_to_string(&config_path)
+        .ok()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .unwrap_or_else(|| serde_json::json!({}));
+
+    if !root.is_object() {
+        root = serde_json::json!({});
+    }
+
+    let root_obj = root
+        .as_object_mut()
+        .ok_or_else(|| "Claude Desktop config is not a JSON object".to_string())?;
+
+    let servers = root_obj
+        .entry("mcpServers".to_string())
+        .or_insert_with(|| serde_json::json!({}));
+
+    if !servers.is_object() {
+        *servers = serde_json::json!({});
+    }
+
+    let Some(servers_obj) = servers.as_object_mut() else {
+        return Err("Claude Desktop MCP config is not an object".into());
+    };
+
+    servers_obj.insert(
+        "rav-mcp".into(),
+        serde_json::json!({
+            "command": server_path.to_string_lossy().to_string(),
+            "args": []
+        }),
+    );
+
+    let formatted =
+        serde_json::to_string_pretty(&root).map_err(|error| format!("Failed to encode JSON: {}", error))?;
+    fs::write(&config_path, format!("{formatted}\n"))
+        .map_err(|error| format!("Failed to write {}: {}", config_path.display(), error))?;
+
+    Ok(McpInstallResult {
+        target: "claude-desktop".into(),
+        installed: true,
+        detail: format!("Installed rav-mcp into {}", config_path.display()),
+    })
+}
+
+fn install_claude_code_mcp(server_path: &Path) -> Result<McpInstallResult, String> {
+    let cli_path =
+        find_command_path("claude").ok_or_else(|| "Claude Code CLI was not detected".to_string())?;
+    let payload = serde_json::json!({
+        "type": "stdio",
+        "command": server_path.to_string_lossy().to_string(),
+        "args": []
+    });
+    let payload_string =
+        serde_json::to_string(&payload).map_err(|error| format!("Failed to encode JSON: {}", error))?;
+
+    let _ = Command::new(&cli_path)
+        .args(["mcp", "remove", "-s", "user", "rav-mcp"])
+        .output();
+
+    let output = Command::new(&cli_path)
+        .args(["mcp", "add-json", "-s", "user", "rav-mcp", &payload_string])
+        .output()
+        .map_err(|error| format!("Failed to run {}: {}", cli_path.display(), error))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let detail = if !stderr.is_empty() { stderr } else { stdout };
+        return Err(format!("Claude Code install failed: {}", detail));
+    }
+
+    Ok(McpInstallResult {
+        target: "claude-code".into(),
+        installed: true,
+        detail: "Installed rav-mcp into Claude Code user config".into(),
+    })
+}
+
+#[tauri::command]
+fn get_mcp_setup_status(app: tauri::AppHandle) -> Result<McpSetupStatus, String> {
+    let server_path = resolve_mcp_server_path(&app)?;
+    Ok(McpSetupStatus {
+        server_path: server_path.to_string_lossy().to_string(),
+        targets: build_mcp_targets(),
+    })
+}
+
+#[tauri::command]
+fn install_mcp_client(app: tauri::AppHandle, target: String) -> Result<McpInstallResult, String> {
+    let server_path = resolve_mcp_server_path(&app)?;
+    match target.as_str() {
+        "codex" => install_codex_mcp(&server_path),
+        "claude-code" => install_claude_code_mcp(&server_path),
+        "claude-desktop" => install_claude_desktop_mcp(&server_path),
+        _ => Err(format!("Unsupported MCP target: {}", target)),
     }
 }
 
@@ -440,6 +801,8 @@ fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json::Er
       "runtimeVersion": payload.runtime_version,
       "animationBase64": payload.animation_base64,
       "autoplay": payload.autoplay,
+      "instantiationCode": payload.instantiation_code,
+      "instantiationSourceMode": payload.instantiation_source_mode,
       "layoutAlignment": payload.layout_alignment,
       "layoutFit": payload.layout_fit,
       "stateMachines": payload.state_machines,
@@ -569,9 +932,11 @@ fn main() {
             make_demo_bundle_to_path,
             open_devtools,
             get_mcp_server_path,
+            get_mcp_setup_status,
             detect_node_runtime,
             check_for_app_update,
             get_opened_file,
+            install_mcp_client,
             install_app_update,
             open_external_url,
             relaunch_app,

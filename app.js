@@ -21,6 +21,7 @@ import {
 import { createRuntimeLoaderController } from './src/app/platform/runtime-loader.js';
 import { createTauriBridgeController } from './src/app/platform/tauri-bridge.js';
 import { createTransparencyController } from './src/app/platform/transparency-controller.js';
+import { buildEffectiveInstantiationDescriptor } from './src/app/platform/web-instantiation.js';
 import { createArtboardSwitcherController } from './src/app/rive/artboard-switcher.js';
 import {
     detectDefaultStateMachineName,
@@ -190,8 +191,11 @@ const {
     ensureEditorReady,
     getEditorCode,
     getEditorConfig,
+    getLiveConfig,
+    getLiveConfigState,
     injectCodeSnippet,
     setEditorCode,
+    toggleLiveConfigSource,
 } = codeEditorController;
 updaterController = createAppUpdaterController({
     callbacks: {
@@ -395,7 +399,7 @@ instanceController = createRiveInstanceController({
     getCurrentFileBuffer,
     getCurrentLayoutFit,
     getCurrentRuntime,
-    getEditorConfig,
+    getEditorConfig: getLiveConfig,
 });
 shellController = createShellController({
     callbacks: {
@@ -443,11 +447,12 @@ demoExportController = createDemoExportController({
     getCurrentLayoutAlignment,
     getCurrentLayoutFit,
     getCurrentRuntime,
-    getEditorConfig,
+    getEditorConfig: getLiveConfig,
     getEffectiveRuntimeVersionToken,
     getLayoutStateSnapshot: () => shellController?.captureLayoutStateForExport() ?? {},
     getRiveInstance,
     getRuntimeAsset,
+    getLiveConfigState,
     getRuntimeVersionToken: () => runtimeVersionToken,
     getTransparencyStateSnapshot,
     serializeVmHierarchy,
@@ -465,6 +470,8 @@ const globalBindingsController = createGlobalBindingsController({
         getCurrentRuntime,
         getEditorCode,
         getEventLogEntries,
+        getGenerateWebInstantiationCode: async (packageSource) => demoExportController.generateWebInstantiationCode({ packageSource }),
+        getLiveConfigState,
         getScriptConsoleEntries: (limit) => scriptConsoleController.readCaptured(limit),
         getRuntimeSourceText,
         getRuntimeVersion,
@@ -494,6 +501,7 @@ const globalBindingsController = createGlobalBindingsController({
         setEditorCode,
         showMcpSetup,
         switchArtboard,
+        toggleLiveConfigSource,
     },
     elements,
 });
@@ -595,6 +603,25 @@ function handleScriptConsoleToggleRequest() {
     });
 }
 
+function buildLiveInstantiationDescriptor() {
+    const liveConfigState = getLiveConfigState();
+    return buildEffectiveInstantiationDescriptor({
+        artboardState: getArtboardStateSnapshot(),
+        currentFileName: getCurrentFileName() || 'animation.riv',
+        currentLayoutAlignment,
+        currentLayoutFit,
+        detectedStateMachines: Array.isArray(getRiveInstance()?.stateMachineNames)
+            ? getRiveInstance().stateMachineNames
+            : [],
+        editorCode: liveConfigState.appliedEditorCode,
+        editorConfig: getLiveConfig(),
+        runtimeName: getCurrentRuntime(),
+        runtimeVersion: getCurrentRuntimeVersion(),
+        sourceMode: liveConfigState.sourceMode,
+        transparencyState: getTransparencyStateSnapshot(),
+    });
+}
+
 async function cycleConsoleMode() {
     const modeOrder = ['closed', 'events', 'js'];
     currentConsoleMode = deriveConsoleModeFromControllers();
@@ -689,6 +716,7 @@ async function init() {
     console.log('[rive-viewer] init start');
     await ensureTauriBridge();
     globalBindingsController.bind();
+    window.buildLiveInstantiationDescriptor = buildLiveInstantiationDescriptor;
     initLucideIcons();
     resolveAppVersion();
     updateVersionInfo('Loading runtime...');

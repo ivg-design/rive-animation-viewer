@@ -4,7 +4,7 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `1.9.3` (2026-03-31)
+- Current release: `1.9.9` (2026-04-01)
 
 ## Quick Start
 
@@ -31,10 +31,18 @@ npm start  # Opens browser at http://localhost:1420
 ### Code Editor Panel
 - **CodeMirror 6 Editor**: JavaScript syntax highlighting with One Dark theme
 - **JavaScript Configuration**: Write JavaScript objects (NOT JSON) for Rive initialization
-- **Apply & Reload**: Button to apply configuration and reload animation
+- **Live Source Mode Chip**: The editor header always shows whether the running animation is using RAV's `INTERNAL` wiring or the last applied `EDITOR` config
+- **Apply & Reload**: Applies the current editor code, switches the live source to `EDITOR`, and refreshes the current view without throwing away the active artboard/playback state
+- **Internal Wiring Toggle**: Click the live source chip to switch back to RAV's internal wiring instantly
 - **Tab Support**: Tab inserts 2 spaces, Shift+Tab removes indentation
 - **Error Display**: Shows errors in red banner when configuration fails
 - **Resizable Panel**: Drag to resize panel to any width for comfortable editing
+
+### JavaScript Console
+- **Integrated JS Console**: Executable REPL panel styled to match RAV
+- **Console Capture**: Captures `console.log/info/warn/error/debug` output from the running app/runtime
+- **REPL Execution**: Execute live JavaScript against the active browser/runtime context
+- **MCP Console Tools**: Open, close, read, and execute console commands remotely through MCP
 
 **Important**: The editor accepts JavaScript code, not JSON. You can use JavaScript features like comments, trailing commas, and unquoted keys:
 
@@ -67,37 +75,41 @@ vmPaths                      // List all property paths
 
 The explorer displays a comprehensive usage guide in the console when injected.
 
-### MCP Integration (Claude Code)
+### MCP Integration
 
-RAV includes a built-in MCP (Model Context Protocol) server that lets Claude Code control the viewer remotely — open files, inspect ViewModels, drive playback, manipulate inputs, and more.
+RAV includes a built-in MCP (Model Context Protocol) sidecar that lets Claude Code, Claude Desktop, Codex, or any MCP client control the viewer remotely — open files, inspect ViewModels, drive playback, manipulate inputs, run JS, generate web snippets, and export demos.
 
 #### Architecture
 
 ```
-Claude Code ←(stdio)→ MCP Server ←(WebSocket :9274)→ RAV Frontend
+MCP Client ←(stdio)→ rav-mcp sidecar ←(WebSocket :9274)→ RAV Frontend
 ```
 
-The MCP server (`mcp-server/`) communicates with RAV's frontend via a WebSocket bridge. The frontend bridge (`mcp-bridge.js`) auto-connects when RAV starts and reconnects with exponential backoff.
+The desktop app bundles a native `rav-mcp` sidecar binary inside the app resources. The frontend bridge (`mcp-bridge.js`) auto-connects when RAV starts and reconnects with exponential backoff.
 
 #### Setup (one-time)
 
-Requires [Node.js 18+](https://nodejs.org/) installed.
+Open the desktop app, click the cable icon, and use the **MCP Setup** dialog:
+
+- **Bundled sidecar path**: Copy the exact `rav-mcp` binary path shipped inside the app bundle
+- **One-click installs**: Add RAV to Codex, Claude Code, or Claude Desktop directly from the dialog when those clients are detected
+- **Copy/paste snippets**: Ready-to-paste snippets are shown for Codex, Claude Code, Claude Desktop, and a generic MCP client
+
+Representative snippets:
 
 ```bash
-# 1. Clone the repo (if you only have the desktop app)
-git clone https://github.com/ivg-design/rive-animation-viewer.git
-
-# 2. Install the MCP server
-cd rive-animation-viewer/mcp-server
-npm install
-
-# 3. Register with Claude Code (adjust path to where you cloned)
-claude mcp add rav-mcp node ~/rive-animation-viewer/mcp-server/index.js
+claude mcp add-json -s user rav-mcp '{"type":"stdio","command":"/Applications/Rive Animation Viewer.app/Contents/Resources/resources/rav-mcp","args":[]}'
 ```
 
-Open the RAV desktop app — the **MCP** indicator in the runtime strip turns indigo when connected. From then on, Claude Code can control RAV whenever both are running.
+```toml
+[mcp_servers."rav-mcp"]
+command = "/Applications/Rive Animation Viewer.app/Contents/Resources/resources/rav-mcp"
+args = []
+```
 
-#### Available Tools (24)
+Open the RAV desktop app and enable the MCP bridge — the **MCP** indicator in the runtime strip brightens when connected. From then on, your MCP client can control RAV whenever both are running.
+
+#### Available Tools (28)
 
 | Tool | Description |
 |------|-------------|
@@ -116,8 +128,20 @@ Open the RAV desktop app — the **MCP** indicator in the runtime strip turns in
 | `rav_set_layout` | Set layout fit mode |
 | `rav_set_canvas_color` | Set background color or transparent |
 | `rav_export_demo` | Export standalone HTML demo |
+| `generate_web_instantiation_code` | Generate the canonical live web-instantiation snippet (`local` npm package or `cdn`) |
 | `rav_get_sm_inputs` / `rav_set_sm_input` | State machine input access |
 | `rav_eval` | Evaluate JS in RAV's browser context |
+| `rav_console_open` / `rav_console_close` | Toggle the JS console remotely |
+| `rav_console_read` / `rav_console_exec` | Read captured console output or run REPL code |
+
+#### Editor and Export Semantics
+
+- The live runtime can run in either `INTERNAL` mode or `EDITOR` mode.
+- `rav_apply_code` switches the live runtime to the last applied editor config.
+- Unsaved editor draft changes do not change the running animation until applied.
+- `rav_status` reports the active instantiation source and whether the editor draft is dirty.
+- `generate_web_instantiation_code` always reflects what is actually running.
+- Exported demos mirror the active live source and now include a **Copy Instantiation Code** button in the demo toolbar.
 
 #### Event Console
 
@@ -147,14 +171,15 @@ rive-local/
 ├── index.html               # Main UI
 ├── style.css                # Styles
 ├── mcp-server/
-│   ├── index.js             # MCP server (stdio + WebSocket bridge)
-│   ├── package.json         # MCP server dependencies
-│   └── README.md            # MCP setup and usage guide
+│   ├── index.js             # Reference JS MCP server
+│   ├── package.json         # JS MCP server dependencies
+│   └── README.md            # MCP protocol/setup guide
 ├── vendor/
 │   └── codemirror-bundle.js # Bundled CodeMirror
 ├── scripts/
 │   ├── build-dist.mjs       # Production build
-│   └── bundle-codemirror.mjs # CodeMirror bundler
+│   ├── bundle-codemirror.mjs # CodeMirror bundler
+│   └── build-mcp-sidecar.mjs # Native rav-mcp sidecar builder
 └── src-tauri/               # Rust/Tauri desktop wrapper
 ```
 
@@ -162,7 +187,7 @@ rive-local/
 
 ### Prerequisites
 - Rust toolchain (`rustup`)
-- Node.js 16+
+- Node.js 18+
 - Xcode Command Line Tools (macOS)
 
 ### Build Commands

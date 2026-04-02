@@ -84,6 +84,10 @@ describe('platform/demo-export', () => {
             getCurrentRuntime: () => 'webgl2',
             getEditorConfig: () => ({ autoplay: true, stateMachines: 'main-sm' }),
             getEffectiveRuntimeVersionToken: () => '3.0.0',
+            getLiveConfigState: () => ({
+                appliedEditorCode: '',
+                sourceMode: 'internal',
+            }),
             getLayoutStateSnapshot: () => ({ rightPanelVisible: true }),
             getRiveInstance: () => ({ stateMachineNames: ['fallback-sm'] }),
             getRuntimeAsset: () => ({ text: 'runtime();', version: '2.0.0' }),
@@ -97,6 +101,13 @@ describe('platform/demo-export', () => {
 
         await expect(controller.createDemoBundle()).resolves.toBe('/tmp/demo-app');
         await expect(controller.exportDemoToPath('/tmp/out')).resolves.toBe('/tmp/out');
+        await expect(controller.generateWebInstantiationCode({ packageSource: 'cdn' })).resolves.toEqual(
+            expect.objectContaining({
+                packageSource: 'cdn',
+                runtimeName: 'webgl2',
+                sourceMode: 'internal',
+            }),
+        );
         expect(invoke).toHaveBeenCalledTimes(2);
     });
 
@@ -166,6 +177,10 @@ describe('platform/demo-export', () => {
             getCurrentRuntime: () => 'canvas',
             getEditorConfig: () => ({ autoplay: true }),
             getEffectiveRuntimeVersionToken: () => '2.1.0',
+            getLiveConfigState: () => ({
+                appliedEditorCode: '',
+                sourceMode: 'internal',
+            }),
             getLayoutStateSnapshot: () => ({ rightPanelVisible: false }),
             getRiveInstance: () => ({ stateMachineNames: ['fallback-sm'] }),
             getRuntimeAsset: () => ({ text: 'runtime();', version: '' }),
@@ -250,6 +265,12 @@ describe('platform/demo-export', () => {
 
         await expect(controller.createDemoBundle()).resolves.toBe('/tmp/default.riv');
         await expect(controller.exportDemoToPath('/tmp/out')).resolves.toBe('/tmp/out');
+        await expect(controller.generateWebInstantiationCode()).resolves.toEqual(
+            expect.objectContaining({
+                packageSource: 'local',
+                runtimePackageName: '@rive-app/webgl2',
+            }),
+        );
         await expect(noInvokeController.createDemoBundle()).resolves.toBeNull();
     });
 });

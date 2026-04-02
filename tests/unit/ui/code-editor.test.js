@@ -32,7 +32,7 @@ describe('ui/code-editor', () => {
     });
 
     it('boots the fallback editor, reloads the animation, and toggles the VM explorer snippet', async () => {
-        document.body.innerHTML = '<div id="code-editor"></div>';
+        document.body.innerHTML = '<button id="editor-live-mode-chip"></button><div id="code-editor"></div>';
 
         const refreshCurrentState = vi.fn().mockResolvedValue(true);
         const fetchImpl = vi.fn(async () => ({
@@ -64,23 +64,40 @@ describe('ui/code-editor', () => {
             autoBind: true,
             autoplay: true,
         }));
+        expect(controller.getLiveConfigState()).toEqual(expect.objectContaining({
+            draftDirty: false,
+            sourceMode: 'internal',
+            usingEditor: false,
+        }));
 
         await controller.applyCodeAndReload();
         expect(refreshCurrentState).toHaveBeenCalledTimes(1);
+        expect(controller.getLiveConfig()).toEqual(expect.objectContaining({
+            autoBind: true,
+            autoplay: true,
+        }));
+        expect(controller.getLiveConfigState()).toEqual(expect.objectContaining({
+            draftDirty: false,
+            sourceMode: 'editor',
+            usingEditor: true,
+        }));
 
         await controller.injectCodeSnippet();
         expect(fetchImpl).toHaveBeenCalledWith('/vm-explorer-snippet.js');
         expect(controller.getEditorCode()).toContain('vmExplore();');
+        expect(controller.getLiveConfigState().draftDirty).toBe(true);
 
         await controller.injectCodeSnippet();
         expect(controller.getEditorCode()).not.toContain('vmExplore();');
 
         controller.setEditorCode('({ autoplay: false })');
         expect(controller.getEditorConfig()).toEqual({ autoplay: false });
+        await controller.toggleLiveConfigSource();
+        expect(controller.getLiveConfigState().sourceMode).toBe('internal');
     });
 
     it('reports missing files and missing snippets through the controller surface', async () => {
-        document.body.innerHTML = '<div id="code-editor"></div>';
+        document.body.innerHTML = '<button id="editor-live-mode-chip"></button><div id="code-editor"></div>';
 
         const showError = vi.fn();
         const controller = createCodeEditorController({
@@ -109,7 +126,7 @@ describe('ui/code-editor', () => {
     });
 
     it('can mount later when the editor container appears after the first setup attempt', async () => {
-        document.body.innerHTML = '';
+        document.body.innerHTML = '<button id="editor-live-mode-chip"></button>';
 
         const controller = createCodeEditorController({
             callbacks: {
@@ -128,13 +145,13 @@ describe('ui/code-editor', () => {
         await expect(controller.setupCodeEditor()).resolves.toBe(false);
         expect(controller.getEditorCode()).toBeUndefined();
 
-        document.body.innerHTML = '<div id="code-editor"></div>';
+        document.body.innerHTML = '<button id="editor-live-mode-chip"></button><div id="code-editor"></div>';
         await expect(controller.ensureEditorReady()).resolves.toBe(true);
         expect(controller.getEditorCode()).toContain('autoplay: true');
     });
 
     it('boots the CodeMirror path and handles tab indentation commands', async () => {
-        document.body.innerHTML = '<div id="code-editor"></div>';
+        document.body.innerHTML = '<button id="editor-live-mode-chip"></button><div id="code-editor"></div>';
 
         let editorInstance = null;
         class FakeEditorView {

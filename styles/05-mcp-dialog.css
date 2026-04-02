@@ -69,7 +69,7 @@
     text-decoration: none;
 }
 
-/* Node.js status indicator */
+/* Bundled server status */
 .mcp-node-status {
     display: flex;
     align-items: center;
@@ -108,19 +108,36 @@
     color: #ef4444;
 }
 
-.mcp-node-install-link {
-    color: #a5b4fc;
-    font-size: 10px;
-    text-decoration: none;
-    border: 1px solid #a5b4fc40;
-    border-radius: var(--radius-sm);
-    padding: 2px 8px;
-    transition: all 0.15s ease;
+.mcp-snippet-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-elevated);
 }
 
-.mcp-node-install-link:hover {
-    background: #a5b4fc18;
-    border-color: #a5b4fc;
+.mcp-client-status {
+    margin-right: auto;
+    font-family: "Space Mono", monospace;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.mcp-client-status.is-installed {
+    color: #34d399;
+}
+
+.mcp-client-status.is-available {
+    color: #fbbf24;
+}
+
+.mcp-client-status.is-missing {
+    color: #ef4444;
 }
 
 /* Server path — wrapping block with copy button */
@@ -180,14 +197,6 @@
     overflow: hidden;
 }
 
-.mcp-snippet-block-header {
-    display: flex;
-    justify-content: flex-end;
-    padding: 4px 6px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-elevated);
-}
-
 .mcp-snippet-block pre {
     margin: 0;
     padding: 10px 12px;
@@ -215,6 +224,30 @@
     transition: all 0.15s ease;
 }
 
+.mcp-install-btn {
+    height: 20px;
+    padding: 0 8px;
+    border: 1px solid #f59e0b55;
+    border-radius: var(--radius-sm);
+    background: #f59e0b12;
+    color: #fbbf24;
+    font-family: "Space Mono", monospace;
+    font-size: 9px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.mcp-install-btn:hover:not(:disabled) {
+    border-color: #fbbf24;
+    background: #f59e0b24;
+}
+
+.mcp-install-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
 .mcp-copy-btn:hover {
     border-color: var(--neon);
     color: var(--neon);
@@ -224,4 +257,3 @@
     border-color: #34d399;
     color: #34d399;
 }
-

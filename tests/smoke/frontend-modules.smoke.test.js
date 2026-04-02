@@ -19,6 +19,13 @@ describe('frontend module smoke', () => {
             <pre id="mcp-server-path-display"></pre>
             <div id="mcp-node-status"></div>
             <span id="mcp-node-label"></span>
+            <p id="mcp-claude-desktop-copy"></p>
+            <span id="mcp-client-status-codex"></span>
+            <span id="mcp-client-status-claude-code"></span>
+            <span id="mcp-client-status-claude-desktop"></span>
+            <button id="mcp-install-codex-btn"></button>
+            <button id="mcp-install-claude-code-btn"></button>
+            <button id="mcp-install-claude-desktop-btn"></button>
             <pre id="snippet-claude-code"></pre>
             <pre id="snippet-claude-desktop"></pre>
             <pre id="snippet-codex"></pre>
@@ -60,7 +67,15 @@ describe('frontend module smoke', () => {
         const mcpSetup = createMcpSetupController({
             elements,
             getBridgeConnected: () => true,
-            getTauriInvoker: () => vi.fn().mockResolvedValue('/tmp/rav-mcp-server.js'),
+            getTauriInvoker: () => vi.fn().mockImplementation(async (command) => {
+                if (command === 'get_mcp_setup_status') {
+                    return {
+                        serverPath: '/tmp/rav-mcp',
+                        targets: [],
+                    };
+                }
+                return null;
+            }),
             initLucideIcons: vi.fn(),
         });
         await mcpSetup.showMcpSetup();

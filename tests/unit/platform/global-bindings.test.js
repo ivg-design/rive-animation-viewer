@@ -24,6 +24,7 @@ describe('platform/global-bindings', () => {
         const applyCodeAndReload = vi.fn();
         const createDemoBundle = vi.fn().mockResolvedValue('/tmp/demo');
         const exportDemoToPath = vi.fn().mockResolvedValue('/tmp/out');
+        const generateWebInstantiationCode = vi.fn().mockResolvedValue({ code: '<script></script>' });
         const handleFileButtonClick = vi.fn();
         const injectCodeSnippet = vi.fn();
         const loadRiveAnimation = vi.fn();
@@ -40,6 +41,7 @@ describe('platform/global-bindings', () => {
         const setEditorCode = vi.fn().mockReturnValue(true);
         const showMcpSetup = vi.fn();
         const switchArtboard = vi.fn();
+        const toggleLiveConfigSource = vi.fn().mockResolvedValue(undefined);
         const windowRef = {
             _mcpBridge: {
                 state: 'connected',
@@ -60,6 +62,8 @@ describe('platform/global-bindings', () => {
                 getCurrentRuntime: () => 'canvas',
                 getEditorCode: () => '({ autoplay: true })',
                 getEventLogEntries: () => [{ type: 'ui' }],
+                getGenerateWebInstantiationCode: generateWebInstantiationCode,
+                getLiveConfigState: () => ({ draftDirty: true, sourceMode: 'editor' }),
                 getScriptConsoleEntries: (limit) => ({ total: 2, returned: limit, entries: [{ method: 'log' }] }),
                 getRuntimeSourceText: () => 'runtime();',
                 getRuntimeVersion: () => '1.2.3',
@@ -80,6 +84,7 @@ describe('platform/global-bindings', () => {
                 setEditorCode,
                 showMcpSetup,
                 switchArtboard,
+                toggleLiveConfigSource,
             },
             elements: {
                 mcpStatusChip: chip,
@@ -150,6 +155,11 @@ describe('platform/global-bindings', () => {
 
         await expect(windowRef._mcpExportDemoToPath('/tmp/out')).resolves.toBe('/tmp/out');
         expect(exportDemoToPath).toHaveBeenCalledWith('/tmp/out');
+        await expect(windowRef._mcpGenerateWebInstantiationCode('cdn')).resolves.toEqual({ code: '<script></script>' });
+        expect(generateWebInstantiationCode).toHaveBeenCalledWith('cdn');
+        expect(windowRef._mcpGetLiveConfigState()).toEqual({ draftDirty: true, sourceMode: 'editor' });
+        await expect(windowRef._mcpToggleLiveConfigSource()).resolves.toBeUndefined();
+        expect(toggleLiveConfigSource).toHaveBeenCalled();
     });
 
     it('ignores repeat binds when no window object is available', () => {
@@ -196,9 +206,12 @@ describe('platform/global-bindings', () => {
         windowRef._mcpLogEvent('noop', 'ok');
         windowRef._mcpUpdateStatus('off');
         await expect(windowRef._mcpExportDemoToPath('/tmp/out')).resolves.toBeUndefined();
+        await expect(windowRef._mcpGenerateWebInstantiationCode('local')).resolves.toEqual({ code: '' });
         expect(() => windowRef._mcpSwitchArtboard('Main', 'sm:Main')).not.toThrow();
         windowRef._mcpResetArtboard();
         expect(windowRef._mcpGetArtboardState()).toEqual({});
+        expect(windowRef._mcpGetLiveConfigState()).toEqual({ draftDirty: false, sourceMode: 'internal' });
+        await expect(windowRef._mcpToggleLiveConfigSource()).resolves.toBeUndefined();
         windowRef.showMcpSetup();
         chip.click();
         expect(chip.dataset.mcpState).toBe('off');

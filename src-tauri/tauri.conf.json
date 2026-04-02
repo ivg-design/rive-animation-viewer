@@ -33,7 +33,7 @@
     "active": true,
     "createUpdaterArtifacts": true,
     "targets": "all",
-    "resources": ["resources/rav-mcp-server.js"],
+    "resources": ["resources"],
     "category": "DeveloperTool",
     "shortDescription": "Rive animation player and runtime debugger",
     "longDescription": "Desktop viewer for Rive files with VM/state machine controls, runtime switching, code injection, event logging, and standalone demo export.",

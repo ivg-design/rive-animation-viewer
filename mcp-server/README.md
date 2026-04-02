@@ -1,20 +1,41 @@
 # RAV MCP Server
 
-MCP (Model Context Protocol) server for Rive Animation Viewer. Lets Claude Code
-(or any MCP client) control a running RAV instance: open files, inspect
-ViewModels, drive playback, manipulate inputs, read event logs, and export demos.
+Reference JavaScript MCP server for Rive Animation Viewer.
+
+The desktop app now ships with a bundled native `rav-mcp` sidecar, and that is
+the recommended setup path for end users. This folder remains useful for local
+development, debugging, and understanding the protocol/tool surface in source
+form.
 
 ## Architecture
 
 ```
-Claude Code <--(stdio)--> MCP Server <--(WebSocket :9274)--> RAV Frontend
+MCP Client <--(stdio)--> MCP Server <--(WebSocket :9274)--> RAV Frontend
 ```
 
 The MCP server runs a local WebSocket server on port 9274. When RAV starts, its
 frontend automatically connects to this WebSocket. Commands from Claude flow
 through the MCP server to the running app and back.
 
-## Setup
+## Recommended End-User Setup
+
+Use the desktop app's **MCP Setup** dialog. It exposes the bundled `rav-mcp`
+binary path, detects Codex / Claude clients, and offers one-click install plus
+copyable snippets. No Node install is required for the packaged app.
+
+Representative snippets:
+
+```bash
+claude mcp add-json -s user rav-mcp '{"type":"stdio","command":"/Applications/Rive Animation Viewer.app/Contents/Resources/resources/rav-mcp","args":[]}'
+```
+
+```toml
+[mcp_servers."rav-mcp"]
+command = "/Applications/Rive Animation Viewer.app/Contents/Resources/resources/rav-mcp"
+args = []
+```
+
+## JS Reference Server Setup
 
 ### 1. Install dependencies
 
@@ -23,22 +44,19 @@ cd mcp-server
 npm install
 ```
 
-### 2. Register with Claude Code
+### 2. Register the JS server with Claude Code
 
 ```bash
-claude mcp add rav-mcp node /path/to/rive-animation-viewer/mcp-server/index.js
+claude mcp add rav-mcp -- node /path/to/rive-animation-viewer/mcp-server/index.js
 ```
 
-Or add manually to `~/.claude.json`:
+Or add manually as a stdio server:
 
 ```json
 {
-  "mcpServers": {
-    "rav-mcp": {
-      "command": "node",
-      "args": ["/path/to/rive-animation-viewer/mcp-server/index.js"]
-    }
-  }
+  "type": "stdio",
+  "command": "node",
+  "args": ["/path/to/rive-animation-viewer/mcp-server/index.js"]
 }
 ```
 
@@ -55,19 +73,20 @@ Once connected, Claude has access to all RAV tools. Try:
 - "Show me the ViewModel tree"
 - "Set the `progress` property to 0.75"
 - "Pause the animation"
-- "What events has the animation fired?"
+- "Generate the live web instantiation snippet for CDN usage"
 
 ## Available Tools
 
 | Tool | Description |
 |------|-------------|
-| `rav_status` | App status: file, runtime, playback, ViewModel summary |
+| `rav_status` | App status: file, runtime, playback, live instantiation mode, ViewModel summary |
 | `rav_open_file` | Open a .riv file by absolute path |
 | `rav_play` | Start/resume playback |
 | `rav_pause` | Pause playback |
 | `rav_reset` | Restart animation (preserves ViewModel values) |
 | `rav_get_artboards` | List artboard names |
 | `rav_get_state_machines` | List state machine names |
+| `rav_switch_artboard` / `rav_reset_artboard` | Switch artboard/playback or reset to default |
 | `rav_get_vm_tree` | Full ViewModel hierarchy |
 | `rav_vm_get` | Get ViewModel property value by path |
 | `rav_vm_set` | Set ViewModel property value by path |
@@ -75,14 +94,25 @@ Once connected, Claude has access to all RAV tools. Try:
 | `rav_get_event_log` | Recent event log entries |
 | `rav_get_editor_code` | Current script editor contents |
 | `rav_set_editor_code` | Replace script editor contents |
-| `rav_apply_code` | Apply editor code and reload animation |
+| `rav_apply_code` | Apply editor code and refresh the live instance |
 | `rav_set_runtime` | Switch runtime (webgl2/canvas) |
 | `rav_set_layout` | Set layout fit mode |
 | `rav_set_canvas_color` | Set background color |
 | `rav_export_demo` | Export standalone HTML demo |
+| `generate_web_instantiation_code` | Generate a canonical web snippet for `local` or `cdn` usage |
 | `rav_get_sm_inputs` | List state machine inputs with values |
 | `rav_set_sm_input` | Set state machine input value |
 | `rav_eval` | Evaluate JS in RAV's browser context |
+| `rav_console_open` / `rav_console_close` | Toggle the JS console panel |
+| `rav_console_read` / `rav_console_exec` | Read captured console output or run REPL code |
+
+## Live Instantiation Semantics
+
+- RAV can be running in `internal` mode or `editor` mode.
+- `rav_apply_code` switches the live instance to the last applied editor config.
+- Unsaved editor draft changes do not affect the running animation until applied.
+- `generate_web_instantiation_code` always reflects the currently running live mode.
+- Exported demos now embed the live snippet and expose a **Copy Instantiation Code** button in the demo toolbar.
 
 ## Configuration
 
@@ -98,3 +128,7 @@ Check the browser console for `[rav-mcp-bridge]` messages.
 
 **Bridge not connecting** - Verify the MCP server is running and port 9274 is
 available. The bridge auto-reconnects with exponential backoff.
+
+**Desktop app setup still mentions Node** - Update to a build that includes the
+native `rav-mcp` sidecar and use the in-app MCP Setup dialog instead of the
+source-only JS server path.

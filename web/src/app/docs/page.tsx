@@ -546,6 +546,13 @@ export default function DocsPage() {
   }
 }`}</code></pre>
 
+          <p>
+            The editor header includes a <strong>LIVE</strong> chip that always shows which
+            configuration source is actually driving the running animation. <code>INTERNAL</code>
+            means RAV&apos;s built-in wiring is live. <code>EDITOR</code> means the last applied
+            editor config is live. Unsaved draft edits do not affect playback until applied.
+          </p>
+
           <h3>Apply &amp; Reload</h3>
           <p>
             The <strong>Apply &amp; Reload</strong> button (circular arrow with checkmark) in the
@@ -553,6 +560,8 @@ export default function DocsPage() {
             tears down the current Rive instance, and creates a new one with that configuration.
             This is how you apply any changes you make in the editor &mdash; artboard selection,
             state machine targeting, autoplay settings, custom callbacks, and layout options.
+            The refresh path preserves the active artboard/playback context and other live state as
+            far as the runtime allows instead of resetting back to defaults.
           </p>
           <p>
             The config object supports all Rive constructor options including:
@@ -612,10 +621,11 @@ export default function DocsPage() {
           <h2 id="mcp-integration" className="scroll-mt-24">MCP Integration</h2>
 
           <p>
-            RAV includes a built-in <strong>MCP (Model Context Protocol)</strong> server that lets{" "}
+            RAV includes a built-in <strong>MCP (Model Context Protocol)</strong> sidecar that lets{" "}
             <a href="https://claude.ai/code" target="_blank" rel="noopener noreferrer">Claude Code</a>{" "}
-            or any MCP client control the viewer remotely &mdash; open files, inspect ViewModels,
-            drive playback, manipulate inputs, read event logs, edit scripts, and export demos.
+            , Claude Desktop, Codex, or any MCP client control the viewer remotely &mdash; open files,
+            inspect ViewModels, drive playback, manipulate inputs, read event logs, edit scripts,
+            execute JS, generate web snippets, and export demos.
           </p>
 
           <h3>What is MCP?</h3>
@@ -630,10 +640,10 @@ export default function DocsPage() {
 
           <h3>How it works</h3>
           <p>
-            RAV includes a small MCP server that acts as a bridge between Claude Code and the RAV
-            desktop app. When both are running, Claude can control RAV remotely:
+            RAV includes a bundled native <code>rav-mcp</code> sidecar that acts as a bridge between
+            your MCP client and the RAV desktop app. When both are running, the client can control RAV remotely:
           </p>
-          <pre><code>Claude Code &lt;-(stdio)-&gt; MCP Server &lt;-(WebSocket)-&gt; RAV App</code></pre>
+          <pre><code>MCP Client &lt;-(stdio)-&gt; rav-mcp sidecar &lt;-(WebSocket)-&gt; RAV App</code></pre>
           <p>
             The RAV app automatically tries to connect to the MCP server when it starts. You&apos;ll
             see the <strong>MCP</strong> indicator in the bottom-left of the window light up when
@@ -642,27 +652,21 @@ export default function DocsPage() {
 
           <h3>Setup (one-time)</h3>
           <p>
-            The MCP server is included in the{" "}
-            <a href="https://github.com/ivg-design/rive-animation-viewer" target="_blank" rel="noopener noreferrer">
-              RAV GitHub repository
-            </a>. You need <strong>Node.js 18+</strong> installed.
+            The desktop app ships with the MCP sidecar already bundled inside the app resources.
+            Open the in-app <strong>MCP Setup</strong> dialog to copy the exact path, detect supported
+            clients, and use one-click installation where available.
           </p>
           <ol>
             <li>
-              <strong>Clone the repository</strong> (if you haven&apos;t already):
-              <pre><code>git clone https://github.com/ivg-design/rive-animation-viewer.git</code></pre>
+              <strong>Open the MCP Setup dialog</strong> from the toolbar cable icon.
             </li>
             <li>
-              <strong>Install the MCP server</strong>:
-              <pre><code>cd rive-animation-viewer/mcp-server{"\n"}npm install</code></pre>
+              <strong>Install for your client</strong> using the dialog&apos;s one-click buttons
+              for Codex, Claude Code, or Claude Desktop when those clients are detected.
             </li>
             <li>
-              <strong>Register with Claude Code</strong> &mdash; run this once to tell Claude Code
-              where the MCP server lives:
-              <pre><code>claude mcp add rav-mcp node ~/rive-animation-viewer/mcp-server/index.js</code></pre>
-              <p>
-                Replace the path with wherever you cloned the repository.
-              </p>
+              <strong>Or copy a snippet manually</strong>:
+              <pre><code>{`claude mcp add-json -s user rav-mcp '{"type":"stdio","command":"/Applications/Rive Animation Viewer.app/Contents/Resources/resources/rav-mcp","args":[]}'`}</code></pre>
             </li>
             <li>
               <strong>Open RAV</strong> &mdash; launch the desktop app. The <strong>MCP</strong>{" "}
@@ -675,7 +679,7 @@ export default function DocsPage() {
             the ViewModel tree.&quot;
           </p>
 
-          <h3>Available Tools (24)</h3>
+          <h3>Available Tools (28)</h3>
           <table>
             <thead>
               <tr>
@@ -700,10 +704,21 @@ export default function DocsPage() {
               <tr><td><code>rav_set_layout</code></td><td>Set canvas layout fit mode</td></tr>
               <tr><td><code>rav_set_canvas_color</code></td><td>Set background color or transparent</td></tr>
               <tr><td><code>rav_export_demo</code></td><td>Export a standalone HTML demo</td></tr>
+              <tr><td><code>generate_web_instantiation_code</code></td><td>Generate the live canonical web snippet for <code>cdn</code> or <code>local</code> usage</td></tr>
               <tr><td><code>rav_get_sm_inputs</code> / <code>rav_set_sm_input</code></td><td>State machine input access</td></tr>
               <tr><td><code>rav_eval</code></td><td>Evaluate JavaScript in RAV&apos;s browser context</td></tr>
+              <tr><td><code>rav_console_open</code> / <code>rav_console_close</code></td><td>Toggle the JS console panel</td></tr>
+              <tr><td><code>rav_console_read</code> / <code>rav_console_exec</code></td><td>Read captured console output or run REPL code</td></tr>
             </tbody>
           </table>
+
+          <h3>Instantiation and Export Semantics</h3>
+          <ul>
+            <li><code>rav_status</code> reports whether the live runtime is in <code>internal</code> or <code>editor</code> mode</li>
+            <li><code>rav_apply_code</code> switches the live runtime to the last applied editor config</li>
+            <li><code>generate_web_instantiation_code</code> always mirrors what is actually running, not the unsaved draft buffer</li>
+            <li>Exported demos mirror the active live mode and expose a <strong>Copy Instantiation Code</strong> toolbar button</li>
+          </ul>
 
           <h3>Event Console</h3>
           <p>
@@ -794,7 +809,7 @@ export default function DocsPage() {
 
           <h3>MCP not connecting</h3>
           <ul>
-            <li>Verify the MCP server is registered: <code>claude mcp list</code></li>
+            <li>Verify the MCP server is registered: <code>claude mcp list</code> or <code>codex mcp list</code></li>
             <li>Check that RAV is running and the browser console shows <code>[rav-mcp-bridge] Connected</code></li>
             <li>Ensure port 9274 is available (or set <code>RAV_MCP_PORT</code> to a different port)</li>
             <li>The bridge auto-reconnects with exponential backoff &mdash; if the MCP server started after RAV, wait a few seconds</li>

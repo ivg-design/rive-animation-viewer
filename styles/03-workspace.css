@@ -126,6 +126,26 @@
     margin-left: auto;
 }
 
+.editor-live-mode-chip {
+    margin-left: auto;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.editor-live-mode-chip[data-live-source="internal"] {
+    background: #2c3342;
+    color: #a5b4fc;
+}
+
+.editor-live-mode-chip[data-live-source="editor"] {
+    background: var(--neon);
+    color: var(--text-dark);
+}
+
+.editor-live-mode-chip.is-draft {
+    box-shadow: 0 0 0 1px rgba(250, 84, 28, 0.45), 0 0 16px rgba(250, 84, 28, 0.18);
+}
+
 .panel-heading-mirrored {
     flex-direction: row;
 }
@@ -295,4 +315,3 @@ body.transparency-mode .event-log-list {
     justify-content: center;
     color: var(--text-ghost);
 }
-

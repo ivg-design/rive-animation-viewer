@@ -14,7 +14,7 @@
     "test:coverage": "vitest run --coverage && node scripts/theme-coverage-report.mjs",
     "test:coverage:serve": "npm run test:coverage && node scripts/serve-static.mjs coverage 4174 127.0.0.1",
     "prebuild": "npm run test",
-    "build": "node scripts/bundle-mcp-server.mjs && node scripts/build-dist.mjs",
+    "build": "node scripts/build-mcp-sidecar.mjs && node scripts/build-dist.mjs",
     "tauri": "tauri",
     "build:full": "npm run build && npm run tauri build",
     "sync": "node scripts/sync-version.mjs"

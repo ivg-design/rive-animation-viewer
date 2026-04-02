@@ -1351,6 +1351,7 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             </div>
 
             <div class="header-right">
+                <button type="button" id="copy-instantiation-btn" class="btn-compact" hidden>COPY CODE</button>
                 <div class="settings-wrapper">
                     <button type="button" id="settings-btn" class="icon-btn icon-btn-ghost" title="Settings" aria-label="Settings">
                         <i data-lucide="settings" class="lucide-18"></i>
@@ -1547,6 +1548,7 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             rightResizer: document.getElementById('right-resizer'),
             centerResizer: document.getElementById('center-resizer'),
             rightPanel: document.getElementById('right-panel'),
+            copyInstantiationBtn: document.getElementById('copy-instantiation-btn'),
             toggleRightPanelBtn: document.getElementById('toggle-right-panel-btn'),
             showRightPanelBtn: document.getElementById('show-right-panel-btn'),
             showEventLogBtn: document.getElementById('show-event-log-btn'),
@@ -1577,6 +1579,7 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             setupCenterResizer();
             setupPanelVisibilityToggles();
             setupSettingsPopover();
+            setupCopyInstantiationButton();
             setupLayoutSelect();
             setupCanvasColor();
             setupTransparencyControls();
@@ -1903,6 +1906,38 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                 if (e.key === 'Escape' && !popover.hidden) {
                     popover.hidden = true;
                 }
+            });
+        }
+
+        function setupCopyInstantiationButton() {
+            var button = els.copyInstantiationBtn;
+            var snippet = String(CONFIG.instantiationCode || '').trim();
+            if (!button || !snippet) {
+                if (button) {
+                    button.hidden = true;
+                }
+                return;
+            }
+
+            button.hidden = false;
+            button.title = 'Copy web instantiation code';
+            button.addEventListener('click', function () {
+                var resetLabel = function () {
+                    button.textContent = 'COPY CODE';
+                };
+
+                if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+                    logEvent('ui', 'copy-instantiation-failed', 'Clipboard API unavailable in exported demo.');
+                    return;
+                }
+
+                navigator.clipboard.writeText(snippet).then(function () {
+                    button.textContent = 'COPIED';
+                    logEvent('ui', 'copy-instantiation', 'Copied web instantiation code.');
+                    setTimeout(resetLabel, 1600);
+                }).catch(function (error) {
+                    logEvent('ui', 'copy-instantiation-failed', 'Failed to copy web instantiation code.', error);
+                });
             });
         }
 

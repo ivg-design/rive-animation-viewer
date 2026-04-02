@@ -29,6 +29,11 @@ export function createGlobalBindingsController({
         getCurrentRuntime = () => 'webgl2',
         getEditorCode = () => '',
         getEventLogEntries = () => [],
+        getGenerateWebInstantiationCode = async () => ({ code: '' }),
+        getLiveConfigState = () => ({
+            draftDirty: false,
+            sourceMode: 'internal',
+        }),
         getScriptConsoleEntries = () => ({ total: 0, returned: 0, entries: [] }),
         getRuntimeSourceText = () => '',
         getRuntimeVersion = () => '',
@@ -49,6 +54,7 @@ export function createGlobalBindingsController({
         setEditorCode = () => {},
         showMcpSetup = () => {},
         switchArtboard = () => {},
+        toggleLiveConfigSource = async () => {},
     } = callbacks;
 
     let isBound = false;
@@ -97,9 +103,12 @@ export function createGlobalBindingsController({
             updateMcpStatusChip(elements.mcpStatusChip, state);
         };
         windowRef._mcpExportDemoToPath = async (outputPath) => exportDemoToPath(outputPath);
+        windowRef._mcpGenerateWebInstantiationCode = async (packageSource) => getGenerateWebInstantiationCode(packageSource);
         windowRef._mcpSwitchArtboard = switchArtboard;
         windowRef._mcpResetArtboard = resetToDefaultArtboard;
         windowRef._mcpGetArtboardState = () => getArtboardStateSnapshot();
+        windowRef._mcpGetLiveConfigState = () => getLiveConfigState();
+        windowRef._mcpToggleLiveConfigSource = async () => toggleLiveConfigSource();
         windowRef.showMcpSetup = showMcpSetup;
 
         elements.mcpStatusChip?.addEventListener('click', () => {

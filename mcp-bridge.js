@@ -116,6 +116,7 @@ const commandHandlers = {
   async rav_status() {
     const inst = window.riveInst;
     const vmSnapshot = buildViewModelSnapshot();
+    const liveConfigState = window._mcpGetLiveConfigState?.() || { draftDirty: false, sourceMode: 'internal' };
     const status = {
       connected: true,
       file: {
@@ -138,6 +139,10 @@ const commandHandlers = {
       viewModel: {
         hasRoot: vmSnapshot.hasRoot,
         pathCount: vmSnapshot.paths.length,
+      },
+      instantiation: {
+        draftDirty: Boolean(liveConfigState.draftDirty),
+        sourceMode: liveConfigState.sourceMode || 'internal',
       },
       artboard: window._mcpGetArtboardState?.() || null,
     };
@@ -470,6 +475,13 @@ const commandHandlers = {
       return { ok: true, result: result || 'Demo export initiated (save dialog opened)' };
     }
     throw new Error('Export not available');
+  },
+
+  async generate_web_instantiation_code({ package_source = 'local' } = {}) {
+    if (typeof window._mcpGenerateWebInstantiationCode === 'function') {
+      return await window._mcpGenerateWebInstantiationCode(package_source);
+    }
+    throw new Error('Web instantiation generator not available');
   },
 
   async rav_get_sm_inputs() {

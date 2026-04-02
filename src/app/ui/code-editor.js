@@ -151,11 +151,40 @@ export function createCodeEditorController({
         updateInfo = () => {},
     } = callbacks;
 
+    const liveModeChip = documentRef.getElementById('editor-live-mode-chip');
     let configDirty = false;
     let devToolsEnabled = false;
     let editorView = null;
     let isAutoFilling = false;
+    let liveConfigSource = 'internal';
+    let appliedEditorCode = '';
+    let appliedEditorConfig = {};
     let setupPromise = null;
+
+    function updateLiveModeChip() {
+        if (!liveModeChip) {
+            return;
+        }
+
+        const usingEditor = liveConfigSource === 'editor';
+        liveModeChip.dataset.liveSource = liveConfigSource;
+        liveModeChip.classList.toggle('is-draft', configDirty);
+        liveModeChip.textContent = usingEditor ? 'LIVE: EDITOR' : 'LIVE: INTERNAL';
+        liveModeChip.title = usingEditor
+            ? (configDirty
+                ? 'Running the last applied editor code. Draft changes are not live yet. Click to switch to internal wiring.'
+                : 'Running the applied editor code. Click to switch to internal wiring.')
+            : 'Running RAV internal wiring. Click to switch to the editor code.';
+    }
+
+    function markDraftState(nextDirty) {
+        configDirty = Boolean(nextDirty);
+        updateLiveModeChip();
+    }
+
+    function getEditorDraftCode() {
+        return editorView ? editorView.state.doc.toString() : '';
+    }
 
     function getEditorCode() {
         return editorView ? editorView.state.doc.toString() : undefined;
@@ -170,6 +199,7 @@ export function createCodeEditorController({
             changes: { from: 0, to: editorView.state.doc.length, insert: code },
         });
         isAutoFilling = false;
+        updateLiveModeChip();
         return true;
     }
 
@@ -194,7 +224,7 @@ export function createCodeEditorController({
                     EditorView.lineWrapping,
                     EditorView.updateListener.of((update) => {
                         if (update.docChanged && !isAutoFilling) {
-                            configDirty = true;
+                            markDraftState(true);
                         }
                     }),
                 ],
@@ -280,7 +310,7 @@ export function createCodeEditorController({
             textarea.style.resize = 'none';
             textarea.addEventListener('input', () => {
                 if (!isAutoFilling) {
-                    configDirty = true;
+                    markDraftState(true);
                 }
             });
             editorEl.appendChild(textarea);
@@ -290,8 +320,9 @@ export function createCodeEditorController({
         configDirty = false;
         isAutoFilling = false;
         setTimeoutFn(() => {
-            configDirty = false;
+            markDraftState(false);
         }, 100);
+        updateLiveModeChip();
 
         return true;
     }
@@ -324,6 +355,31 @@ export function createCodeEditorController({
         return evaluateEditorConfig(editorView.state.doc.toString());
     }
 
+    function getLiveConfig() {
+        return liveConfigSource === 'editor' ? { ...appliedEditorConfig } : {};
+    }
+
+    function getLiveConfigState() {
+        return {
+            appliedEditorCode,
+            draftCode: getEditorDraftCode(),
+            draftDirty: configDirty,
+            sourceMode: liveConfigSource,
+            usingEditor: liveConfigSource === 'editor',
+        };
+    }
+
+    async function useInternalWiringAndReload() {
+        liveConfigSource = 'internal';
+        updateLiveModeChip();
+        updateInfo('Using internal RAV wiring');
+        try {
+            await refreshCurrentState();
+        } catch {
+            /* refreshCurrentState already reports the error */
+        }
+    }
+
     async function applyCodeAndReload() {
         const currentFileUrl = getCurrentFileUrl();
         const currentFileName = getCurrentFileName();
@@ -332,12 +388,26 @@ export function createCodeEditorController({
             return;
         }
 
+        const currentCode = getEditorDraftCode();
+        const parsedConfig = evaluateEditorConfig(currentCode);
+        appliedEditorCode = currentCode;
+        appliedEditorConfig = parsedConfig;
+        liveConfigSource = 'editor';
+        markDraftState(false);
         logEvent('ui', 'apply-refresh', 'Applied editor config and refreshed the current view.');
         try {
             await refreshCurrentState();
         } catch {
             /* refreshCurrentState already reports the error */
         }
+    }
+
+    async function toggleLiveConfigSource() {
+        if (liveConfigSource === 'editor') {
+            await useInternalWiringAndReload();
+            return;
+        }
+        await applyCodeAndReload();
     }
 
     async function injectCodeSnippet() {
@@ -401,18 +471,29 @@ export function createCodeEditorController({
             }
 
             setEditorCode(newCode);
+            markDraftState(true);
         } catch (error) {
             showError(`Failed to modify code: ${error.message}`);
         }
     }
+
+    liveModeChip?.addEventListener('click', () => {
+        toggleLiveConfigSource().catch((error) => {
+            showError(`Failed to switch live config source: ${error.message}`);
+        });
+    });
 
     return {
         applyCodeAndReload,
         ensureEditorReady,
         getEditorCode,
         getEditorConfig,
+        getLiveConfig,
+        getLiveConfigState,
         injectCodeSnippet,
         setEditorCode,
         setupCodeEditor,
+        toggleLiveConfigSource,
+        useInternalWiringAndReload,
     };
 }
