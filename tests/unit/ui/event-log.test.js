@@ -13,6 +13,7 @@ function buildElements() {
         <button id="event-filter-ui"></button>
         <button id="event-filter-mcp"></button>
         <input id="event-filter-search" />
+        <button id="event-log-copy-btn"></button>
         <button id="event-log-clear-btn"></button>
         <button id="show-event-log-btn"></button>
         <div id="event-log-count"></div>
@@ -31,6 +32,7 @@ function buildElements() {
         eventFilterUi: document.getElementById('event-filter-ui'),
         eventFilterMcp: document.getElementById('event-filter-mcp'),
         eventFilterSearch: document.getElementById('event-filter-search'),
+        eventLogCopyButton: document.getElementById('event-log-copy-btn'),
         eventLogClearButton: document.getElementById('event-log-clear-btn'),
         showEventLogButton: document.getElementById('show-event-log-btn'),
         eventLogCount: document.getElementById('event-log-count'),
@@ -40,6 +42,25 @@ function buildElements() {
 }
 
 describe('ui/event-log', () => {
+    let originalClipboard;
+
+    beforeEach(() => {
+        originalClipboard = navigator.clipboard;
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: {
+                writeText: vi.fn().mockResolvedValue(undefined),
+            },
+        });
+    });
+
+    afterEach(() => {
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            value: originalClipboard,
+        });
+    });
+
     it('renders events and exposes snapshots', () => {
         const handleResize = vi.fn();
         const controller = createEventLogController({
@@ -86,9 +107,11 @@ describe('ui/event-log', () => {
 
         document.getElementById('event-filter-search').value = '';
         document.getElementById('event-filter-search').dispatchEvent(new Event('input'));
+        document.getElementById('event-log-copy-btn').click();
         document.getElementById('event-log-clear-btn').click();
         expect(controller.getEntriesSnapshot()).toHaveLength(1);
         expect(document.getElementById('event-log-list').textContent).toContain('Event log cleared.');
+        expect(navigator.clipboard.writeText).toHaveBeenCalled();
     });
 
     it('turns follow off when scrolled away and back on when toggled', () => {

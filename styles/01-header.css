@@ -138,24 +138,29 @@
 }
 
 #file-trigger-btn {
-    min-width: 118px;
-    max-width: 210px;
+    min-width: 0;
+    max-width: none;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    justify-content: flex-start;
+    justify-content: center;
     border-radius: var(--radius-md);
     position: relative;
-    padding: 0 14px;
+    padding: 0 12px;
     font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
     font-size: 12px;
     font-weight: 500;
     text-transform: uppercase;
+    flex: 0 0 auto;
 }
 
 #file-trigger-btn .lucide-16 {
-    color: var(--neon);
+    color: inherit;
     flex-shrink: 0;
+}
+
+.header-select-runtime {
+    min-width: 146px;
 }
 
 .color-input {
@@ -200,9 +205,10 @@
 }
 
 .btn-file-loaded {
-    background: #245738;
-    border-color: #2f8a51;
+    background: #237e4a;
+    border-color: #2ed176;
     color: #f0fff4;
+    box-shadow: 0 2px 16px #2ed17633;
 }
 
 .btn-primary {
@@ -225,6 +231,20 @@
 .btn-primary:hover {
     background: #cffd51;
     border-color: #cffd51;
+}
+
+.btn-open {
+    min-width: 0;
+    padding: 0 12px;
+    background: #2dc66d;
+    border-color: #2dc66d;
+    color: #09130b;
+    box-shadow: 0 2px 14px #39d67944;
+}
+
+.btn-open:hover {
+    background: #45de82;
+    border-color: #45de82;
 }
 
 .btn-compact {

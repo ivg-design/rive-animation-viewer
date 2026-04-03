@@ -65,7 +65,7 @@
 .runtime-chip-update {
     position: relative;
     cursor: pointer;
-    transition: color 0.2s ease, opacity 0.2s ease, text-shadow 0.2s ease;
+    transition: color 0.2s ease, opacity 0.2s ease, text-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
 
 .runtime-chip-console:hover,
@@ -103,8 +103,10 @@
 /* MCP indicator — three states: off, waiting, connected */
 .runtime-chip-mcp {
     gap: 4px;
-    border: none;
-    background: none;
+    border: 1px solid #384052;
+    background: #151921;
+    border-radius: 4px;
+    padding: 3px 9px;
     font: inherit;
     flex-shrink: 0;
 }
@@ -112,10 +114,10 @@
 .runtime-chip-mcp::after {
     content: '';
     position: absolute;
-    left: -1px;
-    right: -1px;
+    left: 3px;
+    right: 3px;
     top: 50%;
-    height: 2px;
+    height: 3px;
     background: transparent;
     transform: rotate(-13deg);
     transform-origin: center;
@@ -136,6 +138,8 @@
     color: #ff7d8d;
     opacity: 0.92;
     text-shadow: 0 0 10px #ff4d6d22;
+    border-color: #8b3348;
+    background: #24141a;
 }
 
 .runtime-chip-mcp[data-mcp-state="off"] .mcp-dot {
@@ -152,6 +156,8 @@
 .runtime-chip-mcp[data-mcp-state="waiting"] {
     color: #fbbf24;
     opacity: 0.88;
+    border-color: #655126;
+    background: #1d1810;
 }
 
 .runtime-chip-mcp[data-mcp-state="waiting"] .mcp-dot {
@@ -170,6 +176,8 @@
     color: #d9fb70;
     opacity: 1;
     text-shadow: 0 0 12px #c4f82a40;
+    border-color: #6f8d18;
+    background: #16200d;
 }
 
 .runtime-chip-mcp[data-mcp-state="connected"] .mcp-dot {
@@ -180,8 +188,10 @@
 
 .runtime-chip-console {
     gap: 4px;
-    border: none;
-    background: none;
+    border: 1px solid #384052;
+    background: #151921;
+    border-radius: 4px;
+    padding: 3px 9px;
     font: inherit;
     flex-shrink: 0;
 }
@@ -189,9 +199,7 @@
 .runtime-chip-console[data-console-mode="closed"] {
     color: #eef3ff;
     opacity: 1;
-    border: 1px solid #3c4253;
-    border-radius: 999px;
-    padding: 3px 10px;
+    border-color: #3c4253;
     background: #151921;
     text-transform: uppercase;
 }
@@ -199,12 +207,16 @@
 .runtime-chip-console[data-console-mode="events"] {
     color: #93c5fd;
     opacity: 0.92;
+    border-color: #3d5e90;
+    background: #121a27;
 }
 
 .runtime-chip-console[data-console-mode="js"] {
     color: var(--neon);
     opacity: 1;
     text-shadow: 0 0 10px #c4f82a2e;
+    border-color: #6f8d18;
+    background: #16200d;
 }
 
 .runtime-chip-update {

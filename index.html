@@ -22,15 +22,10 @@
                 </div>
 
                 <input type="file" id="file-input" accept=".riv">
-                <button type="button" id="file-trigger-btn" class="btn btn-dark">
+                <button type="button" id="file-trigger-btn" class="btn btn-primary btn-open">
                     <i data-lucide="folder-open" class="lucide-16"></i>
                     <span>OPEN</span>
                 </button>
-
-                <select id="runtime-select" class="header-select">
-                    <option value="webgl2" selected>WebGL 2</option>
-                    <option value="canvas">Canvas</option>
-                </select>
             </div>
 
             <div class="header-center">
@@ -43,6 +38,10 @@
                 <button type="button" id="pause-btn" class="icon-btn" title="Pause" aria-label="Pause">
                     <i data-lucide="pause" class="lucide-16"></i>
                 </button>
+                <select id="runtime-select" class="header-select header-select-toolbar header-select-runtime" aria-label="Renderer">
+                    <option value="webgl2" selected>RENDER: WEBGL 2</option>
+                    <option value="canvas">RENDER: CANVAS</option>
+                </select>
                 <select id="layout-select" class="header-select header-select-toolbar" aria-label="Layout fit">
                     <option value="contain" selected>FIT: CONTAIN</option>
                     <option value="cover">FIT: COVER</option>
@@ -276,7 +275,7 @@
 
         <div class="error" id="error-message"></div>
 
-        <div class="workspace" id="main-grid">
+        <div class="workspace left-hidden" id="main-grid">
             <aside class="panel code-panel" id="config-panel">
                 <div class="panel-heading">
                     <div class="panel-heading-main">
@@ -328,9 +327,9 @@
                         <button type="button" class="runtime-chip runtime-chip-mcp" id="mcp-status-chip" data-mcp-state="waiting" title="MCP Bridge: waiting for connection (click to toggle)">
                             <span class="mcp-dot" aria-hidden="true"></span>MCP
                         </button>
-                        <button type="button" class="runtime-chip runtime-chip-console" id="console-mode-chip" data-console-mode="events" title="Console open: events (click to cycle)">
+                        <button type="button" class="runtime-chip runtime-chip-console" id="console-mode-chip" data-console-mode="closed" title="Console closed (click to open the event console)">
                             <i data-lucide="rows-3" class="lucide-10" aria-hidden="true"></i>
-                            <span id="console-mode-chip-label">EVENTS</span>
+                            <span id="console-mode-chip-label">OPEN CONSOLE</span>
                         </button>
                         <span class="runtime-strip-sep" aria-hidden="true">|</span>
                         <span class="runtime-chip runtime-chip-runtime" id="runtime-strip-runtime"><span class="dot dot-sm" aria-hidden="true"></span>Runtime: WebGL</span>
@@ -351,7 +350,7 @@
                     <i data-lucide="chevron-up" class="lucide-14"></i>
                 </button>
 
-                <div class="event-log-panel" id="event-log-panel">
+                <div class="event-log-panel" id="event-log-panel" hidden>
                     <div class="event-log-header" id="event-log-header">
                         <div class="event-log-summary-left">
                             <i data-lucide="chevron-down" class="lucide-14 event-log-chevron"></i>
@@ -365,9 +364,18 @@
                                 <button type="button" id="event-filter-ui" class="event-filter-toggle is-active" aria-pressed="true">UI</button>
                                 <button type="button" id="event-filter-mcp" class="event-filter-toggle is-active" aria-pressed="true">MCP</button>
                             </div>
-                            <button type="button" class="btn-compact console-follow-btn is-active" id="event-log-follow-btn" aria-pressed="true">FOLLOW</button>
                             <input type="search" id="event-filter-search" class="event-filter-search" placeholder="SEARCH">
-                            <button type="button" class="btn-compact" id="event-log-clear-btn">CLEAR</button>
+                            <div class="console-toolbar-actions" role="group" aria-label="Event console actions">
+                                <button type="button" class="console-icon-btn console-follow-btn is-active" id="event-log-follow-btn" aria-pressed="true" aria-label="Follow latest events" title="Follow latest events">
+                                    <svg viewBox="0 0 256 256" aria-hidden="true"><path fill="currentColor" d="M205.66,138.34a8,8,0,0,1-11.32,11.32L136,91.31V224a8,8,0,0,1-16,0V91.31L61.66,149.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0ZM216,32H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z"></path></svg>
+                                </button>
+                                <button type="button" class="console-icon-btn console-copy-btn" id="event-log-copy-btn" aria-label="Copy visible events" title="Copy visible events">
+                                    <svg viewBox="0 0 256 256" aria-hidden="true"><path fill="currentColor" d="M168,152a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,152Zm-8-40H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16Zm56-64V216a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V48A16,16,0,0,1,56,32H92.26a47.92,47.92,0,0,1,71.48,0H200A16,16,0,0,1,216,48ZM96,64h64a32,32,0,0,0-64,0ZM200,48H173.25A47.93,47.93,0,0,1,176,64v8a8,8,0,0,1-8,8H88a8,8,0,0,1-8-8V64a47.93,47.93,0,0,1,2.75-16H56V216H200Z"></path></svg>
+                                </button>
+                                <button type="button" class="console-icon-btn console-clear-btn" id="event-log-clear-btn" aria-label="Clear event log" title="Clear event log">
+                                    <svg viewBox="0 0 256 256" aria-hidden="true"><path fill="currentColor" d="M216,48H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM192,208H64V64H192ZM80,24a8,8,0,0,1,8-8h80a8,8,0,0,1,0,16H88A8,8,0,0,1,80,24Z"></path></svg>
+                                </button>
+                            </div>
                         </div>
                         <div class="event-log-summary-right script-console-summary-right" id="script-console-summary-right" hidden>
                             <div class="event-filter-toggles script-console-filter-toggles" role="group" aria-label="Console level filters">
@@ -376,10 +384,18 @@
                                 <button type="button" id="script-console-filter-warning" class="event-filter-toggle" aria-pressed="false">WARNING</button>
                                 <button type="button" id="script-console-filter-error" class="event-filter-toggle" aria-pressed="false">ERROR</button>
                             </div>
-                            <button type="button" class="btn-compact console-follow-btn is-active" id="script-console-follow-btn" aria-pressed="true">FOLLOW</button>
                             <input type="search" id="script-console-filter-search" class="event-filter-search" placeholder="SEARCH">
-                            <button type="button" class="btn-compact" id="script-console-copy-btn">COPY</button>
-                            <button type="button" class="btn-compact" id="script-console-clear-btn">CLEAR</button>
+                            <div class="console-toolbar-actions" role="group" aria-label="JavaScript console actions">
+                                <button type="button" class="console-icon-btn console-follow-btn is-active" id="script-console-follow-btn" aria-pressed="true" aria-label="Follow latest console entries" title="Follow latest console entries">
+                                    <svg viewBox="0 0 256 256" aria-hidden="true"><path fill="currentColor" d="M205.66,138.34a8,8,0,0,1-11.32,11.32L136,91.31V224a8,8,0,0,1-16,0V91.31L61.66,149.66a8,8,0,0,1-11.32-11.32l72-72a8,8,0,0,1,11.32,0ZM216,32H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z"></path></svg>
+                                </button>
+                                <button type="button" class="console-icon-btn console-copy-btn" id="script-console-copy-btn" aria-label="Copy visible console entries" title="Copy visible console entries">
+                                    <svg viewBox="0 0 256 256" aria-hidden="true"><path fill="currentColor" d="M168,152a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,152Zm-8-40H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16Zm56-64V216a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V48A16,16,0,0,1,56,32H92.26a47.92,47.92,0,0,1,71.48,0H200A16,16,0,0,1,216,48ZM96,64h64a32,32,0,0,0-64,0ZM200,48H173.25A47.93,47.93,0,0,1,176,64v8a8,8,0,0,1-8,8H88a8,8,0,0,1-8-8V64a47.93,47.93,0,0,1,2.75-16H56V216H200Z"></path></svg>
+                                </button>
+                                <button type="button" class="console-icon-btn console-clear-btn" id="script-console-clear-btn" aria-label="Clear console output" title="Clear console output">
+                                    <svg viewBox="0 0 256 256" aria-hidden="true"><path fill="currentColor" d="M216,48H40a8,8,0,0,0,0,16h8V208a16,16,0,0,0,16,16H192a16,16,0,0,0,16-16V64h8a8,8,0,0,0,0-16ZM192,208H64V64H192ZM80,24a8,8,0,0,1,8-8h80a8,8,0,0,1,0,16H88A8,8,0,0,1,80,24Z"></path></svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="event-log-body" id="event-log-body">

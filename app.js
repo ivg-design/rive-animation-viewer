@@ -106,7 +106,7 @@ let currentMcpPort = Number(globalThis.window?._mcpBridge?.port) || 9274;
 let runtimeVersionToken = loadRuntimeVersionPreference();
 let currentLayoutAlignment = DEFAULT_LAYOUT_ALIGNMENT;
 let currentLayoutFit = DEFAULT_LAYOUT_FIT;
-let currentConsoleMode = 'events';
+let currentConsoleMode = 'closed';
 let syncingConsoleMode = false;
 const runtimeMeta = loadRuntimeMeta();
 const runtimeVersionByFile = loadRuntimeVersionByFile();
@@ -793,7 +793,7 @@ async function init() {
     setupEventLog();
     instantiationControlsDialogController?.setup();
     scriptConsoleController.setup();
-    updateConsoleModeChip();
+    await setConsoleMode('closed');
     setupArtboardSwitcher();
     shellController?.setup();
     updaterController?.setup();

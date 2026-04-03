@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-04-03
+
+### Changed
+
+- **Toolbar control layout refinement** — Moved the runtime renderer selector into the central playback/layout control cluster, tightened the `OPEN` button to icon-plus-label width, and kept the primary file-open affordance bright green instead of dimming it while no file is loaded.
+- **Default workspace layout** — The app now starts with the right properties panel open while the editor and console stay closed by default.
+- **Console action affordances** — Event Console and JavaScript Console now use outlined SVG icon buttons for `FOLLOW`, `COPY`, and `CLEAR`, with consistent ordering after the search field and clearer active-state styling.
+- **Console chip styling** — `MCP` and `OPEN CONSOLE` in the runtime strip now use the same rectangular outlined button language as the rest of the UI.
+- **MCP setup responsiveness** — The MCP Setup dialog now opens immediately and resolves install-state data asynchronously instead of blocking the UI while probing client configs.
+- **Help menu destination** — The native Help menu now opens the online RAV documentation.
+- **Playback naming fidelity** — Playback selectors now display authored animation and state machine names exactly as they exist in the `.riv` file, without injected `SM:` display prefixes.
+
+### Fixed
+
+- **MCP client detection state** — MCP setup detection now distinguishes between installed, missing, and reinstall/remove states for supported clients.
+- **Console copy support** — Event Console now exposes the same clipboard copy action as the JavaScript Console.
+- **Initial console visibility** — Closed-console startup now hides the console chrome until the console is explicitly opened.
+
 ## [2.0.1] - 2026-04-02
 
 ### Fixed

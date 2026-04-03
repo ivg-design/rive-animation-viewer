@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Rive Animation Viewer",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "identifier": "app.rive.animation.viewer",
   "build": {
     "beforeBuildCommand": "npm run build",
@@ -33,7 +33,9 @@
     "active": true,
     "createUpdaterArtifacts": true,
     "targets": "all",
-    "resources": ["resources"],
+    "resources": [
+      "resources"
+    ],
     "category": "DeveloperTool",
     "shortDescription": "Rive animation player and runtime debugger",
     "longDescription": "Desktop viewer for Rive files with VM/state machine controls, runtime switching, code injection, event logging, and standalone demo export.",

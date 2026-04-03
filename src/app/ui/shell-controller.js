@@ -50,38 +50,12 @@ export function createShellController({
     } = callbacks;
 
     let demoButtonIntervalId = null;
-    let isLeftPanelVisible = true;
+    let isLeftPanelVisible = false;
     let isRightPanelVisible = true;
     let visibilityResizeTimeoutId = null;
-    const panelVisibilityStorageKey = 'rav-panel-visibility';
-
-    try {
-        const raw = windowRef.localStorage?.getItem?.(panelVisibilityStorageKey);
-        if (raw) {
-            const parsed = JSON.parse(raw);
-            if (typeof parsed?.left === 'boolean') {
-                isLeftPanelVisible = parsed.left;
-            }
-            if (typeof parsed?.right === 'boolean') {
-                isRightPanelVisible = parsed.right;
-            }
-        }
-    } catch {
-        /* noop */
-    }
 
     function persistPanelVisibility() {
-        try {
-            windowRef.localStorage?.setItem?.(
-                panelVisibilityStorageKey,
-                JSON.stringify({
-                    left: isLeftPanelVisible,
-                    right: isRightPanelVisible,
-                }),
-            );
-        } catch {
-            /* noop */
-        }
+        // Panel visibility now starts from a consistent workspace default on every launch.
     }
 
     async function reloadActiveAnimation() {

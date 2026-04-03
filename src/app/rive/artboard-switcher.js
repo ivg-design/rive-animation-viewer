@@ -136,7 +136,7 @@ export function createArtboardSwitcherController({
             const name = typeof stateMachine === 'string' ? stateMachine : stateMachine.name;
             const option = documentRef.createElement('option');
             option.value = `sm:${name}`;
-            option.textContent = `SM: ${name}`;
+            option.textContent = name;
             select.appendChild(option);
         });
 

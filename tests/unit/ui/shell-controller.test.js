@@ -445,7 +445,6 @@ describe('ui/shell-controller', () => {
         documentListeners.click({ target: document.createElement('div') });
         expect(elements.settingsPopover.hidden).toBe(true);
 
-        elements.toggleLeftPanelButton.click();
         document.body.style.cursor = '';
         elements.leftResizer.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 300 }));
         expect(document.body.style.cursor).toBe('');

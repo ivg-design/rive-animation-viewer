@@ -75,8 +75,10 @@ export function createMcpSetupController({
     initLucideIcons,
     windowRef = globalThis.window,
 }) {
+    let handlersBound = false;
     let mcpServerResolvedPath = null;
     let currentPort = 9274;
+    let refreshPromise = null;
     const targetStatusElements = new Map([
         ['codex', elements.mcpClientStatusCodex],
         ['claude-code', elements.mcpClientStatusClaudeCode],
@@ -211,7 +213,7 @@ export function createMcpSetupController({
             removeButtonEl.disabled = false;
         } else if (target.installed) {
             statusEl.classList.add('is-available');
-            statusEl.textContent = 'Needs Reinstall';
+            statusEl.textContent = 'Installed';
             installButtonEl.textContent = 'REINSTALL';
             removeButtonEl.hidden = false;
             removeButtonEl.disabled = false;
@@ -239,6 +241,10 @@ export function createMcpSetupController({
     }
 
     async function refreshSetupStatus() {
+        if (refreshPromise) {
+            return refreshPromise;
+        }
+        refreshPromise = (async () => {
         const setupStatus = await invokeDesktop('get_mcp_setup_status');
         mcpServerResolvedPath = setupStatus?.serverPath || setupStatus?.server_path || mcpServerResolvedPath;
         currentPort = setupStatus?.port || currentPort;
@@ -267,6 +273,12 @@ export function createMcpSetupController({
 
         for (const target of setupStatus?.targets || []) {
             renderClientStatus(target);
+        }
+        })();
+        try {
+            await refreshPromise;
+        } finally {
+            refreshPromise = null;
         }
     }
 
@@ -377,15 +389,21 @@ export function createMcpSetupController({
             return;
         }
 
-        setCopyHandlers(dialog);
-        setPortHandlers();
-        setScriptAccessHandlers();
-        setInstallHandlers();
-        setRemoveHandlers();
+        if (!handlersBound) {
+            setCopyHandlers(dialog);
+            setPortHandlers();
+            setScriptAccessHandlers();
+            setInstallHandlers();
+            setRemoveHandlers();
+            handlersBound = true;
+        }
 
         dialog.showModal();
         initLucideIcons();
-        await refreshSetupStatus();
+        elements.mcpNodeLabel && (elements.mcpNodeLabel.textContent = getBridgeEnabled() ? 'MCP ready' : 'MCP disabled');
+        windowRef.setTimeout(() => {
+            void refreshSetupStatus();
+        }, 0);
     }
 
     return {

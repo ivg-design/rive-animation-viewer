@@ -107,9 +107,11 @@ describe('ui/mcp-setup', () => {
             getBridgeEnabled: () => true,
             getTauriInvoker: () => invoke,
             initLucideIcons: vi.fn(),
+            windowRef: { setTimeout: (callback) => { callback(); return 1; } },
         });
 
         await controller.showMcpSetup();
+        await Promise.resolve();
 
         expect(elements.mcpServerPathDisplay.textContent).toContain('rav-mcp');
         expect(elements.snippetClaudeCode.textContent).toContain('"args":["--stdio-only","--port","9411"]');
@@ -117,7 +119,7 @@ describe('ui/mcp-setup', () => {
         expect(elements.snippetCodex.textContent).toContain('args = ["--stdio-only","--port","9411"]');
         expect(elements.mcpNodeLabel.textContent).toBe('MCP ready');
         expect(elements.mcpClientStatusCodex.textContent).toBe('Installed');
-        expect(elements.mcpClientStatusClaudeCode.textContent).toBe('Needs Reinstall');
+        expect(elements.mcpClientStatusClaudeCode.textContent).toBe('Installed');
         expect(elements.mcpClientStatusClaudeDesktop.textContent).toBe('Not detected');
         expect(elements.mcpRemoveCodexButton.hidden).toBe(false);
         expect(elements.mcpRemoveClaudeDesktopButton.hidden).toBe(true);
@@ -168,16 +170,20 @@ describe('ui/mcp-setup', () => {
             getBridgeEnabled: () => false,
             getTauriInvoker: () => invoke,
             initLucideIcons: vi.fn(),
+            windowRef: { setTimeout: (callback) => { callback(); return 1; } },
         });
 
         await controller.showMcpSetup();
+        await Promise.resolve();
         expect(elements.mcpNodeLabel.textContent).toBe('MCP disabled');
 
         await elements.mcpInstallClaudeCodeButton.onclick();
+        await Promise.resolve();
         expect(invoke).toHaveBeenCalledWith('install_mcp_client', { target: 'claude-code', port: 9411 });
         expect(elements.mcpClientStatusClaudeCode.textContent).toBe('Installed');
 
         await elements.mcpRemoveCodexButton.onclick();
+        await Promise.resolve();
         expect(invoke).toHaveBeenCalledWith('remove_mcp_client', { target: 'codex' });
         expect(elements.mcpClientStatusCodex.textContent).toBe('Detected');
         expect(elements.mcpRemoveCodexButton.hidden).toBe(true);

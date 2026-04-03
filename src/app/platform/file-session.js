@@ -114,7 +114,7 @@ export function createFileSessionController({
             button.classList.add('btn-file-loaded');
         } else {
             button.classList.remove('btn-file-loaded');
-            button.classList.add('btn-dark', 'btn-muted');
+            button.classList.remove('btn-dark', 'btn-muted');
         }
     }
 

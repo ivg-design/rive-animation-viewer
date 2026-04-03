@@ -121,18 +121,7 @@ jobs:
           tauriScript: npm run tauri
           tagName: ${{ needs.prepare-release.outputs.tag }}
           releaseName: Rive Animation Viewer v${{ needs.prepare-release.outputs.version }}
-          releaseBody: |
-            ## Rive Animation Viewer v${{ needs.prepare-release.outputs.version }}
-
-            Desktop app for previewing Rive animations with runtime controls, VM/state-machine tooling, and standalone demo export.
-
-            ### Included targets
-
-            - macOS Apple Silicon (`aarch64-apple-darwin`)
-            - macOS Intel (`x86_64-apple-darwin`)
-            - Windows x64 (`x86_64-pc-windows-msvc`)
-
-            See `CHANGELOG.md` for full release details.
+          releaseBody: See CHANGELOG.md for full release details and platform coverage.
           releaseDraft: false
           prerelease: false
           uploadUpdaterJson: false
@@ -159,35 +148,18 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           TAG: ${{ needs.prepare-release.outputs.tag }}
-        run: |
-          mkdir -p /tmp/rav-updater-signatures
-          gh release download "$TAG" \
-            --repo "$REPO" \
-            --dir /tmp/rav-updater-signatures \
-            --pattern "*.sig"
+        run: mkdir -p /tmp/rav-updater-signatures && gh release download "$TAG" --repo "$REPO" --dir /tmp/rav-updater-signatures --pattern "*.sig"
 
       - name: Build merged latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           TAG: ${{ needs.prepare-release.outputs.tag }}
-        run: |
-          gh release view "$TAG" \
-            --repo "$REPO" \
-            --json assets,body,publishedAt,tagName > /tmp/rav-release.json
-          node scripts/generate-updater-manifest.mjs \
-            --release-file /tmp/rav-release.json \
-            --signature-dir /tmp/rav-updater-signatures \
-            --output /tmp/latest.json
-          cat /tmp/latest.json
+        run: gh release view "$TAG" --repo "$REPO" --json assets,body,publishedAt,tagName > /tmp/rav-release.json && node scripts/generate-updater-manifest.mjs --release-file /tmp/rav-release.json --signature-dir /tmp/rav-updater-signatures --output /tmp/latest.json && cat /tmp/latest.json
 
       - name: Upload latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           TAG: ${{ needs.prepare-release.outputs.tag }}
-        run: |
-          gh release upload "$TAG" \
-            /tmp/latest.json#latest.json \
-            --repo "$REPO" \
-            --clobber
+        run: gh release upload "$TAG" /tmp/latest.json#latest.json --repo "$REPO" --clobber
