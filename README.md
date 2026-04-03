@@ -4,9 +4,18 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.0.1` (2026-04-02)
-- Latest patch: `2.0.1` hardens desktop updater install/check behavior, provisions signed updater release publishing, fixes sidecar packaging for release builds, and publishes a merged cross-architecture updater manifest for Apple Silicon, Intel macOS, and Windows.
-- Validated updater path: installed `/Applications/Rive Animation Viewer.app` was tested from `2.0.0` to `2.0.1` end to end, including install, relaunch, and a final `no update available` check.
+- Current release: `2.0.2` (2026-04-03)
+- Latest patch: `2.0.2` refines the desktop shell with exact playback naming, responsive MCP setup, icon-based console actions, a cleaner default layout, and a repaired release workflow for signed updater publishing.
+- Validation target: the installed `/Applications/Rive Animation Viewer.app` remains on `2.0.1` specifically so the signed `2.0.2` release can be used to verify the updater path end to end.
+
+## 2.0.2 Highlights
+
+- **Exact playback names**: State machine and animation names are shown exactly as authored in the `.riv` file, without injected display prefixes.
+- **Refined startup layout**: RAV now opens with the right properties panel visible while the editor and console stay closed by default.
+- **Icon-based console actions**: Event and JS consoles now use outlined SVG controls for `FOLLOW`, `COPY`, and `CLEAR`, with clearer active-state styling.
+- **Primary toolbar polish**: `OPEN` stays bright green, auto-fits its icon-plus-label width, and the runtime renderer selector now lives with the main playback/layout controls.
+- **MCP setup responsiveness**: The MCP dialog opens immediately and refreshes install-state data asynchronously instead of blocking the UI.
+- **Release workflow compatibility**: The release pipeline now points at the real published `tauri-action` tag and uses Node 24-compatible JavaScript action settings for future releases.
 
 ## 2.0.0 Highlights
 
@@ -41,7 +50,9 @@ npm start  # Opens browser at http://localhost:1420
 - **Playback Controls**: Play, pause, and reset/restart (reset reloads animation with autoplay and restores control values)
 - **Autoplay on Open**: Fresh file opens, drag/drop loads, open-with events, and MCP file opens all autoplay by default
 - **Event Console**: Source toggles (`Native`, `Rive User`, `UI`, `MCP`), text search, timestamps, newest-first ordering, and `FOLLOW`
+- **Console Actions**: Shared outlined SVG buttons for `FOLLOW`, `COPY`, and `CLEAR` across Event Console and JavaScript Console
 - **Artboard Switcher**: Auto-populating dropdowns for artboards and playback targets (state machines + animations), VM instance selector, reset-to-default button
+- **Exact Playback Labels**: Playback dropdown labels preserve authored capitalization and formatting exactly as they appear in the Rive file
 - **State Machine Detection**: Automatically detects and initializes available state machines
 - **Auto Update Chip**: Desktop app checks for updates on launch and exposes `UPDATE <version>`, `UPDATING`, `RESTARTING`, or `UPDATE RETRY`
 
@@ -114,6 +125,7 @@ Open the desktop app, click the cable icon, and use the **MCP Setup** dialog:
 - **Client detection**: Detect whether Codex, Claude Code, and Claude Desktop are present and whether `rav-mcp` is already configured
 - **One-click installs**: Add RAV to Codex, Claude Code, or Claude Desktop directly from the dialog when those clients are detected
 - **Reinstall / remove**: Already-configured clients show `REINSTALL` and `REMOVE`
+- **Responsive setup refresh**: The MCP dialog paints immediately, then hydrates install status in the background to avoid blocking the UI
 - **Configurable port**: Change the MCP bridge port from inside the MCP dialog and all generated snippets update to match
 - **Script Access**: Keep MCP in read-only mode, or explicitly allow JavaScript execution (`rav_eval`, `rav_console_exec`, `rav_apply_code`)
 - **Copy/paste snippets**: Ready-to-paste snippets are shown for Codex, Claude Code, Claude Desktop, and a generic MCP client

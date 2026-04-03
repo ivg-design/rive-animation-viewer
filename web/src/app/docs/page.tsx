@@ -209,6 +209,11 @@ export default function DocsPage() {
             RAV uses a three-panel layout optimized for animation inspection:
           </p>
 
+          <p>
+            In <strong>2.0.2</strong>, the default startup state was tightened so the right properties
+            panel opens by default while the editor and console stay closed until you explicitly open them.
+          </p>
+
           <h3>Left Panel &mdash; Animation Canvas</h3>
           <p>
             The primary animation viewport. Renders the loaded Rive animation with the selected renderer
@@ -233,6 +238,12 @@ export default function DocsPage() {
             Collapsible transcript panel with two modes: Event Console and JavaScript Console.
             Both modes are resizable, timestamped, newest-first, and expose a sticky <strong>FOLLOW</strong>
             control that keeps the latest message pinned in view.
+          </p>
+
+          <p>
+            The console action row now uses outlined icon buttons for <strong>FOLLOW</strong>,
+            <strong>COPY</strong>, and <strong>CLEAR</strong> so both console modes share the same
+            visual language and behavior.
           </p>
 
           <h3>Code Editor Panel</h3>
@@ -770,6 +781,11 @@ export default function DocsPage() {
           <p>
             The runtime strip shows an <strong>MCP</strong> chip with a status dot. Connected is bright
             indigo. Disconnected is dim but still visible. Disabled is red with a strike-through.
+          </p>
+
+          <p>
+            The MCP Setup dialog now opens immediately and performs its install-state checks in the
+            background so detection of Codex, Claude Code, and Claude Desktop no longer blocks the modal.
           </p>
 
           <h3>Configuration</h3>
