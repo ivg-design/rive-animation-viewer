@@ -68,7 +68,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDIyRUY1MDlGMzc1RjMwNjcKUldSbk1GODNuMUR2SWtPanJuRWN2UXhyeG5iVmxMbTZtaXJaRHdsbXNSVEFXUHU1MXNXNmdianUK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDBCMTFBRDAxOTY3MzdGQ0UKUldUT2YzT1dBYTBSQ3liSXBYYVlYeExxcEFLaGR5ZmhnZ3JxNjdtVzFRWjhKNFJ4TU83VWh1OCsK",
       "endpoints": [
         "https://github.com/ivg-design/rive-animation-viewer/releases/latest/download/latest.json"
       ],
