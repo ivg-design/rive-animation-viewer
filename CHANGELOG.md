@@ -12,6 +12,8 @@ All notable changes to this project are documented in this file.
 - **Updater check timeout** — Added an explicit desktop updater timeout so the update chip no longer waits indefinitely when the update endpoint is slow or unavailable.
 - **CI release sidecar packaging** — The native `rav-mcp` sidecar build now creates the Tauri `src-tauri/resources` directory before Cargo evaluates the app package, fixing cross-platform release workflow failures in fresh CI checkouts.
 - **Updater signing configuration** — Provisioned a valid Tauri updater signing keypair and GitHub Actions secrets for the 2.0.1 release path so updater artifacts can be signed and published successfully.
+- **Merged updater manifests** — Release publishing now produces a single `latest.json` feed that carries Apple Silicon, Intel macOS, and Windows entries together instead of leaving the updater endpoint stuck on the last publishing job.
+- **Installed-app patch validation** — Verified the signed desktop updater end to end by installing `2.0.0` into `/Applications`, updating to `2.0.1`, relaunching, and confirming the relaunched app reports `available: false`.
 
 ## [2.0.0] - 2026-04-02
 
