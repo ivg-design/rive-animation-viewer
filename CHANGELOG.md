@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-04-02
+
+### Fixed
+
+- **Updater install handoff** — Desktop update installation now reuses the already-checked update payload instead of performing a second network check before install, which avoids stale-state failures and makes the relaunch path more reliable.
+- **Updater check timeout** — Added an explicit desktop updater timeout so the update chip no longer waits indefinitely when the update endpoint is slow or unavailable.
+- **CI release sidecar packaging** — The native `rav-mcp` sidecar build now creates the Tauri `src-tauri/resources` directory before Cargo evaluates the app package, fixing cross-platform release workflow failures in fresh CI checkouts.
+
 ## [2.0.0] - 2026-04-02
 
 ### Added
