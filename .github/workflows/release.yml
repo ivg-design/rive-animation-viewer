@@ -127,33 +127,7 @@ jobs:
           KEY_PATH="${RUNNER_TEMP}/tauri-updater.key"
 
           NORMALIZED_KEY="$(
-            node <<'NODE'
-            const raw = process.env.RAW_TAURI_SIGNING_PRIVATE_KEY ?? ""
-
-            const candidates = []
-            if (raw.includes("\\n") && !raw.includes("\n")) {
-              candidates.push(raw.replace(/\\n/g, "\n"))
-            }
-            candidates.push(raw)
-            try {
-              const decoded = Buffer.from(raw, "base64").toString("utf8")
-              if (decoded.includes("\\n") && !decoded.includes("\n")) {
-                candidates.push(decoded.replace(/\\n/g, "\n"))
-              }
-              candidates.push(decoded)
-            } catch {}
-
-            const normalized = candidates.find((value) =>
-              value.startsWith("untrusted comment: minisign")
-            )
-
-            if (!normalized) {
-              console.error("Updater key secret is not valid raw/base64 minisign content")
-              process.exit(1)
-            }
-
-            process.stdout.write(normalized.endsWith("\n") ? normalized : `${normalized}\n`)
-NODE
+            node -e 'const raw = process.env.RAW_TAURI_SIGNING_PRIVATE_KEY ?? ""; const candidates = []; if (raw.includes("\\\\n") && !raw.includes("\\n")) candidates.push(raw.replace(/\\\\n/g, "\\n")); candidates.push(raw); try { const decoded = Buffer.from(raw, "base64").toString("utf8"); if (decoded.includes("\\\\n") && !decoded.includes("\\n")) candidates.push(decoded.replace(/\\\\n/g, "\\n")); candidates.push(decoded); } catch {} const normalized = candidates.find((value) => value.startsWith("untrusted comment: minisign")); if (!normalized) { console.error("Updater key secret is not valid raw/base64 minisign content"); process.exit(1); } process.stdout.write(normalized.endsWith("\\n") ? normalized : `${normalized}\\n`);'
           )"
 
           printf '%s' "${NORMALIZED_KEY}" > "${KEY_PATH}"
