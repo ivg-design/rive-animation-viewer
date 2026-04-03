@@ -12,10 +12,11 @@ use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use tauri::menu::Menu;
 use tauri::{Emitter, Manager};
-use tauri_plugin_updater::UpdaterExt;
+use tauri_plugin_updater::{Update, UpdaterExt};
 use toml_edit::{value, Array, DocumentMut, Item};
 
 const DEFAULT_MCP_PORT: u16 = 9274;
+const APP_UPDATE_TIMEOUT_SECS: u64 = 30;
 
 #[derive(Clone)]
 struct JsonMcpServerEntry {
@@ -71,6 +72,9 @@ impl McpBridgeManager {
         }
     }
 }
+
+#[derive(Default)]
+struct PendingAppUpdate(Mutex<Option<Update>>);
 
 #[derive(Serialize)]
 struct WindowCursorPosition {
@@ -1145,12 +1149,22 @@ fn get_window_cursor_position(window: tauri::WebviewWindow) -> Option<WindowCurs
 }
 
 #[tauri::command]
-async fn check_for_app_update(app: tauri::AppHandle) -> Result<AppUpdateStatus, String> {
-    let updater = app.updater().map_err(|error| error.to_string())?;
+async fn check_for_app_update(
+    app: tauri::AppHandle,
+    pending_update: tauri::State<'_, PendingAppUpdate>,
+) -> Result<AppUpdateStatus, String> {
+    let updater = app
+        .updater_builder()
+        .timeout(std::time::Duration::from_secs(APP_UPDATE_TIMEOUT_SECS))
+        .build()
+        .map_err(|error| error.to_string())?;
     let current_version = app.package_info().version.to_string();
     let update = updater.check().await.map_err(|error| error.to_string())?;
 
-    Ok(match update {
+    let mut pending_guard = pending_update.0.lock().map_err(|error| error.to_string())?;
+    *pending_guard = update;
+
+    Ok(match pending_guard.as_ref() {
         Some(update) => AppUpdateStatus {
             available: true,
             current_version,
@@ -1167,9 +1181,13 @@ async fn check_for_app_update(app: tauri::AppHandle) -> Result<AppUpdateStatus, 
 }
 
 #[tauri::command]
-async fn install_app_update(app: tauri::AppHandle) -> Result<AppUpdateInstallResult, String> {
-    let updater = app.updater().map_err(|error| error.to_string())?;
-    let update = updater.check().await.map_err(|error| error.to_string())?;
+async fn install_app_update(
+    pending_update: tauri::State<'_, PendingAppUpdate>,
+) -> Result<AppUpdateInstallResult, String> {
+    let update = {
+        let mut pending_guard = pending_update.0.lock().map_err(|error| error.to_string())?;
+        pending_guard.take()
+    };
 
     let Some(update) = update else {
         return Ok(AppUpdateInstallResult {
@@ -1178,6 +1196,8 @@ async fn install_app_update(app: tauri::AppHandle) -> Result<AppUpdateInstallRes
         });
     };
 
+    let version = update.version.clone();
+
     update
         .download_and_install(|_, _| {}, || {})
         .await
@@ -1185,7 +1205,7 @@ async fn install_app_update(app: tauri::AppHandle) -> Result<AppUpdateInstallRes
 
     Ok(AppUpdateInstallResult {
         installed: true,
-        version: Some(update.version.clone()),
+        version: Some(version),
     })
 }
 
@@ -1390,6 +1410,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(OpenedFiles(Mutex::new(VecDeque::from(opened_files))))
         .manage(McpBridgeManager::new(DEFAULT_MCP_PORT))
+        .manage(PendingAppUpdate::default())
         .setup(|app| {
             #[cfg(desktop)]
             {

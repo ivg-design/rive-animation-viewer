@@ -4,7 +4,8 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.0.0` (2026-04-02)
+- Current release: `2.0.1` (2026-04-02)
+- Latest patch: `2.0.1` hardens desktop updater install/check behavior and fixes CI sidecar packaging for release builds.
 
 ## 2.0.0 Highlights
 

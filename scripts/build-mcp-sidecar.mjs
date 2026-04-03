@@ -10,6 +10,8 @@ const targetTriple = process.env.TAURI_ENV_TARGET_TRIPLE || process.env.CARGO_BU
 const isWindowsTarget = (targetTriple || process.platform).includes('windows') || process.platform === 'win32';
 const binaryName = isWindowsTarget ? 'rav-mcp.exe' : 'rav-mcp';
 
+mkdirSync(resourcesDir, { recursive: true });
+
 const cargoArgs = ['build', '--manifest-path', path.join('src-tauri', 'Cargo.toml'), '--bin', 'rav-mcp', '--release'];
 if (targetTriple) {
   cargoArgs.push('--target', targetTriple);
@@ -33,8 +35,6 @@ if (!existsSync(sourceBinary)) {
   console.error(`rav-mcp binary not found at ${sourceBinary}`);
   process.exit(1);
 }
-
-mkdirSync(resourcesDir, { recursive: true });
 
 const destinationBinary = path.join(resourcesDir, binaryName);
 copyFileSync(sourceBinary, destinationBinary);
