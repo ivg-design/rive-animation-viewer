@@ -111,33 +111,11 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Normalize updater signing key
-        shell: bash
-        env:
-          RAW_TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-        run: |
-          set -euo pipefail
-
-          if [[ -z "${RAW_TAURI_SIGNING_PRIVATE_KEY:-}" ]]; then
-            echo "Missing TAURI_SIGNING_PRIVATE_KEY secret" >&2
-            exit 1
-          fi
-
-          NORMALIZED_KEY="$(
-            node -e 'const raw = process.env.RAW_TAURI_SIGNING_PRIVATE_KEY ?? ""; const candidates = []; if (raw.includes("\\\\n") && !raw.includes("\\n")) candidates.push(raw.replace(/\\\\n/g, "\\n")); candidates.push(raw); try { const decoded = Buffer.from(raw, "base64").toString("utf8"); if (decoded.includes("\\\\n") && !decoded.includes("\\n")) candidates.push(decoded.replace(/\\\\n/g, "\\n")); candidates.push(decoded); } catch {} const normalized = candidates.find((value) => value.startsWith("untrusted comment: minisign")); if (!normalized) { console.error("Updater key secret is not valid raw/base64 minisign content"); process.exit(1); } process.stdout.write(normalized.endsWith("\\n") ? normalized : `${normalized}\\n`);'
-          )"
-
-          {
-            echo 'TAURI_SIGNING_PRIVATE_KEY<<__RAV_UPDATER_KEY__'
-            printf '%s' "${NORMALIZED_KEY}"
-            echo
-            echo '__RAV_UPDATER_KEY__'
-          } >> "${GITHUB_ENV}"
-
       - name: Build and publish (${{ matrix.name }})
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tauriScript: npm run tauri
