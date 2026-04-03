@@ -128,7 +128,8 @@ export function createScriptConsoleController({
         }
         button.classList.toggle('is-active', state.followLatest);
         button.setAttribute('aria-pressed', String(state.followLatest));
-        button.textContent = state.followLatest ? 'FOLLOW' : 'FOLLOW OFF';
+        button.dataset.followState = state.followLatest ? 'on' : 'off';
+        button.setAttribute('aria-label', state.followLatest ? 'Follow latest console entries' : 'Follow latest console entries off');
         button.title = state.followLatest
             ? 'Newest console entries stay pinned in view'
             : 'Pinned follow is off';

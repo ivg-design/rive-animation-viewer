@@ -436,7 +436,7 @@ describe('platform/file-session', () => {
             value: [],
         });
         elements.fileInput.dispatchEvent(new Event('change'));
-        expect(elements.fileTriggerButton.classList.contains('btn-muted')).toBe(true);
+        expect(elements.fileTriggerButton.classList.contains('btn-file-loaded')).toBe(false);
 
         const invalidDropEvent = {
             dataTransfer: {

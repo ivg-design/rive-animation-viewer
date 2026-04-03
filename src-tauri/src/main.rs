@@ -10,13 +10,15 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
-use tauri::menu::Menu;
+use tauri::menu::{Menu, MenuItemBuilder, MenuItemKind, HELP_SUBMENU_ID};
 use tauri::{Emitter, Manager};
 use tauri_plugin_updater::{Update, UpdaterExt};
 use toml_edit::{value, Array, DocumentMut, Item};
 
 const DEFAULT_MCP_PORT: u16 = 9274;
 const APP_UPDATE_TIMEOUT_SECS: u64 = 30;
+const ONLINE_DOCS_MENU_ID: &str = "rav-online-docs";
+const RAV_DOCS_URL: &str = "https://forge.mograph.life/apps/rav/docs";
 
 #[derive(Clone)]
 struct JsonMcpServerEntry {
@@ -1408,6 +1410,11 @@ fn main() {
             }
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .on_menu_event(|_app, event| {
+            if event.id() == ONLINE_DOCS_MENU_ID {
+                let _ = open_external_url(RAV_DOCS_URL.to_string());
+            }
+        })
         .manage(OpenedFiles(Mutex::new(VecDeque::from(opened_files))))
         .manage(McpBridgeManager::new(DEFAULT_MCP_PORT))
         .manage(PendingAppUpdate::default())
@@ -1415,6 +1422,11 @@ fn main() {
             #[cfg(desktop)]
             {
                 let menu = Menu::default(app.handle())?;
+                let docs_item = MenuItemBuilder::with_id(ONLINE_DOCS_MENU_ID, "RAV Documentation")
+                    .build(app.handle())?;
+                if let Some(MenuItemKind::Submenu(help_menu)) = menu.get(HELP_SUBMENU_ID) {
+                    help_menu.append(&docs_item)?;
+                }
                 app.set_menu(menu)?;
             }
             let bridge_manager = app.state::<McpBridgeManager>();

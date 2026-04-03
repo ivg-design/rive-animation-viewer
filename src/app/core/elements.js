@@ -51,6 +51,7 @@ export function getElements(documentRef = document) {
         eventFilterUi: documentRef.getElementById('event-filter-ui'),
         eventFilterMcp: documentRef.getElementById('event-filter-mcp'),
         eventFilterSearch: documentRef.getElementById('event-filter-search'),
+        eventLogCopyButton: documentRef.getElementById('event-log-copy-btn'),
         eventLogClearButton: documentRef.getElementById('event-log-clear-btn'),
         toggleScriptConsoleButton: documentRef.getElementById('toggle-script-console-btn'),
         scriptConsoleSummaryRight: documentRef.getElementById('script-console-summary-right'),

@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-04-03
+
+### Changed
+
+- **Toolbar control layout refinement** — Moved the runtime renderer selector into the central playback/layout control cluster, tightened the `OPEN` button to icon-plus-label width, and kept the primary file-open affordance bright green instead of dimming it while no file is loaded.
+- **Default workspace layout** — The app now starts with the right properties panel open while the editor and console stay closed by default, matching the streamlined inspection-first workflow.
+- **Console action affordances** — Event Console and JavaScript Console now use outlined SVG icon buttons for `FOLLOW`, `COPY`, and `CLEAR`, with consistent button ordering after the search field and clearer active-state styling.
+- **Console chip styling** — `MCP` and `OPEN CONSOLE` in the runtime strip now use the same rectangular outlined button language as the rest of the UI instead of pill chips.
+- **MCP setup responsiveness** — The MCP Setup dialog now paints immediately and refreshes its install-state data asynchronously, avoiding the perceived hang when opening the menu.
+- **Help menu destination** — The native Help menu now opens the live online RAV documentation instead of leaving Help unbound.
+- **Playback naming fidelity** — Playback selectors now display authored animation and state machine names exactly as they exist in the `.riv` file, without injected `SM:` display prefixes or rewritten capitalization.
+
+### Fixed
+
+- **MCP client detection state** — MCP setup detection now distinguishes between a client being installed, missing, or available for reinstall/removal rather than only reporting that the application executable exists.
+- **Console copy support** — Event Console now has clipboard copy parity with the JavaScript Console through a dedicated copy action.
+- **Initial console visibility** — Closed-console startup no longer leaves the full console chrome visible; only the runtime strip remains until the console is opened.
+
 ## [2.0.1] - 2026-04-02
 
 ### Fixed

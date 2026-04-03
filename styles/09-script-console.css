@@ -2,37 +2,22 @@
 
 .script-console-summary-right {
     justify-content: flex-end;
-    gap: 4px;
+    gap: 6px;
 }
 
 .script-console-filter-toggles {
     gap: 3px;
 }
 
-.script-console-filter-toggles .event-filter-toggle,
-.console-follow-btn,
-#script-console-copy-btn,
-#script-console-clear-btn {
-    height: 22px;
-    min-width: 48px;
-    padding: 0 8px;
-}
-
 .console-follow-btn {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--bg-elevated);
-    color: var(--text-muted);
-    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
-    font-size: 10px;
-    font-weight: 600;
-    cursor: pointer;
+    color: #a99360;
 }
 
 .console-follow-btn.is-active {
     border-color: #c4f82a66;
     color: var(--neon);
     background: #c4f82a18;
+    box-shadow: 0 0 0 1px #c4f82a1f inset;
 }
 
 .event-log-panel.script-console-mode #event-log-filter-controls {

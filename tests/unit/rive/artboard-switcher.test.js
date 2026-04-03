@@ -78,7 +78,8 @@ describe('rive/artboard-switcher', () => {
     });
 
     it('populates artboard and playback controls from the current rive instance', () => {
-        const harness = createHarness();
+        const elements = createElements();
+        const harness = createHarness({ elements });
         harness.controller.syncStateFromConfig({
             artboard: 'Second',
             configuredStateMachines: ['Main'],
@@ -114,6 +115,10 @@ describe('rive/artboard-switcher', () => {
         expect(harness.controller.getStateSnapshot().defaultPlaybackKey).toBe('sm:Main');
         expect(harness.controller.getStateSnapshot().currentPlaybackType).toBe('stateMachine');
         expect(harness.controller.getStateSnapshot().currentPlaybackName).toBe('Main');
+        expect(Array.from(elements.playbackSelect.options).map((option) => option.textContent)).toEqual([
+            'Main',
+            'Bounce',
+        ]);
         expect(state.contents.artboards[1].name).toBe('Second');
     });
 

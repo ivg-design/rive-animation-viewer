@@ -102,7 +102,7 @@
 
 .event-filter-search {
     height: 24px;
-    width: 128px;
+    width: 140px;
     padding: 0 8px;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -116,6 +116,64 @@
 
 .event-filter-search::placeholder {
     color: var(--text-ghost);
+}
+
+.console-toolbar-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+}
+
+.console-icon-btn {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.console-icon-btn svg {
+    width: 13px;
+    height: 13px;
+    display: block;
+}
+
+.console-icon-btn:hover {
+    border-color: var(--border-bright);
+    color: var(--text-white);
+    background: #2c2c32;
+}
+
+.console-copy-btn {
+    color: #2ed176;
+    border-color: #2f8a51;
+    background: #142117;
+}
+
+.console-copy-btn:hover {
+    border-color: #39e686;
+    color: #60f0a2;
+    background: #17301f;
+}
+
+.console-clear-btn {
+    color: #ff6d80;
+    border-color: #8b3348;
+    background: #24141a;
+}
+
+.console-clear-btn:hover {
+    border-color: #ff7f92;
+    color: #ff9aa7;
+    background: #2e1821;
 }
 
 .event-log-body {

@@ -4,6 +4,7 @@ export function createEventLogController({
     documentRef = globalThis.document,
     elements,
     handleResize,
+    navigatorRef = globalThis.navigator,
     onCollapsedChange = () => {},
     setTimeoutFn = globalThis.setTimeout,
 }) {
@@ -29,7 +30,8 @@ export function createEventLogController({
         }
         button.classList.toggle('is-active', followLatest);
         button.setAttribute('aria-pressed', String(followLatest));
-        button.textContent = followLatest ? 'FOLLOW' : 'FOLLOW OFF';
+        button.dataset.followState = followLatest ? 'on' : 'off';
+        button.setAttribute('aria-label', followLatest ? 'Follow latest events' : 'Follow latest events off');
         button.title = followLatest
             ? 'Newest events stay pinned in view'
             : 'Pinned follow is off';
@@ -108,6 +110,17 @@ export function createEventLogController({
             resetEventLog();
             logEvent('ui', 'log-cleared', 'Event log cleared.');
         });
+        if (elements.eventLogCopyButton) {
+            elements.eventLogCopyButton.addEventListener('click', async () => {
+                const text = getVisibleEntries()
+                    .slice(0, 120)
+                    .map((entry) => `[${formatEventTime(entry.timestamp)}] ${entry.source.toUpperCase()} ${formatEventRowMessage(entry)}`)
+                    .join('\n');
+                if (text) {
+                    await navigatorRef?.clipboard?.writeText?.(text).catch(() => {});
+                }
+            });
+        }
 
         if (elements.showEventLogButton) {
             elements.showEventLogButton.hidden = true;
@@ -175,14 +188,8 @@ export function createEventLogController({
         renderEventLog();
     }
 
-    function renderEventLog() {
-        const list = elements.eventLogList;
-        const count = elements.eventLogCount;
-        if (!list || !count) {
-            return;
-        }
-
-        const filtered = eventLogEntries.filter((entry) => {
+    function getVisibleEntries() {
+        return eventLogEntries.filter((entry) => {
             if (entry.source === 'native' && !eventFilterState.native) return false;
             if (entry.source === 'rive-user' && !eventFilterState.riveUser) return false;
             if (entry.source === 'ui' && !eventFilterState.ui) return false;
@@ -195,6 +202,16 @@ export function createEventLogController({
             }
             return true;
         });
+    }
+
+    function renderEventLog() {
+        const list = elements.eventLogList;
+        const count = elements.eventLogCount;
+        if (!list || !count) {
+            return;
+        }
+
+        const filtered = getVisibleEntries();
 
         count.textContent = String(filtered.length);
         const scrollContainer = getScrollContainer();
@@ -305,6 +322,7 @@ export function createEventLogController({
         getFilterStateSnapshot,
         isFollowingLatest: () => followLatest,
         isCollapsed,
+        getVisibleEntries,
         logEvent,
         resetEventLog,
         renderEventLog,
