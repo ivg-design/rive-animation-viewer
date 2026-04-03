@@ -5,7 +5,8 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 ## Release
 
 - Current release: `2.0.1` (2026-04-02)
-- Latest patch: `2.0.1` hardens desktop updater install/check behavior, provisions signed updater release publishing, and fixes sidecar packaging for release builds.
+- Latest patch: `2.0.1` hardens desktop updater install/check behavior, provisions signed updater release publishing, fixes sidecar packaging for release builds, and publishes a merged cross-architecture updater manifest for Apple Silicon, Intel macOS, and Windows.
+- Validated updater path: installed `/Applications/Rive Animation Viewer.app` was tested from `2.0.0` to `2.0.1` end to end, including install, relaunch, and a final `no update available` check.
 
 ## 2.0.0 Highlights
 
@@ -17,6 +18,7 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 - **Unified consoles**: Event Console and JavaScript Console now share the same newest-first transcript model, timestamps, search/filter workflow, and `FOLLOW` behavior.
 - **Live-source-aware editor**: The editor title itself indicates whether the live runtime is being driven by internal RAV wiring or the applied editor config.
 - **Background app updates**: The desktop app checks for signed updates on launch and exposes an update chip for install/relaunch flow.
+- **Cross-architecture updater feed**: Signed release feeds now publish Apple Silicon, Intel macOS, and Windows updater entries together so one release can serve all supported desktop targets.
 
 ## Quick Start
 
@@ -187,6 +189,7 @@ All MCP commands, responses, and connection events appear in the event console w
 - **Offline Support**: Caches runtime scripts for offline use
 - **Dev Tools Access**: Programmatic DevTools opening via inject button to access console
 - **Background App Updates**: Check, download, install, and relaunch signed updates from GitHub Releases
+- **Merged updater publishing**: Release automation now rebuilds a combined `latest.json` so macOS Apple Silicon, macOS Intel, and Windows updater payloads all stay present in the same feed
 
 ## Project Structure
 
@@ -208,7 +211,8 @@ rive-local/
 │   └── codemirror-bundle.js  # Bundled CodeMirror
 ├── scripts/
 │   ├── build-dist.mjs        # Production build
-│   └── build-mcp-sidecar.mjs # Native rav-mcp sidecar builder
+│   ├── build-mcp-sidecar.mjs # Native rav-mcp sidecar builder
+│   └── generate-updater-manifest.mjs # Merges multi-platform updater assets into one latest.json
 └── src-tauri/                # Rust/Tauri desktop wrapper + native rav-mcp
 ```
 

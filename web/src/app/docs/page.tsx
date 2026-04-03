@@ -798,6 +798,13 @@ export default function DocsPage() {
             strip exposes an update chip.
           </p>
 
+          <p>
+            As of the 2.0.1 release path, the published updater feed is merged across all supported
+            desktop targets. One <code>latest.json</code> now carries Apple Silicon, Intel macOS, and
+            Windows updater entries together, so the updater no longer depends on whichever platform
+            job published last.
+          </p>
+
           <h3>Update Chip States</h3>
           <ul>
             <li><strong>Hidden</strong> &mdash; no update is available</li>
@@ -812,6 +819,12 @@ export default function DocsPage() {
             Clicking the update chip downloads the signed updater artifact for your platform, installs it,
             and relaunches the app. Release builds publish updater archives and signatures alongside the
             normal desktop installers.
+          </p>
+
+          <p>
+            This flow was validated against the installed app itself: a local <code>2.0.0</code> build
+            placed in <code>/Applications</code> successfully updated to <code>2.0.1</code>, relaunched,
+            and then reported that no newer update was available.
           </p>
 
           <hr />
