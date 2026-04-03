@@ -19,8 +19,8 @@ through the MCP server to the running app and back.
 
 ## Recommended End-User Setup
 
-Use the desktop app's **MCP Setup** dialog. It exposes the bundled `rav-mcp`
-binary path, detects Codex / Claude clients, reports whether `rav-mcp` is
+Use the desktop app's **MCP Setup** dialog. It exposes a stable `rav-mcp-rav`
+launcher path, detects Codex / Claude clients, reports whether `rav-mcp` is
 already configured there, offers one-click install / reinstall / remove, lets
 you change the bridge port, and exposes a `Script Access` toggle for MCP code
 execution. No Node install is required for the packaged app.
@@ -28,12 +28,12 @@ execution. No Node install is required for the packaged app.
 Representative snippets:
 
 ```bash
-claude mcp add-json -s user rav-mcp '{"type":"stdio","command":"/Applications/Rive Animation Viewer.app/Contents/Resources/resources/rav-mcp","args":["--stdio-only","--port","9274"]}'
+claude mcp add-json -s user rav-mcp '{"type":"stdio","command":"/Users/you/.local/bin/rav-mcp-rav","args":["--stdio-only","--port","9274"]}'
 ```
 
 ```toml
 [mcp_servers."rav-mcp"]
-command = "/Applications/Rive Animation Viewer.app/Contents/Resources/resources/rav-mcp"
+command = "/Users/you/.local/bin/rav-mcp-rav"
 args = ["--stdio-only", "--port", "9274"]
 ```
 
@@ -77,7 +77,7 @@ Once connected, Claude has access to all RAV tools. Try:
 - "Pause the animation"
 - "Generate the live web instantiation snippet for CDN usage"
 
-## Available Tools (30)
+## Available Tools (31)
 
 | Tool | Description |
 |------|-------------|
@@ -103,6 +103,7 @@ Once connected, Claude has access to all RAV tools. Try:
 | `rav_export_demo` | Export standalone HTML demo |
 | `generate_web_instantiation_code` | Generate the canonical live web snippet for `local` or `cdn` usage, with `window.ravRive` helpers and current control values |
 | `rav_toggle_instantiation_controls_dialog` | Open/close the in-app Snippet & Export Controls dialog so a human can curate which controls are serialized |
+| `rav_configure_workspace` | Set left/right sidebar visibility, live source mode, and VM Explorer snippet presence in one idempotent call |
 | `rav_get_sm_inputs` | List state machine inputs with values |
 | `rav_set_sm_input` | Set state machine input value |
 | `rav_eval` | Evaluate JS in RAV's browser context (`Script Access` required) |
@@ -127,7 +128,6 @@ Once connected, Claude has access to all RAV tools. Try:
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
 | `RAV_MCP_PORT` | `9274` | WebSocket bridge port |
-| `RAV_MCP_TIMEOUT` | `15000` | Command timeout in ms |
 
 ## Troubleshooting
 

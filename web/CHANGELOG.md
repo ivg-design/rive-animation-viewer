@@ -4,6 +4,23 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.0.4] - 2026-04-03
+
+### Added
+
+- **`rav_configure_workspace` MCP tool** — Agents can now set left/right sidebar visibility, switch the live runtime between `internal` and `editor`, and inject or remove the VM Explorer snippet in one call.
+
+### Changed
+
+- **Stable MCP launcher path** — The MCP Setup dialog now exposes a stable launcher path for Codex and Claude clients instead of the app-bundle-internal binary path.
+- **Auto-update retry behavior** — The update chip now retries in the background after transient errors instead of waiting forever in `UPDATE RETRY`.
+- **Website/docs refresh** — The docs and homepage cards now describe the 31-tool MCP surface and the Claude compatibility fixes shipped in 2.0.4.
+
+### Fixed
+
+- **Packaged-app MCP startup attach** — The frontend bridge now loads correctly on startup in packaged builds, so the running app actually attaches to the bundled sidecar on launch.
+- **Claude MCP health check compatibility** — The native sidecar now answers both standard MCP framing and Claude's newline-delimited JSON probe format.
+
 ## [2.0.3] - 2026-04-03
 
 ### Changed
@@ -239,7 +256,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- **MCP Server** (`mcp-server/`): Model Context Protocol server that exposes 22 tools for controlling RAV from Claude Code or any MCP client — open files, inspect ViewModels, drive playback, manipulate inputs, read event logs, edit scripts, and export demos.
+- **MCP Server** (`mcp-server/`): Model Context Protocol server that exposes 31 tools for controlling RAV from Claude Code or any MCP client — open files, inspect ViewModels, drive playback, manipulate inputs, configure the workspace, read event logs, edit scripts, and export demos.
 - **MCP Bridge** (`mcp-bridge.js`): Frontend WebSocket client that auto-connects to the MCP server's bridge on `ws://127.0.0.1:9274` with exponential backoff reconnection.
 - **MCP connection indicator** in the runtime strip — a dot + "MCP" chip that lights up indigo when the bridge is connected.
 - **MCP event filter** in the event console — a new "MCP" toggle button alongside Native/Rive User/UI filters, with indigo accent color.

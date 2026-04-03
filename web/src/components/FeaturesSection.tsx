@@ -80,12 +80,12 @@ const features = [
   {
     icon: ShieldCheck,
     title: "MCP + Script Access",
-    description: "Bundled native rav-mcp sidecar, one-click install with add/reinstall/remove states for supported clients, editable port, and a Script Access gate for JS tools.",
+    description: "Bundled native rav-mcp sidecar, stable launcher path, one-click add/reinstall/remove for supported clients, editable port, and a Script Access gate for JS tools.",
   },
   {
     icon: Cable,
     title: "MCP Integration",
-    description: "Control RAV from agents through 30 MCP tools: open files, inspect state, drive playback, edit scripts, generate snippets, and export demos with the live console behavior preserved.",
+    description: "Control RAV from agents through 31 MCP tools: open files, inspect state, configure the workspace, drive playback, edit scripts, generate snippets, and export demos with the live console behavior preserved.",
   },
 ];
 

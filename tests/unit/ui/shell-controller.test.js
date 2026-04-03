@@ -261,6 +261,36 @@ describe('ui/shell-controller', () => {
         expect(handleResize).toHaveBeenCalled();
     });
 
+    it('can set sidebar visibility directly for workspace commands', () => {
+        const elements = createElements();
+        const handleResize = vi.fn();
+        const controller = createShellController({
+            callbacks: {
+                getCurrentLayoutFit: () => 'contain',
+                getCurrentRuntime: () => 'webgl2',
+                handleResize,
+            },
+            elements,
+            setTimeoutFn: () => 'timeout-1',
+            windowRef: {
+                addEventListener: vi.fn(),
+                getComputedStyle: vi.fn(() => ({ getPropertyValue: () => '' })),
+            },
+        });
+
+        controller.setupPanelVisibilityToggles();
+        expect(controller.getSidebarVisibility()).toEqual({ left: false, right: true });
+
+        controller.setSidebarVisibility({ left: true, right: false });
+        expect(controller.getSidebarVisibility()).toEqual({ left: true, right: false });
+        expect(elements.mainGrid.classList.contains('left-hidden')).toBe(false);
+        expect(elements.mainGrid.classList.contains('right-hidden')).toBe(true);
+
+        controller.setSidebarVisibility({ right: true });
+        expect(controller.getSidebarVisibility()).toEqual({ left: true, right: true });
+        expect(handleResize).toHaveBeenCalled();
+    });
+
     it('handles runtime failures, invalid layout selections, and outside-click settings dismissal', async () => {
         const elements = createElements();
         const showError = vi.fn();

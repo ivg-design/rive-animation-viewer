@@ -2,6 +2,7 @@ import {
     createCodeEditorController,
     evaluateEditorConfig,
     extractBraceBlock,
+    hasVmExplorerSnippet,
     replaceOnLoadBlock,
 } from '../../../src/app/ui/code-editor.js';
 
@@ -29,6 +30,8 @@ describe('ui/code-editor', () => {
         });
         expect(() => evaluateEditorConfig('[]')).toThrow('Initialization config must return an object');
         expect(() => evaluateEditorConfig('({')).toThrow('Invalid JavaScript config');
+        expect(hasVmExplorerSnippet('onLoad: () => { vmExplore(); }')).toBe(true);
+        expect(hasVmExplorerSnippet('({ autoplay: true })')).toBe(false);
     });
 
     it('boots the fallback editor, reloads the animation, and toggles the VM explorer snippet', async () => {
@@ -86,9 +89,11 @@ describe('ui/code-editor', () => {
         expect(fetchImpl).toHaveBeenCalledWith('/vm-explorer-snippet.js');
         expect(controller.getEditorCode()).toContain('vmExplore();');
         expect(controller.getLiveConfigState().draftDirty).toBe(true);
+        expect(controller.getVmExplorerSnippetState()).toEqual({ injected: true });
 
         await controller.injectCodeSnippet();
         expect(controller.getEditorCode()).not.toContain('vmExplore();');
+        expect(controller.getVmExplorerSnippetState()).toEqual({ injected: false });
 
         controller.setEditorCode('({ autoplay: false })');
         expect(controller.getEditorConfig()).toEqual({ autoplay: false });
@@ -215,5 +220,49 @@ describe('ui/code-editor', () => {
 
         controller.setEditorCode('({ autoplay: false, autoBind: true })');
         expect(controller.getEditorCode()).toBe('({ autoplay: false, autoBind: true })');
+    });
+
+    it('supports explicit live-source and VM explorer state changes', async () => {
+        document.body.innerHTML = '<button id="editor-live-mode-chip"></button><div id="code-editor"></div>';
+
+        const refreshCurrentState = vi.fn().mockResolvedValue(true);
+        const controller = createCodeEditorController({
+            callbacks: {
+                getTauriInvoker: () => null,
+                refreshCurrentState,
+                logEvent: vi.fn(),
+                showError: vi.fn(),
+                updateInfo: vi.fn(),
+            },
+            fetchImpl: vi.fn(async () => ({
+                ok: true,
+                text: async () => 'const vmExplorerSnippet = `onLoad: () => { vmExplore(); }`;',
+            })),
+            getCurrentFileName: () => 'demo.riv',
+            getCurrentFileUrl: () => 'blob:demo',
+            loadCodeMirror: async () => false,
+            setTimeoutFn: (callback) => {
+                callback();
+                return 1;
+            },
+        });
+
+        await controller.setupCodeEditor();
+
+        await controller.setVmExplorerSnippetEnabled(true);
+        expect(controller.getVmExplorerSnippetState()).toEqual({ injected: true });
+
+        await controller.setVmExplorerSnippetEnabled(true);
+        expect(controller.getVmExplorerSnippetState()).toEqual({ injected: true });
+
+        await controller.setLiveConfigSource('editor');
+        expect(controller.getLiveConfigState().sourceMode).toBe('editor');
+
+        await controller.setLiveConfigSource('internal');
+        expect(controller.getLiveConfigState().sourceMode).toBe('internal');
+
+        await controller.setVmExplorerSnippetEnabled(false);
+        expect(controller.getVmExplorerSnippetState()).toEqual({ injected: false });
+        expect(refreshCurrentState).toHaveBeenCalledTimes(2);
     });
 });

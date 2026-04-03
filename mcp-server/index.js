@@ -425,6 +425,41 @@ const TOOLS = [
     },
   },
   {
+    name: 'rav_configure_workspace',
+    description:
+      'Set workspace UI state inside RAV. This can open or close the left/right ' +
+      'sidebars, switch the live instantiation source between internal and editor ' +
+      'mode, and inject or remove the VM Explorer snippet without guessing the current state.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        left_sidebar: {
+          type: 'string',
+          enum: ['open', 'close'],
+          description: 'Open or close the left editor sidebar.',
+        },
+        right_sidebar: {
+          type: 'string',
+          enum: ['open', 'close'],
+          description: 'Open or close the right properties sidebar.',
+        },
+        source_mode: {
+          type: 'string',
+          enum: ['internal', 'editor'],
+          description:
+            'Set the live instantiation source. "editor" applies the current draft code; ' +
+            '"internal" switches back to RAV wiring.',
+        },
+        vm_explorer: {
+          type: 'string',
+          enum: ['inject', 'remove'],
+          description: 'Ensure the VM Explorer snippet is present or removed in the editor draft.',
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'rav_get_sm_inputs',
     description:
       'Get all state machine inputs for the current animation, with their ' +
@@ -553,8 +588,8 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 - Use **rav_set_editor_code** then **rav_apply_code** to change configuration and reload.
 - **rav_status** returns the live instantiation source and whether the editor has unapplied draft changes.
 - **generate_web_instantiation_code** returns the canonical copy-paste snippet for the live mode currently running in RAV.
-- The returned snippet defaults to the `cdn` form unless you explicitly request `package_source: "local"`.
-- The returned snippet restores the current ViewModel/state-machine values on load and exposes `window.ravRive` helpers for VM and state-machine control.
+- The returned snippet defaults to the \`cdn\` form unless you explicitly request \`package_source: "local"\`.
+- The returned snippet restores the current ViewModel/state-machine values on load and exposes \`window.ravRive\` helpers for VM and state-machine control.
 
 ### State Machines vs ViewModels
 - **State machine inputs** are the legacy way to control animations (boolean, number, trigger).
@@ -569,6 +604,7 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 - **rav_console_read** returns captured console.* output (all calls since app start).
 - **rav_console_exec** evaluates code in the REPL with output shown in the console panel.
 - **rav_export_demo** creates a self-contained HTML file with the current animation, runtime, and settings baked in.
+- **rav_configure_workspace** sets left/right sidebar visibility, live editor/internal mode, and VM Explorer snippet state in one idempotent call.
 - **generate_web_instantiation_code** is the preferred way to get a web snippet. It bakes in the current runtime package, artboard/playback selection, layout fit/alignment, background mode, the active instantiation source, and the currently selected bound control values.
 - **rav_toggle_instantiation_controls_dialog** opens the in-app control-selection dialog so a human can choose exactly which values will be serialized into snippets and exported demos.
 `.trim();

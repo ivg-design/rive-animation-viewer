@@ -55,6 +55,7 @@ logs/
 # Tooling artifacts
 src-tauri/CLAUDE.md
 src-tauri/src/CLAUDE.md
+mcp-server/CLAUDE.md
 
 # Tauri v2 generated schemas
 src-tauri/gen/

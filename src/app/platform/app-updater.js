@@ -5,8 +5,10 @@ function getUpdateBody(update) {
 export function createAppUpdaterController({
     callbacks = {},
     elements,
+    documentRef = globalThis.document,
     getTauriInvoker = () => null,
     isTauriEnvironment = () => false,
+    windowRef = globalThis.window,
 } = {}) {
     const {
         logEvent = () => {},
@@ -18,6 +20,7 @@ export function createAppUpdaterController({
         checkingPromise: null,
         installPromise: null,
         pendingUpdate: null,
+        retryTimer: null,
         setupDone: false,
         updateState: 'idle',
     };
@@ -103,6 +106,7 @@ export function createAppUpdaterController({
                     title: `Update check failed: ${error.message}`,
                 });
                 logEvent('ui', 'update-check-failed', error.message);
+                scheduleRetry();
                 return null;
             } finally {
                 state.checkingPromise = null;
@@ -110,6 +114,25 @@ export function createAppUpdaterController({
         })();
 
         return state.checkingPromise;
+    }
+
+    function clearRetryTimer() {
+        if (!state.retryTimer) {
+            return;
+        }
+        windowRef.clearTimeout(state.retryTimer);
+        state.retryTimer = null;
+    }
+
+    function scheduleRetry(delayMs = 5000) {
+        if (!isTauriEnvironment() || state.updateState !== 'error') {
+            return;
+        }
+        clearRetryTimer();
+        state.retryTimer = windowRef.setTimeout(() => {
+            state.retryTimer = null;
+            checkForUpdatesOnLaunch({ force: true }).catch(() => {});
+        }, delayMs);
     }
 
     async function installPendingUpdate() {
@@ -179,6 +202,24 @@ export function createAppUpdaterController({
                 return;
             }
 
+            if (state.updateState === 'error') {
+                checkForUpdatesOnLaunch({ force: true }).catch(() => {});
+            }
+        });
+        windowRef.addEventListener?.('online', () => {
+            if (state.updateState === 'error') {
+                checkForUpdatesOnLaunch({ force: true }).catch(() => {});
+            }
+        });
+        documentRef?.addEventListener?.('visibilitychange', () => {
+            if (documentRef.hidden) {
+                return;
+            }
+            if (state.updateState === 'error') {
+                checkForUpdatesOnLaunch({ force: true }).catch(() => {});
+            }
+        });
+        windowRef.addEventListener?.('focus', () => {
             if (state.updateState === 'error') {
                 checkForUpdatesOnLaunch({ force: true }).catch(() => {});
             }

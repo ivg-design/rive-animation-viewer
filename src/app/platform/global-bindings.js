@@ -34,7 +34,9 @@ export function createGlobalBindingsController({
             draftDirty: false,
             sourceMode: 'internal',
         }),
+        getSidebarVisibility = () => ({ left: false, right: true }),
         getScriptConsoleEntries = () => ({ total: 0, returned: 0, entries: [] }),
+        getVmExplorerSnippetState = () => ({ injected: false }),
         getRuntimeSourceText = () => '',
         getRuntimeVersion = () => '',
         handleFileButtonClick = () => {},
@@ -52,6 +54,9 @@ export function createGlobalBindingsController({
         resetToDefaultArtboard = () => {},
         setCurrentFile = () => {},
         setEditorCode = () => {},
+        setLiveConfigSource = async () => ({ sourceMode: 'internal' }),
+        setSidebarVisibility = () => ({ left: false, right: true }),
+        setVmExplorerSnippetEnabled = async () => ({ injected: false }),
         showMcpSetup = () => {},
         switchArtboard = () => {},
         toggleInstantiationControlsDialog = async () => ({ open: false }),
@@ -109,6 +114,11 @@ export function createGlobalBindingsController({
         windowRef._mcpResetArtboard = resetToDefaultArtboard;
         windowRef._mcpGetArtboardState = () => getArtboardStateSnapshot();
         windowRef._mcpGetLiveConfigState = () => getLiveConfigState();
+        windowRef._mcpGetSidebarVisibility = () => getSidebarVisibility();
+        windowRef._mcpGetVmExplorerSnippetState = () => getVmExplorerSnippetState();
+        windowRef._mcpSetLiveConfigSource = async (sourceMode) => setLiveConfigSource(sourceMode);
+        windowRef._mcpSetSidebarVisibility = (visibility) => setSidebarVisibility(visibility);
+        windowRef._mcpSetVmExplorerSnippetEnabled = async (enabled) => setVmExplorerSnippetEnabled(enabled);
         windowRef._mcpToggleInstantiationControlsDialog = async (action) => toggleInstantiationControlsDialog(action);
         windowRef._mcpToggleLiveConfigSource = async () => toggleLiveConfigSource();
         windowRef.showMcpSetup = showMcpSetup;

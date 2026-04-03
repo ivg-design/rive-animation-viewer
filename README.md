@@ -4,9 +4,17 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.0.3` (2026-04-03)
-- Latest patch: `2.0.3` normalizes the JavaScript console so REPL rows and app log rows share the same timestamp-and-badge chrome, fixes JS-console filtering/copy fidelity, and updates the public docs/site cards to match the shipped behavior.
-- Validation target: the installed `/Applications/Rive Animation Viewer.app` remains on `2.0.1` specifically so the signed `2.0.3` release can be used to verify the updater path end to end.
+- Current release: `2.0.4` (2026-04-03)
+- Latest patch: `2.0.4` fixes packaged-app MCP startup attachment, makes the native `rav-mcp` sidecar compatible with Claude's newline-delimited health checks, adds the `rav_configure_workspace` tool, and hardens the update chip retry path.
+- Validation target: the installed `/Applications/Rive Animation Viewer.app` remains on `2.0.3` specifically so the signed `2.0.4` release can be used to verify the updater path end to end.
+
+## 2.0.4 Highlights
+
+- **Claude-ready native sidecar**: `rav-mcp` now speaks both normal MCP `Content-Length` framing and Claude's newline-delimited JSON probe format, so Claude health checks no longer fail before the first real tool call.
+- **Real MCP-ready startup**: Packaged builds now load the frontend bridge correctly on launch, so `MCP ready` actually corresponds to a live RAV app bridge and not just a listening sidecar process.
+- **Stable launcher path**: MCP client setup now targets a stable launcher path (`rav-mcp-rav`) instead of the app-bundle-internal binary, which survives app replacements and keeps Claude/Codex registrations valid.
+- **Workspace control tool**: Agents can now call `rav_configure_workspace` to open/close sidebars, switch between internal/editor live source modes, and inject/remove the VM Explorer snippet.
+- **Updater retry self-heal**: `UPDATE RETRY` no longer waits for a manual click forever; the app retries checks automatically on focus, visibility return, online events, and a short timer.
 
 ## 2.0.3 Highlights
 
@@ -117,7 +125,7 @@ The explorer displays a comprehensive usage guide in the console when injected.
 
 ### MCP Integration
 
-RAV includes a built-in MCP (Model Context Protocol) sidecar that lets Claude Code, Claude Desktop, Codex, or any MCP client control the viewer remotely — open files, inspect ViewModels, drive playback, manipulate inputs, run JS, generate web snippets, and export demos.
+RAV includes a built-in MCP (Model Context Protocol) sidecar that lets Claude Code, Claude Desktop, Codex, or any MCP client control the viewer remotely — open files, inspect ViewModels, drive playback, manipulate inputs, run JS, generate web snippets, export demos, and configure the workspace layout/state.
 
 #### Architecture
 
@@ -125,13 +133,13 @@ RAV includes a built-in MCP (Model Context Protocol) sidecar that lets Claude Co
 MCP Client ←(stdio)→ rav-mcp sidecar ←(WebSocket :9274)→ RAV Frontend
 ```
 
-The desktop app bundles a native `rav-mcp` sidecar binary inside the app resources. The frontend bridge (`mcp-bridge.js`) starts automatically when RAV launches, connects to the configured port, and keeps retrying until a client attaches.
+The desktop app bundles a native `rav-mcp` sidecar binary inside the app resources and exposes a stable launcher path for external clients. The frontend bridge (`mcp-bridge.js`) starts automatically when RAV launches, attaches to the configured port, and keeps retrying until a client attaches.
 
 #### Setup (one-time)
 
 Open the desktop app, click the cable icon, and use the **MCP Setup** dialog:
 
-- **Bundled sidecar path**: Copy the exact `rav-mcp` binary path shipped inside the app bundle
+- **Launcher path**: Copy the stable `rav-mcp-rav` launcher path generated for your machine
 - **Client detection**: Detect whether Codex, Claude Code, and Claude Desktop are present and whether `rav-mcp` is already configured
 - **One-click installs**: Add RAV to Codex, Claude Code, or Claude Desktop directly from the dialog when those clients are detected
 - **Reinstall / remove**: Already-configured clients show `REINSTALL` and `REMOVE`
@@ -143,18 +151,18 @@ Open the desktop app, click the cable icon, and use the **MCP Setup** dialog:
 Representative snippets:
 
 ```bash
-claude mcp add-json -s user rav-mcp '{"type":"stdio","command":"/Applications/Rive Animation Viewer.app/Contents/Resources/resources/rav-mcp","args":["--stdio-only","--port","9274"]}'
+claude mcp add-json -s user rav-mcp '{"type":"stdio","command":"/Users/you/.local/bin/rav-mcp-rav","args":["--stdio-only","--port","9274"]}'
 ```
 
 ```toml
 [mcp_servers."rav-mcp"]
-command = "/Applications/Rive Animation Viewer.app/Contents/Resources/resources/rav-mcp"
+command = "/Users/you/.local/bin/rav-mcp-rav"
 args = ["--stdio-only", "--port", "9274"]
 ```
 
 Open the RAV desktop app and enable the MCP bridge — the **MCP** indicator in the runtime strip brightens when connected. From then on, your MCP client can control RAV whenever both are running.
 
-#### Available Tools (30)
+#### Available Tools (31)
 
 | Tool | Description |
 |------|-------------|
@@ -175,6 +183,7 @@ Open the RAV desktop app and enable the MCP bridge — the **MCP** indicator in 
 | `rav_export_demo` | Export standalone HTML demo |
 | `generate_web_instantiation_code` | Generate the canonical live web-instantiation snippet (`local` npm package or `cdn`) with `window.ravRive` helpers and current control values |
 | `rav_toggle_instantiation_controls_dialog` | Open/close the in-app Snippet & Export Controls dialog so a human can choose which controls are serialized |
+| `rav_configure_workspace` | Open/close sidebars, switch live source mode (`internal` / `editor`), and inject/remove the VM Explorer snippet idempotently |
 | `rav_get_sm_inputs` / `rav_set_sm_input` | State machine input access |
 | `rav_eval` | Evaluate JS in RAV's browser context (`Script Access` required) |
 | `rav_console_open` / `rav_console_close` | Toggle the JS console remotely |
@@ -202,7 +211,6 @@ All MCP commands, responses, and connection events appear in the event console w
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
 | `RAV_MCP_PORT` | `9274` | WebSocket bridge port |
-| `RAV_MCP_TIMEOUT` | `15000` | Command timeout in ms |
 
 ### Desktop Features (Tauri)
 - **Native App**: Runs as a desktop application on macOS/Windows/Linux

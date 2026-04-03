@@ -54,8 +54,56 @@ export function createShellController({
     let isRightPanelVisible = true;
     let visibilityResizeTimeoutId = null;
 
+    function getSidebarVisibility() {
+        return {
+            left: isLeftPanelVisible,
+            right: isRightPanelVisible,
+        };
+    }
+
     function persistPanelVisibility() {
         // Panel visibility now starts from a consistent workspace default on every launch.
+    }
+
+    function applyPanelVisibilityState() {
+        const grid = elements.mainGrid;
+        const leftButton = elements.toggleLeftPanelButton;
+        const rightButton = elements.toggleRightPanelButton;
+        const showLeftButton = elements.showLeftPanelButton;
+        const showRightButton = elements.showRightPanelButton;
+        if (!grid || !leftButton || !rightButton || !showLeftButton || !showRightButton) {
+            return getSidebarVisibility();
+        }
+
+        grid.classList.toggle('left-hidden', !isLeftPanelVisible);
+        grid.classList.toggle('right-hidden', !isRightPanelVisible);
+        leftButton.classList.toggle('is-collapsed', !isLeftPanelVisible);
+        rightButton.classList.toggle('is-collapsed', !isRightPanelVisible);
+        leftButton.setAttribute('aria-pressed', String(isLeftPanelVisible));
+        rightButton.setAttribute('aria-pressed', String(isRightPanelVisible));
+        leftButton.title = isLeftPanelVisible ? 'Hide Script Panel' : 'Show Script Panel';
+        rightButton.title = isRightPanelVisible ? 'Hide Properties Panel' : 'Show Properties Panel';
+        leftButton.setAttribute('aria-label', leftButton.title);
+        rightButton.setAttribute('aria-label', rightButton.title);
+        showLeftButton.hidden = isLeftPanelVisible;
+        showRightButton.hidden = isRightPanelVisible;
+        persistPanelVisibility();
+        handleResize();
+        if (visibilityResizeTimeoutId) {
+            clearTimeoutFn(visibilityResizeTimeoutId);
+        }
+        visibilityResizeTimeoutId = setTimeoutFn(handleResize, 250);
+        return getSidebarVisibility();
+    }
+
+    function setSidebarVisibility(nextVisibility = {}) {
+        if (typeof nextVisibility.left === 'boolean') {
+            isLeftPanelVisible = nextVisibility.left;
+        }
+        if (typeof nextVisibility.right === 'boolean') {
+            isRightPanelVisible = nextVisibility.right;
+        }
+        return applyPanelVisibilityState();
     }
 
     async function reloadActiveAnimation() {
@@ -338,57 +386,35 @@ export function createShellController({
     }
 
     function setupPanelVisibilityToggles() {
-        const grid = elements.mainGrid;
         const leftButton = elements.toggleLeftPanelButton;
         const rightButton = elements.toggleRightPanelButton;
         const showLeftButton = elements.showLeftPanelButton;
         const showRightButton = elements.showRightPanelButton;
-        if (!grid || !leftButton || !rightButton || !showLeftButton || !showRightButton) {
+        if (!elements.mainGrid || !leftButton || !rightButton || !showLeftButton || !showRightButton) {
             return;
         }
 
-        const applyVisibility = () => {
-            grid.classList.toggle('left-hidden', !isLeftPanelVisible);
-            grid.classList.toggle('right-hidden', !isRightPanelVisible);
-            leftButton.classList.toggle('is-collapsed', !isLeftPanelVisible);
-            rightButton.classList.toggle('is-collapsed', !isRightPanelVisible);
-            leftButton.setAttribute('aria-pressed', String(isLeftPanelVisible));
-            rightButton.setAttribute('aria-pressed', String(isRightPanelVisible));
-            leftButton.title = isLeftPanelVisible ? 'Hide Script Panel' : 'Show Script Panel';
-            rightButton.title = isRightPanelVisible ? 'Hide Properties Panel' : 'Show Properties Panel';
-            leftButton.setAttribute('aria-label', leftButton.title);
-            rightButton.setAttribute('aria-label', rightButton.title);
-            showLeftButton.hidden = isLeftPanelVisible;
-            showRightButton.hidden = isRightPanelVisible;
-            persistPanelVisibility();
-            handleResize();
-            if (visibilityResizeTimeoutId) {
-                clearTimeoutFn(visibilityResizeTimeoutId);
-            }
-            visibilityResizeTimeoutId = setTimeoutFn(handleResize, 250);
-        };
-
         leftButton.addEventListener('click', () => {
             isLeftPanelVisible = !isLeftPanelVisible;
-            applyVisibility();
+            applyPanelVisibilityState();
         });
 
         rightButton.addEventListener('click', () => {
             isRightPanelVisible = !isRightPanelVisible;
-            applyVisibility();
+            applyPanelVisibilityState();
         });
 
         showLeftButton.addEventListener('click', () => {
             isLeftPanelVisible = true;
-            applyVisibility();
+            applyPanelVisibilityState();
         });
 
         showRightButton.addEventListener('click', () => {
             isRightPanelVisible = true;
-            applyVisibility();
+            applyPanelVisibilityState();
         });
 
-        applyVisibility();
+        applyPanelVisibilityState();
     }
 
     function captureLayoutStateForExport() {
@@ -445,8 +471,11 @@ export function createShellController({
     }
 
     return {
+        applyPanelVisibilityState,
         captureLayoutStateForExport,
         dispose,
+        getSidebarVisibility,
+        setSidebarVisibility,
         setup,
         setupAlignmentSelect,
         setupCenterResizer,

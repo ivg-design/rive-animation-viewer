@@ -187,4 +187,33 @@ describe('platform/mcp-bridge', () => {
                 },
             });
     });
+
+    it('configures workspace state through the MCP bridge helpers', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        vi.stubGlobal('setInterval', vi.fn(() => 1));
+        vi.stubGlobal('clearInterval', vi.fn());
+        window._mcpLogEvent = vi.fn();
+        window._mcpUpdateStatus = vi.fn();
+        window._mcpGetSidebarVisibility = vi.fn(() => ({ left: false, right: true }));
+        window._mcpSetSidebarVisibility = vi.fn((visibility) => ({ left: visibility.left ?? false, right: visibility.right ?? true }));
+        window._mcpGetLiveConfigState = vi.fn(() => ({ sourceMode: 'internal', draftDirty: false }));
+        window._mcpSetLiveConfigSource = vi.fn(async (sourceMode) => ({ sourceMode, draftDirty: false }));
+        window._mcpGetVmExplorerSnippetState = vi.fn(() => ({ injected: false }));
+        window._mcpSetVmExplorerSnippetEnabled = vi.fn(async (enabled) => ({ injected: enabled }));
+
+        await import('../../../mcp-bridge.js?test=bridge-configure-workspace');
+        await flushBridgeMicrotasks();
+
+        await expect(window._mcpBridge.commands.rav_configure_workspace({
+            left_sidebar: 'open',
+            right_sidebar: 'close',
+            source_mode: 'editor',
+            vm_explorer: 'inject',
+        })).resolves.toEqual({
+            sidebars: { left: true, right: false },
+            sourceMode: 'editor',
+            draftDirty: false,
+            vmExplorerInjected: true,
+        });
+    });
 });

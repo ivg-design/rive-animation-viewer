@@ -19,6 +19,7 @@ const DEFAULT_MCP_PORT: u16 = 9274;
 const APP_UPDATE_TIMEOUT_SECS: u64 = 30;
 const ONLINE_DOCS_MENU_ID: &str = "rav-online-docs";
 const RAV_DOCS_URL: &str = "https://forge.mograph.life/apps/rav/docs";
+const MCP_CLIENT_LAUNCHER_NAME: &str = "rav-mcp-rav";
 
 #[derive(Clone)]
 struct JsonMcpServerEntry {
@@ -171,6 +172,80 @@ fn resolve_mcp_server_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     } else {
         Err(format!("MCP server not found in bundled sidecar locations for {}", binary_name))
     }
+}
+
+fn mcp_client_launcher_path(_app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    #[cfg(target_os = "windows")]
+    {
+        return app
+            .path()
+            .app_data_dir()
+            .map(|path| path.join("bin").join(format!("{MCP_CLIENT_LAUNCHER_NAME}.exe")))
+            .map_err(|error| format!("Failed to resolve MCP launcher path: {}", error));
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        return home_dir()
+            .map(|path| path.join(".local").join("bin").join(MCP_CLIENT_LAUNCHER_NAME))
+            .ok_or_else(|| "Failed to resolve home directory for MCP launcher".to_string());
+    }
+}
+
+fn ensure_mcp_client_launcher(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let bundled_server = resolve_mcp_server_path(app)?;
+    let launcher_path = mcp_client_launcher_path(app)?;
+    ensure_parent_directory(&launcher_path)?;
+
+    #[cfg(target_os = "windows")]
+    {
+        let should_copy = fs::metadata(&launcher_path)
+            .map(|meta| meta.len())
+            .ok()
+            != fs::metadata(&bundled_server).map(|meta| meta.len()).ok();
+        if should_copy {
+            let _ = fs::remove_file(&launcher_path);
+            fs::copy(&bundled_server, &launcher_path).map_err(|error| {
+                format!(
+                    "Failed to copy MCP launcher from {} to {}: {}",
+                    bundled_server.display(),
+                    launcher_path.display(),
+                    error
+                )
+            })?;
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let needs_refresh = match fs::read_link(&launcher_path) {
+            Ok(target) => target != bundled_server,
+            Err(_) => true,
+        };
+        if needs_refresh {
+            let _ = fs::remove_file(&launcher_path);
+            std::os::unix::fs::symlink(&bundled_server, &launcher_path).map_err(|error| {
+                format!(
+                    "Failed to symlink MCP launcher from {} to {}: {}",
+                    bundled_server.display(),
+                    launcher_path.display(),
+                    error
+                )
+            })?;
+        }
+    }
+
+    Ok(launcher_path)
+}
+
+fn mcp_server_path_candidates(app: &tauri::AppHandle) -> Result<Vec<PathBuf>, String> {
+    let primary = ensure_mcp_client_launcher(app)?;
+    let bundled = resolve_mcp_server_path(app)?;
+    let mut paths = vec![primary];
+    if !paths.iter().any(|path| path == &bundled) {
+        paths.push(bundled);
+    }
+    Ok(paths)
 }
 
 fn normalize_mcp_port(port: Option<u16>) -> u16 {
@@ -536,18 +611,18 @@ fn codex_server_status(path: &Path, server_path: &Path, expected_args: &[String]
 fn command_and_args_match(
     command: Option<&str>,
     args: &[String],
-    server_path: &Path,
+    server_paths: &[PathBuf],
     expected_args: &[String],
 ) -> bool {
     command
-        .map(|value| value == server_path.to_string_lossy())
+        .map(|value| server_paths.iter().any(|path| value == path.to_string_lossy()))
         .unwrap_or(false)
         && args == expected_args
 }
 
 fn claude_desktop_server_status(
     path: &Path,
-    server_path: &Path,
+    server_paths: &[PathBuf],
     expected_args: &[String],
 ) -> (bool, bool) {
     let Ok(raw) = fs::read_to_string(path) else {
@@ -567,7 +642,7 @@ fn claude_desktop_server_status(
     let command_matches = server
         .get("command")
         .and_then(serde_json::Value::as_str)
-        .map(|value| value == server_path.to_string_lossy())
+        .map(|value| server_paths.iter().any(|path| value == path.to_string_lossy()))
         .unwrap_or(false);
     let args_matches = server
         .get("args")
@@ -649,7 +724,7 @@ fn claude_code_server_entries(path: &Path) -> Vec<JsonMcpServerEntry> {
 
 fn claude_code_server_status(
     path: &Path,
-    server_path: &Path,
+    server_paths: &[PathBuf],
     expected_args: &[String],
 ) -> (bool, bool, Option<String>) {
     let entries = claude_code_server_entries(path);
@@ -660,7 +735,7 @@ fn claude_code_server_status(
     let mut matching_scopes = Vec::new();
     let mut conflicting_scopes = Vec::new();
     for entry in &entries {
-        if command_and_args_match(entry.command.as_deref(), &entry.args, server_path, expected_args) {
+        if command_and_args_match(entry.command.as_deref(), &entry.args, server_paths, expected_args) {
             matching_scopes.push(entry.scope_label.clone());
         } else {
             conflicting_scopes.push(entry.scope_label.clone());
@@ -686,14 +761,14 @@ fn claude_code_server_status(
     )
 }
 
-fn build_mcp_targets(server_path: &Path, port: u16) -> Vec<McpClientStatus> {
+fn build_mcp_targets(server_paths: &[PathBuf], port: u16) -> Vec<McpClientStatus> {
     let expected_args = build_mcp_args(port);
     let codex_config = codex_config_path();
     let codex_cli = find_command_path("codex");
     let codex_available = codex_config.is_some() || codex_cli.is_some();
     let (codex_installed, codex_configured) = codex_config
         .as_deref()
-        .map(|path| codex_server_status(path, server_path, &expected_args))
+        .map(|path| codex_server_status(path, &server_paths[0], &expected_args))
         .unwrap_or((false, false));
 
     let claude_code_cli = find_command_path("claude");
@@ -705,7 +780,7 @@ fn build_mcp_targets(server_path: &Path, port: u16) -> Vec<McpClientStatus> {
         .unwrap_or(false);
     let (claude_code_installed, claude_code_configured, claude_code_detail) = claude_code_config
         .as_deref()
-        .map(|path| claude_code_server_status(path, server_path, &expected_args))
+        .map(|path| claude_code_server_status(path, server_paths, &expected_args))
         .unwrap_or((false, false, None));
 
     let claude_desktop_config = claude_desktop_config_path();
@@ -720,7 +795,7 @@ fn build_mcp_targets(server_path: &Path, port: u16) -> Vec<McpClientStatus> {
             .unwrap_or(false);
     let (claude_desktop_installed, claude_desktop_configured) = claude_desktop_config
         .as_deref()
-        .map(|path| claude_desktop_server_status(path, server_path, &expected_args))
+        .map(|path| claude_desktop_server_status(path, server_paths, &expected_args))
         .unwrap_or((false, false));
 
     vec![
@@ -980,12 +1055,13 @@ fn get_mcp_setup_status(
     app: tauri::AppHandle,
     bridge_manager: tauri::State<'_, McpBridgeManager>,
 ) -> Result<McpSetupStatus, String> {
-    let server_path = resolve_mcp_server_path(&app)?;
+    let server_path = ensure_mcp_client_launcher(&app)?;
+    let server_paths = mcp_server_path_candidates(&app)?;
     let port = current_mcp_port(&bridge_manager)?;
     Ok(McpSetupStatus {
         server_path: server_path.to_string_lossy().to_string(),
         port,
-        targets: build_mcp_targets(&server_path, port),
+        targets: build_mcp_targets(&server_paths, port),
     })
 }
 
@@ -996,7 +1072,7 @@ fn install_mcp_client(
     target: String,
     port: Option<u16>,
 ) -> Result<McpInstallResult, String> {
-    let server_path = resolve_mcp_server_path(&app)?;
+    let server_path = ensure_mcp_client_launcher(&app)?;
     let port = normalize_mcp_port(port.or_else(|| current_mcp_port(&bridge_manager).ok()));
     match target.as_str() {
         "codex" => install_codex_mcp_with_port(&server_path, port),

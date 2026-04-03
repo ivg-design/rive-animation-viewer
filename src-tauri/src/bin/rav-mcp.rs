@@ -20,6 +20,12 @@ const DEFAULT_PROTOCOL_VERSION: &str = "2025-06-18";
 const RECONNECT_DELAY_MS: u64 = 250;
 const APP_CONNECTION_GRACE_MS: u64 = 2_500;
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum StdioMessageFormat {
+    ContentLength,
+    JsonLine,
+}
+
 const SERVER_INSTRUCTIONS: &str = r#"# RAV MCP — Rive Animation Viewer Remote Control
 
 You are connected to a running instance of Rive Animation Viewer (RAV), a desktop app for inspecting .riv animation files.
@@ -70,6 +76,7 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 - **rav_console_read** returns captured console.* output (all calls since app start).
 - **rav_console_exec** evaluates code in the REPL with output shown in the console panel.
 - **rav_export_demo** creates a self-contained HTML file with the current animation, runtime, and settings baked in.
+- **rav_configure_workspace** sets left/right sidebar visibility, live editor/internal mode, and VM Explorer snippet state in one idempotent call.
 - **generate_web_instantiation_code** is the preferred way to get a web snippet. It bakes in the current runtime package, artboard/playback selection, layout fit/alignment, background mode, the active instantiation source, and the currently selected bound control values.
 - **rav_toggle_instantiation_controls_dialog** opens the in-app control-selection dialog so a human can choose exactly which values will be serialized into snippets and exported demos."#;
 
@@ -666,6 +673,20 @@ fn tools_list() -> Value {
             }
         },
         {
+            "name": "rav_configure_workspace",
+            "description": "Set workspace UI state inside RAV. This can open or close the left/right sidebars, switch the live instantiation source between internal and editor mode, and inject or remove the VM Explorer snippet without guessing current state.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "left_sidebar": { "type": "string", "enum": ["open", "close"], "description": "Open or close the left editor sidebar." },
+                    "right_sidebar": { "type": "string", "enum": ["open", "close"], "description": "Open or close the right properties sidebar." },
+                    "source_mode": { "type": "string", "enum": ["internal", "editor"], "description": "Set the live instantiation source. editor applies the current draft code; internal switches back to RAV wiring." },
+                    "vm_explorer": { "type": "string", "enum": ["inject", "remove"], "description": "Ensure the VM Explorer snippet is present or removed in the editor draft." }
+                },
+                "additionalProperties": false
+            }
+        },
+        {
             "name": "rav_get_sm_inputs",
             "description": "Get all state machine inputs for the current animation, with their names, types, and current values.",
             "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
@@ -731,7 +752,9 @@ fn tools_list() -> Value {
     ])
 }
 
-async fn read_message(reader: &mut BufReader<tokio::io::Stdin>) -> Result<Option<Value>> {
+async fn read_message(
+    reader: &mut BufReader<tokio::io::Stdin>,
+) -> Result<Option<(Value, StdioMessageFormat)>> {
     let mut content_length = None;
 
     loop {
@@ -739,6 +762,14 @@ async fn read_message(reader: &mut BufReader<tokio::io::Stdin>) -> Result<Option
         let bytes_read = reader.read_line(&mut line).await?;
         if bytes_read == 0 {
             return Ok(None);
+        }
+
+        if content_length.is_none() {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() && trimmed.starts_with('{') {
+                let message = serde_json::from_str::<Value>(trimmed)?;
+                return Ok(Some((message, StdioMessageFormat::JsonLine)));
+            }
         }
 
         if line == "\n" || line == "\r\n" {
@@ -760,14 +791,26 @@ async fn read_message(reader: &mut BufReader<tokio::io::Stdin>) -> Result<Option
     let mut payload = vec![0_u8; length];
     reader.read_exact(&mut payload).await?;
     let message = serde_json::from_slice::<Value>(&payload)?;
-    Ok(Some(message))
+    Ok(Some((message, StdioMessageFormat::ContentLength)))
 }
 
-async fn write_message(writer: &mut BufWriter<tokio::io::Stdout>, value: &Value) -> Result<()> {
+async fn write_message(
+    writer: &mut BufWriter<tokio::io::Stdout>,
+    value: &Value,
+    format: StdioMessageFormat,
+) -> Result<()> {
     let payload = serde_json::to_vec(value)?;
-    let header = format!("Content-Length: {}\r\n\r\n", payload.len());
-    writer.write_all(header.as_bytes()).await?;
-    writer.write_all(&payload).await?;
+    match format {
+        StdioMessageFormat::ContentLength => {
+            let header = format!("Content-Length: {}\r\n\r\n", payload.len());
+            writer.write_all(header.as_bytes()).await?;
+            writer.write_all(&payload).await?;
+        }
+        StdioMessageFormat::JsonLine => {
+            writer.write_all(&payload).await?;
+            writer.write_all(b"\n").await?;
+        }
+    }
     writer.flush().await?;
     Ok(())
 }
@@ -811,6 +854,13 @@ async fn handle_request(bridge: &Bridge, request: Value) -> Value {
                 json!({
                     "protocolVersion": protocol_version,
                     "capabilities": {
+                        "prompts": {
+                            "listChanged": false
+                        },
+                        "resources": {
+                            "listChanged": false,
+                            "subscribe": false
+                        },
                         "tools": {
                             "listChanged": false
                         }
@@ -824,6 +874,10 @@ async fn handle_request(bridge: &Bridge, request: Value) -> Value {
             )
         }
         "ping" => jsonrpc_result(id, json!({})),
+        "prompts/list" => jsonrpc_result(id, json!({ "prompts": [] })),
+        "resources/list" => jsonrpc_result(id, json!({ "resources": [] })),
+        "resources/templates/list" => jsonrpc_result(id, json!({ "resourceTemplates": [] })),
+        "logging/setLevel" => jsonrpc_result(id, json!({})),
         "tools/list" => jsonrpc_result(id, json!({ "tools": tools_list() })),
         "tools/call" => {
             let Some(params) = request.get("params") else {
@@ -879,10 +933,8 @@ async fn run_stdio_server(bridge: Bridge) -> Result<()> {
     let mut reader = BufReader::new(stdin);
     let mut writer = BufWriter::new(stdout);
 
-    eprintln!("[rav-mcp] MCP server started (stdio transport)");
-
     loop {
-        let Some(message) = read_message(&mut reader).await? else {
+        let Some((message, incoming_format)) = read_message(&mut reader).await? else {
             break;
         };
 
@@ -892,7 +944,7 @@ async fn run_stdio_server(bridge: Bridge) -> Result<()> {
         }
 
         let response = handle_request(&bridge, message).await;
-        write_message(&mut writer, &response).await?;
+        write_message(&mut writer, &response, incoming_format).await?;
     }
 
     Ok(())
@@ -1036,8 +1088,7 @@ async fn run_websocket_client_bridge(bridge: Bridge, ws_port: u16) -> Result<()>
     loop {
         let websocket = match connect_async(url.as_str()).await {
             Ok((websocket, _)) => websocket,
-            Err(error) => {
-                eprintln!("[rav-mcp] Waiting for RAV bridge on {url}: {error}");
+            Err(_error) => {
                 tokio::time::sleep(Duration::from_millis(RECONNECT_DELAY_MS)).await;
                 continue;
             }
@@ -1051,8 +1102,6 @@ async fn run_websocket_client_bridge(bridge: Bridge, ws_port: u16) -> Result<()>
         .context("failed to send MCP client handshake")?;
         let (tx, mut rx) = mpsc::unbounded_channel::<String>();
         let connection_id = bridge.register_connection(tx).await;
-
-        eprintln!("[rav-mcp] Connected to RAV bridge at {url}");
 
         let write_task = tokio::spawn(async move {
             while let Some(payload) = rx.recv().await {
@@ -1085,7 +1134,6 @@ async fn run_websocket_client_bridge(bridge: Bridge, ws_port: u16) -> Result<()>
         bridge
             .handle_disconnect(connection_id, "RAV bridge disconnected".into())
             .await;
-        eprintln!("[rav-mcp] Disconnected from RAV bridge");
         tokio::time::sleep(Duration::from_millis(RECONNECT_DELAY_MS)).await;
     }
 }

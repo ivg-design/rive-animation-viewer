@@ -615,6 +615,53 @@ const commandHandlers = {
     throw new Error('Instantiation controls dialog not available');
   },
 
+  async rav_configure_workspace({
+    left_sidebar,
+    right_sidebar,
+    source_mode,
+    vm_explorer,
+  } = {}) {
+    let sidebars = window._mcpGetSidebarVisibility?.() || { left: false, right: true };
+    if (left_sidebar !== undefined || right_sidebar !== undefined) {
+      if (typeof window._mcpSetSidebarVisibility !== 'function') {
+        throw new Error('Sidebar visibility controls are not available');
+      }
+      sidebars = window._mcpSetSidebarVisibility({
+        ...(left_sidebar !== undefined ? { left: left_sidebar === 'open' } : {}),
+        ...(right_sidebar !== undefined ? { right: right_sidebar === 'open' } : {}),
+      }) || sidebars;
+    }
+
+    let liveConfigState = window._mcpGetLiveConfigState?.() || { sourceMode: 'internal', draftDirty: false };
+    if (source_mode !== undefined) {
+      if (!['internal', 'editor'].includes(source_mode)) {
+        throw new Error('source_mode must be "internal" or "editor"');
+      }
+      if (typeof window._mcpSetLiveConfigSource !== 'function') {
+        throw new Error('Live config source controls are not available');
+      }
+      liveConfigState = await window._mcpSetLiveConfigSource(source_mode);
+    }
+
+    let vmExplorerState = window._mcpGetVmExplorerSnippetState?.() || { injected: false };
+    if (vm_explorer !== undefined) {
+      if (!['inject', 'remove'].includes(vm_explorer)) {
+        throw new Error('vm_explorer must be "inject" or "remove"');
+      }
+      if (typeof window._mcpSetVmExplorerSnippetEnabled !== 'function') {
+        throw new Error('VM Explorer snippet controls are not available');
+      }
+      vmExplorerState = await window._mcpSetVmExplorerSnippetEnabled(vm_explorer === 'inject');
+    }
+
+    return {
+      sidebars,
+      sourceMode: liveConfigState?.sourceMode || 'internal',
+      draftDirty: Boolean(liveConfigState?.draftDirty),
+      vmExplorerInjected: Boolean(vmExplorerState?.injected),
+    };
+  },
+
   async rav_get_sm_inputs() {
     const inst = window.riveInst;
     if (!inst) throw new Error('No animation loaded');

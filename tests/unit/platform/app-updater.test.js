@@ -8,6 +8,10 @@ describe('platform/app-updater', () => {
         };
     }
 
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+
     afterEach(() => {
         document.body.innerHTML = '';
     });
@@ -115,6 +119,37 @@ describe('platform/app-updater', () => {
             expect(invoke).toHaveBeenCalledTimes(2);
             expect(elements.updateChip.hidden).toBe(true);
         });
+    });
+
+    it('retries automatically after an initial check failure', async () => {
+        const elements = createElements();
+        const invoke = vi.fn()
+            .mockRejectedValueOnce(new Error('network down'))
+            .mockResolvedValueOnce({
+                available: true,
+                currentVersion: '2.0.2',
+                version: '2.0.3',
+                body: 'Ready',
+            });
+        const controller = createAppUpdaterController({
+            callbacks: {
+                logEvent: vi.fn(),
+                updateInfo: vi.fn(),
+            },
+            elements,
+            getTauriInvoker: () => invoke,
+            isTauriEnvironment: () => true,
+        });
+
+        controller.setup();
+        await controller.checkForUpdatesOnLaunch();
+        expect(elements.updateChip.dataset.updateState).toBe('error');
+
+        await vi.advanceTimersByTimeAsync(5000);
+
+        expect(invoke).toHaveBeenCalledTimes(2);
+        expect(elements.updateChip.dataset.updateState).toBe('available');
+        expect(elements.updateChip.textContent).toContain('2.0.3');
     });
 
     it('surfaces install failures and keeps a retry state', async () => {

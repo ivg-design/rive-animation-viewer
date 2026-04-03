@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.0.4] - 2026-04-03
+
+### Added
+
+- **`rav_configure_workspace` MCP tool** — Agents can now idempotently open or close the left and right sidebars, switch the live runtime between `internal` and `editor` source modes, and inject or remove the VM Explorer snippet without UI clicking or state guessing.
+
+### Changed
+
+- **Stable MCP launcher path** — The MCP Setup dialog now publishes a stable client launcher path (`rav-mcp-rav`) instead of pointing clients at the app-bundle-internal binary path, so Codex and Claude integrations survive app replacements more reliably.
+- **Auto-update retry behavior** — Desktop updater failures no longer leave the chip stranded in `UPDATE RETRY`; the app now retries on timer, focus return, visibility return, and network reconnection.
+- **Release/docs sync** — README, MCP server docs, website docs, and homepage feature cards now describe the 2.0.4 MCP/Claude compatibility fixes and 31-tool surface.
+
+### Fixed
+
+- **App-side MCP startup attach** — Packaged apps now load the frontend bridge as a real ES module, so the running app actually attaches to the bundled bridge sidecar on launch instead of leaving the sidecar listening with no live RAV connection behind it.
+- **Claude MCP health-check compatibility** — The native `rav-mcp` sidecar now accepts both standard `Content-Length` MCP framing and Claude's newline-delimited JSON probe format, which fixes Claude's `Failed to connect` health checks.
+- **Claude/Codex launcher install path** — One-click MCP setup now installs clients against the stable launcher shim rather than the app-bundle resource path, avoiding stale registrations after app updates.
+
 ## [2.0.3] - 2026-04-03
 
 ### Changed
@@ -260,7 +278,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- **MCP Server** (`mcp-server/`): Model Context Protocol server that exposes 22 tools for controlling RAV from Claude Code or any MCP client — open files, inspect ViewModels, drive playback, manipulate inputs, read event logs, edit scripts, and export demos.
+- **MCP Server** (`mcp-server/`): Model Context Protocol server that exposes 31 tools for controlling RAV from Claude Code or any MCP client — open files, inspect ViewModels, drive playback, manipulate inputs, configure the workspace, read event logs, edit scripts, and export demos.
 - **MCP Bridge** (`mcp-bridge.js`): Frontend WebSocket client that auto-connects to the MCP server's bridge on `ws://127.0.0.1:9274` with exponential backoff reconnection.
 - **MCP connection indicator** in the runtime strip — a dot + "MCP" chip that lights up indigo when the bridge is connected.
 - **MCP event filter** in the event console — a new "MCP" toggle button alongside Native/Rive User/UI filters, with indigo accent color.

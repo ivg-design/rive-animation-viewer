@@ -132,6 +132,11 @@ export function evaluateEditorConfig(code, evalFn = eval) {
     return result;
 }
 
+export function hasVmExplorerSnippet(code) {
+    const text = String(code || '');
+    return text.includes('vmExplore') || text.includes('vmRootInstance');
+}
+
 export function createCodeEditorController({
     callbacks = {},
     codeMirrorModulesRef = () => null,
@@ -370,7 +375,17 @@ export function createCodeEditorController({
         };
     }
 
+    function getVmExplorerSnippetState() {
+        return {
+            injected: hasVmExplorerSnippet(getEditorDraftCode()),
+        };
+    }
+
     async function useInternalWiringAndReload() {
+        if (liveConfigSource === 'internal') {
+            updateLiveModeChip();
+            return getLiveConfigState();
+        }
         liveConfigSource = 'internal';
         updateLiveModeChip();
         updateInfo('Using internal RAV wiring');
@@ -379,6 +394,7 @@ export function createCodeEditorController({
         } catch {
             /* refreshCurrentState already reports the error */
         }
+        return getLiveConfigState();
     }
 
     async function applyCodeAndReload() {
@@ -401,19 +417,41 @@ export function createCodeEditorController({
         } catch {
             /* refreshCurrentState already reports the error */
         }
+        return getLiveConfigState();
+    }
+
+    async function setLiveConfigSource(nextSourceMode) {
+        const normalizedSourceMode = nextSourceMode === 'editor' ? 'editor' : 'internal';
+        if (normalizedSourceMode === 'internal') {
+            return useInternalWiringAndReload();
+        }
+
+        const currentCode = getEditorDraftCode();
+        const shouldApply =
+            liveConfigSource !== 'editor'
+            || configDirty
+            || currentCode !== appliedEditorCode;
+
+        if (!shouldApply) {
+            updateLiveModeChip();
+            return getLiveConfigState();
+        }
+
+        return applyCodeAndReload();
     }
 
     async function toggleLiveConfigSource() {
-        if (liveConfigSource === 'editor') {
-            await useInternalWiringAndReload();
-            return;
-        }
-        await applyCodeAndReload();
+        return setLiveConfigSource(liveConfigSource === 'editor' ? 'internal' : 'editor');
     }
 
-    async function injectCodeSnippet() {
+    async function setVmExplorerSnippetEnabled(enabled, { openDevtools = false } = {}) {
+        if (!editorView) {
+            showError('Code editor is not available');
+            return { ok: false, injected: false };
+        }
+
         const invoke = getTauriInvoker();
-        if (invoke && !devToolsEnabled) {
+        if (openDevtools && invoke && !devToolsEnabled) {
             try {
                 devToolsEnabled = true;
                 await invoke('open_devtools');
@@ -422,17 +460,15 @@ export function createCodeEditorController({
             }
         }
 
-        if (!editorView) {
-            showError('Code editor is not available');
-            return;
-        }
-
         try {
             const currentCode = editorView.state.doc.toString();
-            const hasVmExplorer = currentCode.includes('vmExplore') || currentCode.includes('vmRootInstance');
+            const snippetInjected = hasVmExplorerSnippet(currentCode);
+            if (snippetInjected === Boolean(enabled)) {
+                return { ok: true, changed: false, injected: snippetInjected };
+            }
 
             let newCode;
-            if (hasVmExplorer) {
+            if (!enabled) {
                 newCode = replaceOnLoadBlock(currentCode, `onLoad: () => {
     riveInst.resizeDrawingSurfaceToCanvas();
     window.refreshVmInputControls?.();
@@ -473,9 +509,16 @@ export function createCodeEditorController({
 
             setEditorCode(newCode);
             markDraftState(true);
+            return { ok: true, changed: true, injected: Boolean(enabled) };
         } catch (error) {
             showError(`Failed to modify code: ${error.message}`);
+            throw error;
         }
+    }
+
+    async function injectCodeSnippet() {
+        const currentCode = editorView?.state.doc.toString() ?? '';
+        return setVmExplorerSnippetEnabled(!hasVmExplorerSnippet(currentCode), { openDevtools: true });
     }
 
     liveModeChip?.addEventListener('click', () => {
@@ -491,8 +534,11 @@ export function createCodeEditorController({
         getEditorConfig,
         getLiveConfig,
         getLiveConfigState,
+        getVmExplorerSnippetState,
         injectCodeSnippet,
         setEditorCode,
+        setLiveConfigSource,
+        setVmExplorerSnippetEnabled,
         setupCodeEditor,
         toggleLiveConfigSource,
         useInternalWiringAndReload,

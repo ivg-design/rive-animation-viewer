@@ -762,8 +762,9 @@ export default function DocsPage() {
 
           <h3>Setup (one-time)</h3>
           <p>
-            The desktop app ships with the MCP sidecar already bundled inside the app resources.
-            Open the in-app <strong>MCP Setup</strong> dialog to copy the exact path, detect supported
+            The desktop app ships with the MCP sidecar already bundled inside the app resources and exposes
+            a stable launcher path for external clients. Open the in-app <strong>MCP Setup</strong> dialog to copy
+            that launcher path, detect supported
             clients, and use one-click installation where available.
           </p>
           <ol>
@@ -781,7 +782,7 @@ export default function DocsPage() {
             </li>
             <li>
               <strong>Or copy a snippet manually</strong>:
-              <pre><code>{`claude mcp add-json -s user rav-mcp '{"type":"stdio","command":"/Applications/Rive Animation Viewer.app/Contents/Resources/resources/rav-mcp","args":["--stdio-only","--port","9274"]}'`}</code></pre>
+              <pre><code>{`claude mcp add-json -s user rav-mcp '{"type":"stdio","command":"/Users/you/.local/bin/rav-mcp-rav","args":["--stdio-only","--port","9274"]}'`}</code></pre>
             </li>
             <li>
               <strong>Open RAV</strong> &mdash; launch the desktop app. The <strong>MCP</strong>{" "}
@@ -797,14 +798,14 @@ export default function DocsPage() {
           <h3>MCP Setup Dialog</h3>
           <ul>
             <li><strong>Status row</strong> &mdash; simplified to <code>MCP ready</code> or <code>MCP disabled</code></li>
-            <li><strong>Server path</strong> &mdash; the exact bundled <code>rav-mcp</code> binary path used for snippets</li>
+            <li><strong>Server path</strong> &mdash; the stable <code>rav-mcp-rav</code> launcher path generated for the current machine</li>
             <li><strong>Script Access</strong> &mdash; explicit safety gate for JS execution tools</li>
             <li><strong>MCP Port</strong> &mdash; editable bridge port with immediate snippet regeneration</li>
             <li><strong>Client detection</strong> &mdash; checks whether supported clients are installed and whether the RAV MCP entry is already present in their config</li>
             <li><strong>Install actions</strong> &mdash; shows <strong>ADD</strong>, <strong>REINSTALL</strong>, or <strong>REMOVE</strong> based on the actual detected state</li>
           </ul>
 
-          <h3>Available Tools (30)</h3>
+          <h3>Available Tools (31)</h3>
           <table>
             <thead>
               <tr>
@@ -831,6 +832,7 @@ export default function DocsPage() {
               <tr><td><code>rav_export_demo</code></td><td>Export a standalone HTML demo</td></tr>
               <tr><td><code>generate_web_instantiation_code</code></td><td>Generate the live canonical web snippet for <code>cdn</code> or <code>local</code> usage, including <code>window.ravRive</code> helpers and current control values</td></tr>
               <tr><td><code>rav_toggle_instantiation_controls_dialog</code></td><td>Open or close the in-app Snippet &amp; Export Controls dialog for manual control curation</td></tr>
+              <tr><td><code>rav_configure_workspace</code></td><td>Open or close sidebars, switch the live source between <code>internal</code> and <code>editor</code>, and inject or remove the VM Explorer snippet</td></tr>
               <tr><td><code>rav_get_sm_inputs</code> / <code>rav_set_sm_input</code></td><td>State machine input access</td></tr>
               <tr><td><code>rav_eval</code></td><td>Evaluate JavaScript in RAV&apos;s browser context (<strong>Script Access</strong> required)</td></tr>
               <tr><td><code>rav_console_open</code> / <code>rav_console_close</code></td><td>Toggle the JS console panel</td></tr>
