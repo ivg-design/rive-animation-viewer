@@ -1,6 +1,6 @@
 {
   "name": "rive-animation-viewer",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Desktop and web viewer for .riv files with ViewModel controls, artboard/animation switching, script editor, event console, standalone export, and MCP remote control",
   "main": "index.html",
   "scripts": {

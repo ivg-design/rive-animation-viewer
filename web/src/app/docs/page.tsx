@@ -34,17 +34,17 @@ const sections = [
 const topicCards = [
   { icon: Download, title: "Getting Started", desc: "Installation & first launch", href: "#getting-started" },
   { icon: Layers, title: "Opening Files", desc: "Load .riv files", href: "#opening-files" },
-  { icon: Monitor, title: "UI Layout", desc: "Three-panel interface", href: "#ui-layout" },
+  { icon: Monitor, title: "UI Layout", desc: "Toolbar, panels, and live status strips", href: "#ui-layout" },
   { icon: Gamepad2, title: "ViewModel Controls", desc: "Auto-discovered inputs", href: "#viewmodel-controls" },
   { icon: LayoutGrid, title: "Artboard Switcher", desc: "Switch artboards & animations", href: "#artboard-switcher" },
-  { icon: Terminal, title: "Event Console", desc: "Multi-source filtering", href: "#event-console" },
+  { icon: Terminal, title: "Event Console", desc: "Newest-first runtime transcript", href: "#event-console" },
   { icon: Eye, title: "Transparency Mode", desc: "Click-through overlay", href: "#transparency-mode" },
   { icon: FileCode, title: "Standalone Export", desc: "Self-contained HTML", href: "#standalone-export" },
-  { icon: AppWindow, title: "Script Console", desc: "Live JS evaluation", href: "#script-console" },
-  { icon: Settings, title: "Configuration", desc: "Renderer & layout", href: "#configuration" },
-  { icon: Cable, title: "MCP Integration", desc: "Claude Code remote control", href: "#mcp-integration" },
+  { icon: AppWindow, title: "Script Console", desc: "REPL, timestamps, and follow mode", href: "#script-console" },
+  { icon: Settings, title: "Configuration", desc: "Editor source modes, renderer, runtime, and layout", href: "#configuration" },
+  { icon: Cable, title: "MCP Integration", desc: "Bundled sidecar, install detection, and Script Access", href: "#mcp-integration" },
   { icon: RefreshCw, title: "Automatic Updates", desc: "Built-in updater flow", href: "#automatic-updates" },
-  { icon: Keyboard, title: "Keyboard Shortcuts", desc: "Complete reference", href: "#keyboard-shortcuts" },
+  { icon: Keyboard, title: "Keyboard Shortcuts", desc: "Actual implemented keys", href: "#keyboard-shortcuts" },
   { icon: HelpCircle, title: "Troubleshooting", desc: "Common issues", href: "#troubleshooting" },
 ];
 
@@ -105,8 +105,8 @@ export default function DocsPage() {
             RAV Documentation
           </h1>
           <p className="text-lg text-[var(--text-dim)] max-w-2xl mx-auto">
-            Complete guide to using Rive Animation Viewer. From installation to
-            advanced features like ViewModel controls and standalone exports.
+            Complete guide to using Rive Animation Viewer, including the script editor,
+            unified consoles, MCP setup, export snippets, live runtime controls, and updater flow.
           </p>
         </div>
       </section>
@@ -221,6 +221,20 @@ export default function DocsPage() {
             composition without opening a secondary settings panel.
           </p>
 
+          <h3>Top Toolbar</h3>
+          <p>
+            The top toolbar is split into three working clusters:
+          </p>
+          <ul>
+            <li><strong>Left</strong> &mdash; app identity and the bright green <strong>OPEN</strong> button for file loading</li>
+            <li><strong>Center</strong> &mdash; reset, play, pause, renderer, fit, alignment, and FPS status</li>
+            <li><strong>Right</strong> &mdash; <strong>EXPORT</strong>, Settings, and the MCP Setup dialog</li>
+          </ul>
+          <p>
+            Renderer selection now lives in the central controls cluster next to playback and layout controls,
+            not beside the file-open action.
+          </p>
+
           <h3>Right Panel &mdash; Controls</h3>
           <p>
             Contains ViewModel controls, state machine inputs, and playback settings.
@@ -246,11 +260,24 @@ export default function DocsPage() {
             visual language and behavior.
           </p>
 
+          <h3>Runtime Strip</h3>
+          <p>
+            When the console is closed, only the runtime strip remains visible. It shows the MCP indicator,
+            console state, runtime version, loaded file, update status, and refresh state. The console chip
+            cycles between <strong>closed</strong>, <strong>event console</strong>, and <strong>JS console</strong>.
+          </p>
+
           <h3>Code Editor Panel</h3>
           <p>
             An optional panel (toggled from the toolbar) with a CodeMirror 6 editor for writing
             JavaScript configuration objects. Useful for advanced initialization options, custom
             callbacks, artboard/state machine selection, and live runtime re-instantiation.
+          </p>
+          <p>
+            The <strong>EDITOR</strong> title block is also the live-source indicator. A faint neutral outline means
+            RAV&apos;s internal wiring is driving the runtime. When the applied editor config is live, that same title
+            block switches to green and its status dot pulses. The yellow outlined <strong>APPLY</strong> button
+            promotes the current editor code to the active runtime configuration.
           </p>
 
           <hr />
@@ -347,10 +374,10 @@ export default function DocsPage() {
 
           <h3>Playback Dropdown</h3>
           <p>
-            Shows all state machines (prefixed &quot;SM:&quot;) and timeline animations available
-            on the selected artboard. Selecting a different playback target reloads the artboard
-            with that target. State machines are listed first since they are the preferred playback
-            mode.
+            Shows the exact authored state machine and timeline animation names available on the selected
+            artboard. Labels preserve original capitalization and formatting. Selecting a different playback
+            target reloads the artboard with that target. State machines are listed first, but the viewer no
+            longer rewrites names with visible prefixes.
           </p>
 
           <h3>VM Instance Selector</h3>
@@ -431,6 +458,16 @@ export default function DocsPage() {
             provides additional filtering across all visible events.
           </p>
 
+          <h3>Console Actions</h3>
+          <p>
+            The console toolbar places search first, followed by outlined icon actions for:
+          </p>
+          <ul>
+            <li><strong>FOLLOW</strong> &mdash; amber toggle that keeps the newest event in view</li>
+            <li><strong>COPY</strong> &mdash; green action that copies the current transcript</li>
+            <li><strong>CLEAR</strong> &mdash; red action that clears the current console transcript</li>
+          </ul>
+
           <h3>Ordering and Follow Mode</h3>
           <p>
             Events are listed newest-first. The <strong>FOLLOW</strong> toggle keeps the latest
@@ -455,6 +492,22 @@ export default function DocsPage() {
             stream while preserving the same transcript styling as the Event Console.
           </p>
 
+          <h3>REPL Behavior</h3>
+          <p>
+            The JavaScript console is a true REPL against the live runtime. Commands execute against the current
+            page context, results appear with timestamps in the shared newest-first transcript, and command history
+            is available from the input. The input stays at the bottom of the panel while the transcript above it
+            follows the same ordering and follow-mode semantics as the Event Console.
+          </p>
+
+          <h3>Consistent Row Chrome</h3>
+          <p>
+            As of <strong>2.0.3</strong>, the JavaScript console uses one consistent visual language for every row.
+            REPL commands, REPL results, warnings, errors, and app-generated log lines all render with the same
+            timestamp-and-badge treatment. This keeps the console readable without giving up Eruda&apos;s native
+            lazy object inspection for complex runtime objects like <code>riveInst</code>.
+          </p>
+
           <h3>Available Globals</h3>
           <pre><code>window.riveInst    // The active Rive instance{"\n"}window.canvas      // The animation canvas element{"\n"}vmExplore()        // Show root VM properties{"\n"}vmGet(&quot;path&quot;)      // Get a VM property value{"\n"}vmSet(&quot;path&quot;, val) // Set a VM property value{"\n"}vmTree             // View full VM hierarchy{"\n"}vmPaths            // List all property paths</code></pre>
 
@@ -463,6 +516,14 @@ export default function DocsPage() {
             The console displays timestamped command, result, warning, info, and error rows. Results are
             inserted at the top like event entries, and the shared <strong>FOLLOW</strong> behavior works
             the same way as in the Event Console.
+          </p>
+
+          <h3>Filtering and Copy</h3>
+          <p>
+            Level filters and search operate on the visible JavaScript console transcript itself, not a separate
+            hidden logger state. That means command/result rows obey the same filter rules as normal log lines.
+            The <strong>COPY</strong> action also mirrors exactly what is currently visible on screen, in the same
+            newest-first order.
           </p>
 
           <hr />
@@ -543,6 +604,10 @@ export default function DocsPage() {
             just one control. The dialog defaults to the changed-control set, but you can switch to
             <strong>SELECT ALL</strong> or <strong>CLEAR</strong> as needed.
           </p>
+          <p>
+            Branch expansion state is preserved while you select nested controls, so you can work deeply inside
+            a ViewModel tree without the dialog collapsing back to the root after each checkbox change.
+          </p>
 
           <h3>Limitations</h3>
           <ul>
@@ -604,6 +669,19 @@ export default function DocsPage() {
             <li><code>useOffscreenRenderer</code> &mdash; improves glow/shadow quality for transparent overlays</li>
             <li><code>onLoad</code>, <code>onPlay</code>, <code>onPause</code>, <code>onStateChange</code> &mdash; lifecycle callbacks</li>
           </ul>
+
+          <h3>Internal vs Editor Live Mode</h3>
+          <p>
+            RAV distinguishes between your editable draft and the live runtime source:
+          </p>
+          <ul>
+            <li><strong>Internal</strong> &mdash; the app is using its built-in default instantiation wiring</li>
+            <li><strong>Editor</strong> &mdash; the last applied script editor config is driving the runtime</li>
+          </ul>
+          <p>
+            Draft changes in the editor do nothing until you click <strong>APPLY</strong>. Exports, generated snippets,
+            and MCP status all reflect the active live mode, not the unsaved editor buffer.
+          </p>
 
           <h3>Renderer Selection</h3>
           <p>
@@ -716,6 +794,16 @@ export default function DocsPage() {
             the ViewModel tree.&quot;
           </p>
 
+          <h3>MCP Setup Dialog</h3>
+          <ul>
+            <li><strong>Status row</strong> &mdash; simplified to <code>MCP ready</code> or <code>MCP disabled</code></li>
+            <li><strong>Server path</strong> &mdash; the exact bundled <code>rav-mcp</code> binary path used for snippets</li>
+            <li><strong>Script Access</strong> &mdash; explicit safety gate for JS execution tools</li>
+            <li><strong>MCP Port</strong> &mdash; editable bridge port with immediate snippet regeneration</li>
+            <li><strong>Client detection</strong> &mdash; checks whether supported clients are installed and whether the RAV MCP entry is already present in their config</li>
+            <li><strong>Install actions</strong> &mdash; shows <strong>ADD</strong>, <strong>REINSTALL</strong>, or <strong>REMOVE</strong> based on the actual detected state</li>
+          </ul>
+
           <h3>Available Tools (30)</h3>
           <table>
             <thead>
@@ -789,19 +877,11 @@ export default function DocsPage() {
           </p>
 
           <h3>Configuration</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Environment Variable</th>
-                <th>Default</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td><code>RAV_MCP_PORT</code></td><td><code>9274</code></td><td>WebSocket bridge port</td></tr>
-              <tr><td><code>RAV_MCP_TIMEOUT</code></td><td><code>15000</code></td><td>Command timeout in milliseconds</td></tr>
-            </tbody>
-          </table>
+          <p>
+            For normal use, the MCP surface is configured from the <strong>MCP Setup</strong> dialog inside the app.
+            The only user-facing setting exposed there is the bridge port. Internal timeout and watchdog settings exist,
+            but they are implementation details and are not part of the public UI contract.
+          </p>
 
           <hr />
 
@@ -843,26 +923,41 @@ export default function DocsPage() {
             and then reported that no newer update was available.
           </p>
 
+          <h3>Release Feed Semantics</h3>
+          <p>
+            The updater only surfaces a new version after the full multi-platform release finishes and the
+            final merged <code>latest.json</code> feed is published. A partially complete GitHub release is
+            not enough for the in-app updater to advance.
+          </p>
+
           <hr />
 
           {/* Keyboard Shortcuts */}
           <h2 id="keyboard-shortcuts" className="scroll-mt-24">Keyboard Shortcuts</h2>
 
+          <p>
+            RAV is still primarily a pointer-driven desktop tool. The current build does
+            <strong> not</strong> ship global playback shortcuts for play, pause, reset, fullscreen,
+            or DevTools. The available keybindings are contextual and tied to the control that has focus.
+          </p>
+
           <table>
             <thead>
               <tr>
                 <th>Shortcut</th>
+                <th>Context</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td><code>Space</code></td><td>Play / Pause</td></tr>
-              <tr><td><code>R</code></td><td>Reset / Restart animation</td></tr>
-              <tr><td><code>F</code></td><td>Toggle fullscreen</td></tr>
-              <tr><td><code>Tab</code></td><td>Insert 2 spaces (in code editor)</td></tr>
-              <tr><td><code>Shift+Tab</code></td><td>Remove indentation (in code editor)</td></tr>
-              <tr><td><code>Cmd/Ctrl+Enter</code></td><td>Apply configuration (in code editor)</td></tr>
-              <tr><td><code>F12</code> / <code>Cmd+Opt+I</code></td><td>Open DevTools (desktop)</td></tr>
+              <tr><td><code>Tab</code></td><td>Code editor</td><td>Indent by 2 spaces</td></tr>
+              <tr><td><code>Shift+Tab</code></td><td>Code editor</td><td>Outdent by 2 spaces</td></tr>
+              <tr><td><code>Enter</code></td><td>JavaScript Console REPL</td><td>Run the current command</td></tr>
+              <tr><td><code>ArrowUp</code></td><td>JavaScript Console REPL</td><td>Recall the previous command from history</td></tr>
+              <tr><td><code>ArrowDown</code></td><td>JavaScript Console REPL</td><td>Move forward through command history</td></tr>
+              <tr><td><code>Enter</code></td><td>Runtime version custom field</td><td>Apply the custom runtime semver</td></tr>
+              <tr><td><code>Enter</code></td><td>MCP port field</td><td>Apply the typed MCP port</td></tr>
+              <tr><td><code>Escape</code></td><td>Settings popover</td><td>Close the open settings popover</td></tr>
             </tbody>
           </table>
 

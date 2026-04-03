@@ -4,9 +4,17 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.0.2` (2026-04-03)
-- Latest patch: `2.0.2` refines the desktop shell with exact playback naming, responsive MCP setup, icon-based console actions, a cleaner default layout, and a repaired release workflow for signed updater publishing.
-- Validation target: the installed `/Applications/Rive Animation Viewer.app` remains on `2.0.1` specifically so the signed `2.0.2` release can be used to verify the updater path end to end.
+- Current release: `2.0.3` (2026-04-03)
+- Latest patch: `2.0.3` normalizes the JavaScript console so REPL rows and app log rows share the same timestamp-and-badge chrome, fixes JS-console filtering/copy fidelity, and updates the public docs/site cards to match the shipped behavior.
+- Validation target: the installed `/Applications/Rive Animation Viewer.app` remains on `2.0.1` specifically so the signed `2.0.3` release can be used to verify the updater path end to end.
+
+## 2.0.3 Highlights
+
+- **Consistent JS console chrome**: Command, result, warning, error, and app log rows now share the same timestamp-and-badge presentation instead of mixing Eruda chevrons with plain text tags.
+- **Working JS console filters**: Level/search filters now act on the actual visible transcript, so REPL input/output rows no longer punch through warning/error filters.
+- **Copy mirrors the screen**: The JS console copy action now copies the current visible transcript exactly as shown, in newest-first order.
+- **Native object inspection preserved**: `riveInst` and other live objects still use Eruda's lazy inspector instead of being collapsed into fake summary objects.
+- **Docs/site sync**: README, docs, changelog, and feature cards now explicitly describe the normalized console behavior.
 
 ## 2.0.2 Highlights
 
@@ -72,6 +80,8 @@ npm start  # Opens browser at http://localhost:1420
 - **Console Capture**: Captures `console.log/info/warn/error/debug` output from the running app/runtime
 - **REPL Execution**: Execute live JavaScript against the active browser/runtime context
 - **Shared Console UX**: Same transcript layout as the Event Console, with timestamps, newest-first ordering, filters/search, and `FOLLOW`
+- **Unified Console Chrome**: Command, result, warning, error, and application log rows share the same timestamp-and-badge styling while keeping Eruda's native lazy object inspection
+- **Visible Transcript Copy**: `COPY` serializes the currently visible JS console rows in the same order and with the same badges you see on screen
 - **MCP Console Tools**: Open, close, read, and execute console commands remotely through MCP
 
 **Important**: The editor accepts JavaScript code, not JSON. You can use JavaScript features like comments, trailing commas, and unquoted keys:

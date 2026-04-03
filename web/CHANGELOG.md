@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.0.3] - 2026-04-03
+
+### Changed
+
+- **JavaScript console presentation normalization** — Command, result, warning, error, and application log rows now share the same timestamp-and-badge chrome while preserving Eruda's native lazy object inspection for live runtime objects.
+- **Console transcript copy fidelity** — Copy now serializes exactly the rows currently visible in the JavaScript console, in the same newest-first order and with the same badges shown on screen.
+- **Documentation refresh** — README, website docs, and homepage feature cards were updated to reflect the normalized JS console behavior and current 2.0.x feature set.
+
+### Fixed
+
+- **JS console filter behavior** — Level and search filters now operate on the rendered JavaScript console transcript instead of Eruda's internal filter API, so REPL command/result rows no longer bypass filtering.
+- **JS console spacing consistency** — Timestamp, badge, and message spacing is now consistent across REPL entries and app-generated log lines.
+
 ## [2.0.2] - 2026-04-03
 
 ### Changed

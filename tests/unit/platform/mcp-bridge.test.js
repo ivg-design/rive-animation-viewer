@@ -153,4 +153,38 @@ describe('platform/mcp-bridge', () => {
         await expect(window._mcpBridge.commands.rav_eval({ expression: '1 + 1' }))
             .resolves.toEqual({ result: 2 });
     });
+
+    it('returns a bounded preview for riveInst results', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        vi.stubGlobal('setInterval', vi.fn(() => 1));
+        vi.stubGlobal('clearInterval', vi.fn());
+        window._mcpLogEvent = vi.fn();
+        window._mcpUpdateStatus = vi.fn();
+        window.__RAV_MCP_SCRIPT_ACCESS__ = true;
+
+        await import('../../../mcp-bridge.js?test=bridge-rive-preview');
+        await flushBridgeMicrotasks();
+
+        window.riveInst = {
+            artboard: { name: 'Dashboard' },
+            stateMachineNames: ['Main'],
+            animationNames: ['idle'],
+            isPlaying: true,
+            isStopped: false,
+            viewModelInstance: {},
+        };
+
+        await expect(window._mcpBridge.commands.rav_eval({ expression: 'window.riveInst' }))
+            .resolves.toEqual({
+                result: {
+                    $type: 'RiveInstance',
+                    animations: ['idle'],
+                    artboard: 'Dashboard',
+                    hasViewModel: true,
+                    isPlaying: true,
+                    isStopped: false,
+                    stateMachines: ['Main'],
+                },
+            });
+    });
 });

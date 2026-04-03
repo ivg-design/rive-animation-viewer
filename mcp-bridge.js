@@ -1,3 +1,5 @@
+import { createSafeInspectPreview } from './src/app/core/safe-inspect.js';
+
 /**
  * RAV MCP Bridge Client
  *
@@ -681,11 +683,7 @@ const commandHandlers = {
       const result = await eval(expression);
       if (result === undefined) return { result: 'undefined' };
       if (result === null) return { result: 'null' };
-      try {
-        return { result: JSON.parse(JSON.stringify(result)) };
-      } catch {
-        return { result: String(result) };
-      }
+      return { result: createSafeInspectPreview(result, { windowRef: window }) };
     } catch (e) {
       throw new Error(`Eval error: ${e.message}`);
     }

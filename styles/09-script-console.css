@@ -53,12 +53,141 @@
 .script-console-output {
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
+    position: relative;
     margin: 0;
-    padding: 4px 10px 6px;
+    padding: 0;
     background: #0a0d13;
-    scrollbar-gutter: stable both-edges;
+}
+
+.script-console-output .eruda-entry-btn {
+    display: none !important;
+}
+
+.script-console-output .luna-tab {
+    display: none !important;
+}
+
+.script-console-output .eruda-resizer {
+    display: none !important;
+}
+
+.script-console-output .eruda-js-input {
+    display: none !important;
+}
+
+body.js-console-mode > .eruda-container:not(.rav-eruda) {
+    display: none !important;
+}
+
+.script-console-output > .eruda-container {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.script-console-output .eruda-dev-tools {
+    background: #0a0d13 !important;
+    padding-top: 0 !important;
+    border-top: 0 !important;
+}
+
+.script-console-output .eruda-console {
+    background: #0a0d13 !important;
+    padding-bottom: 0 !important;
+}
+
+.script-console-output .luna-console {
+    background: #0a0d13 !important;
+    font-family: "Space Mono", monospace !important;
+}
+
+.script-console-output .luna-console-logs {
+    background: #0a0d13 !important;
+    overflow-y: auto !important;
+}
+
+.script-console-output .luna-console-log-container {
+    border-bottom: 1px solid #ffffff0a !important;
+}
+
+.script-console-output .luna-console-log-content {
+    color: var(--text-dim) !important;
+}
+
+.script-console-output .luna-console-icon-container {
+    display: none !important;
+}
+
+.script-console-output .rav-console-time {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 8px;
+    color: #8d96ab !important;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.script-console-output .rav-console-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 18px;
+    margin-right: 10px;
+    padding: 0 6px;
+    border: 1px solid #ffffff16;
+    border-radius: 4px;
+    color: #b9c0d2 !important;
+    background: #171c27;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.script-console-output .rav-console-badge.is-command {
+    color: #9fb7ff !important;
+    border-color: #4c63a833;
+    background: #1a243d;
+}
+
+.script-console-output .rav-console-badge.is-result {
+    color: #d9cbff !important;
+    border-color: #7450c033;
+    background: #201934;
+}
+
+.script-console-output .rav-console-badge.is-warning {
+    color: #f5b534 !important;
+    border-color: #7a5a123d;
+    background: #261c0d;
+}
+
+.script-console-output .rav-console-badge.is-error {
+    color: #ff7f8f !important;
+    border-color: #6a1e283d;
+    background: #251116;
+}
+
+.script-console-output .luna-console-error .luna-console-log-content {
+    color: #ff8389 !important;
+    background: #ff000010 !important;
+}
+
+.script-console-output .luna-console-warn .luna-console-log-content {
+    color: #f5a623 !important;
+    background: #f5a62308 !important;
+}
+
+.script-console-output .luna-object-viewer {
+    color: var(--text-dim) !important;
 }
 
 .script-console-log-list {
@@ -126,4 +255,24 @@
 
 .script-console-repl-input::placeholder {
     color: #8990a2;
+}
+
+.script-console-output ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.script-console-output ::-webkit-scrollbar-track {
+    background: #0f1015;
+    border-radius: 8px;
+}
+
+.script-console-output ::-webkit-scrollbar-thumb {
+    background: #2a2d38;
+    border: 1px solid #0f111a;
+    border-radius: 8px;
+}
+
+.script-console-output ::-webkit-scrollbar-thumb:hover {
+    background: #3c4150;
 }
