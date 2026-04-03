@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.0.5] - 2026-04-03
+
+### Fixed
+
+- **Windows release build regression** — The stable MCP launcher-path helper now compiles correctly on Windows, unblocking cross-platform release publishing after the 2.0.4 tag failed its Windows job.
+
 ## [2.0.4] - 2026-04-03
 
 ### Added

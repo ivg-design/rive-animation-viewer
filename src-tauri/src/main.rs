@@ -174,7 +174,8 @@ fn resolve_mcp_server_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     }
 }
 
-fn mcp_client_launcher_path(_app: &tauri::AppHandle) -> Result<PathBuf, String> {
+#[allow(unused_variables)]
+fn mcp_client_launcher_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     #[cfg(target_os = "windows")]
     {
         return app

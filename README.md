@@ -4,9 +4,13 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.0.4` (2026-04-03)
-- Latest patch: `2.0.4` fixes packaged-app MCP startup attachment, makes the native `rav-mcp` sidecar compatible with Claude's newline-delimited health checks, adds the `rav_configure_workspace` tool, and hardens the update chip retry path.
-- Validation target: the installed `/Applications/Rive Animation Viewer.app` remains on `2.0.3` specifically so the signed `2.0.4` release can be used to verify the updater path end to end.
+- Current release: `2.0.5` (2026-04-03)
+- Latest patch: `2.0.5` fixes the Windows release regression in the stable MCP launcher-path helper so the full cross-platform `2.0.x` MCP and updater fixes can be published cleanly.
+- Validation target: the installed `/Applications/Rive Animation Viewer.app` remains on `2.0.3` specifically so the signed `2.0.5` release can be used to verify the updater path end to end.
+
+## 2.0.5 Highlights
+
+- **Windows release fix**: The stable MCP launcher-path helper now compiles on Windows, fixing the cross-platform release failure that blocked the `2.0.4` tag from publishing a complete updater set.
 
 ## 2.0.4 Highlights
 

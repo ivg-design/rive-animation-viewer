@@ -502,7 +502,7 @@ export default function DocsPage() {
 
           <h3>Consistent Row Chrome</h3>
           <p>
-            As of <strong>2.0.3</strong>, the JavaScript console uses one consistent visual language for every row.
+            As of <strong>2.0.5</strong>, the JavaScript console uses one consistent visual language for every row and the bundled MCP launcher path ships cleanly across macOS and Windows releases.
             REPL commands, REPL results, warnings, errors, and app-generated log lines all render with the same
             timestamp-and-badge treatment. This keeps the console readable without giving up Eruda&apos;s native
             lazy object inspection for complex runtime objects like <code>riveInst</code>.
