@@ -1,0 +1,105 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;500;700&display=swap");
+
+:root {
+    --alert: #fa541c;
+    --bg-elevated: #27272a;
+    --bg-void: #0a0a0a;
+    --bg-zinc: #18181b;
+    --border: #27272a;
+    --border-bright: #3f3f46;
+    --neon: #c4f82a;
+    --neon-glow: #c4f82a40;
+    --text-dark: #0a0a0a;
+    --text-dim: #a1a1aa;
+    --text-ghost: #52525b;
+    --text-muted: #71717a;
+    --text-white: #ffffff;
+    --left-width: 320px;
+    --right-width: 320px;
+    --center-log-height: 230px;
+    --split-size: 8px;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --gap-micro: 2px;
+    --gap-tight: 4px;
+    --gap-compact: 6px;
+    --gap-base: 8px;
+    --gap-relaxed: 12px;
+    --gap-spacious: 16px;
+    --gap-section: 24px;
+    --pad-tight: 6px;
+    --pad-compact: 8px;
+    --pad-base: 12px;
+    --pad-spacious: 16px;
+    --pad-panel: 32px;
+    --header-control-h: 36px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* Block text selection on UI chrome — allow only in editable/copyable areas */
+body {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+input, textarea, select,
+.cm-content,
+.mcp-snippet-block pre,
+.mcp-setup-path-code,
+.script-console-output,
+[contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+html {
+    background: var(--bg-void);
+}
+
+body {
+    background: var(--bg-void);
+    color: var(--text-white);
+    font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+    overflow: hidden;
+}
+
+body.transparency-mode,
+html.transparency-mode,
+body.transparency-mode .app-shell {
+    background: transparent;
+}
+
+body.transparency-mode .workspace,
+body.transparency-mode #center-panel,
+body.transparency-mode .center-panel {
+    background: transparent !important;
+}
+
+.app-shell {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+}
+
+/* ── Lucide icon sizing ───────────────────────────────────── */
+
+.lucide-10 { width: 10px; height: 10px; }
+.lucide-12 { width: 12px; height: 12px; }
+.lucide-14 { width: 14px; height: 14px; }
+.lucide-16 { width: 16px; height: 16px; }
+.lucide-18 { width: 18px; height: 18px; }
+.lucide-24 { width: 24px; height: 24px; }

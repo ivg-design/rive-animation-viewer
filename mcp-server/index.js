@@ -389,6 +389,42 @@ const TOOLS = [
     },
   },
   {
+    name: 'generate_web_instantiation_code',
+    description:
+      'Generate a copy-paste-ready web instantiation snippet for the animation currently loaded in RAV. ' +
+      'The snippet mirrors the live source mode that is actually running in RAV: either internal wiring ' +
+      'or the last applied editor code. Supports either CDN or local npm package usage, restores the current ' +
+      'ViewModel/state-machine values on load, and exposes helper controls on window.ravRive.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        package_source: {
+          type: 'string',
+          enum: ['cdn', 'local'],
+          description: 'Use a CDN/global runtime snippet or a local npm package import snippet.',
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'rav_toggle_instantiation_controls_dialog',
+    description:
+      'Open, close, or toggle the Snippet & Export Controls dialog inside RAV. ' +
+      'Use this when a human user should choose exactly which bound controls are serialized into snippets and demos.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['open', 'close', 'toggle'],
+          description: 'Whether to open, close, or toggle the dialog. Defaults to toggle.',
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'rav_get_sm_inputs',
     description:
       'Get all state machine inputs for the current animation, with their ' +
@@ -432,6 +468,50 @@ const TOOLS = [
       additionalProperties: false,
     },
   },
+  {
+    name: 'rav_console_open',
+    description: 'Open the JavaScript console panel (switches from Event Console to JS Console mode).',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'rav_console_close',
+    description: 'Close the JavaScript console panel (switches back to Event Console mode).',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'rav_console_read',
+    description:
+      'Read captured console output (console.log/warn/error/info/debug). ' +
+      'Returns the most recent entries with method, timestamp, and args.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: {
+          type: 'number',
+          description: 'Maximum entries to return (default 50)',
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'rav_console_exec',
+    description:
+      'Execute JavaScript in the REPL console. The code is evaluated in the ' +
+      'browser context with output displayed in the console panel. ' +
+      'Opens the console automatically if not already open.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        code: {
+          type: 'string',
+          description: 'JavaScript code to execute in the console REPL',
+        },
+      },
+      required: ['code'],
+      additionalProperties: false,
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -465,9 +545,16 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 
 ### Script Editor
 - The editor holds a JavaScript object literal that configures the Rive instance.
+- RAV has two live instantiation modes: \`internal\` and \`editor\`.
+- \`internal\` means the running animation is using RAV's built-in wiring and the current toolbar/artboard state.
+- \`editor\` means the running animation is using the last applied editor code, not necessarily the current unsaved draft in the panel.
 - \`autoBind: true\` is required for ViewModel access.
 - \`stateMachines: "Name"\` must be set to activate a state machine.
 - Use **rav_set_editor_code** then **rav_apply_code** to change configuration and reload.
+- **rav_status** returns the live instantiation source and whether the editor has unapplied draft changes.
+- **generate_web_instantiation_code** returns the canonical copy-paste snippet for the live mode currently running in RAV.
+- The returned snippet defaults to the `cdn` form unless you explicitly request `package_source: "local"`.
+- The returned snippet restores the current ViewModel/state-machine values on load and exposes `window.ravRive` helpers for VM and state-machine control.
 
 ### State Machines vs ViewModels
 - **State machine inputs** are the legacy way to control animations (boolean, number, trigger).
@@ -478,7 +565,12 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 - If rav_get_vm_tree returns empty but you suspect there's a ViewModel, ensure the editor config includes \`autoBind: true\` and \`stateMachines\` is set, then call rav_apply_code.
 - Use **rav_eval** for anything not covered by the dedicated tools — it runs JS in the browser context with access to \`window.riveInst\` and all globals.
 - **rav_get_event_log** shows runtime events, user events, UI events, and MCP events — useful for debugging what happened.
+- **rav_console_open** / **rav_console_close** toggle the JS console panel.
+- **rav_console_read** returns captured console.* output (all calls since app start).
+- **rav_console_exec** evaluates code in the REPL with output shown in the console panel.
 - **rav_export_demo** creates a self-contained HTML file with the current animation, runtime, and settings baked in.
+- **generate_web_instantiation_code** is the preferred way to get a web snippet. It bakes in the current runtime package, artboard/playback selection, layout fit/alignment, background mode, the active instantiation source, and the currently selected bound control values.
+- **rav_toggle_instantiation_controls_dialog** opens the in-app control-selection dialog so a human can choose exactly which values will be serialized into snippets and exported demos.
 `.trim();
 
 const server = new Server(

@@ -7,10 +7,13 @@ yarn-error.log*
 # Build outputs
 dist/
 scripts/dist/
+coverage/
 
 # Tauri
 src-tauri/target/
 src-tauri/Cargo.lock
+src-tauri/resources/rav-mcp
+src-tauri/resources/rav-mcp.exe
 
 # OS
 .DS_Store

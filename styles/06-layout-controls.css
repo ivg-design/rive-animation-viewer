@@ -1,0 +1,155 @@
+/* ── Resizers ─────────────────────────────────────────────── */
+
+.panel-resizer {
+    position: relative;
+    cursor: col-resize;
+    min-width: 12px;
+    touch-action: none;
+}
+
+.panel-resizer::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    left: calc(50% - 1px);
+    width: 2px;
+    border-radius: 99px;
+    background: var(--border);
+}
+
+.panel-resizer:hover::before,
+.panel-resizer.is-dragging::before {
+    background: var(--neon);
+}
+
+.panel-resizer-horizontal {
+    cursor: row-resize;
+    min-height: 12px;
+}
+
+.panel-resizer-horizontal::before {
+    left: 8px;
+    right: 8px;
+    top: calc(50% - 1px);
+    bottom: auto;
+    width: auto;
+    height: 2px;
+}
+
+/* ── Edge toggles ─────────────────────────────────────────── */
+
+.workspace-edge-toggle {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-dim);
+    cursor: pointer;
+    z-index: 20;
+    opacity: 1;
+    transition: opacity 0.16s ease, background 0.16s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.workspace-edge-toggle:hover {
+    background: #2d2d33;
+    border-color: var(--border-bright);
+}
+
+.workspace-edge-toggle-left {
+    left: 8px;
+}
+
+.workspace-edge-toggle-right {
+    right: 8px;
+}
+
+.workspace-edge-toggle-bottom {
+    display: none !important;
+}
+
+.center-panel {
+    position: relative;
+}
+
+.center-panel:not(.event-log-collapsed) .workspace-edge-toggle-bottom {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ── Panel sections (accordion) ───────────────────────────── */
+
+.panel-section {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-void);
+    overflow: hidden;
+}
+
+.panel-section-fill {
+    height: auto;
+}
+
+.panel-section-fill[open] {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-section > summary {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 38px;
+    padding: 0 10px;
+    color: var(--text-white);
+    font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.25px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.panel-section > summary::after {
+    content: '\25BE';
+    color: var(--neon);
+    font-size: 14px;
+    transform: rotate(0deg);
+    transition: transform 0.15s ease;
+}
+
+.panel-section:not([open]) > summary::after {
+    transform: rotate(-90deg);
+}
+
+.panel-section > summary::-webkit-details-marker {
+    display: none;
+}
+
+.panel-section-body {
+    border-top: 1px solid var(--border);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+    overflow: auto;
+}
+
+.panel-section-fill > .panel-section-body {
+    flex: 1;
+    min-height: 0;
+}

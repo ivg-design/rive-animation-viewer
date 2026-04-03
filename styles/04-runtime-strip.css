@@ -1,0 +1,237 @@
+/* ── Runtime strip ────────────────────────────────────────── */
+
+.runtime-strip {
+    height: 36px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-zinc);
+    color: var(--text-dim);
+    font-size: 10px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-weight: 500;
+}
+
+.runtime-strip-left,
+.runtime-strip-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.runtime-strip-left {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.runtime-strip-right {
+    flex: 0 1 38%;
+    justify-content: flex-end;
+    overflow: hidden;
+}
+
+.runtime-strip-sep {
+    color: var(--border-bright);
+    font-size: 10px;
+}
+
+.runtime-chip {
+    height: auto;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: var(--text-dim);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.runtime-chip-console,
+.runtime-chip-mcp,
+.runtime-chip-update {
+    position: relative;
+    cursor: pointer;
+    transition: color 0.2s ease, opacity 0.2s ease, text-shadow 0.2s ease;
+}
+
+.runtime-chip-console:hover,
+.runtime-chip-mcp:hover,
+.runtime-chip-update:hover {
+    color: var(--text-white);
+}
+
+.runtime-chip-runtime .dot {
+    width: 6px;
+    height: 6px;
+}
+
+.runtime-chip-runtime {
+    color: var(--text-ghost);
+}
+
+.runtime-chip-file {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-dim);
+}
+
+.runtime-chip-status {
+    color: var(--text-ghost);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* MCP indicator — three states: off, waiting, connected */
+.runtime-chip-mcp {
+    gap: 4px;
+    border: none;
+    background: none;
+    font: inherit;
+    flex-shrink: 0;
+}
+
+.runtime-chip-mcp::after {
+    content: '';
+    position: absolute;
+    left: -1px;
+    right: -1px;
+    top: 50%;
+    height: 2px;
+    background: transparent;
+    transform: rotate(-13deg);
+    transform-origin: center;
+    pointer-events: none;
+    border-radius: 999px;
+}
+
+.mcp-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* OFF — bridge disabled, crossed out */
+.runtime-chip-mcp[data-mcp-state="off"] {
+    color: #ff7d8d;
+    opacity: 0.92;
+    text-shadow: 0 0 10px #ff4d6d22;
+}
+
+.runtime-chip-mcp[data-mcp-state="off"] .mcp-dot {
+    background: #ff5d73;
+    box-shadow: 0 0 8px #ff5d7355;
+}
+
+.runtime-chip-mcp[data-mcp-state="off"]::after {
+    background: #ff5d73;
+    opacity: 0.95;
+}
+
+/* WAITING — bridge enabled, no client connected */
+.runtime-chip-mcp[data-mcp-state="waiting"] {
+    color: #fbbf24;
+    opacity: 0.88;
+}
+
+.runtime-chip-mcp[data-mcp-state="waiting"] .mcp-dot {
+    background: #fbbf24;
+    box-shadow: 0 0 0 1px #f59e0b40;
+    animation: mcp-pulse 2s ease-in-out infinite;
+}
+
+@keyframes mcp-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+/* CONNECTED — agent is live */
+.runtime-chip-mcp[data-mcp-state="connected"] {
+    color: #d9fb70;
+    opacity: 1;
+    text-shadow: 0 0 12px #c4f82a40;
+}
+
+.runtime-chip-mcp[data-mcp-state="connected"] .mcp-dot {
+    background: var(--neon);
+    box-shadow: 0 0 10px #c4f82a80, 0 0 4px #c4f82a66;
+    animation: none;
+}
+
+.runtime-chip-console {
+    gap: 4px;
+    border: none;
+    background: none;
+    font: inherit;
+    flex-shrink: 0;
+}
+
+.runtime-chip-console[data-console-mode="closed"] {
+    color: #eef3ff;
+    opacity: 1;
+    border: 1px solid #3c4253;
+    border-radius: 999px;
+    padding: 3px 10px;
+    background: #151921;
+    text-transform: uppercase;
+}
+
+.runtime-chip-console[data-console-mode="events"] {
+    color: #93c5fd;
+    opacity: 0.92;
+}
+
+.runtime-chip-console[data-console-mode="js"] {
+    color: var(--neon);
+    opacity: 1;
+    text-shadow: 0 0 10px #c4f82a2e;
+}
+
+.runtime-chip-update {
+    border: none;
+    background: none;
+    font: inherit;
+    flex-shrink: 0;
+}
+
+.runtime-chip-update[hidden] {
+    display: none !important;
+}
+
+.runtime-chip-update:disabled {
+    cursor: default;
+    opacity: 0.9;
+}
+
+.runtime-chip-update[data-update-state="available"] {
+    color: var(--neon);
+}
+
+.runtime-chip-update[data-update-state="downloading"],
+.runtime-chip-update[data-update-state="restarting"] {
+    color: #fbbf24;
+}
+
+.runtime-chip-update[data-update-state="error"] {
+    color: #fb7185;
+}

@@ -1,0 +1,385 @@
+/* ── Workspace grid ───────────────────────────────────────── */
+
+.workspace {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: var(--left-width) var(--split-size) minmax(0, 1fr) var(--split-size) var(--right-width);
+    grid-auto-rows: minmax(0, 1fr);
+    gap: 0;
+    background: var(--bg-void);
+    transition: grid-template-columns 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.workspace.left-hidden {
+    grid-template-columns: 0 0 minmax(0, 1fr) var(--split-size) var(--right-width);
+}
+
+.workspace.right-hidden {
+    grid-template-columns: var(--left-width) var(--split-size) minmax(0, 1fr) 0 0;
+}
+
+.workspace.left-hidden.right-hidden {
+    grid-template-columns: 0 0 minmax(0, 1fr) 0 0;
+}
+
+.workspace.left-hidden #config-panel {
+    opacity: 0;
+    transform: translateX(-22px);
+    pointer-events: none;
+}
+
+.workspace.right-hidden #right-panel {
+    opacity: 0;
+    transform: translateX(22px);
+    pointer-events: none;
+}
+
+.workspace.left-hidden #left-resizer,
+.workspace.right-hidden #right-resizer {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.workspace:not(.left-hidden) #show-left-panel-btn,
+.workspace:not(.right-hidden) #show-right-panel-btn {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ── Panels ───────────────────────────────────────────────── */
+
+.panel {
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    background: var(--bg-zinc);
+    overflow: hidden;
+}
+
+#config-panel,
+#right-panel {
+    background: var(--bg-zinc);
+}
+
+#center-panel {
+    background: var(--bg-void);
+}
+
+#config-panel {
+    border-right: 1px solid var(--border);
+}
+
+#right-panel {
+    border-left: 1px solid var(--border);
+}
+
+.code-panel {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    gap: 0;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.properties-panel {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    gap: 0;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* ── Panel heading ────────────────────────────────────────── */
+
+.panel-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 40px;
+    height: 40px;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+.panel-heading-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-white);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.25px;
+    font-weight: 600;
+    line-height: 1;
+    flex: 1;
+    min-width: 0;
+}
+
+.panel-heading-main > .pill {
+    margin-left: auto;
+}
+
+#config-panel .panel-heading {
+    min-height: 40px;
+    height: 40px;
+    align-items: center;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+#config-panel .panel-heading-main {
+    flex-wrap: nowrap;
+    align-items: center;
+    min-width: 0;
+}
+
+.editor-live-mode-chip {
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    min-width: 0;
+    min-height: 24px;
+    height: 24px;
+    padding: 0 10px;
+    border: 1px solid #6b728055;
+    border-radius: 6px;
+    background: #17181b;
+    color: #d5dae5;
+    box-shadow: none;
+    white-space: nowrap;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.25px;
+    text-transform: uppercase;
+}
+
+.editor-live-mode-chip[data-live-source="internal"] {
+    border-color: #6b728055;
+    background: #17181b;
+    color: #d5dae5;
+}
+
+.editor-live-mode-chip[data-live-source="editor"] {
+    border-color: #8ef06e;
+    background: #132114;
+    color: #d9ffc9;
+    box-shadow: 0 0 0 1px #7ef45a33, 0 0 18px #7ef45a18;
+}
+
+.editor-live-mode-chip.is-draft {
+    box-shadow: 0 0 0 1px rgba(250, 84, 28, 0.45), 0 0 16px rgba(250, 84, 28, 0.18);
+}
+
+.editor-live-mode-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 1px;
+    background: #6b7280;
+    flex-shrink: 0;
+    box-shadow: none;
+}
+
+.editor-live-mode-chip[data-live-source="internal"] .editor-live-mode-dot {
+    background: #6b7280;
+}
+
+.editor-live-mode-chip[data-live-source="editor"] .editor-live-mode-dot {
+    background: #8ef06e;
+    box-shadow: 0 0 10px #8ef06ecc;
+    animation: editor-live-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes editor-live-pulse {
+    0%, 100% { opacity: 0.55; transform: scale(0.92); }
+    50% { opacity: 1; transform: scale(1.08); }
+}
+
+.panel-heading-mirrored {
+    flex-direction: row;
+}
+
+.panel-heading-main-end {
+    display: flex;
+    flex: 1;
+    justify-content: flex-end;
+}
+
+.panel-heading-main-end > .pill {
+    margin-left: 8px;
+}
+
+.panel-heading-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.panel-marker {
+    width: 6px;
+    height: 6px;
+    border-radius: 1px;
+    background: var(--neon);
+    flex-shrink: 0;
+}
+
+.vm-explorer-inject-btn {
+    color: #a99360;
+}
+
+.vm-explorer-inject-btn:hover,
+.vm-explorer-inject-btn:focus-visible {
+    color: #d2b77b;
+}
+
+/* ── Code panel body ──────────────────────────────────────── */
+
+.code-panel-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
+    padding: 6px;
+}
+
+#code-editor {
+    flex: 1;
+    min-height: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-zinc);
+    overflow: hidden;
+}
+
+#code-editor .cm-editor {
+    height: 100%;
+    background: var(--bg-zinc);
+    color: var(--text-white);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 12px;
+}
+
+#code-editor .cm-gutters {
+    border-right: 1px solid var(--border);
+    background: #1c1c21;
+    color: var(--text-muted);
+}
+
+#code-editor .cm-activeLine,
+#code-editor .cm-activeLineGutter {
+    background: #202027;
+}
+
+.version-info {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-void);
+    color: var(--text-dim);
+    font-size: 10px;
+    line-height: 1.4;
+    padding: 6px 8px;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-weight: 400;
+}
+
+.version-footer {
+    margin-top: 6px;
+    color: var(--text-muted);
+    font-size: 10px;
+}
+
+/* ── Center panel ─────────────────────────────────────────── */
+
+.center-panel {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto var(--split-size) var(--center-log-height);
+    transition: grid-template-rows 0.25s ease;
+    gap: 0;
+    padding: 0;
+}
+
+.center-panel.event-log-collapsed {
+    grid-template-rows: minmax(0, 1fr) auto 0px 0px;
+}
+
+.center-panel.event-log-collapsed .panel-resizer-horizontal {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* Explicit grid row placement so display:none items don't shift rows */
+#canvas-container   { grid-row: 1; }
+.runtime-strip      { grid-row: 2; }
+.panel-resizer-horizontal { grid-row: 3; }
+.event-log-panel    { grid-row: 4; }
+
+.canvas-drop-target,
+#canvas-container {
+    width: 100%;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    background: var(--bg-void);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+body.transparency-mode .canvas-drop-target,
+body.transparency-mode #canvas-container {
+    background: transparent !important;
+}
+
+body.transparency-mode .runtime-strip,
+body.transparency-mode .event-log-panel,
+body.transparency-mode .event-log-body,
+body.transparency-mode .event-log-list {
+    background: transparent !important;
+}
+
+#rive-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.canvas-drop-target.drag-active {
+    outline: 2px dashed var(--neon);
+    outline-offset: -4px;
+}
+
+.placeholder {
+    color: var(--text-ghost);
+    text-align: center;
+    font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+
+.placeholder-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-xl);
+    background: var(--bg-zinc);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-ghost);
+}

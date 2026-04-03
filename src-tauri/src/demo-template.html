@@ -1347,28 +1347,41 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                 <button type="button" class="icon-btn" id="btn-pause" title="Pause" aria-label="Pause">
                     <i data-lucide="pause" class="lucide-16"></i>
                 </button>
+                <select id="layout-select" class="header-select" aria-label="Layout fit">
+                    <option value="contain">FIT: CONTAIN</option>
+                    <option value="cover">FIT: COVER</option>
+                    <option value="fill">FIT: FILL</option>
+                    <option value="fitWidth">FIT: WIDTH</option>
+                    <option value="fitHeight">FIT: HEIGHT</option>
+                    <option value="scaleDown">FIT: SCALE DOWN</option>
+                    <option value="none">FIT: NONE</option>
+                    <option value="layout">FIT: LAYOUT</option>
+                </select>
+                <select id="alignment-select" class="header-select" aria-label="Layout alignment">
+                    <option value="topLeft">ALIGN: TOP LEFT</option>
+                    <option value="topCenter">ALIGN: TOP CENTER</option>
+                    <option value="topRight">ALIGN: TOP RIGHT</option>
+                    <option value="centerLeft">ALIGN: CENTER LEFT</option>
+                    <option value="center">ALIGN: CENTER</option>
+                    <option value="centerRight">ALIGN: CENTER RIGHT</option>
+                    <option value="bottomLeft">ALIGN: BOTTOM LEFT</option>
+                    <option value="bottomCenter">ALIGN: BOTTOM CENTER</option>
+                    <option value="bottomRight">ALIGN: BOTTOM RIGHT</option>
+                </select>
                 <div class="fps-chip" id="fps-chip"><span class="dot"></span>-- FPS</div>
             </div>
 
             <div class="header-right">
+                <select id="instantiation-package-source-select" class="header-select header-select-compact" aria-label="Instantiation snippet source" hidden>
+                    <option value="cdn">CODE: CDN</option>
+                    <option value="local">CODE: LOCAL</option>
+                </select>
+                <button type="button" id="copy-instantiation-btn" class="btn-compact" hidden>COPY CODE</button>
                 <div class="settings-wrapper">
                     <button type="button" id="settings-btn" class="icon-btn icon-btn-ghost" title="Settings" aria-label="Settings">
                         <i data-lucide="settings" class="lucide-18"></i>
                     </button>
                     <div class="settings-popover" id="settings-popover" hidden>
-                        <div class="settings-row">
-                            <label class="settings-label" for="layout-select">Layout Fit</label>
-                            <select id="layout-select" class="header-select settings-select">
-                                <option value="contain">Contain</option>
-                                <option value="cover">Cover</option>
-                                <option value="fill">Fill</option>
-                                <option value="fitWidth">Fit Width</option>
-                                <option value="fitHeight">Fit Height</option>
-                                <option value="scaleDown">Scale Down</option>
-                                <option value="none">None</option>
-                                <option value="layout">Layout</option>
-                            </select>
-                        </div>
                         <div class="settings-row">
                             <label class="settings-label" for="canvas-color-input">BG Color</label>
                             <div class="settings-controls">
@@ -1484,6 +1497,10 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
 
         const CONFIG = JSON.parse('__CONFIG_JSON__');
         const VM_HIERARCHY = JSON.parse('__VM_HIERARCHY_JSON__');
+        const CONTROL_SNAPSHOT = Array.isArray(CONFIG.controlSnapshot) ? CONFIG.controlSnapshot : [];
+        const INSTANTIATION_SNIPPETS = (CONFIG.instantiationSnippets && typeof CONFIG.instantiationSnippets === 'object')
+            ? CONFIG.instantiationSnippets
+            : {};
         const DEFAULT_CANVAS_COLOR = '__CANVAS_COLOR__' || '#0d1117';
         const TRANSPARENT_CANVAS_COLOR = 'transparent';
         const DEMO_TRANSPARENCY_TOGGLE_ENABLED = false;
@@ -1492,12 +1509,16 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             : {};
 
         const LAYOUT_FITS = ['cover', 'contain', 'fill', 'fitWidth', 'fitHeight', 'scaleDown', 'none', 'layout'];
+        const LAYOUT_ALIGNMENTS = ['topLeft', 'topCenter', 'topRight', 'centerLeft', 'center', 'centerRight', 'bottomLeft', 'bottomCenter', 'bottomRight'];
         const VM_CONTROL_KINDS = new Set(['number', 'boolean', 'string', 'enum', 'color', 'trigger']);
         const EVENT_LOG_LIMIT = 500;
         const VM_CONTROL_SYNC_INTERVAL_MS = 120;
         const VM_DEPTH_COLORS = ['#C4F82A', '#38BDF8', '#A78BFA', '#FB923C', '#F472B6', '#34D399'];
 
         let riveInstance = null;
+        let currentControlSnapshot = JSON.parse(JSON.stringify(CONTROL_SNAPSHOT));
+        let currentInstantiationPackageSource = CONFIG.defaultInstantiationPackageSource === 'local' ? 'local' : 'cdn';
+        let currentLayoutAlignment = CONFIG.layoutAlignment || 'center';
         let currentLayoutFit = CONFIG.layoutFit || 'contain';
         let lastSolidCanvasColor = normalizeCanvasColor(CONFIG.canvasColor) || DEFAULT_CANVAS_COLOR;
         let currentCanvasColor = CONFIG.canvasTransparent ? TRANSPARENT_CANVAS_COLOR : lastSolidCanvasColor;
@@ -1546,12 +1567,15 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             rightResizer: document.getElementById('right-resizer'),
             centerResizer: document.getElementById('center-resizer'),
             rightPanel: document.getElementById('right-panel'),
+            copyInstantiationBtn: document.getElementById('copy-instantiation-btn'),
+            instantiationPackageSourceSelect: document.getElementById('instantiation-package-source-select'),
             toggleRightPanelBtn: document.getElementById('toggle-right-panel-btn'),
             showRightPanelBtn: document.getElementById('show-right-panel-btn'),
             showEventLogBtn: document.getElementById('show-event-log-btn'),
             settingsBtn: document.getElementById('settings-btn'),
             settingsPopover: document.getElementById('settings-popover'),
             layoutSelect: document.getElementById('layout-select'),
+            alignmentSelect: document.getElementById('alignment-select'),
             canvasColorInput: document.getElementById('canvas-color-input'),
             canvasColorResetBtn: document.getElementById('canvas-color-reset-btn'),
             transparencyModeToggle: document.getElementById('transparency-mode-toggle'),
@@ -1576,7 +1600,9 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             setupCenterResizer();
             setupPanelVisibilityToggles();
             setupSettingsPopover();
+            setupCopyInstantiationButton();
             setupLayoutSelect();
+            setupAlignmentSelect();
             setupCanvasColor();
             setupTransparencyControls();
             setupEventLog();
@@ -1905,6 +1931,61 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             });
         }
 
+        function setupCopyInstantiationButton() {
+            var button = els.copyInstantiationBtn;
+            var sourceSelect = els.instantiationPackageSourceSelect;
+            if (!button) {
+                return;
+            }
+
+            var resolveSnippet = function () {
+                var currentSnippet = INSTANTIATION_SNIPPETS[currentInstantiationPackageSource];
+                if (typeof currentSnippet === 'string' && currentSnippet.trim()) {
+                    return currentSnippet.trim();
+                }
+                var fallback = String(CONFIG.instantiationCode || '').trim();
+                return fallback;
+            };
+
+            if (sourceSelect) {
+                var hasLocalSnippet = typeof INSTANTIATION_SNIPPETS.local === 'string' && INSTANTIATION_SNIPPETS.local.trim();
+                var hasCdnSnippet = typeof INSTANTIATION_SNIPPETS.cdn === 'string' && INSTANTIATION_SNIPPETS.cdn.trim();
+                sourceSelect.hidden = !(hasLocalSnippet || hasCdnSnippet);
+                sourceSelect.value = currentInstantiationPackageSource;
+                sourceSelect.addEventListener('change', function () {
+                    currentInstantiationPackageSource = sourceSelect.value === 'local' ? 'local' : 'cdn';
+                });
+            }
+
+            if (!resolveSnippet()) {
+                if (button) {
+                    button.hidden = true;
+                }
+                return;
+            }
+
+            button.hidden = false;
+            button.title = 'Copy web instantiation code';
+            button.addEventListener('click', function () {
+                var resetLabel = function () {
+                    button.textContent = 'COPY CODE';
+                };
+
+                if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+                    logEvent('ui', 'copy-instantiation-failed', 'Clipboard API unavailable in exported demo.');
+                    return;
+                }
+
+                navigator.clipboard.writeText(resolveSnippet()).then(function () {
+                    button.textContent = 'COPIED';
+                    logEvent('ui', 'copy-instantiation', 'Copied ' + currentInstantiationPackageSource + ' web instantiation code.');
+                    setTimeout(resetLabel, 1600);
+                }).catch(function (error) {
+                    logEvent('ui', 'copy-instantiation-failed', 'Failed to copy web instantiation code.', error);
+                });
+            });
+        }
+
         /* ── Layout fit select ───────────────────────────────── */
 
         function setupLayoutSelect() {
@@ -1916,9 +1997,26 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                 const selected = select.value;
                 if (!selected || selected === currentLayoutFit) return;
                 if (!LAYOUT_FITS.includes(selected)) return;
+                currentControlSnapshot = captureVmControlSnapshot();
                 currentLayoutFit = selected;
                 logEvent('ui', 'layout-change', 'Layout fit set to ' + currentLayoutFit);
                 // Reload to apply new layout
+                loadAnimation();
+            });
+        }
+
+        function setupAlignmentSelect() {
+            const select = els.alignmentSelect;
+            if (!select) return;
+            select.value = currentLayoutAlignment;
+
+            select.addEventListener('change', function () {
+                const selected = select.value;
+                if (!selected || selected === currentLayoutAlignment) return;
+                if (!LAYOUT_ALIGNMENTS.includes(selected)) return;
+                currentControlSnapshot = captureVmControlSnapshot();
+                currentLayoutAlignment = selected;
+                logEvent('ui', 'alignment-change', 'Layout alignment set to ' + currentLayoutAlignment);
                 loadAnimation();
             });
         }
@@ -2785,6 +2883,67 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
             vmControlBindings = [];
         }
 
+        function captureVmControlSnapshot() {
+            if (!vmControlBindings.length) return [];
+
+            var snapshot = [];
+            var seen = new Set();
+
+            vmControlBindings.forEach(function (binding) {
+                if (!binding || binding.kind === 'trigger') return;
+                var descriptor = binding.descriptor || {};
+                var key = (descriptor.source === 'state-machine'
+                    ? 'sm:' + (descriptor.stateMachineName || '') + ':' + (descriptor.name || '') + ':' + (binding.kind || '')
+                    : 'vm:' + (descriptor.path || '') + ':' + (binding.kind || ''));
+                if (!key || seen.has(key)) return;
+
+                var accessor = resolveControlAccessor(descriptor);
+                if (!accessor || !('value' in accessor)) return;
+
+                seen.add(key);
+                snapshot.push({
+                    descriptor: {
+                        kind: descriptor.kind,
+                        name: descriptor.name,
+                        path: descriptor.path,
+                        source: descriptor.source,
+                        stateMachineName: descriptor.stateMachineName,
+                    },
+                    kind: binding.kind,
+                    value: accessor.value,
+                });
+            });
+
+            return snapshot;
+        }
+
+        function applyControlSnapshot(snapshot) {
+            if (!Array.isArray(snapshot) || !snapshot.length) return 0;
+
+            var applied = 0;
+            snapshot.forEach(function (entry) {
+                var descriptor = (entry && entry.descriptor) || {};
+                var kind = entry && (entry.kind || descriptor.kind);
+                if (!descriptor || !kind || kind === 'trigger') return;
+
+                if (descriptor.source === 'state-machine') {
+                    var stateMachineInput = resolveStateMachineInputAccessor(descriptor.stateMachineName, descriptor.name, kind);
+                    if (stateMachineInput && 'value' in stateMachineInput) {
+                        stateMachineInput.value = entry.value;
+                        applied += 1;
+                    }
+                    return;
+                }
+
+                var accessor = resolveLiveAccessor(descriptor.path, kind);
+                if (!accessor || !('value' in accessor)) return;
+                accessor.value = entry.value;
+                applied += 1;
+            });
+
+            return applied;
+        }
+
         function registerVmControlBinding(descriptor, binding) {
             if (!descriptor || !binding) return;
             vmControlBindings.push({
@@ -2977,7 +3136,7 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                 if (rive.Layout) {
                     riveConfig.layout = new rive.Layout({
                         fit: currentLayoutFit,
-                        alignment: 'center',
+                        alignment: currentLayoutAlignment,
                     });
                 }
                 if (isCanvasEffectivelyTransparent() && CONFIG.runtimeName !== 'canvas' && typeof riveConfig.useOffscreenRenderer === 'undefined') {
@@ -3046,6 +3205,7 @@ body.fullscreen-mode .fullscreen-exit-hint:hover {
                     updateInfo(statusMsg);
                     logEvent('native', 'load', 'Animation loaded successfully.');
 
+                    applyControlSnapshot(currentControlSnapshot);
                     // Render VM controls
                     renderVmControls();
                 };

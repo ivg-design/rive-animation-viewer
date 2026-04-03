@@ -1,0 +1,154 @@
+/* ── Settings popover ─────────────────────────────────────── */
+
+.settings-wrapper {
+    position: relative;
+}
+
+.settings-popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 520px;
+    background: var(--bg-zinc);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 100;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.settings-popover[hidden] {
+    display: none !important;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.settings-label {
+    color: var(--text-dim);
+    font-size: 11px;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.settings-select {
+    flex: 1;
+    min-width: 0;
+}
+
+.settings-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.settings-controls-runtime {
+    justify-content: flex-end;
+    width: min(100%, 340px);
+}
+
+.settings-row-runtime-custom .settings-label {
+    opacity: 0.85;
+}
+
+.settings-row-runtime-custom[hidden] {
+    display: none !important;
+}
+
+.runtime-version-select {
+    min-width: 220px;
+}
+
+.settings-input {
+    width: 170px;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    outline: none;
+}
+
+.settings-input:focus {
+    border-color: var(--border-bright);
+}
+
+.settings-toggle {
+    min-width: 64px;
+    height: 24px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.25px;
+}
+
+.settings-toggle:hover {
+    border-color: var(--border-bright);
+    color: var(--text-white);
+}
+
+.settings-toggle.is-active {
+    border-color: #c4f82a66;
+    background: #c4f82a18;
+    color: var(--neon);
+}
+
+.settings-toggle:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.settings-note {
+    color: var(--text-muted);
+    font-size: 10px;
+    line-height: 1.35;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.color-input.is-transparent {
+    border-color: #c4f82a66;
+    box-shadow: inset 0 0 0 1px #c4f82a44;
+}
+
+/* ── Legacy icon classes (kept for compatibility) ─────────── */
+
+.icon {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    stroke-width: 2;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex: 0 0 auto;
+}
+
+.icon-fill {
+    stroke: none;
+    fill: currentColor;
+}
+
+.icon-10 { width: 10px; height: 10px; }
+.icon-12 { width: 12px; height: 12px; }
+.icon-14 { width: 14px; height: 14px; }
+.icon-16 { width: 16px; height: 16px; }
+.icon-18 { width: 18px; height: 18px; }
+

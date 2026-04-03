@@ -1,0 +1,232 @@
+/* ── Event log ────────────────────────────────────────────── */
+
+.event-log-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    border-top: 1px solid var(--border);
+    border-radius: 0;
+    background: #0d0d0d;
+}
+
+.event-log-panel[hidden] {
+    display: none !important;
+}
+
+.event-log-header {
+    min-height: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.25px;
+    color: var(--text-white);
+    gap: 8px;
+}
+
+.event-log-summary-left {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+.event-log-summary-left .event-log-chevron {
+    color: var(--neon);
+    transition: transform 0.2s ease;
+}
+
+.event-log-panel.collapsed .event-log-chevron {
+    transform: rotate(-90deg);
+}
+
+.event-log-summary-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    overflow: hidden;
+}
+
+.event-filter-toggles {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.event-filter-toggle {
+    height: 24px;
+    padding: 0 8px;
+    flex: 0 0 auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    white-space: nowrap;
+    cursor: pointer;
+    letter-spacing: 0.2px;
+}
+
+.event-filter-toggle:hover {
+    border-color: var(--border-bright);
+    color: var(--text-dim);
+}
+
+.event-filter-toggle.is-active {
+    border-color: #c4f82a66;
+    color: var(--neon);
+    background: #c4f82a18;
+}
+
+.event-filter-toggle#event-filter-mcp.is-active {
+    border-color: #818cf866;
+    color: #818cf8;
+    background: #818cf818;
+}
+
+.event-filter-search {
+    height: 24px;
+    width: 128px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-dim);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.event-filter-search::placeholder {
+    color: var(--text-ghost);
+}
+
+.event-log-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable both-edges;
+    padding: 4px 10px 6px;
+}
+
+.event-log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-height: 0;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+}
+
+.event-log-row {
+    display: grid;
+    grid-template-columns: 72px 52px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    min-height: 22px;
+    padding: 1px 0;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 11px;
+    white-space: nowrap;
+    border-bottom: 1px solid #ffffff08;
+}
+
+.event-row-time {
+    color: var(--text-muted);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+}
+
+.event-row-kind {
+    justify-self: start;
+    border: 0;
+    border-radius: 3px;
+    min-width: 44px;
+    width: 44px;
+    padding: 0 4px;
+    line-height: 16px;
+    text-align: center;
+    text-transform: uppercase;
+    font-size: 9px;
+    font-weight: 600;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.event-row-kind.native {
+    color: var(--neon);
+    background: #c4f82a20;
+}
+
+.event-row-kind.rive-user {
+    color: var(--alert);
+    background: #fa541c20;
+}
+
+.event-row-kind.ui {
+    color: var(--text-muted);
+    background: var(--bg-elevated);
+}
+
+.event-row-kind.mcp {
+    color: #818cf8;
+    background: #818cf820;
+}
+
+.event-row-message {
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 400;
+}
+
+.event-log-list .empty-state {
+    padding: 8px 6px;
+}
+
+/* ── Scrollbar styling ────────────────────────────────────── */
+
+.vm-controls-body::-webkit-scrollbar,
+.event-log-body::-webkit-scrollbar {
+    width: 10px;
+}
+
+.vm-controls-body::-webkit-scrollbar-track,
+.event-log-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.vm-controls-body::-webkit-scrollbar-thumb,
+.event-log-body::-webkit-scrollbar-thumb {
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background: var(--border);
+    background-clip: padding-box;
+}
+
+.vm-controls-body::-webkit-scrollbar-thumb:hover,
+.event-log-body::-webkit-scrollbar-thumb:hover {
+    background: var(--border-bright);
+    background-clip: padding-box;
+}

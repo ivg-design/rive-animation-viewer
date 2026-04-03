@@ -1,0 +1,144 @@
+/* ── Script Console ─────────────────────────────────────── */
+
+.script-console-summary-right {
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.script-console-filter-toggles {
+    gap: 3px;
+}
+
+.script-console-filter-toggles .event-filter-toggle,
+.console-follow-btn,
+#script-console-copy-btn,
+#script-console-clear-btn {
+    height: 22px;
+    min-width: 48px;
+    padding: 0 8px;
+}
+
+.console-follow-btn {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.console-follow-btn.is-active {
+    border-color: #c4f82a66;
+    color: var(--neon);
+    background: #c4f82a18;
+}
+
+.event-log-panel.script-console-mode #event-log-filter-controls {
+    display: none;
+}
+
+.event-log-panel:not(.script-console-mode) #script-console-summary-right {
+    display: none !important;
+}
+
+.event-log-panel.script-console-mode #event-log-list {
+    display: none;
+}
+
+.event-log-panel.script-console-mode .event-log-body {
+    overflow: hidden;
+    padding: 0;
+    scrollbar-gutter: auto;
+}
+
+.event-log-panel:not(.script-console-mode) #script-console-view {
+    display: none !important;
+}
+
+.script-console-view {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+.script-console-output {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 4px 10px 6px;
+    background: #0a0d13;
+    scrollbar-gutter: stable both-edges;
+}
+
+.script-console-log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-height: 0;
+}
+
+.console-log-row .console-row-kind.info {
+    color: #9fb7ff;
+    background: #2b385c55;
+}
+
+.console-log-row .console-row-kind.warning {
+    color: #f5b534;
+    background: #7a5a122e;
+}
+
+.console-log-row .console-row-kind.error {
+    color: #ff7f8f;
+    background: #6a1e2830;
+}
+
+.console-row-message {
+    white-space: pre-wrap;
+    overflow: visible;
+    text-overflow: unset;
+    word-break: break-word;
+}
+
+.script-console-repl {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    min-height: 32px;
+    border-top: 1px solid #ffffff14;
+    background: #0f131d;
+    gap: 0;
+}
+
+.script-console-repl-prompt {
+    color: var(--neon);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 0 6px 0 10px;
+    flex-shrink: 0;
+    line-height: 32px;
+}
+
+.script-console-repl-input {
+    flex: 1;
+    min-height: 32px;
+    padding: 7px 10px 7px 0;
+    border: 0 !important;
+    outline: 0 !important;
+    background: #0f131d !important;
+    color: #eef3ff;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 11px;
+    line-height: 18px;
+    caret-color: var(--neon);
+}
+
+.script-console-repl-input::placeholder {
+    color: #8990a2;
+}

@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, BookOpen, Download, Monitor, Layers, Gamepad2, Terminal, Eye, FileCode, AppWindow, Keyboard, Settings, HelpCircle, Cable, LayoutGrid } from "lucide-react";
+import { ChevronLeft, BookOpen, Download, Monitor, Layers, Gamepad2, Terminal, Eye, FileCode, AppWindow, Keyboard, Settings, HelpCircle, Cable, LayoutGrid, RefreshCw } from "lucide-react";
 import { asset } from "@/lib/config";
 import { toCanonicalUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "RAV Documentation | Rive Animation Viewer",
   description:
-    "Complete RAV documentation for installation, ViewModel controls, event console, MCP integration, standalone export, and troubleshooting.",
+    "Complete RAV documentation for installation, ViewModel controls, unified consoles, MCP integration, standalone export, auto updates, and troubleshooting.",
   alternates: {
     canonical: toCanonicalUrl("/docs"),
   },
@@ -26,6 +26,7 @@ const sections = [
   { id: "standalone-export", title: "Standalone Export" },
   { id: "configuration", title: "Configuration" },
   { id: "mcp-integration", title: "MCP Integration" },
+  { id: "automatic-updates", title: "Automatic Updates" },
   { id: "keyboard-shortcuts", title: "Keyboard Shortcuts" },
   { id: "troubleshooting", title: "Troubleshooting" },
 ];
@@ -42,6 +43,7 @@ const topicCards = [
   { icon: AppWindow, title: "Script Console", desc: "Live JS evaluation", href: "#script-console" },
   { icon: Settings, title: "Configuration", desc: "Renderer & layout", href: "#configuration" },
   { icon: Cable, title: "MCP Integration", desc: "Claude Code remote control", href: "#mcp-integration" },
+  { icon: RefreshCw, title: "Automatic Updates", desc: "Built-in updater flow", href: "#automatic-updates" },
   { icon: Keyboard, title: "Keyboard Shortcuts", desc: "Complete reference", href: "#keyboard-shortcuts" },
   { icon: HelpCircle, title: "Troubleshooting", desc: "Common issues", href: "#troubleshooting" },
 ];
@@ -165,7 +167,7 @@ export default function DocsPage() {
           <p>
             RAV can also run as a local web server for quick inspection without installing:
           </p>
-          <pre><code>git clone https://github.com/ivg-design/rive-animation-viewer.git{"\n"}cd rive-animation-viewer{"\n"}npm install{"\n"}npm start  # Opens browser at http://localhost:8080</code></pre>
+          <pre><code>git clone https://github.com/ivg-design/rive-animation-viewer.git{"\n"}cd rive-animation-viewer{"\n"}npm install{"\n"}npm start  # Opens browser at http://localhost:1420</code></pre>
 
           <hr />
 
@@ -210,7 +212,8 @@ export default function DocsPage() {
           <h3>Left Panel &mdash; Animation Canvas</h3>
           <p>
             The primary animation viewport. Renders the loaded Rive animation with the selected renderer
-            (Canvas or WebGL2). The canvas resizes automatically when panels are toggled or resized.
+            (Canvas or WebGL2). Fit and alignment are controlled from the main toolbar so you can change
+            composition without opening a secondary settings panel.
           </p>
 
           <h3>Right Panel &mdash; Controls</h3>
@@ -227,15 +230,16 @@ export default function DocsPage() {
 
           <h3>Bottom Panel &mdash; Event Console</h3>
           <p>
-            Collapsible event log with filtering and search. Shows Rive events, state changes,
-            and UI events in real time. Can be resized by dragging the top edge.
+            Collapsible transcript panel with two modes: Event Console and JavaScript Console.
+            Both modes are resizable, timestamped, newest-first, and expose a sticky <strong>FOLLOW</strong>
+            control that keeps the latest message pinned in view.
           </p>
 
           <h3>Code Editor Panel</h3>
           <p>
             An optional panel (toggled from the toolbar) with a CodeMirror 6 editor for writing
             JavaScript configuration objects. Useful for advanced initialization options, custom
-            callbacks, and artboard/state machine selection.
+            callbacks, artboard/state machine selection, and live runtime re-instantiation.
           </p>
 
           <hr />
@@ -416,11 +420,11 @@ export default function DocsPage() {
             provides additional filtering across all visible events.
           </p>
 
-          <h3>Event Details</h3>
+          <h3>Ordering and Follow Mode</h3>
           <p>
-            Each event entry shows a timestamp, source tag, event name, and a collapsible
-            details section with the full event payload (properties, data values). Click an event
-            row to expand its details.
+            Events are listed newest-first. The <strong>FOLLOW</strong> toggle keeps the latest
+            entry pinned in view. If you scroll away from the top, follow mode turns off automatically.
+            Scroll back to the latest event or toggle <strong>FOLLOW</strong> to re-enable it.
           </p>
 
           <hr />
@@ -429,15 +433,15 @@ export default function DocsPage() {
           <h2 id="script-console" className="scroll-mt-24">Script Console</h2>
 
           <p>
-            Script Console mode transforms the event console into a REPL for
-            live JavaScript evaluation against the running animation.
+            Script Console mode transforms the bottom panel into a REPL for live JavaScript
+            evaluation against the running animation.
           </p>
 
           <h3>Activating Console Mode</h3>
           <p>
-            Toggle the console mode button in the Script Editor toolbar. When active, the event
-            console body is replaced with a command input and output stream. You can type JavaScript
-            expressions and see results immediately.
+            Use the runtime-strip console control to cycle between closed, Event Console, and JavaScript
+            Console. When the JS console is active, the bottom panel shows a command input and output
+            stream while preserving the same transcript styling as the Event Console.
           </p>
 
           <h3>Available Globals</h3>
@@ -445,8 +449,9 @@ export default function DocsPage() {
 
           <h3>Output</h3>
           <p>
-            The console displays command/result/error rows. Runtime and UI events are also
-            mirrored into the console output stream so you can observe side effects of your commands.
+            The console displays timestamped command, result, warning, info, and error rows. Results are
+            inserted at the top like event entries, and the shared <strong>FOLLOW</strong> behavior works
+            the same way as in the Event Console.
           </p>
 
           <hr />
@@ -502,18 +507,31 @@ export default function DocsPage() {
             <li>The <code>.riv</code> binary, base64-encoded and embedded</li>
             <li>The selected runtime package (Canvas or WebGL2) bundled inline</li>
             <li>The selected runtime semver baked into the exported file</li>
+            <li>The current artboard, playback target, and active live source mode</li>
+            <li>Only the checked or changed ViewModel / state-machine values from the export dialog</li>
             <li>ViewModel control UI matching the current hierarchy</li>
-            <li>Current player layout state (panel sizes, visibility, event console state)</li>
+            <li>The generated canonical instantiation snippets (`cdn` and `local` variants)</li>
+            <li>Current player layout state (panel sizes, visibility, toolbar layout state)</li>
             <li>Complete styling for standalone viewing</li>
           </ul>
 
           <h3>Exporting</h3>
           <ol>
             <li>Load and configure your animation in RAV</li>
-            <li>Adjust panels and controls to the desired layout</li>
+            <li>Adjust panels, playback, runtime, and controls to the desired live state</li>
             <li>Click the <strong>Export</strong> button in the toolbar</li>
-            <li>Choose a save location for the HTML file</li>
+            <li>Use the <strong>Snippet &amp; Export Controls</strong> dialog to choose CDN or local-package output and curate which controls should be serialized</li>
+            <li>Copy the generated snippet directly from the dialog if you only need the code</li>
+            <li>Choose a save location for the HTML file if you want a standalone export</li>
           </ol>
+
+          <h3>Snippet &amp; Export Controls</h3>
+          <p>
+            The export dialog is shared by both in-app snippet generation and standalone export. Branch
+            checkboxes select entire nested ViewModel sections, while individual leaf checkboxes select
+            just one control. The dialog defaults to the changed-control set, but you can switch to
+            <strong>SELECT ALL</strong> or <strong>CLEAR</strong> as needed.
+          </p>
 
           <h3>Limitations</h3>
           <ul>
@@ -546,13 +564,21 @@ export default function DocsPage() {
   }
 }`}</code></pre>
 
+          <p>
+            The editor header itself indicates which configuration source is driving the live runtime.
+            A faint neutral outline means RAV&apos;s internal wiring is active. A green pulsing state means
+            the applied editor config is live. Unsaved draft edits do not affect playback until applied.
+          </p>
+
           <h3>Apply &amp; Reload</h3>
           <p>
-            The <strong>Apply &amp; Reload</strong> button (circular arrow with checkmark) in the
-            script editor toolbar takes the JavaScript config object you&apos;ve written, evaluates it,
-            tears down the current Rive instance, and creates a new one with that configuration.
+            The <strong>APPLY</strong> button in the script editor toolbar takes the JavaScript config
+            object you&apos;ve written, evaluates it, tears down the current Rive instance, and creates
+            a new one with that configuration.
             This is how you apply any changes you make in the editor &mdash; artboard selection,
             state machine targeting, autoplay settings, custom callbacks, and layout options.
+            The refresh path preserves the active artboard/playback context and other live state as
+            far as the runtime allows instead of resetting back to defaults.
           </p>
           <p>
             The config object supports all Rive constructor options including:
@@ -578,7 +604,7 @@ export default function DocsPage() {
           <h3>Runtime Version (Semver) Selection</h3>
           <p>
             In Settings, use <strong>Runtime Ver</strong> to choose which runtime semver to load.
-            RAV provides <strong>Latest (auto)</strong>, the latest 3 prior versions, and a
+            RAV provides <strong>Latest (auto)</strong>, the latest 4 concrete versions, and a
             <strong>Custom</strong> entry for manual semver input.
           </p>
           <ul>
@@ -589,6 +615,10 @@ export default function DocsPage() {
           </ul>
 
           <h3>Layout Options</h3>
+          <p>
+            Fit and alignment are surfaced directly in the main toolbar, so the viewer layout is always
+            visible while you work. Those selections are mirrored into generated snippets and exports.
+          </p>
           <table>
             <thead>
               <tr>
@@ -612,10 +642,11 @@ export default function DocsPage() {
           <h2 id="mcp-integration" className="scroll-mt-24">MCP Integration</h2>
 
           <p>
-            RAV includes a built-in <strong>MCP (Model Context Protocol)</strong> server that lets{" "}
+            RAV includes a built-in <strong>MCP (Model Context Protocol)</strong> sidecar that lets{" "}
             <a href="https://claude.ai/code" target="_blank" rel="noopener noreferrer">Claude Code</a>{" "}
-            or any MCP client control the viewer remotely &mdash; open files, inspect ViewModels,
-            drive playback, manipulate inputs, read event logs, edit scripts, and export demos.
+            , Claude Desktop, Codex, or any MCP client control the viewer remotely &mdash; open files,
+            inspect ViewModels, drive playback, manipulate inputs, read event logs, edit scripts,
+            execute JS, generate web snippets, and export demos.
           </p>
 
           <h3>What is MCP?</h3>
@@ -630,43 +661,42 @@ export default function DocsPage() {
 
           <h3>How it works</h3>
           <p>
-            RAV includes a small MCP server that acts as a bridge between Claude Code and the RAV
-            desktop app. When both are running, Claude can control RAV remotely:
+            RAV includes a bundled native <code>rav-mcp</code> sidecar that acts as a bridge between
+            your MCP client and the RAV desktop app. When both are running, the client can control RAV remotely:
           </p>
-          <pre><code>Claude Code &lt;-(stdio)-&gt; MCP Server &lt;-(WebSocket)-&gt; RAV App</code></pre>
+          <pre><code>MCP Client &lt;-(stdio)-&gt; rav-mcp sidecar &lt;-(WebSocket)-&gt; RAV App</code></pre>
           <p>
-            The RAV app automatically tries to connect to the MCP server when it starts. You&apos;ll
-            see the <strong>MCP</strong> indicator in the bottom-left of the window light up when
-            connected.
+            The RAV app starts its bridge automatically when it launches. The MCP dialog reports
+            <strong>MCP ready</strong> when the bundled sidecar path and bridge are healthy, and the
+            runtime-strip MCP indicator brightens when a client is actively connected.
           </p>
 
           <h3>Setup (one-time)</h3>
           <p>
-            The MCP server is included in the{" "}
-            <a href="https://github.com/ivg-design/rive-animation-viewer" target="_blank" rel="noopener noreferrer">
-              RAV GitHub repository
-            </a>. You need <strong>Node.js 18+</strong> installed.
+            The desktop app ships with the MCP sidecar already bundled inside the app resources.
+            Open the in-app <strong>MCP Setup</strong> dialog to copy the exact path, detect supported
+            clients, and use one-click installation where available.
           </p>
           <ol>
             <li>
-              <strong>Clone the repository</strong> (if you haven&apos;t already):
-              <pre><code>git clone https://github.com/ivg-design/rive-animation-viewer.git</code></pre>
+              <strong>Open the MCP Setup dialog</strong> from the toolbar cable icon.
             </li>
             <li>
-              <strong>Install the MCP server</strong>:
-              <pre><code>cd rive-animation-viewer/mcp-server{"\n"}npm install</code></pre>
+              <strong>Install for your client</strong> using the dialog&apos;s one-click buttons
+              for Codex, Claude Code, or Claude Desktop when those clients are detected. Existing
+              installs show <strong>REINSTALL</strong> and <strong>REMOVE</strong>.
             </li>
             <li>
-              <strong>Register with Claude Code</strong> &mdash; run this once to tell Claude Code
-              where the MCP server lives:
-              <pre><code>claude mcp add rav-mcp node ~/rive-animation-viewer/mcp-server/index.js</code></pre>
-              <p>
-                Replace the path with wherever you cloned the repository.
-              </p>
+              <strong>Choose the bridge port and Script Access mode</strong> if you want something
+              other than the default read-only MCP on port <code>9274</code>.
+            </li>
+            <li>
+              <strong>Or copy a snippet manually</strong>:
+              <pre><code>{`claude mcp add-json -s user rav-mcp '{"type":"stdio","command":"/Applications/Rive Animation Viewer.app/Contents/Resources/resources/rav-mcp","args":["--stdio-only","--port","9274"]}'`}</code></pre>
             </li>
             <li>
               <strong>Open RAV</strong> &mdash; launch the desktop app. The <strong>MCP</strong>{" "}
-              indicator in the runtime strip turns indigo when the connection is established.
+              indicator in the runtime strip turns indigo when a client connection is established.
             </li>
           </ol>
           <p>
@@ -675,7 +705,7 @@ export default function DocsPage() {
             the ViewModel tree.&quot;
           </p>
 
-          <h3>Available Tools (24)</h3>
+          <h3>Available Tools (30)</h3>
           <table>
             <thead>
               <tr>
@@ -695,15 +725,38 @@ export default function DocsPage() {
               <tr><td><code>rav_vm_get</code> / <code>rav_vm_set</code> / <code>rav_vm_fire</code></td><td>Read, write, and fire ViewModel properties by path</td></tr>
               <tr><td><code>rav_get_event_log</code></td><td>Recent event log entries (filterable by source)</td></tr>
               <tr><td><code>rav_get_editor_code</code> / <code>rav_set_editor_code</code></td><td>Read and write the script editor contents</td></tr>
-              <tr><td><code>rav_apply_code</code></td><td>Apply editor code and reload the animation</td></tr>
+              <tr><td><code>rav_apply_code</code></td><td>Apply editor code and reload the animation (<strong>Script Access</strong> required)</td></tr>
               <tr><td><code>rav_set_runtime</code></td><td>Switch runtime engine (webgl2 or canvas)</td></tr>
               <tr><td><code>rav_set_layout</code></td><td>Set canvas layout fit mode</td></tr>
               <tr><td><code>rav_set_canvas_color</code></td><td>Set background color or transparent</td></tr>
               <tr><td><code>rav_export_demo</code></td><td>Export a standalone HTML demo</td></tr>
+              <tr><td><code>generate_web_instantiation_code</code></td><td>Generate the live canonical web snippet for <code>cdn</code> or <code>local</code> usage, including <code>window.ravRive</code> helpers and current control values</td></tr>
+              <tr><td><code>rav_toggle_instantiation_controls_dialog</code></td><td>Open or close the in-app Snippet &amp; Export Controls dialog for manual control curation</td></tr>
               <tr><td><code>rav_get_sm_inputs</code> / <code>rav_set_sm_input</code></td><td>State machine input access</td></tr>
-              <tr><td><code>rav_eval</code></td><td>Evaluate JavaScript in RAV&apos;s browser context</td></tr>
+              <tr><td><code>rav_eval</code></td><td>Evaluate JavaScript in RAV&apos;s browser context (<strong>Script Access</strong> required)</td></tr>
+              <tr><td><code>rav_console_open</code> / <code>rav_console_close</code></td><td>Toggle the JS console panel</td></tr>
+              <tr><td><code>rav_console_read</code> / <code>rav_console_exec</code></td><td>Read captured console output or run REPL code (<code>rav_console_exec</code> requires <strong>Script Access</strong>)</td></tr>
             </tbody>
           </table>
+
+          <h3>Instantiation and Export Semantics</h3>
+          <ul>
+            <li><code>rav_status</code> reports whether the live runtime is using internal wiring or the applied editor config</li>
+            <li><code>rav_apply_code</code> switches the live runtime to the last applied editor config</li>
+            <li><code>generate_web_instantiation_code</code> always mirrors what is actually running, not the unsaved draft buffer</li>
+            <li><code>generate_web_instantiation_code</code> defaults to the CDN form unless you explicitly request <code>package_source: &quot;local&quot;</code></li>
+            <li>Generated snippets restore only the checked ViewModel/state-machine values on load, round numbers to 2 decimals, and expose helper methods on <code>window.ravRive</code></li>
+            <li>The <strong>Snippet &amp; Export Controls</strong> dialog lets you choose exactly which values are serialized; if you never touch it, RAV defaults to the changed-control set</li>
+            <li>Exported demos mirror the active live mode, surface fit/alignment in the main toolbar, and expose a <strong>Copy Instantiation Code</strong> toolbar button</li>
+          </ul>
+
+          <h3>Script Access</h3>
+          <p>
+            By default, MCP can read state and drive safe control operations. If you want an agent to
+            run JavaScript or apply editor code, enable <strong>Script Access</strong> in the MCP Setup
+            dialog. That unlocks <code>rav_eval</code>, <code>rav_console_exec</code>, and
+            <code>rav_apply_code</code>.
+          </p>
 
           <h3>Event Console</h3>
           <p>
@@ -715,9 +768,8 @@ export default function DocsPage() {
 
           <h3>Connection Indicator</h3>
           <p>
-            The runtime strip shows an <strong>MCP</strong> chip with a status dot. When the
-            bridge is connected, the dot and label light up indigo. When disconnected, they
-            appear gray. The bridge auto-reconnects with exponential backoff.
+            The runtime strip shows an <strong>MCP</strong> chip with a status dot. Connected is bright
+            indigo. Disconnected is dim but still visible. Disabled is red with a strike-through.
           </p>
 
           <h3>Configuration</h3>
@@ -734,6 +786,33 @@ export default function DocsPage() {
               <tr><td><code>RAV_MCP_TIMEOUT</code></td><td><code>15000</code></td><td>Command timeout in milliseconds</td></tr>
             </tbody>
           </table>
+
+          <hr />
+
+          {/* Automatic Updates */}
+          <h2 id="automatic-updates" className="scroll-mt-24">Automatic Updates</h2>
+
+          <p>
+            Desktop builds include Tauri&apos;s updater plugin. On launch, RAV checks the configured
+            GitHub Releases feed in the background. If a newer signed release is available, the runtime
+            strip exposes an update chip.
+          </p>
+
+          <h3>Update Chip States</h3>
+          <ul>
+            <li><strong>Hidden</strong> &mdash; no update is available</li>
+            <li><strong>UPDATE &lt;version&gt;</strong> &mdash; a newer version is ready to install</li>
+            <li><strong>UPDATING &lt;version&gt;</strong> &mdash; the update archive is downloading and installing</li>
+            <li><strong>RESTARTING</strong> &mdash; the update is installed and the app is relaunching</li>
+            <li><strong>UPDATE RETRY</strong> &mdash; the last check or install failed and can be retried</li>
+          </ul>
+
+          <h3>How Installation Works</h3>
+          <p>
+            Clicking the update chip downloads the signed updater artifact for your platform, installs it,
+            and relaunches the app. Release builds publish updater archives and signatures alongside the
+            normal desktop installers.
+          </p>
 
           <hr />
 
@@ -794,7 +873,7 @@ export default function DocsPage() {
 
           <h3>MCP not connecting</h3>
           <ul>
-            <li>Verify the MCP server is registered: <code>claude mcp list</code></li>
+            <li>Verify the MCP server is registered: <code>claude mcp list</code> or <code>codex mcp list</code></li>
             <li>Check that RAV is running and the browser console shows <code>[rav-mcp-bridge] Connected</code></li>
             <li>Ensure port 9274 is available (or set <code>RAV_MCP_PORT</code> to a different port)</li>
             <li>The bridge auto-reconnects with exponential backoff &mdash; if the MCP server started after RAV, wait a few seconds</li>
