@@ -4,22 +4,59 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-04-02
+
 ### Added
 
-- **Native `rav-mcp` sidecar** — The desktop app now bundles a Rust MCP sidecar binary instead of relying on `node rav-mcp-server.js` for packaged installs.
-- **One-click MCP client installs** — The MCP Setup dialog now detects Codex, Claude Code, and Claude Desktop targets and can install the `rav-mcp` config directly from the app.
-- **`generate_web_instantiation_code` MCP tool** — Generates a canonical copy-paste web snippet for the live animation using either `local` npm packages or CDN runtime loading.
-- **Snippet & Export Controls dialog** — New in-app dialog for choosing exactly which ViewModel and state-machine values are serialized into generated snippets and standalone demos, with branch-level checkboxes, presets, and inline snippet preview/copy.
-- **Demo toolbar code copy** — Exported standalone demos now include a **Copy Instantiation Code** button whenever the live session exposes a generated web snippet.
-- **`rav_toggle_instantiation_controls_dialog` MCP tool** — Lets an MCP client open or close the in-app selection dialog so a human can curate which controls will be exported.
+- **Bundled native `rav-mcp` sidecar** — Packaged desktop builds now ship with a Rust `rav-mcp` binary, so end users no longer need Node.js to use MCP.
+- **One-click MCP client setup** — The MCP Setup dialog now detects Codex, Claude Code, and Claude Desktop, reports whether `rav-mcp` is already installed there, and exposes `ADD`, `REINSTALL`, and `REMOVE`.
+- **Configurable MCP bridge port** — The bridge port is now configurable from the MCP Setup dialog and all generated snippets/install actions stay in sync with the selected port.
+- **MCP `Script Access` toggle** — JavaScript execution through MCP is now explicitly gated behind a dedicated toggle. Read-only control tools remain available even when script access is disabled.
+- **Native JS transcript console** — The JavaScript console is now a first-class RAV console with timestamps, newest-first ordering, filters, search, and `FOLLOW`.
+- **Unified console follow behavior** — Both Event Console and JavaScript Console now expose a sticky `FOLLOW` toggle that auto-disables when you scroll away from the latest message and re-enables when you return.
+- **`generate_web_instantiation_code` MCP tool** — Generates canonical web-instantiation snippets for either CDN or local-package usage based on the exact live animation state.
+- **Snippet & Export Controls dialog** — New in-app dialog for previewing snippets, choosing package source, and selecting which ViewModel and state-machine values are serialized into snippets and exported demos.
+- **Selectable control export** — Branch-level checkboxes select nested control groups, leaf checkboxes select individual controls, and untouched dialogs default to the changed-control set.
+- **Exported demo toolbar code copy** — Exported demos now include a `Copy Instantiation Code` action and bundle the current canonical snippet variants.
+- **`window.ravRive` helper API in snippets** — Generated snippets and exported demos now expose helper methods for applying snapshots, reading VM paths, setting values, firing triggers, and accessing state machine inputs.
+- **Desktop updater flow** — Added background update checks, update chip states, install/relaunch commands, updater plugin wiring, and release-workflow support for signed updater artifacts.
+- **Desktop open-file coverage** — Added explicit tests for drag/drop, open-with, double-click, URI-list payloads, and startup file handoff.
 
 ### Changed
 
-- **MCP Setup dialog** — Replaced the old Node.js prerequisite messaging with bundled-sidecar status, per-client detection badges, and native-binary snippets for Codex / Claude / generic MCP clients.
-- **Script editor live mode** — The editor now makes the active source explicit with a `LIVE: INTERNAL` / `LIVE: EDITOR` chip, and the running animation follows the live source instead of the unsaved draft buffer.
-- **Demo export semantics** — Exports now mirror the active live source mode and embed the same instantiation snippet returned through MCP.
-- **Snippet/export serialization** — Snippets and demos now serialize only the checked controls from the new dialog, defaulting to the changed-control set instead of dumping every bound value.
-- **Build pipeline** — `npm run build` now compiles the native `rav-mcp` sidecar before the frontend dist build.
+- **Major UI refresh** — The editor header, runtime strip, consoles, MCP dialog, and export flow were refined into the new 2.0.0 interaction model.
+- **Editor live-source signaling** — The editor title block now acts as the live-source indicator. Neutral gray means internal wiring is active; green/pulsing means the applied editor config is driving the runtime.
+- **Apply action styling** — The script editor now uses a dedicated `APPLY` action with neon emphasis instead of a subtle icon-only affordance.
+- **Console toggle behavior** — The runtime strip now exposes a simpler open/close console affordance and hides the console toolbar entirely while the console is closed.
+- **Unified console direction** — Event Console and JavaScript Console now grow in the same direction, use the same timestamp format, and present the newest entry at the top.
+- **Layout controls surfaced** — Fit and alignment controls moved into the primary toolbar next to playback controls and are mirrored into exported demos.
+- **Snippet generation semantics** — Snippets now emit organized override blocks instead of giant value dumps, round floating-point numbers to 2 decimals, and include enum option comments plus startup trigger lists.
+- **Demo export semantics** — Exports now mirror the live source mode, current artboard/playback selection, selected control snapshot, fit/alignment toolbar placement, and instantiation snippet variants.
+- **MCP setup messaging** — Simplified setup status to `MCP ready` / `MCP disabled`, removed outdated Node wording, and clarified the difference between bridge readiness and active client connection.
+- **MCP bridge resilience** — Hardened bridge reconnect behavior, initial sidecar handshake timing, fresh-stdio first-call behavior, and post-reload reconnect persistence.
+- **Resizing behavior** — Sidebars and console resize more smoothly by deferring expensive canvas resizes until the drag completes and widening the drag hit targets.
+- **Runtime version picker** — Fallback runtime versions are now derived from the latest available versions instead of being hardcoded.
+- **Build pipeline** — `npm run build` now compiles the native `rav-mcp` sidecar before the frontend dist build, and packaged apps bundle/sign the sidecar automatically.
+- **Architecture** — `app.js` was reduced to a composition root by extracting runtime loading, export, shell/status, VM controls, transparency, state machine defaults, and other subsystems into focused modules.
+
+### Fixed
+
+- **Black-window startup trap** — Dev startup now fails fast when the Vite port is occupied instead of launching a transparent shell against the wrong port.
+- **MCP setup detection** — Corrected false “Node not detected” messaging, broken install button behavior, and stale setup-state reporting.
+- **MCP reconnect race** — Fixed the bridge race that produced `InvalidStateError` during handshake when the app and sidecar connected simultaneously.
+- **First-call MCP write failures** — Fresh stdio MCP sessions now wait for the app bridge before failing write commands, preventing `RAV is not connected` on the first `rav_set_editor_code` / `rav_apply_code`.
+- **Exported HTML script escaping** — Fixed broken standalone demos caused by unescaped `</script>` content inside generated config/snippet payloads.
+- **Manual export parity** — Manual exports and MCP-triggered exports now use the same snippet/export builder path.
+- **Autoplay on file load** — File picker, drag/drop, open-with, and MCP file loads now consistently autoplay on open.
+- **Snippet/export tree UX** — Nested branches remain open while you check or uncheck child controls in the Snippet & Export Controls dialog.
+- **Bridge-side object URL cleanup** — Added final object-URL cleanup for open-file sessions.
+- **Runtime version picker injection risk** — Replaced unsafe `innerHTML` option interpolation for custom runtime versions.
+- **`rav_get_event_log` ordering** — Event log reads now return the newest matching entries first.
+- **`rav_status` detail completeness** — Status now includes alignment and the active instantiation mode/draft state.
+- **ViewModel trigger resume logic** — Corrected paused/playing detection used around VM trigger behavior.
+- **FOUC and panel state mismatches** — The shell layout now avoids initial panel-state flashes and keeps the UI state aligned with the DOM defaults.
+- **Desktop drag targets** — Sidebar and console resize hit zones are more forgiving and less jerky.
+- **Code coverage regressions** — Recovered full green tests around the new modularized controllers, export flow, MCP bridge, open-file path, updater flow, and console behavior.
 
 ## [1.9.9] - 2026-04-01
 

@@ -251,6 +251,19 @@ export function controlSnapshotKeyForDescriptor(descriptor) {
     return `vm:${descriptor.path || ''}:${descriptor.kind || ''}`;
 }
 
+export function shouldResumePlaybackForTrigger(riveInstance) {
+    if (!riveInstance) {
+        return false;
+    }
+    if (typeof riveInstance.isPlaying === 'boolean') {
+        return !riveInstance.isPlaying;
+    }
+    if (typeof riveInstance.isStopped === 'boolean') {
+        return riveInstance.isStopped;
+    }
+    return true;
+}
+
 export function createVmControlsController({
     callbacks = {},
     documentRef = globalThis.document,
@@ -820,7 +833,8 @@ export function createVmControlsController({
             button.addEventListener('click', () => {
                 const liveAccessor = resolveControlAccessor({ ...descriptor, kind: 'trigger' });
                 const riveInstance = getRiveInstance();
-                if (riveInstance?.isPaused) {
+                const shouldResumePlayback = shouldResumePlaybackForTrigger(riveInstance);
+                if (shouldResumePlayback) {
                     riveInstance.play();
                 }
 

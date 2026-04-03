@@ -4,7 +4,6 @@ export function bindUiActionHandlers({ elements, actions }) {
         [elements.resetButton, actions.reset],
         [elements.playButton, actions.play],
         [elements.pauseButton, actions.pause],
-        [elements.snippetDialogButton, actions.showInstantiationControlsDialogForSnippet],
         [elements.demoBundleButton, actions.showInstantiationControlsDialogForExport],
         [elements.mcpSetupButton, actions.showMcpSetup],
         [elements.injectVmExplorerButton, actions.injectCodeSnippet],

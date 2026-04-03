@@ -12,7 +12,9 @@ function renderShell() {
             <span id="event-log-count">0</span>
             <div id="event-log-list"></div>
             <div id="script-console-view" hidden>
-                <div id="script-console-output"></div>
+                <div id="script-console-output" style="height:140px; overflow:auto">
+                    <div id="script-console-log-list"></div>
+                </div>
                 <input id="script-console-repl-input">
             </div>
         </div>
@@ -21,58 +23,11 @@ function renderShell() {
         <button id="script-console-filter-warning"></button>
         <button id="script-console-filter-error"></button>
         <input id="script-console-filter-search">
+        <button id="script-console-follow-btn"></button>
         <button id="script-console-copy-btn"></button>
         <button id="script-console-clear-btn"></button>
     `;
     return getElements(document);
-}
-
-function installFakeEruda() {
-    const consoleTool = {
-        clear: vi.fn(),
-        config: {
-            set: vi.fn(),
-        },
-        debug: vi.fn(),
-        dir: vi.fn(),
-        error: vi.fn(),
-        filter: vi.fn(),
-        info: vi.fn(),
-        log: vi.fn(),
-        warn: vi.fn(),
-        _logger: {
-            evaluate: vi.fn(),
-            options: {},
-            warn: vi.fn(),
-        },
-    };
-
-    window.eruda = {
-        destroy: vi.fn(),
-        get: vi.fn(() => consoleTool),
-        init: vi.fn(({ container }) => {
-            container.innerHTML = `
-                <div class="eruda-container">
-                    <div class="eruda-dev-tools">
-                        <div class="eruda-console">
-                            <div class="luna-console luna-console-theme-light">
-                                <div class="luna-console-logs"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }),
-        remove: vi.fn(),
-        show: vi.fn(),
-    };
-
-    return consoleTool;
-}
-
-function immediateTimer(callback) {
-    callback();
-    return 0;
 }
 
 describe('ui/script-console', () => {
@@ -93,8 +48,6 @@ describe('ui/script-console', () => {
             configurable: true,
             value: originalClipboard,
         });
-        document.querySelectorAll('script[data-src="/vendor/eruda.js"]').forEach((node) => node.remove());
-        delete window.eruda;
         document.body.className = '';
         document.body.innerHTML = '';
     });
@@ -118,35 +71,30 @@ describe('ui/script-console', () => {
         expect(window.console.log).not.toBe(wrappedLog);
     });
 
-    it('opens in javascript-console mode, mirrors logs into eruda, and executes code', async () => {
+    it('opens in javascript-console mode, executes code, and renders newest output at the top', async () => {
         const elements = renderShell();
-        const consoleTool = installFakeEruda();
         const renderEventLog = vi.fn();
         const controller = createScriptConsoleController({
             callbacks: {
                 renderEventLog,
             },
             elements,
-            setTimeoutFn: immediateTimer,
         });
 
         controller.installCapture();
         controller.setup();
 
         elements.toggleScriptConsoleButton.click();
-        await Promise.resolve();
-        await Promise.resolve();
         console.info('mirrored output');
+        await controller.exec('1 + 1');
 
         expect(document.body.classList.contains('js-console-mode')).toBe(true);
         expect(elements.eventLogTitle.textContent).toBe('JAVASCRIPT CONSOLE');
         expect(elements.scriptConsoleView.hidden).toBe(false);
         expect(elements.eventLogFilterControls.hidden).toBe(true);
-        expect(consoleTool.config.set).toHaveBeenCalledWith('overrideConsole', false);
-        expect(consoleTool.info).toHaveBeenCalledWith('mirrored output');
 
-        await expect(controller.exec('1 + 1')).resolves.toEqual({ ok: true, code: '1 + 1' });
-        expect(consoleTool._logger.evaluate).toHaveBeenCalledWith('1 + 1');
+        const firstRow = elements.scriptConsoleLogList.querySelector('.console-log-row');
+        expect(firstRow?.textContent).toContain('RESULT');
 
         elements.toggleScriptConsoleButton.click();
         expect(controller.isOpen()).toBe(false);
@@ -154,138 +102,68 @@ describe('ui/script-console', () => {
         expect(renderEventLog).toHaveBeenCalled();
     });
 
-    it('applies filters, supports copy, and clears the eruda console', async () => {
+    it('applies filters, supports copy, clears output, and updates follow state on scroll', async () => {
         const elements = renderShell();
-        const consoleTool = installFakeEruda();
-        const controller = createScriptConsoleController({
-            elements,
-            setTimeoutFn: immediateTimer,
-        });
+        const controller = createScriptConsoleController({ elements });
 
         controller.installCapture();
         controller.setup();
         await controller.open();
 
         console.warn('needle warning');
+        console.info('other info');
+
         elements.scriptConsoleFilterWarning.click();
-        expect(consoleTool.filter).toHaveBeenCalled();
+        expect(elements.scriptConsoleLogList.textContent).toContain('needle warning');
+        expect(elements.scriptConsoleLogList.textContent).not.toContain('other info');
 
-        const warningFilter = consoleTool.filter.mock.calls.at(-1)[0];
-        expect(warningFilter({ type: 'warn', text: 'needle warning' })).toBe(true);
-        expect(warningFilter({ type: 'info', text: 'needle warning' })).toBe(false);
-
-        elements.scriptConsoleFilterSearch.value = '';
-        elements.scriptConsoleFilterAll.click();
-        const showAllFilter = consoleTool.filter.mock.calls.at(-1)[0];
-        expect(showAllFilter({ type: 'info', text: 'anything' })).toBe(true);
+        elements.scriptConsoleFilterSearch.value = 'needle';
+        elements.scriptConsoleFilterSearch.dispatchEvent(new Event('input'));
+        expect(elements.scriptConsoleLogList.textContent).toContain('needle warning');
 
         elements.scriptConsoleCopyButton.click();
         await Promise.resolve();
         expect(navigator.clipboard.writeText).toHaveBeenCalled();
 
+        elements.scriptConsoleOutput.scrollTop = 40;
+        elements.scriptConsoleOutput.dispatchEvent(new Event('scroll'));
+        expect(controller.isFollowingLatest()).toBe(false);
+
+        elements.scriptConsoleFollowButton.click();
+        expect(controller.isFollowingLatest()).toBe(true);
+
         elements.scriptConsoleClearButton.click();
-        expect(consoleTool.clear).toHaveBeenCalled();
+        expect(elements.scriptConsoleLogList.textContent).toContain('No console output matches current filters.');
     });
 
-    it('loads eruda through the vendor script path and supports REPL history navigation', async () => {
-        const elements = renderShell();
-        const consoleTool = installFakeEruda();
-        delete window.eruda;
-        const controller = createScriptConsoleController({
-            elements,
-            setTimeoutFn: immediateTimer,
-        });
-        const appendChild = vi.spyOn(document.head, 'appendChild').mockImplementation((node) => {
-            window.eruda = {
-                destroy: vi.fn(),
-                get: vi.fn(() => consoleTool),
-                init: vi.fn(({ container }) => {
-                    container.innerHTML = '<div class="eruda-container"><div class="luna-console luna-console-theme-light"><div class="luna-console-logs"></div></div></div>';
-                }),
-                remove: vi.fn(),
-                show: vi.fn(),
-            };
-            node.dataset.loaded = 'true';
-            node.onload();
-            return node;
-        });
-
-        controller.installCapture();
-        controller.setup();
-        controller.setup();
-        await controller.open();
-
-        expect(appendChild).toHaveBeenCalledTimes(1);
-
-        const input = elements.scriptConsoleReplInput;
-        input.value = 'first()';
-        input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }));
-        await Promise.resolve();
-        expect(consoleTool._logger.evaluate).toHaveBeenCalledWith('first()');
-
-        input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowUp' }));
-        expect(input.value).toBe('first()');
-
-        input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowDown' }));
-        expect(input.value).toBe('');
-
-        appendChild.mockRestore();
-    });
-
-    it('logs failures when the console cannot load or execute', async () => {
+    it('supports REPL history navigation and reports execution failures', async () => {
         const elements = renderShell();
         const execLogEvent = vi.fn();
         const controller = createScriptConsoleController({
             callbacks: { logEvent: execLogEvent },
             elements,
-            setTimeoutFn: immediateTimer,
         });
 
+        controller.installCapture();
         controller.setup();
-        expect(await controller.exec('')).toEqual({ ok: false, error: 'code is required' });
+        await controller.open();
 
-        window.eruda = {
-            destroy: vi.fn(),
-            get: vi.fn(() => ({ _logger: {} })),
-            init: vi.fn(({ container }) => {
-                container.innerHTML = '<div class="eruda-container"><div class="luna-console"><div class="luna-console-logs"></div></div></div>';
-            }),
-            remove: vi.fn(),
-            show: vi.fn(),
-        };
+        const input = elements.scriptConsoleReplInput;
+        input.value = 'const value = 5;';
+        input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }));
+        await Promise.resolve();
 
-        await expect(controller.exec('2 + 2')).resolves.toEqual({
-            code: '2 + 2',
-            error: 'Console evaluator is unavailable',
+        input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowUp' }));
+        expect(input.value).toBe('const value = 5;');
+
+        input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowDown' }));
+        expect(input.value).toBe('');
+
+        await expect(controller.exec('throw new Error("boom")')).resolves.toEqual({
+            code: 'throw new Error("boom")',
+            error: 'boom',
             ok: false,
         });
-        expect(execLogEvent).toHaveBeenCalledWith('ui', 'console-exec-failed', 'Console evaluator is unavailable');
-
-        controller.destroy();
-        document.body.innerHTML = '';
-
-        const failedElements = renderShell();
-        const openLogEvent = vi.fn();
-        const failedWindow = {
-            console: window.console,
-        };
-        const failedController = createScriptConsoleController({
-            callbacks: { logEvent: openLogEvent },
-            elements: failedElements,
-            setTimeoutFn: immediateTimer,
-            windowRef: failedWindow,
-        });
-        const appendChild = vi.spyOn(document.head, 'appendChild').mockImplementation((node) => {
-            node.onerror();
-            return node;
-        });
-
-        failedController.setup();
-        await failedController.open().catch((error) => {
-            openLogEvent('ui', 'console-open-failed', error.message);
-        });
-        expect(appendChild).toHaveBeenCalledTimes(1);
-        expect(openLogEvent).toHaveBeenCalledWith('ui', 'console-open-failed', 'Failed to load /vendor/eruda.js');
-        appendChild.mockRestore();
+        expect(execLogEvent).toHaveBeenCalledWith('ui', 'console-exec-failed', 'boom');
     });
 });

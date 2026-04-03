@@ -130,4 +130,70 @@ describe('ui/instantiation-controls-dialog', () => {
         });
         expect(elements.instantiationPreviewOutput.textContent).toContain('<script>demo</script>');
     });
+
+    it('keeps nested branches open when toggling child checkboxes', async () => {
+        const elements = buildElements();
+        const controller = createInstantiationControlsDialogController({
+            callbacks: {
+                createDemoBundle: vi.fn(),
+                generateWebInstantiationCode: vi.fn().mockResolvedValue({ code: '' }),
+                getCurrentFileName: () => 'demo.riv',
+                getTauriInvoker: () => vi.fn(),
+                initLucideIcons: vi.fn(),
+                logEvent: vi.fn(),
+                showError: vi.fn(),
+                updateInfo: vi.fn(),
+            },
+            elements,
+            serializeControlHierarchy: () => ({
+                children: [{
+                    children: [{
+                        children: [],
+                        inputs: [{
+                            descriptor: {
+                                kind: 'boolean',
+                                name: 'armed',
+                                path: 'root/child/armed',
+                            },
+                            kind: 'boolean',
+                            name: 'armed',
+                            path: 'root/child/armed',
+                        }],
+                        kind: 'vm',
+                        label: 'Child',
+                        path: 'root/child',
+                    }],
+                    inputs: [],
+                    kind: 'vm',
+                    label: 'Root',
+                    path: 'root',
+                }],
+                inputs: [],
+                kind: 'controls',
+                label: 'Controls',
+                path: '__controls__',
+            }),
+        });
+
+        controller.setup();
+        await controller.openDialog();
+
+        const detailsNodes = () => Array.from(elements.instantiationControlsTree.querySelectorAll('details'));
+        const [rootDetails] = detailsNodes();
+        rootDetails.open = true;
+        rootDetails.dispatchEvent(new Event('toggle'));
+
+        const childSummary = elements.instantiationControlsTree.querySelectorAll('summary')[1];
+        const [, childDetailsBeforeToggle] = detailsNodes();
+        childDetailsBeforeToggle.open = true;
+        childDetailsBeforeToggle.dispatchEvent(new Event('toggle'));
+        expect(childDetailsBeforeToggle.open).toBe(true);
+
+        const childCheckbox = childSummary.querySelector('input[type="checkbox"]');
+        childCheckbox.checked = true;
+        childCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+
+        const [, childDetailsAfterToggle] = detailsNodes();
+        expect(childDetailsAfterToggle.open).toBe(true);
+    });
 });

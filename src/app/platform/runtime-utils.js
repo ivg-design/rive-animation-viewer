@@ -1,6 +1,7 @@
 import {
     DEFAULT_RUNTIME_VERSION,
     DEFAULT_RUNTIME_VERSION_TOKEN,
+    parseSemverParts,
     RUNTIME_FILE_VERSION_PREFS_STORAGE_KEY,
     RUNTIME_META_STORAGE_KEY,
     RUNTIME_PACKAGE_NAMES,
@@ -129,13 +130,7 @@ export function isSemverAtLeast(version, minimum) {
     return true;
 }
 
-export function parseSemverParts(rawVersion) {
-    const match = /(\d+)\.(\d+)\.(\d+)/.exec(String(rawVersion || '').trim());
-    if (!match) {
-        return null;
-    }
-    return match.slice(1).map((part) => Number.parseInt(part, 10));
-}
+export { parseSemverParts };
 
 export function extractVersionFromUrl(url) {
     const matches = [...String(url || '').matchAll(/@([^/]+)/g)];

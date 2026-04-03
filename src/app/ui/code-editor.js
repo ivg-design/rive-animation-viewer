@@ -168,11 +168,12 @@ export function createCodeEditorController({
 
         const usingEditor = liveConfigSource === 'editor';
         liveModeChip.dataset.liveSource = liveConfigSource;
+        liveModeChip.closest('.panel-heading')?.setAttribute('data-live-source', liveConfigSource);
         liveModeChip.classList.toggle('is-draft', configDirty);
-        liveModeChip.textContent = usingEditor ? 'LIVE: EDITOR' : 'LIVE: INTERNAL';
+        liveModeChip.setAttribute('aria-pressed', String(usingEditor));
         liveModeChip.title = usingEditor
             ? (configDirty
-                ? 'Running the last applied editor code. Draft changes are not live yet. Click to switch to internal wiring.'
+                ? 'Editor code is driving the animation. Draft changes are not live yet. Click to switch back to RAV internal wiring.'
                 : 'Running the applied editor code. Click to switch to internal wiring.')
             : 'Running RAV internal wiring. Click to switch to the editor code.';
     }

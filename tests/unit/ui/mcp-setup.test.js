@@ -5,8 +5,11 @@ function buildElements() {
         <dialog id="mcp-setup-dialog">
             <button class="mcp-copy-btn" data-target="snippet-claude-code">COPY</button>
             <button id="mcp-install-codex-btn" data-install-target="codex">INSTALL</button>
+            <button id="mcp-remove-codex-btn" data-remove-target="codex">REMOVE</button>
             <button id="mcp-install-claude-code-btn" data-install-target="claude-code">INSTALL</button>
+            <button id="mcp-remove-claude-code-btn" data-remove-target="claude-code">REMOVE</button>
             <button id="mcp-install-claude-desktop-btn" data-install-target="claude-desktop">INSTALL</button>
+            <button id="mcp-remove-claude-desktop-btn" data-remove-target="claude-desktop">REMOVE</button>
         </dialog>
         <pre id="mcp-server-path-display"></pre>
         <div id="mcp-node-status"></div>
@@ -34,8 +37,11 @@ function buildElements() {
         mcpClientStatusClaudeCode: document.getElementById('mcp-client-status-claude-code'),
         mcpClientStatusClaudeDesktop: document.getElementById('mcp-client-status-claude-desktop'),
         mcpInstallCodexButton: document.getElementById('mcp-install-codex-btn'),
+        mcpRemoveCodexButton: document.getElementById('mcp-remove-codex-btn'),
         mcpInstallClaudeCodeButton: document.getElementById('mcp-install-claude-code-btn'),
+        mcpRemoveClaudeCodeButton: document.getElementById('mcp-remove-claude-code-btn'),
         mcpInstallClaudeDesktopButton: document.getElementById('mcp-install-claude-desktop-btn'),
+        mcpRemoveClaudeDesktopButton: document.getElementById('mcp-remove-claude-desktop-btn'),
         snippetClaudeCode: document.getElementById('snippet-claude-code'),
         snippetClaudeDesktop: document.getElementById('snippet-claude-desktop'),
         snippetCodex: document.getElementById('snippet-codex'),
@@ -45,6 +51,7 @@ function buildElements() {
 
 function mockSetupStatus() {
     return {
+        port: 9411,
         serverPath: '/Applications/RAV/resources/rav-mcp',
         targets: [
             {
@@ -52,6 +59,7 @@ function mockSetupStatus() {
                 label: 'Codex',
                 available: true,
                 installed: true,
+                configured: true,
                 detail: 'Shared Codex config for CLI/Desktop',
                 configPath: '/Users/test/.codex/config.toml',
             },
@@ -59,7 +67,8 @@ function mockSetupStatus() {
                 id: 'claude-code',
                 label: 'Claude Code',
                 available: true,
-                installed: false,
+                installed: true,
+                configured: false,
                 detail: 'Uses claude mcp add-json in user scope',
                 cliPath: '/usr/local/bin/claude',
             },
@@ -68,6 +77,7 @@ function mockSetupStatus() {
                 label: 'Claude Desktop',
                 available: false,
                 installed: false,
+                configured: false,
                 detail: 'Desktop app config file',
                 configPath: '/Users/test/Library/Application Support/Claude/claude_desktop_config.json',
             },
@@ -94,7 +104,7 @@ describe('ui/mcp-setup', () => {
         });
         const controller = createMcpSetupController({
             elements,
-            getBridgeConnected: () => true,
+            getBridgeEnabled: () => true,
             getTauriInvoker: () => invoke,
             initLucideIcons: vi.fn(),
         });
@@ -102,13 +112,15 @@ describe('ui/mcp-setup', () => {
         await controller.showMcpSetup();
 
         expect(elements.mcpServerPathDisplay.textContent).toContain('rav-mcp');
-        expect(elements.snippetClaudeCode.textContent).toContain('claude mcp add-json -s user rav-mcp');
+        expect(elements.snippetClaudeCode.textContent).toContain('"args":["--stdio-only","--port","9411"]');
         expect(elements.snippetClaudeDesktop.textContent).toContain('"command": "/Applications/RAV/resources/rav-mcp"');
-        expect(elements.snippetCodex.textContent).toContain('[mcp_servers."rav-mcp"]');
-        expect(elements.mcpNodeLabel.textContent).toContain('Bundled MCP sidecar ready');
+        expect(elements.snippetCodex.textContent).toContain('args = ["--stdio-only","--port","9411"]');
+        expect(elements.mcpNodeLabel.textContent).toBe('MCP ready');
         expect(elements.mcpClientStatusCodex.textContent).toBe('Installed');
-        expect(elements.mcpClientStatusClaudeCode.textContent).toBe('Detected');
+        expect(elements.mcpClientStatusClaudeCode.textContent).toBe('Needs Reinstall');
         expect(elements.mcpClientStatusClaudeDesktop.textContent).toBe('Not detected');
+        expect(elements.mcpRemoveCodexButton.hidden).toBe(false);
+        expect(elements.mcpRemoveClaudeDesktopButton.hidden).toBe(true);
         expect(elements.mcpInstallClaudeDesktopButton.disabled).toBe(true);
         expect(elements.mcpSetupDialog.showModal).toHaveBeenCalledTimes(1);
 
@@ -117,7 +129,7 @@ describe('ui/mcp-setup', () => {
         expect(clipboardWrite).toHaveBeenCalledWith(elements.snippetClaudeCode.textContent);
     });
 
-    it('runs one-click install and refreshes setup state', async () => {
+    it('shows disabled copy and supports install/remove actions', async () => {
         const elements = buildElements();
         const invoke = vi.fn(async (command, args) => {
             if (command === 'get_mcp_setup_status') {
@@ -125,6 +137,9 @@ describe('ui/mcp-setup', () => {
             }
             if (command === 'install_mcp_client') {
                 return { installed: true, target: args.target };
+            }
+            if (command === 'remove_mcp_client') {
+                return { installed: false, target: args.target };
             }
             return null;
         });
@@ -134,7 +149,15 @@ describe('ui/mcp-setup', () => {
                 ...mockSetupStatus(),
                 targets: mockSetupStatus().targets.map((target) => (
                     target.id === 'claude-code'
-                        ? { ...target, installed: true }
+                        ? { ...target, configured: true }
+                        : target
+                )),
+            },
+            {
+                ...mockSetupStatus(),
+                targets: mockSetupStatus().targets.map((target) => (
+                    target.id === 'codex'
+                        ? { ...target, installed: false, configured: false }
                         : target
                 )),
             },
@@ -142,16 +165,21 @@ describe('ui/mcp-setup', () => {
 
         const controller = createMcpSetupController({
             elements,
-            getBridgeConnected: () => false,
+            getBridgeEnabled: () => false,
             getTauriInvoker: () => invoke,
             initLucideIcons: vi.fn(),
         });
 
         await controller.showMcpSetup();
-        await elements.mcpInstallClaudeCodeButton.onclick();
+        expect(elements.mcpNodeLabel.textContent).toBe('MCP disabled');
 
-        expect(invoke).toHaveBeenCalledWith('install_mcp_client', { target: 'claude-code' });
+        await elements.mcpInstallClaudeCodeButton.onclick();
+        expect(invoke).toHaveBeenCalledWith('install_mcp_client', { target: 'claude-code', port: 9411 });
         expect(elements.mcpClientStatusClaudeCode.textContent).toBe('Installed');
-        expect(elements.mcpInstallClaudeCodeButton.textContent).toBe('REINSTALL');
+
+        await elements.mcpRemoveCodexButton.onclick();
+        expect(invoke).toHaveBeenCalledWith('remove_mcp_client', { target: 'codex' });
+        expect(elements.mcpClientStatusCodex.textContent).toBe('Detected');
+        expect(elements.mcpRemoveCodexButton.hidden).toBe(true);
     });
 });

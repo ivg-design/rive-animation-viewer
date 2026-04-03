@@ -315,6 +315,26 @@
     color: var(--text-dim);
 }
 
+.editor-apply-btn {
+    width: auto;
+    min-width: 58px;
+    padding: 0 10px;
+    border-color: #c4f82a99;
+    background: #161a10;
+    color: var(--neon);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.24px;
+    text-transform: uppercase;
+}
+
+.editor-apply-btn:hover {
+    border-color: var(--neon);
+    background: #202614;
+    color: #ecffb3;
+}
+
 .panel-toggle-btn {
     width: 24px;
     height: 24px;

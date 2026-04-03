@@ -108,7 +108,7 @@ describe('platform/web-instantiation', () => {
                         stateMachineName: 'main-sm',
                     },
                     kind: 'number',
-                    value: 0.5,
+                    value: 0.3333333333,
                 },
             ],
         });
@@ -125,7 +125,7 @@ describe('platform/web-instantiation', () => {
         expect(code).toContain('const VM_STARTUP_TRIGGERS = [');
         expect(code).toContain('"card-vm/refresh", // trigger');
         expect(code).toContain('"main-sm": {');
-        expect(code).toContain('"progress": 0.5, // number');
+        expect(code).toContain('"progress": 0.33, // number');
     });
 
     it('generates CDN/internal snippets and returns metadata', () => {

@@ -1,4 +1,4 @@
-/* ── Script Console (Eruda) ──────────────────────────────── */
+/* ── Script Console ─────────────────────────────────────── */
 
 .script-console-summary-right {
     justify-content: flex-end;
@@ -9,16 +9,30 @@
     gap: 3px;
 }
 
-.script-console-filter-toggles .event-filter-toggle {
-    height: 22px;
-    padding: 0 7px;
-}
-
+.script-console-filter-toggles .event-filter-toggle,
+.console-follow-btn,
 #script-console-copy-btn,
 #script-console-clear-btn {
     height: 22px;
     min-width: 48px;
     padding: 0 8px;
+}
+
+.console-follow-btn {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.console-follow-btn.is-active {
+    border-color: #c4f82a66;
+    color: var(--neon);
+    background: #c4f82a18;
 }
 
 .event-log-panel.script-console-mode #event-log-filter-controls {
@@ -54,100 +68,48 @@
 .script-console-output {
     flex: 1;
     min-height: 0;
-    overflow: hidden;
-    position: relative;
+    overflow-y: auto;
+    overflow-x: hidden;
     margin: 0;
+    padding: 4px 10px 6px;
     background: #0a0d13;
+    scrollbar-gutter: stable both-edges;
 }
 
-.script-console-output .eruda-entry-btn,
-.script-console-output .luna-tab,
-.script-console-output .eruda-resizer,
-.script-console-output .eruda-js-input {
-    display: none !important;
+.script-console-log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-height: 0;
 }
 
-body.js-console-mode > .eruda-container:not(.rav-eruda) {
-    display: none !important;
+.console-log-row .console-row-kind.info {
+    color: #9fb7ff;
+    background: #2b385c55;
 }
 
-.script-console-output > .eruda-container {
-    position: absolute !important;
-    inset: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
+.console-log-row .console-row-kind.warning {
+    color: #f5b534;
+    background: #7a5a122e;
 }
 
-.script-console-output ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+.console-log-row .console-row-kind.error {
+    color: #ff7f8f;
+    background: #6a1e2830;
 }
 
-.script-console-output ::-webkit-scrollbar-track {
-    background: #0a0d13;
-}
-
-.script-console-output ::-webkit-scrollbar-thumb {
-    background: #2a2d38;
-    border-radius: 4px;
-}
-
-.script-console-output ::-webkit-scrollbar-thumb:hover {
-    background: #3c4150;
-}
-
-.script-console-output .eruda-dev-tools {
-    background: #0a0d13 !important;
-    padding-top: 0 !important;
-    border-top: 0 !important;
-}
-
-.script-console-output .eruda-console {
-    background: #0a0d13 !important;
-    padding-bottom: 0 !important;
-}
-
-.script-console-output .luna-console {
-    background: #0a0d13 !important;
-    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace !important;
-}
-
-.script-console-output .luna-console-logs {
-    background: #0a0d13 !important;
-    overflow-y: auto !important;
-}
-
-.script-console-output .luna-console-log-container {
-    border-bottom: 1px solid #ffffff0a !important;
-}
-
-.script-console-output .luna-console-log-content {
-    color: var(--text-dim) !important;
-}
-
-.script-console-output .luna-console-error .luna-console-log-content {
-    color: #ff8389 !important;
-    background: #ff000010 !important;
-}
-
-.script-console-output .luna-console-warn .luna-console-log-content {
-    color: #f5a623 !important;
-    background: #f5a62308 !important;
-}
-
-.script-console-output .luna-object-viewer {
-    color: var(--text-dim) !important;
+.console-row-message {
+    white-space: pre-wrap;
+    overflow: visible;
+    text-overflow: unset;
+    word-break: break-word;
 }
 
 .script-console-repl {
     display: flex;
     align-items: center;
     flex-shrink: 0;
-    height: 32px;
+    min-height: 32px;
     border-top: 1px solid #ffffff14;
     background: #0f131d;
     gap: 0;
@@ -165,7 +127,6 @@ body.js-console-mode > .eruda-container:not(.rav-eruda) {
 
 .script-console-repl-input {
     flex: 1;
-    height: 32px;
     min-height: 32px;
     padding: 7px 10px 7px 0;
     border: 0 !important;
@@ -180,24 +141,4 @@ body.js-console-mode > .eruda-container:not(.rav-eruda) {
 
 .script-console-repl-input::placeholder {
     color: #8990a2;
-}
-
-.script-console-output .luna-console-logs::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-.script-console-output .luna-console-logs::-webkit-scrollbar-track {
-    background: #0f1015;
-    border-radius: 8px;
-}
-
-.script-console-output .luna-console-logs::-webkit-scrollbar-thumb {
-    background: #2a2d38;
-    border: 1px solid #0f111a;
-    border-radius: 8px;
-}
-
-.script-console-output .luna-console-logs::-webkit-scrollbar-thumb:hover {
-    background: #3c4150;
 }

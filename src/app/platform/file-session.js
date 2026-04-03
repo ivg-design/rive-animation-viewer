@@ -286,6 +286,7 @@ export function createFileSessionController({
             clearTimeoutFn(openedFilePollTimeout);
             openedFilePollTimeout = null;
         }
+        revokeLastObjectUrl();
         if (typeof tauriOpenFileUnlisten === 'function') {
             try {
                 tauriOpenFileUnlisten();

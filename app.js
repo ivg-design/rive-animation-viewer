@@ -55,21 +55,23 @@ async function loadCodeMirror() {
     try {
         let modules;
 
-        if (isTauriEnvironment()) {
-            // Desktop app - load from bundled single file
+        try {
             modules = await import('/vendor/codemirror-bundle.js');
-        } else {
+        } catch (bundleError) {
+            if (isTauriEnvironment()) {
+                throw bundleError;
+            }
             // Web version - load from node_modules
             const [cm, js, theme] = await Promise.all([
                 import('/node_modules/codemirror/dist/index.js'),
                 import('/node_modules/@codemirror/lang-javascript/dist/index.js'),
-                import('/node_modules/@codemirror/theme-one-dark/dist/index.js')
+                import('/node_modules/@codemirror/theme-one-dark/dist/index.js'),
             ]);
             modules = {
                 basicSetup: cm.basicSetup,
                 EditorView: cm.EditorView,
                 javascript: js.javascript,
-                oneDark: theme.oneDark
+                oneDark: theme.oneDark,
             };
         }
 
@@ -100,6 +102,7 @@ let shellController = null;
 let statusController = null;
 let updaterController = null;
 let currentRuntime = 'webgl2';
+let currentMcpPort = Number(globalThis.window?._mcpBridge?.port) || 9274;
 let runtimeVersionToken = loadRuntimeVersionPreference();
 let currentLayoutAlignment = DEFAULT_LAYOUT_ALIGNMENT;
 let currentLayoutFit = DEFAULT_LAYOUT_FIT;
@@ -161,6 +164,7 @@ const {
 } = eventLogController;
 const { showMcpSetup } = createMcpSetupController({
     elements,
+    getBridgeEnabled: () => window._mcpBridge?.enabled !== false,
     getBridgeConnected: () => window._mcpBridge?.connected,
     getTauriInvoker,
     initLucideIcons,
@@ -414,6 +418,7 @@ shellController = createShellController({
         getCurrentFileUrl,
         getCurrentLayoutAlignment,
         getCurrentLayoutFit,
+        getCurrentMcpPort: () => currentMcpPort,
         getCurrentRuntime,
         getEventLogFilterState,
         getTauriInvoker,
@@ -428,6 +433,22 @@ shellController = createShellController({
         },
         setCurrentLayoutFit: (nextLayoutFit) => {
             currentLayoutFit = nextLayoutFit;
+        },
+        setCurrentMcpPort: async (nextPort) => {
+            const invoke = getTauriInvoker();
+            if (!invoke) {
+                throw new Error('MCP port changes are available only in the desktop app');
+            }
+            const resolvedPort = await invoke('set_mcp_port', { port: nextPort });
+            currentMcpPort = Number(resolvedPort) || nextPort;
+            try {
+                window.localStorage?.setItem('rav-mcp-port', String(currentMcpPort));
+            } catch {
+                /* noop */
+            }
+            window.__RAV_MCP_PORT__ = currentMcpPort;
+            window._mcpBridge?.setPort?.(currentMcpPort);
+            return currentMcpPort;
         },
         setCurrentRuntime: (nextRuntime) => {
             currentRuntime = nextRuntime;
@@ -551,12 +572,12 @@ function updateConsoleModeChip() {
     }
 
     const labels = {
-        closed: 'CLOSED',
+        closed: 'OPEN CONSOLE',
         events: 'EVENTS',
         js: 'JS',
     };
     const titles = {
-        closed: 'Console closed (click to open events)',
+        closed: 'Console closed (click to open the event console)',
         events: 'Event console open (click to open JavaScript console)',
         js: 'JavaScript console open (click to close console)',
     };
@@ -741,6 +762,7 @@ init();
 async function init() {
     console.log('[rive-viewer] init start');
     await ensureTauriBridge();
+    await syncMcpPortFromDesktop();
     globalBindingsController.bind();
     window.buildLiveInstantiationDescriptor = buildLiveInstantiationDescriptor;
     initLucideIcons();
@@ -756,7 +778,6 @@ async function init() {
             play,
             reset,
             showInstantiationControlsDialogForExport: () => instantiationControlsDialogController?.openDialog(),
-            showInstantiationControlsDialogForSnippet: () => instantiationControlsDialogController?.openDialog(),
             showMcpSetup,
         },
     });
@@ -789,13 +810,20 @@ async function init() {
     resetEventLog();
     refreshInfoStrip();
     window.addEventListener('resize', handleResize);
-    window.addEventListener('beforeunload', () => {
+    const teardownAppShell = () => {
         scriptConsoleController.destroy();
         shellController?.dispose();
         fileSessionController?.dispose();
+    };
+    const cleanupTransparency = () => {
         cleanupTransparencyRuntime().catch(() => {
             /* noop */
         });
+    };
+    window.addEventListener('pagehide', cleanupTransparency);
+    window.addEventListener('beforeunload', () => {
+        teardownAppShell();
+        cleanupTransparency();
     });
     console.log('[rive-viewer] setup complete, loading runtime...');
     updaterController?.checkForUpdatesOnLaunch().catch((error) => {
@@ -847,4 +875,29 @@ function handleResize() {
 
 function cleanupInstance() {
     instanceController?.cleanupInstance();
+}
+
+async function syncMcpPortFromDesktop() {
+    const invoke = getTauriInvoker();
+    if (!invoke) {
+        return currentMcpPort;
+    }
+
+    try {
+        const resolvedPort = await invoke('get_mcp_port');
+        if (Number.isFinite(Number(resolvedPort)) && Number(resolvedPort) > 0) {
+            currentMcpPort = Number(resolvedPort);
+            try {
+                window.localStorage?.setItem('rav-mcp-port', String(currentMcpPort));
+            } catch {
+                /* noop */
+            }
+            window.__RAV_MCP_PORT__ = currentMcpPort;
+            window._mcpBridge?.setPort?.(currentMcpPort);
+        }
+    } catch (error) {
+        console.warn('[rive-viewer] failed to resolve MCP port:', error);
+    }
+
+    return currentMcpPort;
 }

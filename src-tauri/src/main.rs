@@ -8,12 +8,21 @@ use std::collections::VecDeque;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use tauri::menu::Menu;
 use tauri::{Emitter, Manager};
 use tauri_plugin_updater::UpdaterExt;
-use toml_edit::{value, Array, DocumentMut};
+use toml_edit::{value, Array, DocumentMut, Item};
+
+const DEFAULT_MCP_PORT: u16 = 9274;
+
+#[derive(Clone)]
+struct JsonMcpServerEntry {
+    scope_label: String,
+    command: Option<String>,
+    args: Vec<String>,
+}
 
 #[derive(Deserialize)]
 struct DemoBundlePayload {
@@ -48,6 +57,20 @@ struct DemoBundlePayload {
 
 // State: queue of file paths passed via Open With / double click.
 struct OpenedFiles(Mutex<VecDeque<String>>);
+
+struct McpBridgeManager {
+    child: Mutex<Option<Child>>,
+    port: Mutex<u16>,
+}
+
+impl McpBridgeManager {
+    fn new(port: u16) -> Self {
+        Self {
+            child: Mutex::new(None),
+            port: Mutex::new(port),
+        }
+    }
+}
 
 #[derive(Serialize)]
 struct WindowCursorPosition {
@@ -86,6 +109,7 @@ struct McpClientStatus {
     label: String,
     available: bool,
     installed: bool,
+    configured: bool,
     method: String,
     cli_path: Option<String>,
     config_path: Option<String>,
@@ -96,6 +120,7 @@ struct McpClientStatus {
 #[serde(rename_all = "camelCase")]
 struct McpSetupStatus {
     server_path: String,
+    port: u16,
     targets: Vec<McpClientStatus>,
 }
 
@@ -125,20 +150,131 @@ fn resolve_mcp_server_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     } else {
         "rav-mcp"
     };
-    let resource_path = app
-        .path()
-        .resource_dir()
-        .map_err(|e| format!("Failed to resolve resource dir: {}", e))?
-        .join("resources")
-        .join(binary_name);
-    if resource_path.exists() {
-        Ok(resource_path)
-    } else {
-        Err(format!(
-            "MCP server not found at {}",
-            resource_path.display()
-        ))
+
+    let mut candidates = Vec::new();
+    if let Ok(executable_dir) = app.path().executable_dir() {
+        candidates.push(executable_dir.join(binary_name));
     }
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        candidates.push(resource_dir.join(binary_name));
+        candidates.push(resource_dir.join("resources").join(binary_name));
+    }
+
+    if let Some(found) = candidates.into_iter().find(|path| path.exists()) {
+        Ok(found)
+    } else {
+        Err(format!("MCP server not found in bundled sidecar locations for {}", binary_name))
+    }
+}
+
+fn normalize_mcp_port(port: Option<u16>) -> u16 {
+    match port {
+        Some(value) if value > 0 => value,
+        _ => DEFAULT_MCP_PORT,
+    }
+}
+
+fn build_mcp_args(port: u16) -> Vec<String> {
+    vec!["--stdio-only".into(), "--port".into(), port.to_string()]
+}
+
+fn build_mcp_args_array(port: u16) -> Array {
+    let mut args = Array::new();
+    args.push("--stdio-only");
+    args.push("--port");
+    args.push(port.to_string());
+    args
+}
+
+fn mcp_port_config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map(|path| path.join("mcp-port.txt"))
+        .map_err(|error| format!("Failed to resolve MCP config path: {}", error))
+}
+
+fn load_saved_mcp_port(app: &tauri::AppHandle) -> u16 {
+    mcp_port_config_path(app)
+        .ok()
+        .and_then(|path| fs::read_to_string(path).ok())
+        .and_then(|raw| raw.trim().parse::<u16>().ok())
+        .map(|port| normalize_mcp_port(Some(port)))
+        .unwrap_or(DEFAULT_MCP_PORT)
+}
+
+fn persist_mcp_port(app: &tauri::AppHandle, port: u16) -> Result<(), String> {
+    let normalized = normalize_mcp_port(Some(port));
+    let path = mcp_port_config_path(app)?;
+    ensure_parent_directory(&path)?;
+    fs::write(&path, format!("{normalized}\n"))
+        .map_err(|error| format!("Failed to write {}: {}", path.display(), error))
+}
+
+fn current_mcp_port(manager: &McpBridgeManager) -> Result<u16, String> {
+    manager
+        .port
+        .lock()
+        .map_err(|_| "Failed to read MCP port state".to_string())
+        .map(|guard| *guard)
+}
+
+fn kill_spawned_mcp_bridge(manager: &McpBridgeManager) {
+    if let Ok(mut child_guard) = manager.child.lock() {
+        if let Some(mut child) = child_guard.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+}
+
+fn spawn_mcp_bridge_sidecar(app: &tauri::AppHandle, port: u16) -> Result<Child, String> {
+    let server_path = resolve_mcp_server_path(app)?;
+    let port_text = normalize_mcp_port(Some(port)).to_string();
+    Command::new(&server_path)
+        .args(["--bridge-only", "--port", &port_text])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|error| format!("Failed to start {}: {}", server_path.display(), error))
+}
+
+fn ensure_mcp_bridge_running(app: &tauri::AppHandle, manager: &McpBridgeManager) -> Result<u16, String> {
+    let port = current_mcp_port(manager)?;
+    let mut child_guard = manager
+        .child
+        .lock()
+        .map_err(|_| "Failed to access MCP bridge process state".to_string())?;
+    let should_spawn = match child_guard.as_mut() {
+        Some(child) => child
+            .try_wait()
+            .map_err(|error| format!("Failed to inspect MCP bridge process: {}", error))?
+            .is_some(),
+        None => true,
+    };
+
+    if should_spawn {
+        if let Some(mut child) = child_guard.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+        *child_guard = Some(spawn_mcp_bridge_sidecar(app, port)?);
+    }
+
+    Ok(port)
+}
+
+fn restart_mcp_bridge(app: &tauri::AppHandle, manager: &McpBridgeManager, port: u16) -> Result<u16, String> {
+    let normalized = normalize_mcp_port(Some(port));
+    {
+        let mut port_guard = manager
+            .port
+            .lock()
+            .map_err(|_| "Failed to update MCP port state".to_string())?;
+        *port_guard = normalized;
+    }
+    kill_spawned_mcp_bridge(manager);
+    ensure_mcp_bridge_running(app, manager)
 }
 
 #[tauri::command]
@@ -361,55 +497,210 @@ fn find_command_path(command: &str) -> Option<PathBuf> {
         .find(|candidate| candidate.exists())
 }
 
-fn codex_has_server(path: &Path) -> bool {
+fn codex_server_status(path: &Path, server_path: &Path, expected_args: &[String]) -> (bool, bool) {
     let Ok(raw) = fs::read_to_string(path) else {
-        return false;
+        return (false, false);
     };
     let Ok(doc) = raw.parse::<DocumentMut>() else {
-        return false;
+        return (false, false);
     };
-    doc.get("mcp_servers")
-        .and_then(|item| item.get("rav-mcp"))
-        .is_some()
+    let Some(server) = doc.get("mcp_servers").and_then(|item| item.get("rav-mcp")) else {
+        return (false, false);
+    };
+
+    let command_matches = server
+        .get("command")
+        .and_then(Item::as_str)
+        .map(|value| value == server_path.to_string_lossy())
+        .unwrap_or(false);
+    let args_matches = server
+        .get("args")
+        .and_then(Item::as_array)
+        .map(|args| {
+            args.iter()
+                .filter_map(|item| item.as_str().map(ToOwned::to_owned))
+                .collect::<Vec<_>>()
+                == expected_args
+        })
+        .unwrap_or(false);
+
+    (true, command_matches && args_matches)
 }
 
-fn claude_desktop_has_server(path: &Path) -> bool {
+fn command_and_args_match(
+    command: Option<&str>,
+    args: &[String],
+    server_path: &Path,
+    expected_args: &[String],
+) -> bool {
+    command
+        .map(|value| value == server_path.to_string_lossy())
+        .unwrap_or(false)
+        && args == expected_args
+}
+
+fn claude_desktop_server_status(
+    path: &Path,
+    server_path: &Path,
+    expected_args: &[String],
+) -> (bool, bool) {
     let Ok(raw) = fs::read_to_string(path) else {
-        return false;
+        return (false, false);
     };
     let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) else {
-        return false;
+        return (false, false);
     };
-    value
+    let Some(server) = value
         .get("mcpServers")
         .and_then(serde_json::Value::as_object)
-        .map(|servers| servers.contains_key("rav-mcp"))
-        .unwrap_or(false)
+        .and_then(|servers| servers.get("rav-mcp"))
+    else {
+        return (false, false);
+    };
+
+    let command_matches = server
+        .get("command")
+        .and_then(serde_json::Value::as_str)
+        .map(|value| value == server_path.to_string_lossy())
+        .unwrap_or(false);
+    let args_matches = server
+        .get("args")
+        .and_then(serde_json::Value::as_array)
+        .map(|args| {
+            args.iter()
+                .filter_map(serde_json::Value::as_str)
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>()
+                == expected_args
+        })
+        .unwrap_or(false);
+
+    (true, command_matches && args_matches)
 }
 
-fn claude_code_has_server(command_path: &Path) -> bool {
-    Command::new(command_path)
-        .args(["mcp", "get", "rav-mcp"])
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
+fn claude_code_config_path() -> Option<PathBuf> {
+    home_dir().map(|path| path.join(".claude.json"))
 }
 
-fn build_mcp_targets() -> Vec<McpClientStatus> {
+fn claude_code_server_entries(path: &Path) -> Vec<JsonMcpServerEntry> {
+    let Ok(raw) = fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) else {
+        return Vec::new();
+    };
+    let mut entries = Vec::new();
+
+    let push_entry = |entries: &mut Vec<JsonMcpServerEntry>, scope_label: String, server: &serde_json::Value| {
+        let command = server
+            .get("command")
+            .and_then(serde_json::Value::as_str)
+            .map(ToOwned::to_owned);
+        let args = server
+            .get("args")
+            .and_then(serde_json::Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(serde_json::Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        entries.push(JsonMcpServerEntry {
+            scope_label,
+            command,
+            args,
+        });
+    };
+
+    if let Some(server) = value
+        .get("mcpServers")
+        .and_then(serde_json::Value::as_object)
+        .and_then(|servers| servers.get("rav-mcp"))
+    {
+        push_entry(&mut entries, "User scope".into(), server);
+    }
+
+    if let Some(root) = value.as_object() {
+        for (key, project_value) in root {
+            if !key.starts_with('/') {
+                continue;
+            }
+            let Some(server) = project_value
+                .get("mcpServers")
+                .and_then(serde_json::Value::as_object)
+                .and_then(|servers| servers.get("rav-mcp"))
+            else {
+                continue;
+            };
+            push_entry(&mut entries, format!("Project scope ({key})"), server);
+        }
+    }
+
+    entries
+}
+
+fn claude_code_server_status(
+    path: &Path,
+    server_path: &Path,
+    expected_args: &[String],
+) -> (bool, bool, Option<String>) {
+    let entries = claude_code_server_entries(path);
+    if entries.is_empty() {
+        return (false, false, None);
+    }
+
+    let mut matching_scopes = Vec::new();
+    let mut conflicting_scopes = Vec::new();
+    for entry in &entries {
+        if command_and_args_match(entry.command.as_deref(), &entry.args, server_path, expected_args) {
+            matching_scopes.push(entry.scope_label.clone());
+        } else {
+            conflicting_scopes.push(entry.scope_label.clone());
+        }
+    }
+
+    let mut detail_parts = Vec::new();
+    if !matching_scopes.is_empty() {
+        detail_parts.push(format!("Configured in {}", matching_scopes.join(", ")));
+    }
+    if !conflicting_scopes.is_empty() {
+        detail_parts.push(format!("Different rav-mcp config in {}", conflicting_scopes.join(", ")));
+    }
+
+    (
+        true,
+        !matching_scopes.is_empty(),
+        if detail_parts.is_empty() {
+            None
+        } else {
+            Some(detail_parts.join(" • "))
+        },
+    )
+}
+
+fn build_mcp_targets(server_path: &Path, port: u16) -> Vec<McpClientStatus> {
+    let expected_args = build_mcp_args(port);
     let codex_config = codex_config_path();
     let codex_cli = find_command_path("codex");
     let codex_available = codex_config.is_some() || codex_cli.is_some();
-    let codex_installed = codex_config
+    let (codex_installed, codex_configured) = codex_config
         .as_deref()
-        .map(codex_has_server)
-        .unwrap_or(false);
+        .map(|path| codex_server_status(path, server_path, &expected_args))
+        .unwrap_or((false, false));
 
     let claude_code_cli = find_command_path("claude");
-    let claude_code_available = claude_code_cli.is_some();
-    let claude_code_installed = claude_code_cli
+    let claude_code_config = claude_code_config_path();
+    let claude_code_available = claude_code_cli.is_some()
+        || claude_code_config
         .as_deref()
-        .map(claude_code_has_server)
+        .map(Path::exists)
         .unwrap_or(false);
+    let (claude_code_installed, claude_code_configured, claude_code_detail) = claude_code_config
+        .as_deref()
+        .map(|path| claude_code_server_status(path, server_path, &expected_args))
+        .unwrap_or((false, false, None));
 
     let claude_desktop_config = claude_desktop_config_path();
     let claude_desktop_available = claude_desktop_config
@@ -421,10 +712,10 @@ fn build_mcp_targets() -> Vec<McpClientStatus> {
             .as_deref()
             .map(Path::exists)
             .unwrap_or(false);
-    let claude_desktop_installed = claude_desktop_config
+    let (claude_desktop_installed, claude_desktop_configured) = claude_desktop_config
         .as_deref()
-        .map(claude_desktop_has_server)
-        .unwrap_or(false);
+        .map(|path| claude_desktop_server_status(path, server_path, &expected_args))
+        .unwrap_or((false, false));
 
     vec![
         McpClientStatus {
@@ -432,6 +723,7 @@ fn build_mcp_targets() -> Vec<McpClientStatus> {
             label: "Codex".into(),
             available: codex_available,
             installed: codex_installed,
+            configured: codex_configured,
             method: "config-file".into(),
             cli_path: codex_cli.map(|path| path.to_string_lossy().to_string()),
             config_path: codex_config.map(|path| path.to_string_lossy().to_string()),
@@ -442,16 +734,18 @@ fn build_mcp_targets() -> Vec<McpClientStatus> {
             label: "Claude Code".into(),
             available: claude_code_available,
             installed: claude_code_installed,
-            method: "cli".into(),
+            configured: claude_code_configured,
+            method: "config-file".into(),
             cli_path: claude_code_cli.map(|path| path.to_string_lossy().to_string()),
-            config_path: None,
-            detail: Some("Uses claude mcp add-json in user scope".into()),
+            config_path: claude_code_config.map(|path| path.to_string_lossy().to_string()),
+            detail: claude_code_detail.or_else(|| Some("Claude Code user and project config".into())),
         },
         McpClientStatus {
             id: "claude-desktop".into(),
             label: "Claude Desktop".into(),
             available: claude_desktop_available,
             installed: claude_desktop_installed,
+            configured: claude_desktop_configured,
             method: "config-file".into(),
             cli_path: None,
             config_path: claude_desktop_config.map(|path| path.to_string_lossy().to_string()),
@@ -468,13 +762,13 @@ fn ensure_parent_directory(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn install_codex_mcp(server_path: &Path) -> Result<McpInstallResult, String> {
+fn install_codex_mcp_with_port(server_path: &Path, port: u16) -> Result<McpInstallResult, String> {
     let config_path = codex_config_path().ok_or_else(|| "Codex config path could not be resolved".to_string())?;
     ensure_parent_directory(&config_path)?;
 
     let raw = fs::read_to_string(&config_path).unwrap_or_default();
     let mut doc = raw.parse::<DocumentMut>().unwrap_or_default();
-    let args = Array::new();
+    let args = build_mcp_args_array(port);
 
     doc["mcp_servers"]["rav-mcp"]["command"] = value(server_path.to_string_lossy().to_string());
     doc["mcp_servers"]["rav-mcp"]["args"] = value(args);
@@ -489,7 +783,7 @@ fn install_codex_mcp(server_path: &Path) -> Result<McpInstallResult, String> {
     })
 }
 
-fn install_claude_desktop_mcp(server_path: &Path) -> Result<McpInstallResult, String> {
+fn install_claude_desktop_mcp_with_port(server_path: &Path, port: u16) -> Result<McpInstallResult, String> {
     let config_path = claude_desktop_config_path()
         .ok_or_else(|| "Claude Desktop config path could not be resolved".to_string())?;
     ensure_parent_directory(&config_path)?;
@@ -523,7 +817,7 @@ fn install_claude_desktop_mcp(server_path: &Path) -> Result<McpInstallResult, St
         "rav-mcp".into(),
         serde_json::json!({
             "command": server_path.to_string_lossy().to_string(),
-            "args": []
+            "args": build_mcp_args(port)
         }),
     );
 
@@ -539,58 +833,207 @@ fn install_claude_desktop_mcp(server_path: &Path) -> Result<McpInstallResult, St
     })
 }
 
-fn install_claude_code_mcp(server_path: &Path) -> Result<McpInstallResult, String> {
-    let cli_path =
-        find_command_path("claude").ok_or_else(|| "Claude Code CLI was not detected".to_string())?;
-    let payload = serde_json::json!({
-        "type": "stdio",
-        "command": server_path.to_string_lossy().to_string(),
-        "args": []
-    });
-    let payload_string =
-        serde_json::to_string(&payload).map_err(|error| format!("Failed to encode JSON: {}", error))?;
-
-    let _ = Command::new(&cli_path)
-        .args(["mcp", "remove", "-s", "user", "rav-mcp"])
-        .output();
-
-    let output = Command::new(&cli_path)
-        .args(["mcp", "add-json", "-s", "user", "rav-mcp", &payload_string])
-        .output()
-        .map_err(|error| format!("Failed to run {}: {}", cli_path.display(), error))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        let detail = if !stderr.is_empty() { stderr } else { stdout };
-        return Err(format!("Claude Code install failed: {}", detail));
+fn remove_claude_code_entries(root: &mut serde_json::Value) {
+    if let Some(root_obj) = root.as_object_mut() {
+        if let Some(servers) = root_obj
+            .get_mut("mcpServers")
+            .and_then(serde_json::Value::as_object_mut)
+        {
+            servers.remove("rav-mcp");
+        }
+        for (key, value) in root_obj.iter_mut() {
+            if !key.starts_with('/') {
+                continue;
+            }
+            if let Some(servers) = value
+                .get_mut("mcpServers")
+                .and_then(serde_json::Value::as_object_mut)
+            {
+                servers.remove("rav-mcp");
+            }
+        }
     }
+}
+
+fn install_claude_code_mcp_with_port(server_path: &Path, port: u16) -> Result<McpInstallResult, String> {
+    let config_path =
+        claude_code_config_path().ok_or_else(|| "Claude Code config path could not be resolved".to_string())?;
+    ensure_parent_directory(&config_path)?;
+    let mut root = fs::read_to_string(&config_path)
+        .ok()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .unwrap_or_else(|| serde_json::json!({}));
+    if !root.is_object() {
+        root = serde_json::json!({});
+    }
+
+    remove_claude_code_entries(&mut root);
+    let root_obj = root
+        .as_object_mut()
+        .ok_or_else(|| "Claude Code config is not a JSON object".to_string())?;
+    let servers = root_obj
+        .entry("mcpServers".to_string())
+        .or_insert_with(|| serde_json::json!({}));
+    if !servers.is_object() {
+        *servers = serde_json::json!({});
+    }
+    let Some(servers_obj) = servers.as_object_mut() else {
+        return Err("Claude Code MCP config is not an object".into());
+    };
+    servers_obj.insert(
+        "rav-mcp".into(),
+        serde_json::json!({
+            "type": "stdio",
+            "command": server_path.to_string_lossy().to_string(),
+            "args": build_mcp_args(port),
+        }),
+    );
+    let formatted =
+        serde_json::to_string_pretty(&root).map_err(|error| format!("Failed to encode JSON: {}", error))?;
+    fs::write(&config_path, format!("{formatted}\n"))
+        .map_err(|error| format!("Failed to write {}: {}", config_path.display(), error))?;
 
     Ok(McpInstallResult {
         target: "claude-code".into(),
         installed: true,
-        detail: "Installed rav-mcp into Claude Code user config".into(),
+        detail: format!("Installed rav-mcp into {}", config_path.display()),
+    })
+}
+
+fn remove_codex_mcp() -> Result<McpInstallResult, String> {
+    let config_path = codex_config_path().ok_or_else(|| "Codex config path could not be resolved".to_string())?;
+    let raw = fs::read_to_string(&config_path).unwrap_or_default();
+    let mut doc = raw.parse::<DocumentMut>().unwrap_or_default();
+
+    if let Some(mcp_servers) = doc.get_mut("mcp_servers").and_then(|item| item.as_table_like_mut()) {
+        mcp_servers.remove("rav-mcp");
+    }
+
+    fs::write(&config_path, doc.to_string())
+        .map_err(|error| format!("Failed to write {}: {}", config_path.display(), error))?;
+
+    Ok(McpInstallResult {
+        target: "codex".into(),
+        installed: false,
+        detail: format!("Removed rav-mcp from {}", config_path.display()),
+    })
+}
+
+fn remove_claude_desktop_mcp() -> Result<McpInstallResult, String> {
+    let config_path = claude_desktop_config_path()
+        .ok_or_else(|| "Claude Desktop config path could not be resolved".to_string())?;
+
+    let mut root = fs::read_to_string(&config_path)
+        .ok()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .unwrap_or_else(|| serde_json::json!({}));
+
+    if let Some(root_obj) = root.as_object_mut() {
+        if let Some(servers) = root_obj.get_mut("mcpServers").and_then(serde_json::Value::as_object_mut) {
+            servers.remove("rav-mcp");
+        }
+    }
+
+    let formatted =
+        serde_json::to_string_pretty(&root).map_err(|error| format!("Failed to encode JSON: {}", error))?;
+    fs::write(&config_path, format!("{formatted}\n"))
+        .map_err(|error| format!("Failed to write {}: {}", config_path.display(), error))?;
+
+    Ok(McpInstallResult {
+        target: "claude-desktop".into(),
+        installed: false,
+        detail: format!("Removed rav-mcp from {}", config_path.display()),
+    })
+}
+
+fn remove_claude_code_mcp() -> Result<McpInstallResult, String> {
+    let config_path =
+        claude_code_config_path().ok_or_else(|| "Claude Code config path could not be resolved".to_string())?;
+    let mut root = fs::read_to_string(&config_path)
+        .ok()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+        .unwrap_or_else(|| serde_json::json!({}));
+    if !root.is_object() {
+        root = serde_json::json!({});
+    }
+    remove_claude_code_entries(&mut root);
+    let formatted =
+        serde_json::to_string_pretty(&root).map_err(|error| format!("Failed to encode JSON: {}", error))?;
+    fs::write(&config_path, format!("{formatted}\n"))
+        .map_err(|error| format!("Failed to write {}: {}", config_path.display(), error))?;
+
+    Ok(McpInstallResult {
+        target: "claude-code".into(),
+        installed: false,
+        detail: format!("Removed rav-mcp from {}", config_path.display()),
     })
 }
 
 #[tauri::command]
-fn get_mcp_setup_status(app: tauri::AppHandle) -> Result<McpSetupStatus, String> {
+fn get_mcp_setup_status(
+    app: tauri::AppHandle,
+    bridge_manager: tauri::State<'_, McpBridgeManager>,
+) -> Result<McpSetupStatus, String> {
     let server_path = resolve_mcp_server_path(&app)?;
+    let port = current_mcp_port(&bridge_manager)?;
     Ok(McpSetupStatus {
         server_path: server_path.to_string_lossy().to_string(),
-        targets: build_mcp_targets(),
+        port,
+        targets: build_mcp_targets(&server_path, port),
     })
 }
 
 #[tauri::command]
-fn install_mcp_client(app: tauri::AppHandle, target: String) -> Result<McpInstallResult, String> {
+fn install_mcp_client(
+    app: tauri::AppHandle,
+    bridge_manager: tauri::State<'_, McpBridgeManager>,
+    target: String,
+    port: Option<u16>,
+) -> Result<McpInstallResult, String> {
     let server_path = resolve_mcp_server_path(&app)?;
+    let port = normalize_mcp_port(port.or_else(|| current_mcp_port(&bridge_manager).ok()));
     match target.as_str() {
-        "codex" => install_codex_mcp(&server_path),
-        "claude-code" => install_claude_code_mcp(&server_path),
-        "claude-desktop" => install_claude_desktop_mcp(&server_path),
+        "codex" => install_codex_mcp_with_port(&server_path, port),
+        "claude-code" => install_claude_code_mcp_with_port(&server_path, port),
+        "claude-desktop" => install_claude_desktop_mcp_with_port(&server_path, port),
         _ => Err(format!("Unsupported MCP target: {}", target)),
     }
+}
+
+#[tauri::command]
+fn remove_mcp_client(target: String) -> Result<McpInstallResult, String> {
+    match target.as_str() {
+        "codex" => remove_codex_mcp(),
+        "claude-code" => remove_claude_code_mcp(),
+        "claude-desktop" => remove_claude_desktop_mcp(),
+        _ => Err(format!("Unsupported MCP target: {}", target)),
+    }
+}
+
+#[tauri::command]
+fn get_mcp_port(
+    app: tauri::AppHandle,
+    bridge_manager: tauri::State<'_, McpBridgeManager>,
+) -> Result<u16, String> {
+    let port = ensure_mcp_bridge_running(&app, &bridge_manager)?;
+    Ok(port)
+}
+
+#[tauri::command]
+fn set_mcp_port(
+    app: tauri::AppHandle,
+    bridge_manager: tauri::State<'_, McpBridgeManager>,
+    port: u16,
+) -> Result<u16, String> {
+    let next_port = normalize_mcp_port(Some(port));
+    persist_mcp_port(&app, next_port)?;
+    restart_mcp_bridge(&app, &bridge_manager, next_port)
+}
+
+#[tauri::command]
+fn stop_mcp_bridge(bridge_manager: tauri::State<'_, McpBridgeManager>) -> bool {
+    kill_spawned_mcp_bridge(&bridge_manager);
+    true
 }
 
 #[tauri::command]
@@ -946,11 +1389,20 @@ fn main() {
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(OpenedFiles(Mutex::new(VecDeque::from(opened_files))))
+        .manage(McpBridgeManager::new(DEFAULT_MCP_PORT))
         .setup(|app| {
             #[cfg(desktop)]
             {
                 let menu = Menu::default(app.handle())?;
                 app.set_menu(menu)?;
+            }
+            let bridge_manager = app.state::<McpBridgeManager>();
+            let saved_port = load_saved_mcp_port(app.handle());
+            if let Ok(mut port_guard) = bridge_manager.port.lock() {
+                *port_guard = saved_port;
+            }
+            if let Err(error) = ensure_mcp_bridge_running(app.handle(), &bridge_manager) {
+                eprintln!("[rav-app] failed to start MCP bridge: {error}");
             }
             Ok(())
         })
@@ -959,6 +1411,7 @@ fn main() {
             make_demo_bundle_to_path,
             open_devtools,
             get_mcp_server_path,
+            get_mcp_port,
             get_mcp_setup_status,
             detect_node_runtime,
             check_for_app_update,
@@ -966,8 +1419,11 @@ fn main() {
             install_mcp_client,
             install_app_update,
             open_external_url,
+            remove_mcp_client,
             relaunch_app,
             read_riv_file,
+            set_mcp_port,
+            stop_mcp_bridge,
             set_window_transparency_mode,
             set_window_click_through,
             set_window_click_through_mode,
@@ -976,6 +1432,12 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                if let Some(manager) = app.try_state::<McpBridgeManager>() {
+                    kill_spawned_mcp_bridge(&manager);
+                }
+            }
+
             if let tauri::RunEvent::WindowEvent {
                 event: tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }),
                 ..

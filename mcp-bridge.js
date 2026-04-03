@@ -6,7 +6,7 @@
  * the window object.
  *
  * Connection flow:
- *   1. On page load, attempts to connect to ws://127.0.0.1:9274
+ *   1. On page load, attempts to connect to ws://127.0.0.1:<configured-port>
  *   2. If the MCP server is running, connection succeeds and commands flow
  *   3. If not running, silently retries every 5 seconds
  *   4. Auto-reconnects on disconnect
@@ -14,13 +14,42 @@
  * No UI impact — the bridge is invisible unless inspecting the console.
  */
 
-const MCP_BRIDGE_PORT = 9274;
-const MCP_BRIDGE_URL = `ws://127.0.0.1:${MCP_BRIDGE_PORT}`;
+const DEFAULT_MCP_BRIDGE_PORT = 9274;
+const MCP_SCRIPT_ACCESS_STORAGE_KEY = 'rav-mcp-script-access-enabled';
 const RECONNECT_DELAY_MS = 1000;
 const MAX_RECONNECT_DELAY_MS = 4000;
 const CONNECT_TIMEOUT_MS = 2000;
 const WATCHDOG_INTERVAL_MS = 1500;
 
+function normalizeBridgePort(value) {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  return Number.isInteger(parsed) && parsed > 0 && parsed <= 65535
+    ? parsed
+    : DEFAULT_MCP_BRIDGE_PORT;
+}
+
+function readInitialBridgePort() {
+  const explicitPort = window.__RAV_MCP_PORT__;
+  if (explicitPort) {
+    return normalizeBridgePort(explicitPort);
+  }
+  try {
+    return normalizeBridgePort(window.localStorage?.getItem('rav-mcp-port'));
+  } catch {
+    return DEFAULT_MCP_BRIDGE_PORT;
+  }
+}
+
+function persistBridgePort(port) {
+  try {
+    window.localStorage?.setItem('rav-mcp-port', String(port));
+  } catch {
+    /* noop */
+  }
+  window.__RAV_MCP_PORT__ = port;
+}
+
+let bridgePort = readInitialBridgePort();
 let ws = null;
 let reconnectTimer = null;
 let reconnectDelay = RECONNECT_DELAY_MS;
@@ -30,6 +59,83 @@ let connectionAttempts = 0;
 let connectTimeoutTimer = null;
 let connectStartedAt = 0;
 let watchdogTimer = null;
+let bridgePortSyncPromise = null;
+let connectPromise = null;
+
+function getBridgeUrl() {
+  return `ws://127.0.0.1:${bridgePort}`;
+}
+
+function getTauriInvoker() {
+  if (window.__TAURI_INTERNALS__?.invoke) {
+    return window.__TAURI_INTERNALS__.invoke.bind(window.__TAURI_INTERNALS__);
+  }
+  if (window.__TAURI__?.core?.invoke) {
+    return window.__TAURI__.core.invoke.bind(window.__TAURI__.core);
+  }
+  if (window.__TAURI__?.invoke) {
+    return window.__TAURI__.invoke.bind(window.__TAURI__);
+  }
+  return null;
+}
+
+async function invokeDesktop(command, args = {}) {
+  const invoke = getTauriInvoker();
+  if (!invoke) {
+    return null;
+  }
+  try {
+    return await invoke(command, args);
+  } catch (error) {
+    console.warn(`[rav-mcp-bridge] ${command} failed:`, error);
+    return null;
+  }
+}
+
+async function syncBridgePortFromDesktop() {
+  if (bridgePortSyncPromise) {
+    return bridgePortSyncPromise;
+  }
+
+  bridgePortSyncPromise = (async () => {
+    const resolvedPort = await invokeDesktop('get_mcp_port');
+    if (resolvedPort === null || resolvedPort === undefined || resolvedPort === '') {
+      return bridgePort;
+    }
+    const normalizedPort = normalizeBridgePort(resolvedPort);
+    if (normalizedPort !== bridgePort) {
+      bridgePort = normalizedPort;
+      persistBridgePort(bridgePort);
+    }
+    return bridgePort;
+  })();
+
+  try {
+    return await bridgePortSyncPromise;
+  } finally {
+    bridgePortSyncPromise = null;
+  }
+}
+
+function isMcpScriptAccessEnabled() {
+  if (typeof window.__RAV_MCP_SCRIPT_ACCESS__ === 'boolean') {
+    return window.__RAV_MCP_SCRIPT_ACCESS__;
+  }
+  try {
+    return window.localStorage?.getItem(MCP_SCRIPT_ACCESS_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function assertMcpScriptAccess(commandName) {
+  if (isMcpScriptAccessEnabled()) {
+    return;
+  }
+  throw new Error(
+    `MCP script access is disabled. Enable Script Access in the MCP setup dialog to use ${commandName}.`,
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Command handlers — each returns a JSON-serializable value
@@ -139,6 +245,7 @@ const commandHandlers = {
       },
       layout: {
         fit: document.getElementById('layout-select')?.value || 'contain',
+        alignment: document.getElementById('alignment-select')?.value || 'center',
         canvasColor: document.getElementById('canvas-color-input')?.value || '#0d1117',
       },
       viewModel: {
@@ -193,17 +300,26 @@ const commandHandlers = {
 
     const fileName = path.split('/').pop() || path.split('\\').pop() || 'unknown.riv';
 
-    // Use the global loader exposed by app.js
-    if (typeof window._mcpSetCurrentFile === 'function') {
+    let transferredToSession = false;
+    try {
+      if (typeof window._mcpSetCurrentFile !== 'function') {
+        throw new Error('Current file bridge is unavailable');
+      }
+      if (typeof window._mcpLoadAnimation !== 'function') {
+        throw new Error('Animation loader bridge is unavailable');
+      }
       window._mcpSetCurrentFile(fileUrl, fileName, true, buffer, blob.type, buffer.byteLength, {
         sourcePath: path,
       });
-    }
-    if (typeof window._mcpLoadAnimation === 'function') {
+      transferredToSession = true;
       await window._mcpLoadAnimation(fileUrl, fileName, { forceAutoplay: true });
+      return { ok: true, file: fileName, sizeBytes: buffer.byteLength };
+    } catch (error) {
+      if (!transferredToSession) {
+        URL.revokeObjectURL(fileUrl);
+      }
+      throw error;
     }
-
-    return { ok: true, file: fileName, sizeBytes: buffer.byteLength };
   },
 
   async rav_play() {
@@ -399,7 +515,7 @@ const commandHandlers = {
     return {
       total: entries.length,
       returned: Math.min(limit, filtered.length),
-      entries: filtered.slice(-limit),
+      entries: filtered.slice(0, limit),
     };
   },
 
@@ -424,6 +540,7 @@ const commandHandlers = {
   },
 
   async rav_apply_code() {
+    assertMcpScriptAccess('rav_apply_code');
     if (typeof window.applyCodeAndReload === 'function') {
       await window.applyCodeAndReload();
       return { ok: true };
@@ -436,7 +553,7 @@ const commandHandlers = {
     const select = document.getElementById('runtime-select');
     if (select) {
       select.value = runtime;
-      select.dispatchEvent(new Event('change'));
+      select.dispatchEvent(new Event('change', { bubbles: true }));
       return { ok: true, runtime };
     }
     throw new Error('Runtime selector not found');
@@ -447,7 +564,7 @@ const commandHandlers = {
     const select = document.getElementById('layout-select');
     if (select) {
       select.value = fit;
-      select.dispatchEvent(new Event('change'));
+      select.dispatchEvent(new Event('change', { bubbles: true }));
       return { ok: true, fit };
     }
     throw new Error('Layout selector not found');
@@ -464,7 +581,7 @@ const commandHandlers = {
         return { ok: true, color: 'transparent' };
       }
       input.value = color;
-      input.dispatchEvent(new Event('input'));
+      input.dispatchEvent(new Event('input', { bubbles: true }));
       return { ok: true, color };
     }
     throw new Error('Canvas color input not found');
@@ -557,6 +674,7 @@ const commandHandlers = {
   },
 
   async rav_eval({ expression }) {
+    assertMcpScriptAccess('rav_eval');
     if (!expression) throw new Error('expression is required');
     try {
       // eslint-disable-next-line no-eval
@@ -589,6 +707,7 @@ const commandHandlers = {
   },
 
   async rav_console_exec({ code }) {
+    assertMcpScriptAccess('rav_console_exec');
     if (!code) throw new Error('code is required');
     if (typeof window._mcpConsoleExec !== 'function') throw new Error('Console not available');
     return window._mcpConsoleExec(code);
@@ -734,83 +853,125 @@ function armConnectTimeout(socket) {
   }, CONNECT_TIMEOUT_MS);
 }
 
-function connect() {
+async function connect() {
   if (!enabled) return;
+  if (connectPromise) {
+    return connectPromise;
+  }
   if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
     return;
   }
 
-  connectionAttempts++;
-  syncState(); // show "waiting"
-  try {
-    ws = new WebSocket(MCP_BRIDGE_URL);
-    connectStartedAt = Date.now();
-    armConnectTimeout(ws);
-  } catch {
-    scheduleReconnect();
-    return;
-  }
+  connectPromise = (async () => {
+    await syncBridgePortFromDesktop();
+    if (!enabled) return;
+    if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
+      return;
+    }
 
-  ws.onopen = () => {
-    connected = true;
-    reconnectDelay = RECONNECT_DELAY_MS;
-    clearConnectTimeout();
-    syncState();
-    mcpLog('connected', `Bridge connected to MCP server on port ${MCP_BRIDGE_PORT}`);
-    console.log(`[rav-mcp-bridge] Connected to MCP server at ${MCP_BRIDGE_URL}`);
-  };
+    connectionAttempts++;
+    syncState(); // show "waiting"
 
-  ws.onmessage = async (event) => {
-    let msg;
+    let socket;
     try {
-      msg = JSON.parse(event.data);
+      socket = new WebSocket(getBridgeUrl());
+      ws = socket;
+      connectStartedAt = Date.now();
+      armConnectTimeout(socket);
     } catch {
-      console.warn('[rav-mcp-bridge] Invalid JSON from MCP server');
+      scheduleReconnect();
       return;
     }
 
-    const { id, command, params } = msg;
-    if (!id || !command) return;
+    socket.onopen = () => {
+      if (ws !== socket) {
+        try {
+          socket.close();
+        } catch {
+          /* noop */
+        }
+        return;
+      }
+      try {
+        socket.send(JSON.stringify({ bridgeHello: 'rav-app' }));
+      } catch (error) {
+        console.warn('[rav-mcp-bridge] Failed to send bridge handshake', error);
+        socket.close();
+        return;
+      }
+      connected = true;
+      reconnectDelay = RECONNECT_DELAY_MS;
+      clearConnectTimeout();
+      syncState();
+      mcpLog('connected', `Bridge connected to MCP server on port ${bridgePort}`);
+      console.log(`[rav-mcp-bridge] Connected to MCP server at ${getBridgeUrl()}`);
+    };
 
-    const handler = commandHandlers[command];
-    if (!handler) {
-      mcpLog('error', `Unknown command: ${command}`);
-      ws.send(JSON.stringify({ id, error: `Unknown command: ${command}` }));
-      return;
-    }
+    socket.onmessage = async (event) => {
+      if (ws !== socket) {
+        return;
+      }
 
-    // Log the incoming command
-    mcpLog('recv', formatCommandSummary(command, params));
+      let msg;
+      try {
+        msg = JSON.parse(event.data);
+      } catch {
+        console.warn('[rav-mcp-bridge] Invalid JSON from MCP server');
+        return;
+      }
 
-    const startTime = performance.now();
-    try {
-      const result = await handler(params || {});
-      const elapsed = Math.round(performance.now() - startTime);
-      mcpLog('reply', `${command.replace(/^rav_/, '')} \u2192 ${formatResultSummary(command, result)}  (${elapsed}ms)`);
-      ws.send(JSON.stringify({ id, result }));
-    } catch (error) {
-      const elapsed = Math.round(performance.now() - startTime);
-      mcpLog('error', `${command.replace(/^rav_/, '')} failed: ${error.message}  (${elapsed}ms)`);
-      ws.send(JSON.stringify({ id, error: error.message }));
-    }
-  };
+      const { id, command, params } = msg;
+      if (!id || !command) return;
 
-  ws.onclose = () => {
-    const wasConnected = connected;
-    connected = false;
-    clearConnectTimeout();
-    ws = null;
-    syncState();
-    if (wasConnected) {
-      mcpLog('disconnected', 'Bridge disconnected from MCP server');
-      console.log('[rav-mcp-bridge] Disconnected from MCP server');
-    }
-    scheduleReconnect();
-  };
+      const handler = commandHandlers[command];
+      if (!handler) {
+        mcpLog('error', `Unknown command: ${command}`);
+        socket.send(JSON.stringify({ id, error: `Unknown command: ${command}` }));
+        return;
+      }
 
-  ws.onerror = () => {
-    // onclose will fire after this, handling reconnection
-  };
+      // Log the incoming command
+      mcpLog('recv', formatCommandSummary(command, params));
+
+      const startTime = performance.now();
+      try {
+        const result = await handler(params || {});
+        const elapsed = Math.round(performance.now() - startTime);
+        mcpLog('reply', `${command.replace(/^rav_/, '')} \u2192 ${formatResultSummary(command, result)}  (${elapsed}ms)`);
+        socket.send(JSON.stringify({ id, result }));
+      } catch (error) {
+        const elapsed = Math.round(performance.now() - startTime);
+        mcpLog('error', `${command.replace(/^rav_/, '')} failed: ${error.message}  (${elapsed}ms)`);
+        socket.send(JSON.stringify({ id, error: error.message }));
+      }
+    };
+
+    socket.onclose = () => {
+      if (ws !== socket) {
+        return;
+      }
+      const wasConnected = connected;
+      connected = false;
+      clearConnectTimeout();
+      ws = null;
+      syncState();
+      if (wasConnected) {
+        mcpLog('disconnected', 'Bridge disconnected from MCP server');
+        console.log('[rav-mcp-bridge] Disconnected from MCP server');
+      }
+      scheduleReconnect();
+    };
+
+    socket.onerror = () => {
+      // onclose will fire after this, handling reconnection
+    };
+  })();
+
+  try {
+    await connectPromise;
+  } finally {
+    connectPromise = null;
+  }
 }
 
 function scheduleReconnect() {
@@ -859,6 +1020,7 @@ function startWatchdog() {
 // ---------------------------------------------------------------------------
 
 function disconnect() {
+  connectPromise = null;
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
@@ -873,8 +1035,10 @@ function disconnect() {
 }
 
 window._mcpBridge = {
+  commands: commandHandlers,
   get connected() { return connected; },
   get enabled() { return enabled; },
+  get port() { return bridgePort; },
   get state() { return !enabled ? 'off' : connected ? 'connected' : 'waiting'; },
   get connectionAttempts() { return connectionAttempts; },
 
@@ -895,6 +1059,7 @@ window._mcpBridge = {
     disconnect();
     syncState();
     mcpLog('disabled', 'MCP bridge disabled');
+    void invokeDesktop('stop_mcp_bridge');
   },
 
   /** Toggle enabled/disabled. */
@@ -911,6 +1076,23 @@ window._mcpBridge = {
     disconnect();
     reconnectDelay = RECONNECT_DELAY_MS;
     connect();
+  },
+
+  setPort(nextPort) {
+    const normalizedPort = normalizeBridgePort(nextPort);
+    if (normalizedPort === bridgePort) {
+      return bridgePort;
+    }
+    bridgePort = normalizedPort;
+    persistBridgePort(bridgePort);
+    if (enabled) {
+      disconnect();
+      reconnectDelay = RECONNECT_DELAY_MS;
+      connect();
+    } else {
+      syncState();
+    }
+    return bridgePort;
   },
 };
 

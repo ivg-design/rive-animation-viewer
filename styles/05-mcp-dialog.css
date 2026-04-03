@@ -94,6 +94,15 @@
     box-shadow: 0 0 6px #34d39960;
 }
 
+.mcp-node-status.is-connected .mcp-node-dot {
+    box-shadow: 0 0 10px #34d399aa;
+}
+
+.mcp-node-status.is-disabled .mcp-node-dot {
+    background: #f59e0b;
+    box-shadow: 0 0 6px #f59e0b60;
+}
+
 .mcp-node-status.is-missing .mcp-node-dot {
     background: #ef4444;
     box-shadow: 0 0 6px #ef444460;
@@ -106,6 +115,50 @@
 
 .mcp-node-status.is-missing .mcp-node-label {
     color: #ef4444;
+}
+
+.mcp-node-status.is-disabled .mcp-node-label {
+    color: #fbbf24;
+}
+
+.mcp-setup-port-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-void);
+}
+
+.mcp-setup-port-label {
+    font-family: "Space Mono", monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+}
+
+.mcp-setup-port-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mcp-script-access-note {
+    margin: -4px 2px 0;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+#mcp-script-access-toggle.is-enabled {
+    border-color: #34d39988;
+    background: #34d39918;
+    color: #6ee7b7;
+}
+
+.mcp-port-input {
+    width: 110px;
 }
 
 .mcp-snippet-block-header {
@@ -246,6 +299,31 @@
 .mcp-install-btn:disabled {
     opacity: 0.5;
     cursor: default;
+}
+
+.mcp-remove-btn {
+    height: 20px;
+    padding: 0 8px;
+    border: 1px solid #ef444455;
+    border-radius: var(--radius-sm);
+    background: #ef444412;
+    color: #fca5a5;
+    font-family: "Space Mono", monospace;
+    font-size: 9px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.mcp-remove-btn:hover:not(:disabled) {
+    border-color: #f87171;
+    background: #ef444424;
+    color: #fecaca;
+}
+
+.mcp-remove-btn:disabled,
+.mcp-remove-btn[hidden] {
+    display: none;
 }
 
 .mcp-copy-btn:hover {

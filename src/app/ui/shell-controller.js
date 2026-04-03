@@ -50,9 +50,39 @@ export function createShellController({
     } = callbacks;
 
     let demoButtonIntervalId = null;
-    let isLeftPanelVisible = false;
+    let isLeftPanelVisible = true;
     let isRightPanelVisible = true;
     let visibilityResizeTimeoutId = null;
+    const panelVisibilityStorageKey = 'rav-panel-visibility';
+
+    try {
+        const raw = windowRef.localStorage?.getItem?.(panelVisibilityStorageKey);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (typeof parsed?.left === 'boolean') {
+                isLeftPanelVisible = parsed.left;
+            }
+            if (typeof parsed?.right === 'boolean') {
+                isRightPanelVisible = parsed.right;
+            }
+        }
+    } catch {
+        /* noop */
+    }
+
+    function persistPanelVisibility() {
+        try {
+            windowRef.localStorage?.setItem?.(
+                panelVisibilityStorageKey,
+                JSON.stringify({
+                    left: isLeftPanelVisible,
+                    right: isRightPanelVisible,
+                }),
+            );
+        } catch {
+            /* noop */
+        }
+    }
 
     async function reloadActiveAnimation() {
         const currentFileUrl = getCurrentFileUrl();
@@ -266,7 +296,6 @@ export function createShellController({
                     const nextRight = clamp(initialRight - deltaX, 260, maxRight);
                     setGridVar('--right-width', nextRight);
                 }
-                handleResize();
             };
 
             const onUp = () => {
@@ -318,7 +347,6 @@ export function createShellController({
                 const deltaY = moveEvent.clientY - startY;
                 const nextHeight = clamp(startHeight - deltaY, 120, getMaxLogHeight());
                 centerPanel.style.setProperty('--center-log-height', `${Math.round(nextHeight)}px`);
-                handleResize();
             };
 
             const onUp = () => {
@@ -358,6 +386,7 @@ export function createShellController({
             rightButton.setAttribute('aria-label', rightButton.title);
             showLeftButton.hidden = isLeftPanelVisible;
             showRightButton.hidden = isRightPanelVisible;
+            persistPanelVisibility();
             handleResize();
             if (visibilityResizeTimeoutId) {
                 clearTimeoutFn(visibilityResizeTimeoutId);

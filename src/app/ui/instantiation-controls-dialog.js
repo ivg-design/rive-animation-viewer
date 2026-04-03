@@ -44,6 +44,7 @@ function sanitizeSelection(selection, availableKeys) {
 
 export function createInstantiationControlsDialogController({
     callbacks = {},
+    documentRef = globalThis.document,
     elements,
     captureVmControlSnapshot = () => [],
     getChangedVmControlSnapshot = () => [],
@@ -66,6 +67,7 @@ export function createInstantiationControlsDialogController({
     let currentAvailableKeys = new Set();
     let selectedControlKeys = null;
     let currentPreviewText = '';
+    let expandedBranchKeys = new Set();
 
     function getDialog() {
         return elements.instantiationControlsDialog;
@@ -135,6 +137,15 @@ export function createInstantiationControlsDialogController({
         updateSelectionSummary();
     }
 
+    function getTreeNodeKey(node, parentKey = '') {
+        const ownKey = [
+            node?.kind || 'node',
+            node?.path || '',
+            node?.label || '',
+        ].join(':');
+        return parentKey ? `${parentKey}>${ownKey}` : ownKey;
+    }
+
     function ensureDialogState() {
         const fileName = getCurrentFileName();
         if (!fileName) {
@@ -145,6 +156,7 @@ export function createInstantiationControlsDialogController({
         if (fileName !== currentFileName) {
             currentFileName = fileName;
             selectedControlKeys = null;
+            expandedBranchKeys = new Set();
             clearPreview();
         }
 
@@ -169,11 +181,11 @@ export function createInstantiationControlsDialogController({
     }
 
     function createInputRow(input, depth) {
-        const row = document.createElement('label');
+        const row = documentRef.createElement('label');
         row.className = 'instantiation-input-row';
         row.style.setProperty('--tree-depth', String(depth));
 
-        const checkbox = document.createElement('input');
+        const checkbox = documentRef.createElement('input');
         checkbox.type = 'checkbox';
         const key = controlSnapshotKeyForDescriptor(input?.descriptor);
         checkbox.checked = Boolean(key && selectedControlKeys?.has(key));
@@ -191,14 +203,14 @@ export function createInstantiationControlsDialogController({
             setSelection(nextSelection);
         });
 
-        const text = document.createElement('div');
+        const text = documentRef.createElement('div');
         text.className = 'instantiation-input-text';
 
-        const title = document.createElement('span');
+        const title = documentRef.createElement('span');
         title.className = 'instantiation-input-title';
         title.textContent = `${input.name} (${input.kind})`;
 
-        const meta = document.createElement('span');
+        const meta = documentRef.createElement('span');
         meta.className = 'instantiation-input-meta';
         meta.textContent = input.source === 'state-machine'
             ? `${input.stateMachineName} / ${input.name}`
@@ -211,22 +223,33 @@ export function createInstantiationControlsDialogController({
         return row;
     }
 
-    function createTreeNode(node, depth = 0) {
-        const wrapper = document.createElement('div');
+    function createTreeNode(node, depth = 0, parentKey = '') {
+        const nodeKey = getTreeNodeKey(node, parentKey);
+        const wrapper = documentRef.createElement('div');
         wrapper.className = 'instantiation-tree-node';
         wrapper.style.setProperty('--tree-depth', String(depth));
 
         const counts = countSelectedKeys(node, selectedControlKeys);
         const branchKeys = collectNodeInputKeys(node);
 
-        const details = document.createElement('details');
+        const details = documentRef.createElement('details');
         details.className = 'instantiation-tree-branch';
-        details.open = depth < 1;
+        details.open = expandedBranchKeys.has(nodeKey) ? true : depth < 1;
+        if (details.open) {
+            expandedBranchKeys.add(nodeKey);
+        }
+        details.addEventListener('toggle', () => {
+            if (details.open) {
+                expandedBranchKeys.add(nodeKey);
+            } else {
+                expandedBranchKeys.delete(nodeKey);
+            }
+        });
 
-        const summary = document.createElement('summary');
+        const summary = documentRef.createElement('summary');
         summary.className = 'instantiation-tree-summary';
 
-        const checkbox = document.createElement('input');
+        const checkbox = documentRef.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.checked = counts.total > 0 && counts.selected === counts.total;
         checkbox.indeterminate = counts.selected > 0 && counts.selected < counts.total;
@@ -245,11 +268,11 @@ export function createInstantiationControlsDialogController({
             setSelection(nextSelection);
         });
 
-        const label = document.createElement('span');
+        const label = documentRef.createElement('span');
         label.className = 'instantiation-tree-label';
         label.textContent = node.label;
 
-        const badge = document.createElement('span');
+        const badge = documentRef.createElement('span');
         badge.className = 'instantiation-tree-badge';
         badge.textContent = counts.total ? `${counts.selected}/${counts.total}` : '0';
 
@@ -258,17 +281,17 @@ export function createInstantiationControlsDialogController({
         summary.appendChild(badge);
         details.appendChild(summary);
 
-        const body = document.createElement('div');
+        const body = documentRef.createElement('div');
         body.className = 'instantiation-tree-body';
         (node.inputs || []).forEach((input) => {
             body.appendChild(createInputRow(input, depth + 1));
         });
         (node.children || []).forEach((child) => {
-            body.appendChild(createTreeNode(child, depth + 1));
+            body.appendChild(createTreeNode(child, depth + 1, nodeKey));
         });
 
         if (!node.inputs?.length && !node.children?.length) {
-            const empty = document.createElement('p');
+            const empty = documentRef.createElement('p');
             empty.className = 'instantiation-tree-empty';
             empty.textContent = 'No controls in this branch.';
             body.appendChild(empty);
@@ -287,7 +310,7 @@ export function createInstantiationControlsDialogController({
 
         tree.innerHTML = '';
         if (!currentHierarchy?.children?.length) {
-            const empty = document.createElement('p');
+            const empty = documentRef.createElement('p');
             empty.className = 'instantiation-tree-empty';
             empty.textContent = 'No bound ViewModel or state machine controls are available.';
             tree.appendChild(empty);

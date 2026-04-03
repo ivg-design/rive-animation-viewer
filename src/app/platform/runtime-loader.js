@@ -140,6 +140,7 @@ export function createRuntimeLoaderController({
         showError = () => {},
         updateVersionInfo = () => {},
     } = callbacks;
+    let runtimeVersionMutationId = 0;
 
     function getEffectiveRuntimeVersionToken(versionToken = getRuntimeVersionToken()) {
         return resolveEffectiveRuntimeVersionToken(versionToken, runtimeVersionOptionsState.latest);
@@ -277,15 +278,19 @@ export function createRuntimeLoaderController({
         const { latest, versions } = runtimeVersionOptionsState;
         const selectedToken = normalizeRuntimeVersionToken(getRuntimeVersionToken());
         const matchesKnownOption = selectedToken === DEFAULT_RUNTIME_VERSION_TOKEN || versions.includes(selectedToken);
-        const options = [
-            `<option value="${DEFAULT_RUNTIME_VERSION_TOKEN}">Latest (auto: ${latest})</option>`,
-            ...versions.map((version) => `<option value="${version}">${version}</option>`),
-        ];
+        select.replaceChildren();
+        const appendOption = (value, label) => {
+            const option = documentRef.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            select.appendChild(option);
+        };
+        appendOption(DEFAULT_RUNTIME_VERSION_TOKEN, `Latest (auto: ${latest})`);
+        versions.forEach((version) => appendOption(version, version));
         if (!matchesKnownOption) {
-            options.push(`<option value="${CURRENT_CUSTOM_RUNTIME_OPTION_VALUE}">Current: ${selectedToken}</option>`);
+            appendOption(CURRENT_CUSTOM_RUNTIME_OPTION_VALUE, `Current: ${selectedToken}`);
         }
-        options.push('<option value="custom">Custom</option>');
-        select.innerHTML = options.join('');
+        appendOption('custom', 'Custom');
 
         if (matchesKnownOption) {
             select.value = selectedToken;
@@ -299,6 +304,7 @@ export function createRuntimeLoaderController({
     }
 
     async function applyRuntimeVersionToken(nextToken, { reloadAnimation = true, source = 'settings' } = {}) {
+        const mutationId = ++runtimeVersionMutationId;
         const normalizedCurrent = normalizeRuntimeVersionToken(getRuntimeVersionToken());
         const normalizedNext = normalizeRuntimeVersionToken(nextToken);
         const effectiveCurrent = getEffectiveRuntimeVersionToken(normalizedCurrent);
@@ -321,6 +327,9 @@ export function createRuntimeLoaderController({
 
         try {
             await ensureRuntime(getCurrentRuntime());
+            if (mutationId !== runtimeVersionMutationId) {
+                return;
+            }
             updateVersionInfo();
             if (!reloadAnimation) {
                 return;
@@ -331,6 +340,9 @@ export function createRuntimeLoaderController({
                 await loadRiveAnimation(getCurrentFileUrl(), getCurrentFileName());
             }
         } catch (error) {
+            if (mutationId !== runtimeVersionMutationId) {
+                return;
+            }
             showError(`Failed to load runtime version ${getRuntimeVersionToken()}: ${error.message}`);
             logEvent(
                 'native',

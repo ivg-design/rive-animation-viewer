@@ -240,6 +240,17 @@ function formatArgbHex(value) {
     return `#${rawValue.toString(16).padStart(8, '0').toUpperCase()}`;
 }
 
+function roundSnippetNumber(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+        return 0;
+    }
+    if (Number.isInteger(numeric)) {
+        return numeric;
+    }
+    return Number(numeric.toFixed(2));
+}
+
 function formatSectionLabel(path = '') {
     return String(path || '')
         .split('/')
@@ -251,6 +262,9 @@ function formatSectionLabel(path = '') {
 function formatControlValueLiteral(entry) {
     if (entry.kind === 'color') {
         return JSON.stringify(formatArgbHex(entry.value));
+    }
+    if (entry.kind === 'number') {
+        return String(roundSnippetNumber(entry.value));
     }
     return JSON.stringify(entry.value);
 }

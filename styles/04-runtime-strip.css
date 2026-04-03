@@ -115,11 +115,12 @@
     left: -1px;
     right: -1px;
     top: 50%;
-    height: 1px;
+    height: 2px;
     background: transparent;
     transform: rotate(-13deg);
     transform-origin: center;
     pointer-events: none;
+    border-radius: 999px;
 }
 
 .mcp-dot {
@@ -132,18 +133,19 @@
 
 /* OFF — bridge disabled, crossed out */
 .runtime-chip-mcp[data-mcp-state="off"] {
-    color: #fda4af;
-    opacity: 0.42;
+    color: #ff7d8d;
+    opacity: 0.92;
+    text-shadow: 0 0 10px #ff4d6d22;
 }
 
 .runtime-chip-mcp[data-mcp-state="off"] .mcp-dot {
-    background: #fb7185;
-    box-shadow: none;
+    background: #ff5d73;
+    box-shadow: 0 0 8px #ff5d7355;
 }
 
 .runtime-chip-mcp[data-mcp-state="off"]::after {
-    background: #fb7185;
-    opacity: 0.72;
+    background: #ff5d73;
+    opacity: 0.95;
 }
 
 /* WAITING — bridge enabled, no client connected */
@@ -185,8 +187,13 @@
 }
 
 .runtime-chip-console[data-console-mode="closed"] {
-    color: var(--text-ghost);
-    opacity: 0.72;
+    color: #eef3ff;
+    opacity: 1;
+    border: 1px solid #3c4253;
+    border-radius: 999px;
+    padding: 3px 10px;
+    background: #151921;
+    text-transform: uppercase;
 }
 
 .runtime-chip-console[data-console-mode="events"] {

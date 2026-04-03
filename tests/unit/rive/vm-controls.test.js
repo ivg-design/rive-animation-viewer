@@ -10,6 +10,7 @@ import {
     resolveVmRootInstance,
     safeVmMethodCall,
     rgbAlphaToArgb,
+    shouldResumePlaybackForTrigger,
 } from '../../../src/app/rive/vm-controls.js';
 
 function createVmElements() {
@@ -103,9 +104,11 @@ function createVmHarness() {
     };
 
     const riveInstance = {
-        isPaused: true,
+        isPlaying: false,
+        isStopped: true,
         play: vi.fn(() => {
-            riveInstance.isPaused = false;
+            riveInstance.isPlaying = true;
+            riveInstance.isStopped = false;
         }),
         stateMachineInputs(name) {
             return name === 'Machine' ? [smBoolean, smTrigger] : [];
@@ -486,7 +489,8 @@ describe('rive/vm-controls', () => {
                 },
             }),
             getRiveInstance: () => ({
-                isPaused: false,
+                isPlaying: true,
+                isStopped: false,
                 play: vi.fn(),
                 stateMachineInputs() {
                     return [{ name: 'BrokenTrigger', type: 3 }];
@@ -563,5 +567,13 @@ describe('rive/vm-controls', () => {
                 value: null,
             }),
         ]));
+    });
+
+    it('detects whether playback should resume before firing triggers', () => {
+        expect(shouldResumePlaybackForTrigger(null)).toBe(false);
+        expect(shouldResumePlaybackForTrigger({ isPlaying: true })).toBe(false);
+        expect(shouldResumePlaybackForTrigger({ isPlaying: false })).toBe(true);
+        expect(shouldResumePlaybackForTrigger({ isStopped: true })).toBe(true);
+        expect(shouldResumePlaybackForTrigger({})).toBe(true);
     });
 });

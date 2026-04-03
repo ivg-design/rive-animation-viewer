@@ -3,6 +3,8 @@
 .panel-resizer {
     position: relative;
     cursor: col-resize;
+    min-width: 12px;
+    touch-action: none;
 }
 
 .panel-resizer::before {
@@ -23,6 +25,7 @@
 
 .panel-resizer-horizontal {
     cursor: row-resize;
+    min-height: 12px;
 }
 
 .panel-resizer-horizontal::before {
@@ -150,4 +153,3 @@
     flex: 1;
     min-height: 0;
 }
-

@@ -1,63 +1,156 @@
-class FakeWebSocket {
-    static CONNECTING = 0;
-    static OPEN = 1;
-    static CLOSING = 2;
-    static CLOSED = 3;
-    static instances = [];
+function FakeWebSocket(url) {
+    this.url = url;
+    this.readyState = FakeWebSocket.CONNECTING;
+    this.onclose = null;
+    this.onerror = null;
+    this.onmessage = null;
+    this.onopen = null;
+    FakeWebSocket.instances.push(this);
+}
 
-    constructor(url) {
-        this.url = url;
-        this.readyState = FakeWebSocket.CONNECTING;
-        this.onclose = null;
-        this.onerror = null;
-        this.onmessage = null;
-        this.onopen = null;
-        FakeWebSocket.instances.push(this);
-    }
+FakeWebSocket.CONNECTING = 0;
+FakeWebSocket.OPEN = 1;
+FakeWebSocket.CLOSING = 2;
+FakeWebSocket.CLOSED = 3;
+FakeWebSocket.instances = [];
 
-    accept() {
-        this.readyState = FakeWebSocket.OPEN;
-        this.onopen?.();
-    }
+FakeWebSocket.prototype.accept = function accept() {
+    this.readyState = FakeWebSocket.OPEN;
+    this.onopen?.();
+};
 
-    fail() {
-        this.readyState = FakeWebSocket.CLOSED;
-        this.onclose?.();
-    }
+FakeWebSocket.prototype.fail = function fail() {
+    this.readyState = FakeWebSocket.CLOSED;
+    this.onclose?.();
+};
 
-    close() {
-        this.fail();
-    }
+FakeWebSocket.prototype.close = function close() {
+    this.fail();
+};
 
-    send() {}
+FakeWebSocket.prototype.send = function send() {};
+
+async function flushBridgeMicrotasks() {
+    await Promise.resolve();
+    await Promise.resolve();
 }
 
 describe('platform/mcp-bridge', () => {
-    it('retries quickly and reconnects immediately when focus returns', async () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
         vi.resetModules();
         FakeWebSocket.instances = [];
+        window.localStorage?.clear?.();
+        delete window._mcpBridge;
+        delete window._mcpLogEvent;
+        delete window._mcpUpdateStatus;
+        delete window.__RAV_MCP_PORT__;
+        delete window.__TAURI__;
+    });
 
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it('syncs the bridge port from desktop and reconnects quickly after disconnect', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        vi.stubGlobal('setInterval', vi.fn(() => 1));
+        vi.stubGlobal('clearInterval', vi.fn());
+        window.__TAURI__ = {
+            core: {
+                invoke: vi.fn(async (command) => {
+                    if (command === 'get_mcp_port') {
+                        return 9411;
+                    }
+                    return null;
+                }),
+            },
+        };
+        window._mcpLogEvent = vi.fn();
+        window._mcpUpdateStatus = vi.fn();
+
+        await import('../../../mcp-bridge.js?test=bridge-reconnect');
+        await flushBridgeMicrotasks();
+
+        expect(FakeWebSocket.instances).toHaveLength(1);
+        expect(FakeWebSocket.instances[0].url).toBe('ws://127.0.0.1:9411');
+        expect(window._mcpBridge.port).toBe(9411);
+
+        FakeWebSocket.instances[0].fail();
+        await vi.advanceTimersByTimeAsync(1000);
+        await flushBridgeMicrotasks();
+
+        expect(FakeWebSocket.instances).toHaveLength(2);
+        expect(FakeWebSocket.instances[1].url).toBe('ws://127.0.0.1:9411');
+    });
+
+    it('reconnects immediately when the configured port changes', async () => {
         vi.stubGlobal('WebSocket', FakeWebSocket);
         vi.stubGlobal('setInterval', vi.fn(() => 1));
         vi.stubGlobal('clearInterval', vi.fn());
         window._mcpLogEvent = vi.fn();
         window._mcpUpdateStatus = vi.fn();
 
-        await import('../../../mcp-bridge.js?test=bridge-reconnect');
+        await import('../../../mcp-bridge.js?test=bridge-port');
+        await flushBridgeMicrotasks();
+
+        expect(FakeWebSocket.instances[0].url).toBe('ws://127.0.0.1:9274');
+        window._mcpBridge.setPort(9310);
+        await flushBridgeMicrotasks();
+        expect(FakeWebSocket.instances).toHaveLength(2);
+        expect(FakeWebSocket.instances[1].url).toBe('ws://127.0.0.1:9310');
+        expect(window._mcpBridge.port).toBe(9310);
+    });
+
+    it('deduplicates reconnect attempts while desktop port sync is still pending', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        vi.stubGlobal('setInterval', vi.fn(() => 1));
+        vi.stubGlobal('clearInterval', vi.fn());
+
+        window.__TAURI__ = {
+            core: {
+                invoke: vi.fn((command) => {
+                    if (command === 'get_mcp_port') {
+                        return new Promise((resolve) => {
+                            setTimeout(() => resolve(9274), 10);
+                        });
+                    }
+                    return Promise.resolve(null);
+                }),
+            },
+        };
+        window._mcpLogEvent = vi.fn();
+        window._mcpUpdateStatus = vi.fn();
+
+        await import('../../../mcp-bridge.js?test=bridge-dedup');
+        await flushBridgeMicrotasks();
+        expect(window._mcpBridge).toBeDefined();
+
+        window._mcpBridge.reconnect();
+        await flushBridgeMicrotasks();
+
+        await vi.advanceTimersByTimeAsync(10);
+        await flushBridgeMicrotasks();
 
         expect(FakeWebSocket.instances).toHaveLength(1);
-        expect(window._mcpBridge.state).toBe('waiting');
+        expect(FakeWebSocket.instances[0].url).toBe('ws://127.0.0.1:9274');
+    });
 
-        FakeWebSocket.instances[0].fail();
-        vi.advanceTimersByTime(1000);
-        expect(FakeWebSocket.instances).toHaveLength(2);
+    it('blocks script execution tools when MCP script access is disabled', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        vi.stubGlobal('setInterval', vi.fn(() => 1));
+        vi.stubGlobal('clearInterval', vi.fn());
+        window._mcpLogEvent = vi.fn();
+        window._mcpUpdateStatus = vi.fn();
 
-        FakeWebSocket.instances[1].fail();
-        window.dispatchEvent(new Event('focus'));
-        expect(FakeWebSocket.instances).toHaveLength(3);
+        await import('../../../mcp-bridge.js?test=bridge-script-access');
+        await flushBridgeMicrotasks();
 
-        FakeWebSocket.instances[2].accept();
-        expect(window._mcpBridge.connected).toBe(true);
-        expect(window._mcpUpdateStatus).toHaveBeenCalledWith('connected');
+        await expect(window._mcpBridge.commands.rav_eval({ expression: '1 + 1' }))
+            .rejects.toThrow('MCP script access is disabled');
+
+        window.__RAV_MCP_SCRIPT_ACCESS__ = true;
+        await expect(window._mcpBridge.commands.rav_eval({ expression: '1 + 1' }))
+            .resolves.toEqual({ result: 2 });
     });
 });

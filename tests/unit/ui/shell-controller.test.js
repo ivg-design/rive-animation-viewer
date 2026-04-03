@@ -179,7 +179,7 @@ describe('ui/shell-controller', () => {
         }));
     });
 
-    it('manages settings popover, demo button state, and cleanup', () => {
+    it('manages settings popover, demo button state, and cleanup', async () => {
         const elements = createElements();
         const intervalCallbacks = [];
         const clearIntervalFn = vi.fn();
@@ -188,8 +188,11 @@ describe('ui/shell-controller', () => {
             callbacks: {
                 getCurrentLayoutFit: () => 'contain',
                 getCurrentRuntime: () => 'webgl2',
-                getTauriInvoker: () => null,
+                getTauriInvoker: () => vi.fn(),
+                logEvent: vi.fn(),
+                showError: vi.fn(),
                 syncTransparencyControls: vi.fn(),
+                updateInfo: vi.fn(),
             },
             clearIntervalFn,
             clearTimeoutFn,
@@ -213,7 +216,7 @@ describe('ui/shell-controller', () => {
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
         expect(elements.settingsPopover.hidden).toBe(true);
 
-        expect(elements.demoBundleButton.disabled).toBe(true);
+        expect(elements.demoBundleButton.disabled).toBe(false);
         expect(intervalCallbacks).toHaveLength(1);
 
         controller.dispose();
@@ -442,6 +445,7 @@ describe('ui/shell-controller', () => {
         documentListeners.click({ target: document.createElement('div') });
         expect(elements.settingsPopover.hidden).toBe(true);
 
+        elements.toggleLeftPanelButton.click();
         document.body.style.cursor = '';
         elements.leftResizer.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 300 }));
         expect(document.body.style.cursor).toBe('');

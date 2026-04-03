@@ -10,6 +10,10 @@
     background: #0d0d0d;
 }
 
+.event-log-panel[hidden] {
+    display: none !important;
+}
+
 .event-log-header {
     min-height: 32px;
     height: 32px;
@@ -226,4 +230,3 @@
     background: var(--border-bright);
     background-clip: padding-box;
 }
-

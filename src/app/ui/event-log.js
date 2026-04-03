@@ -1,9 +1,11 @@
 const EVENT_LOG_LIMIT = 500;
 
 export function createEventLogController({
+    documentRef = globalThis.document,
     elements,
     handleResize,
     onCollapsedChange = () => {},
+    setTimeoutFn = globalThis.setTimeout,
 }) {
     const eventLogEntries = [];
     const eventFilterState = {
@@ -14,6 +16,45 @@ export function createEventLogController({
         search: '',
     };
     let eventLogSequence = 0;
+    let followLatest = true;
+
+    function getScrollContainer() {
+        return elements.eventLogBody || elements.eventLogList?.parentElement || null;
+    }
+
+    function syncFollowButton() {
+        const button = elements.eventLogFollowButton;
+        if (!button) {
+            return;
+        }
+        button.classList.toggle('is-active', followLatest);
+        button.setAttribute('aria-pressed', String(followLatest));
+        button.textContent = followLatest ? 'FOLLOW' : 'FOLLOW OFF';
+        button.title = followLatest
+            ? 'Newest events stay pinned in view'
+            : 'Pinned follow is off';
+    }
+
+    function syncFollowStateFromScroll() {
+        const container = getScrollContainer();
+        if (!container) {
+            return;
+        }
+        const nextFollowLatest = container.scrollTop <= 6;
+        if (nextFollowLatest === followLatest) {
+            return;
+        }
+        followLatest = nextFollowLatest;
+        syncFollowButton();
+    }
+
+    function scrollLatestIntoView() {
+        const container = getScrollContainer();
+        if (!container) {
+            return;
+        }
+        container.scrollTop = 0;
+    }
 
     function syncFilterToggle(element, active) {
         element.classList.toggle('is-active', active);
@@ -71,6 +112,17 @@ export function createEventLogController({
         if (elements.showEventLogButton) {
             elements.showEventLogButton.hidden = true;
         }
+        if (elements.eventLogFollowButton) {
+            elements.eventLogFollowButton.addEventListener('click', () => {
+                followLatest = !followLatest;
+                syncFollowButton();
+                if (followLatest) {
+                    scrollLatestIntoView();
+                }
+            });
+        }
+        getScrollContainer()?.addEventListener('scroll', syncFollowStateFromScroll);
+        syncFollowButton();
 
         if (elements.eventLogHeader && elements.eventLogPanel && elements.centerPanel) {
             elements.eventLogHeader.addEventListener('click', (event) => {
@@ -91,11 +143,14 @@ export function createEventLogController({
         const nextCollapsed = Boolean(collapsed);
         elements.centerPanel?.classList.toggle('event-log-collapsed', nextCollapsed);
         elements.eventLogPanel?.classList.toggle('collapsed', nextCollapsed);
+        if (elements.eventLogPanel) {
+            elements.eventLogPanel.hidden = nextCollapsed;
+        }
         if (elements.showEventLogButton) {
-            elements.showEventLogButton.hidden = !nextCollapsed;
+            elements.showEventLogButton.hidden = true;
         }
         handleResize();
-        setTimeout(handleResize, 300);
+        setTimeoutFn(handleResize, 300);
         onCollapsedChange(nextCollapsed);
     }
 
@@ -142,28 +197,34 @@ export function createEventLogController({
         });
 
         count.textContent = String(filtered.length);
+        const scrollContainer = getScrollContainer();
+        const previousHeight = scrollContainer?.scrollHeight || 0;
+        const previousTop = scrollContainer?.scrollTop || 0;
         list.innerHTML = '';
         if (!filtered.length) {
-            const empty = document.createElement('p');
+            const empty = documentRef.createElement('p');
             empty.className = 'empty-state';
             empty.textContent = 'No events match current filters.';
             list.appendChild(empty);
+            if (followLatest) {
+                scrollLatestIntoView();
+            }
             return;
         }
 
         filtered.forEach((entry) => {
-            const row = document.createElement('div');
+            const row = documentRef.createElement('div');
             row.className = 'event-log-row';
 
-            const time = document.createElement('span');
+            const time = documentRef.createElement('span');
             time.className = 'event-row-time';
             time.textContent = formatEventTime(entry.timestamp);
 
-            const source = document.createElement('span');
+            const source = documentRef.createElement('span');
             source.className = `event-row-kind ${entry.source}`;
             source.textContent = entry.source === 'rive-user' ? 'USER' : entry.source.toUpperCase();
 
-            const message = document.createElement('span');
+            const message = documentRef.createElement('span');
             message.className = 'event-row-message';
             message.textContent = formatEventRowMessage(entry);
             message.title = message.textContent;
@@ -173,6 +234,16 @@ export function createEventLogController({
             row.appendChild(message);
             list.appendChild(row);
         });
+
+        if (!scrollContainer) {
+            return;
+        }
+        if (followLatest) {
+            scrollLatestIntoView();
+            return;
+        }
+        const heightDelta = scrollContainer.scrollHeight - previousHeight;
+        scrollContainer.scrollTop = previousTop + Math.max(0, heightDelta);
     }
 
     function formatEventRowMessage(entry) {
@@ -232,6 +303,7 @@ export function createEventLogController({
     return {
         getEntriesSnapshot,
         getFilterStateSnapshot,
+        isFollowingLatest: () => followLatest,
         isCollapsed,
         logEvent,
         resetEventLog,

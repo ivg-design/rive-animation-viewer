@@ -7,6 +7,7 @@ function buildElements() {
         <div id="event-log-header">
             <div class="event-log-summary-right"></div>
         </div>
+        <button id="event-log-follow-btn"></button>
         <button id="event-filter-native"></button>
         <button id="event-filter-rive-user"></button>
         <button id="event-filter-ui"></button>
@@ -15,13 +16,16 @@ function buildElements() {
         <button id="event-log-clear-btn"></button>
         <button id="show-event-log-btn"></button>
         <div id="event-log-count"></div>
-        <div id="event-log-list"></div>
+        <div id="event-log-body" style="height:140px; overflow:auto">
+            <div id="event-log-list"></div>
+        </div>
     `;
 
     return {
         centerPanel: document.getElementById('center-panel'),
         eventLogPanel: document.getElementById('event-log-panel'),
         eventLogHeader: document.getElementById('event-log-header'),
+        eventLogFollowButton: document.getElementById('event-log-follow-btn'),
         eventFilterNative: document.getElementById('event-filter-native'),
         eventFilterRiveUser: document.getElementById('event-filter-rive-user'),
         eventFilterUi: document.getElementById('event-filter-ui'),
@@ -30,6 +34,7 @@ function buildElements() {
         eventLogClearButton: document.getElementById('event-log-clear-btn'),
         showEventLogButton: document.getElementById('show-event-log-btn'),
         eventLogCount: document.getElementById('event-log-count'),
+        eventLogBody: document.getElementById('event-log-body'),
         eventLogList: document.getElementById('event-log-list'),
     };
 }
@@ -84,5 +89,22 @@ describe('ui/event-log', () => {
         document.getElementById('event-log-clear-btn').click();
         expect(controller.getEntriesSnapshot()).toHaveLength(1);
         expect(document.getElementById('event-log-list').textContent).toContain('Event log cleared.');
+    });
+
+    it('turns follow off when scrolled away and back on when toggled', () => {
+        const controller = createEventLogController({
+            elements: buildElements(),
+            handleResize: vi.fn(),
+        });
+
+        controller.setupEventLog();
+        controller.logEvent('ui', 'ready', 'Viewer ready');
+        const body = document.getElementById('event-log-body');
+        body.scrollTop = 32;
+        body.dispatchEvent(new Event('scroll'));
+        expect(controller.isFollowingLatest()).toBe(false);
+
+        document.getElementById('event-log-follow-btn').click();
+        expect(controller.isFollowingLatest()).toBe(true);
     });
 });

@@ -13,7 +13,7 @@ export const RUNTIME_PACKAGE_NAMES = {
 export const RUNTIME_VERSION_DISCOVERY_URL = 'https://registry.npmjs.org/@rive-app/webgl2';
 export const RUNTIME_VERSION_OPTION_COUNT = 4;
 
-function parseSemverParts(version) {
+export function parseSemverParts(version) {
     const match = /(\d+)\.(\d+)\.(\d+)/.exec(String(version || '').trim());
     if (!match) {
         return null;
@@ -75,3 +75,4 @@ export const RUNTIME_META_STORAGE_KEY = 'riveRuntimeMeta';
 export const VM_CONTROL_KINDS = new Set(['number', 'boolean', 'string', 'enum', 'color', 'trigger']);
 export const VM_CONTROL_SYNC_INTERVAL_MS = 120;
 export const OPEN_FILE_POLL_INTERVAL_MS = 900;
+export const MCP_SCRIPT_ACCESS_STORAGE_KEY = 'rav-mcp-script-access-enabled';

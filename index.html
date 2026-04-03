@@ -139,6 +139,32 @@
                         <span class="mcp-node-dot"></span>
                         <span class="mcp-node-label" id="mcp-node-label">Checking bundled MCP sidecar...</span>
                     </div>
+                    <div class="mcp-setup-port-row">
+                        <label class="mcp-setup-port-label" for="mcp-script-access-toggle">Script Access</label>
+                        <div class="mcp-setup-port-controls">
+                            <button type="button" id="mcp-script-access-toggle" class="mcp-install-btn">OFF</button>
+                        </div>
+                    </div>
+                    <p class="mcp-script-access-note" id="mcp-script-access-note">
+                        Read-only MCP mode. Enable this to allow MCP clients to run JavaScript with <code>rav_eval</code>,
+                        <code>rav_console_exec</code>, and <code>rav_apply_code</code>.
+                    </p>
+                    <div class="mcp-setup-port-row">
+                        <label class="mcp-setup-port-label" for="mcp-port-input">MCP Port</label>
+                        <div class="mcp-setup-port-controls">
+                            <input
+                                type="number"
+                                id="mcp-port-input"
+                                class="settings-input mcp-port-input"
+                                min="1"
+                                max="65535"
+                                step="1"
+                                placeholder="9274"
+                                inputmode="numeric"
+                            >
+                            <button type="button" id="mcp-port-apply-btn" class="mcp-install-btn">SET</button>
+                        </div>
+                    </div>
                     <div class="mcp-setup-path-section">
                         <h3>Server path</h3>
                         <div class="mcp-snippet-block">
@@ -156,6 +182,7 @@
                                 <div class="mcp-snippet-block-header">
                                     <span class="mcp-client-status" id="mcp-client-status-claude-code">Detecting...</span>
                                     <button type="button" class="mcp-install-btn" id="mcp-install-claude-code-btn" data-install-target="claude-code">INSTALL</button>
+                                    <button type="button" class="mcp-remove-btn" id="mcp-remove-claude-code-btn" data-remove-target="claude-code">REMOVE</button>
                                     <button type="button" class="mcp-copy-btn" data-target="snippet-claude-code">COPY</button>
                                 </div>
                                 <pre id="snippet-claude-code"></pre>
@@ -168,6 +195,7 @@
                                 <div class="mcp-snippet-block-header">
                                     <span class="mcp-client-status" id="mcp-client-status-claude-desktop">Detecting...</span>
                                     <button type="button" class="mcp-install-btn" id="mcp-install-claude-desktop-btn" data-install-target="claude-desktop">INSTALL</button>
+                                    <button type="button" class="mcp-remove-btn" id="mcp-remove-claude-desktop-btn" data-remove-target="claude-desktop">REMOVE</button>
                                     <button type="button" class="mcp-copy-btn" data-target="snippet-claude-desktop">COPY</button>
                                 </div>
                                 <pre id="snippet-claude-desktop"></pre>
@@ -180,6 +208,7 @@
                                 <div class="mcp-snippet-block-header">
                                     <span class="mcp-client-status" id="mcp-client-status-codex">Detecting...</span>
                                     <button type="button" class="mcp-install-btn" id="mcp-install-codex-btn" data-install-target="codex">INSTALL</button>
+                                    <button type="button" class="mcp-remove-btn" id="mcp-remove-codex-btn" data-remove-target="codex">REMOVE</button>
                                     <button type="button" class="mcp-copy-btn" data-target="snippet-codex">COPY</button>
                                 </div>
                                 <pre id="snippet-codex"></pre>
@@ -251,21 +280,22 @@
             <aside class="panel code-panel" id="config-panel">
                 <div class="panel-heading">
                     <div class="panel-heading-main">
-                        <span class="panel-marker"></span>
-                        <span>SCRIPT EDITOR</span>
-                        <button type="button" id="editor-live-mode-chip" class="pill editor-live-mode-chip" data-live-source="internal" title="Running RAV internal wiring. Click to switch to the editor code.">LIVE: INTERNAL</button>
+                        <button type="button" id="editor-live-mode-chip" class="editor-live-mode-chip" data-live-source="internal" title="Running RAV internal wiring. Click to switch to the editor code.">
+                            <span class="panel-marker editor-live-mode-dot" aria-hidden="true"></span>
+                            <span class="panel-heading-label editor-live-mode-label">EDITOR</span>
+                        </button>
                     </div>
                     <div class="panel-heading-actions">
                         <button type="button" id="toggle-script-console-btn" class="icon-btn-sm" title="Toggle JavaScript Console" aria-label="Toggle JavaScript Console" aria-pressed="false">
                             <i data-lucide="square-terminal" class="lucide-14"></i>
                         </button>
-                        <button type="button" id="inject-vm-explorer-btn" class="icon-btn-sm" title="Inject VM Explorer" aria-label="Inject VM Explorer" hidden>
-                            <i data-lucide="terminal" class="lucide-14"></i>
-                        </button>
-                        <button type="button" id="apply-editor-config-btn" class="icon-btn-sm" title="Apply editor config and refresh current state" aria-label="Apply editor config and refresh current state">
-                            <svg class="lucide-14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v5h-5"/><path d="M9 12l2 2 4-4"/>
+                        <button type="button" id="inject-vm-explorer-btn" class="icon-btn-sm vm-explorer-inject-btn" title="Inject VM Explorer" aria-label="Inject VM Explorer">
+                            <svg class="lucide-14 vm-explorer-inject-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" aria-hidden="true">
+                                <path fill="currentColor" d="M237.66,66.34l-48-48a8,8,0,0,0-11.32,11.32L196.69,48,168,76.69,133.66,42.34a8,8,0,0,0-11.32,11.32L128.69,60l-84,84A15.86,15.86,0,0,0,40,155.31v49.38L18.34,226.34a8,8,0,0,0,11.32,11.32L51.31,216h49.38A15.86,15.86,0,0,0,112,211.31l84-84,6.34,6.35a8,8,0,0,0,11.32-11.32L179.31,88,208,59.31l18.34,18.35a8,8,0,0,0,11.32-11.32ZM100.69,200H56V155.31l18-18,20.34,20.35a8,8,0,0,0,11.32-11.32L85.31,126,98,113.31l20.34,20.35a8,8,0,0,0,11.32-11.32L109.31,102,140,71.31,184.69,116Z"></path>
                             </svg>
+                        </button>
+                        <button type="button" id="apply-editor-config-btn" class="icon-btn-sm editor-apply-btn" title="Apply editor config and refresh current state" aria-label="Apply editor config and refresh current state">
+                            <span>APPLY</span>
                         </button>
                         <button type="button" id="toggle-left-panel-btn" class="icon-btn panel-toggle-btn" title="Hide Script Panel" aria-label="Hide Script Panel" aria-pressed="true">
                             <i data-lucide="panel-left-close" class="lucide-14"></i>
@@ -335,6 +365,7 @@
                                 <button type="button" id="event-filter-ui" class="event-filter-toggle is-active" aria-pressed="true">UI</button>
                                 <button type="button" id="event-filter-mcp" class="event-filter-toggle is-active" aria-pressed="true">MCP</button>
                             </div>
+                            <button type="button" class="btn-compact console-follow-btn is-active" id="event-log-follow-btn" aria-pressed="true">FOLLOW</button>
                             <input type="search" id="event-filter-search" class="event-filter-search" placeholder="SEARCH">
                             <button type="button" class="btn-compact" id="event-log-clear-btn">CLEAR</button>
                         </div>
@@ -345,15 +376,18 @@
                                 <button type="button" id="script-console-filter-warning" class="event-filter-toggle" aria-pressed="false">WARNING</button>
                                 <button type="button" id="script-console-filter-error" class="event-filter-toggle" aria-pressed="false">ERROR</button>
                             </div>
+                            <button type="button" class="btn-compact console-follow-btn is-active" id="script-console-follow-btn" aria-pressed="true">FOLLOW</button>
                             <input type="search" id="script-console-filter-search" class="event-filter-search" placeholder="SEARCH">
                             <button type="button" class="btn-compact" id="script-console-copy-btn">COPY</button>
                             <button type="button" class="btn-compact" id="script-console-clear-btn">CLEAR</button>
                         </div>
                     </div>
-                    <div class="event-log-body">
+                    <div class="event-log-body" id="event-log-body">
                         <div class="event-log-list" id="event-log-list"></div>
                         <div class="script-console-view" id="script-console-view" hidden>
-                            <div class="script-console-output" id="script-console-output" aria-label="JavaScript Console"></div>
+                            <div class="script-console-output" id="script-console-output" aria-label="JavaScript Console">
+                                <div class="script-console-log-list" id="script-console-log-list"></div>
+                            </div>
                             <div class="script-console-repl" id="script-console-repl">
                                 <span class="script-console-repl-prompt">&gt;</span>
                                 <input type="text" id="script-console-repl-input" class="script-console-repl-input" placeholder="Type JS and press Enter" autocomplete="off" spellcheck="false">
