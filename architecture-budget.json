@@ -1,0 +1,37 @@
+{
+  "defaultMaxLines": 400,
+  "recommendSubgroupAt": 8,
+  "maxDirectSourceFilesPerFolder": 10,
+  "sourceExtensions": [
+    ".js",
+    ".mjs",
+    ".ts",
+    ".tsx",
+    ".css",
+    ".html",
+    ".rs"
+  ],
+  "includeRoots": [
+    "index.html",
+    "mcp-server",
+    "src/app",
+    "src-tauri/src",
+    "styles"
+  ],
+  "excludePrefixes": [
+    "dist",
+    "target",
+    "node_modules",
+    "vendor",
+    "coverage",
+    "tests",
+    "web",
+    "src-tauri/gen",
+    "src/app/snippets/generated"
+  ],
+  "grandfatheredMaxLines": {},
+  "folderRoots": [
+    "src/app",
+    "src-tauri/src"
+  ]
+}

@@ -65,6 +65,13 @@ export function createStatusController({
         return 'dev';
     }
 
+    function getResolvedAppVersion() {
+        if (resolvedAppVersion && resolvedAppVersion !== appVersionPlaceholder) {
+            return resolvedAppVersion;
+        }
+        return 'dev';
+    }
+
     function getBuildNumberLabel() {
         const full = getBuildIdLabel();
         if (!full || full === 'dev') {
@@ -226,6 +233,7 @@ export function createStatusController({
     return {
         getBuildIdLabel,
         getBuildNumberLabel,
+        getResolvedAppVersion,
         getShortBuildIdLabel,
         hideError,
         refreshInfoStrip,

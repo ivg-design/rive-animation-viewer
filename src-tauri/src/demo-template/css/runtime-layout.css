@@ -1,0 +1,160 @@
+/* ── Runtime strip ───────────────────────────────────────── */
+
+.runtime-strip {
+    height: 36px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-zinc);
+    color: var(--text-dim);
+    font-size: 10px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-width: 0;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-weight: 500;
+}
+
+.runtime-strip-left,
+.runtime-strip-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.runtime-strip-left {
+    flex: 1;
+    min-width: 0;
+}
+
+.runtime-strip-sep {
+    color: var(--border-bright);
+    font-size: 10px;
+}
+
+.runtime-chip {
+    height: auto;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: var(--text-dim);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.runtime-chip-runtime {
+    color: var(--text-ghost);
+}
+
+.runtime-chip-runtime .dot {
+    width: 6px;
+    height: 6px;
+}
+
+.runtime-chip-file {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-dim);
+}
+
+.runtime-chip-status {
+    color: var(--text-ghost);
+}
+
+#canvas-container { grid-row: 1; }
+.runtime-strip { grid-row: 2; }
+.panel-resizer-horizontal { grid-row: 3; }
+.event-log-panel { grid-row: 4; }
+
+/* ── Resizers ─────────────────────────────────────────────── */
+
+.panel-resizer {
+    position: relative;
+    cursor: col-resize;
+}
+
+.panel-resizer::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    left: calc(50% - 1px);
+    width: 2px;
+    border-radius: 99px;
+    background: var(--border);
+}
+
+.panel-resizer:hover::before,
+.panel-resizer.is-dragging::before {
+    background: var(--neon);
+}
+
+.panel-resizer-horizontal {
+    cursor: row-resize;
+}
+
+.panel-resizer-horizontal::before {
+    left: 8px;
+    right: 8px;
+    top: calc(50% - 1px);
+    bottom: auto;
+    width: auto;
+    height: 2px;
+}
+
+/* ── Edge toggles ─────────────────────────────────────────── */
+
+.workspace-edge-toggle {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-dim);
+    cursor: pointer;
+    z-index: 20;
+    opacity: 1;
+    transition: opacity 0.16s ease, background 0.16s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.workspace-edge-toggle:hover {
+    background: #2d2d33;
+    border-color: var(--border-bright);
+}
+
+.workspace-edge-toggle-right {
+    right: 8px;
+}
+
+.workspace-edge-toggle-bottom {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    top: auto;
+    transform: translateX(-50%);
+}
+
+.center-panel:not(.event-log-collapsed) .workspace-edge-toggle-bottom {
+    opacity: 0;
+    pointer-events: none;
+}
+

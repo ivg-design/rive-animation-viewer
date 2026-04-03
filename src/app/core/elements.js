@@ -94,6 +94,7 @@ export function getElements(documentRef = document) {
         instantiationPresetAllButton: documentRef.getElementById('instantiation-preset-all-btn'),
         instantiationPresetNoneButton: documentRef.getElementById('instantiation-preset-none-btn'),
         instantiationPackageSourceSelect: documentRef.getElementById('instantiation-package-source-select'),
+        instantiationSnippetModeSelect: documentRef.getElementById('instantiation-snippet-mode-select'),
         instantiationPreviewStatus: documentRef.getElementById('instantiation-preview-status'),
         instantiationPreviewOutput: documentRef.getElementById('instantiation-preview-output'),
         copyInstantiationPreviewButton: documentRef.getElementById('copy-instantiation-preview-btn'),

@@ -7,8 +7,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const pkgPath = join(__dirname, 'package.json');
 const { version } = JSON.parse(readFileSync(pkgPath, 'utf8'));
-const appEntryPath = join(__dirname, 'app.js').replace(/\\/g, '/');
-const appJsUrl = '/app.js';
+const appEntryPath = join(__dirname, 'src', 'app', 'main-entry.js').replace(/\\/g, '/');
+const appJsUrl = '/src/app/main-entry.js';
 
 function injectVersionPlugin() {
     return {

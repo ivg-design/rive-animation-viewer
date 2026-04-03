@@ -87,6 +87,71 @@ body.transparency-mode .center-panel {
     background: transparent !important;
 }
 
+:is(
+    #code-editor .cm-scroller,
+    #code-editor textarea,
+    .mcp-setup-body,
+    .instantiation-controls-tree,
+    .instantiation-preview-output,
+    .about-dialog-body,
+    .about-dialog-dependencies
+) {
+    scrollbar-width: thin;
+    scrollbar-color: #313542 #0f1015;
+}
+
+:is(
+    #code-editor .cm-scroller,
+    #code-editor textarea,
+    .mcp-setup-body,
+    .instantiation-controls-tree,
+    .instantiation-preview-output,
+    .about-dialog-body,
+    .about-dialog-dependencies
+)::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+:is(
+    #code-editor .cm-scroller,
+    #code-editor textarea,
+    .mcp-setup-body,
+    .instantiation-controls-tree,
+    .instantiation-preview-output,
+    .about-dialog-body,
+    .about-dialog-dependencies
+)::-webkit-scrollbar-track {
+    background: #0f1015;
+    border-radius: 10px;
+}
+
+:is(
+    #code-editor .cm-scroller,
+    #code-editor textarea,
+    .mcp-setup-body,
+    .instantiation-controls-tree,
+    .instantiation-preview-output,
+    .about-dialog-body,
+    .about-dialog-dependencies
+)::-webkit-scrollbar-thumb {
+    background: #313542;
+    border: 1px solid #0f111a;
+    border-radius: 10px;
+}
+
+:is(
+    #code-editor .cm-scroller,
+    #code-editor textarea,
+    .mcp-setup-body,
+    .instantiation-controls-tree,
+    .instantiation-preview-output,
+    .about-dialog-body,
+    .about-dialog-dependencies
+)::-webkit-scrollbar-thumb:hover {
+    background: #444b5d;
+}
+
 .app-shell {
     height: 100%;
     display: flex;

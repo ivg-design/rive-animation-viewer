@@ -69,7 +69,7 @@ describe('platform/mcp-bridge', () => {
         window._mcpLogEvent = vi.fn();
         window._mcpUpdateStatus = vi.fn();
 
-        await import('../../../mcp-bridge.js?test=bridge-reconnect');
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-reconnect');
         await flushBridgeMicrotasks();
 
         expect(FakeWebSocket.instances).toHaveLength(1);
@@ -91,7 +91,7 @@ describe('platform/mcp-bridge', () => {
         window._mcpLogEvent = vi.fn();
         window._mcpUpdateStatus = vi.fn();
 
-        await import('../../../mcp-bridge.js?test=bridge-port');
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-port');
         await flushBridgeMicrotasks();
 
         expect(FakeWebSocket.instances[0].url).toBe('ws://127.0.0.1:9274');
@@ -122,7 +122,7 @@ describe('platform/mcp-bridge', () => {
         window._mcpLogEvent = vi.fn();
         window._mcpUpdateStatus = vi.fn();
 
-        await import('../../../mcp-bridge.js?test=bridge-dedup');
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-dedup');
         await flushBridgeMicrotasks();
         expect(window._mcpBridge).toBeDefined();
 
@@ -143,7 +143,7 @@ describe('platform/mcp-bridge', () => {
         window._mcpLogEvent = vi.fn();
         window._mcpUpdateStatus = vi.fn();
 
-        await import('../../../mcp-bridge.js?test=bridge-script-access');
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-script-access');
         await flushBridgeMicrotasks();
 
         await expect(window._mcpBridge.commands.rav_eval({ expression: '1 + 1' }))
@@ -162,7 +162,7 @@ describe('platform/mcp-bridge', () => {
         window._mcpUpdateStatus = vi.fn();
         window.__RAV_MCP_SCRIPT_ACCESS__ = true;
 
-        await import('../../../mcp-bridge.js?test=bridge-rive-preview');
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-rive-preview');
         await flushBridgeMicrotasks();
 
         window.riveInst = {
@@ -201,7 +201,7 @@ describe('platform/mcp-bridge', () => {
         window._mcpGetVmExplorerSnippetState = vi.fn(() => ({ injected: false }));
         window._mcpSetVmExplorerSnippetEnabled = vi.fn(async (enabled) => ({ injected: enabled }));
 
-        await import('../../../mcp-bridge.js?test=bridge-configure-workspace');
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-configure-workspace');
         await flushBridgeMicrotasks();
 
         await expect(window._mcpBridge.commands.rav_configure_workspace({

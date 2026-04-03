@@ -38,10 +38,6 @@ describe('ui/code-editor', () => {
         document.body.innerHTML = '<button id="editor-live-mode-chip"></button><div id="code-editor"></div>';
 
         const refreshCurrentState = vi.fn().mockResolvedValue(true);
-        const fetchImpl = vi.fn(async () => ({
-            ok: true,
-            text: async () => 'const vmExplorerSnippet = `onLoad: () => { vmExplore(); }`;',
-        }));
         const controller = createCodeEditorController({
             callbacks: {
                 getTauriInvoker: () => vi.fn().mockResolvedValue(undefined),
@@ -50,7 +46,6 @@ describe('ui/code-editor', () => {
                 showError: vi.fn(),
                 updateInfo: vi.fn(),
             },
-            fetchImpl,
             getCurrentFileName: () => 'demo.riv',
             getCurrentFileUrl: () => 'blob:demo',
             loadCodeMirror: async () => false,
@@ -86,13 +81,12 @@ describe('ui/code-editor', () => {
         }));
 
         await controller.injectCodeSnippet();
-        expect(fetchImpl).toHaveBeenCalledWith('/vm-explorer-snippet.js');
-        expect(controller.getEditorCode()).toContain('vmExplore();');
+        expect(controller.getEditorCode()).toContain('window.vmExplore = exploreVmLevel;');
         expect(controller.getLiveConfigState().draftDirty).toBe(true);
         expect(controller.getVmExplorerSnippetState()).toEqual({ injected: true });
 
         await controller.injectCodeSnippet();
-        expect(controller.getEditorCode()).not.toContain('vmExplore();');
+        expect(controller.getEditorCode()).not.toContain('window.vmExplore = exploreVmLevel;');
         expect(controller.getVmExplorerSnippetState()).toEqual({ injected: false });
 
         controller.setEditorCode('({ autoplay: false })');
@@ -113,7 +107,6 @@ describe('ui/code-editor', () => {
                 showError,
                 updateInfo: vi.fn(),
             },
-            fetchImpl: vi.fn(async () => ({ ok: false })),
             getCurrentFileName: () => null,
             getCurrentFileUrl: () => null,
             loadCodeMirror: async () => false,
@@ -127,7 +120,7 @@ describe('ui/code-editor', () => {
 
         await controller.setupCodeEditor();
         await controller.injectCodeSnippet();
-        expect(showError).toHaveBeenCalledWith('Could not load VM explorer snippet');
+        expect(controller.getVmExplorerSnippetState()).toEqual({ injected: true });
     });
 
     it('can mount later when the editor container appears after the first setup attempt', async () => {
@@ -234,10 +227,6 @@ describe('ui/code-editor', () => {
                 showError: vi.fn(),
                 updateInfo: vi.fn(),
             },
-            fetchImpl: vi.fn(async () => ({
-                ok: true,
-                text: async () => 'const vmExplorerSnippet = `onLoad: () => { vmExplore(); }`;',
-            })),
             getCurrentFileName: () => 'demo.riv',
             getCurrentFileUrl: () => 'blob:demo',
             loadCodeMirror: async () => false,

@@ -133,6 +133,15 @@ RAV includes a built-in MCP (Model Context Protocol) sidecar that lets Claude Co
 
 #### Architecture
 
+Runtime source structure is now enforced by an architecture budget:
+
+- [ARCHITECTURE.md](/Users/ivg/github/rive-animation-viewer-audit-20260401/ARCHITECTURE.md) defines module and folder rules
+- [architecture-budget.json](/Users/ivg/github/rive-animation-viewer-audit-20260401/architecture-budget.json) locks current oversized files so they cannot keep growing
+- `.dependency-cruiser.cjs` enforces layer boundaries and cycle bans
+- `npm run check:architecture` and `npm run check:deps` run automatically as part of `npm run test`
+
+The key rule is simple: new hand-written source files may not exceed `400` lines, and folders must subgroup before they turn into flat dumping grounds.
+
 ```
 MCP Client ←(stdio)→ rav-mcp sidecar ←(WebSocket :9274)→ RAV Frontend
 ```
@@ -312,7 +321,7 @@ The editor intercepts Tab key events when focused:
 - Manually inserts/removes spaces at cursor position
 
 ### VM Explorer Architecture
-- Loaded as external module from `vm-explorer-snippet.js` (contains only functional code)
+- Loaded as external module from `src/app/snippets/vm-explorer-snippet.js` (contains only functional code)
 - Usage guide displayed when injecting, not in the snippet itself
 - Walks ViewModelInstance property trees recursively
 - Builds path references for direct access

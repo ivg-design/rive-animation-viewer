@@ -109,7 +109,7 @@ export function createGlobalBindingsController({
             updateMcpStatusChip(elements.mcpStatusChip, state);
         };
         windowRef._mcpExportDemoToPath = async (outputPath) => exportDemoToPath(outputPath);
-        windowRef._mcpGenerateWebInstantiationCode = async (packageSource) => getGenerateWebInstantiationCode(packageSource);
+        windowRef._mcpGenerateWebInstantiationCode = async (packageSource, snippetMode) => getGenerateWebInstantiationCode(packageSource, snippetMode);
         windowRef._mcpSwitchArtboard = switchArtboard;
         windowRef._mcpResetArtboard = resetToDefaultArtboard;
         windowRef._mcpGetArtboardState = () => getArtboardStateSnapshot();

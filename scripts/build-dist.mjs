@@ -116,21 +116,12 @@ async function build() {
   const numberedPrefix = `b${buildNumber.padStart(4, '0')}`;
   const buildId = process.env.APP_BUILD_ID || `${numberedPrefix}-${getBuildTimestamp()}-${getGitShortSha()}`;
 
-  const filesToCopy = ['index.html', 'style.css', 'app.js', 'mcp-bridge.js', 'vm-explorer-snippet.js', 'README.md', 'package.json'];
+  const filesToCopy = ['index.html', 'style.css', 'README.md', 'package.json'];
 
   for (const file of filesToCopy) {
     const src = path.join(root, file);
     try {
-      if (file === 'app.js') {
-        let content = await fs.readFile(src, 'utf8');
-        content = content.replace(/__APP_VERSION__/g, pkg.version);
-        content = content.replace(/__APP_BUILD__/g, buildId);
-        const destPath = path.join(distDir, file);
-        await ensureDir(path.dirname(destPath));
-        await fs.writeFile(destPath, content);
-      } else {
-        await copyFile(src, path.join(distDir, file));
-      }
+      await copyFile(src, path.join(distDir, file));
     } catch (error) {
       if (error.code === 'ENOENT') {
         console.warn(`Skipping missing file: ${file}`);
@@ -153,6 +144,12 @@ async function build() {
       }
     }
   }
+
+  const mainEntryPath = path.join(distDir, 'src', 'app', 'main-entry.js');
+  let mainEntryContent = await fs.readFile(mainEntryPath, 'utf8');
+  mainEntryContent = mainEntryContent.replace(/__APP_VERSION__/g, pkg.version);
+  mainEntryContent = mainEntryContent.replace(/__APP_BUILD__/g, buildId);
+  await fs.writeFile(mainEntryPath, mainEntryContent, 'utf8');
 
   console.log(`Built static bundle in ${distDir} (build ${buildId})`);
   console.log(`Build number source: ${buildNumberSource} -> ${buildNumber}`);

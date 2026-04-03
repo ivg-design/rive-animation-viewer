@@ -219,7 +219,7 @@ describe('ui/script-console', () => {
         expect(renderEventLog).toHaveBeenCalled();
     });
 
-    it('applies filters, supports copy, clears output, and updates follow state on scroll', async () => {
+    it('applies filters, supports copy, clears output, and updates follow state on the live eruda scroller', async () => {
         const elements = renderShell();
         const { eruda, logs, tool } = createFakeEruda();
         window.eruda = eruda;
@@ -261,11 +261,12 @@ describe('ui/script-console', () => {
 
         const scrollContainer = elements.scriptConsoleOutput.querySelector('.luna-console-logs-space');
         scrollContainer.scrollTop = 40;
-        elements.scriptConsoleOutput.dispatchEvent(new Event('scroll'));
+        scrollContainer.dispatchEvent(new Event('scroll'));
         expect(controller.isFollowingLatest()).toBe(false);
 
         elements.scriptConsoleFollowButton.click();
         expect(controller.isFollowingLatest()).toBe(true);
+        expect(scrollContainer.scrollTop).toBe(0);
 
         elements.scriptConsoleClearButton.click();
         expect(tool.clear).toHaveBeenCalled();
