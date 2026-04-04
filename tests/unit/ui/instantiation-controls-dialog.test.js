@@ -13,6 +13,10 @@ function buildElements() {
             <option value="cdn" selected>cdn</option>
             <option value="local">local</option>
         </select>
+        <select id="instantiation-snippet-mode-select">
+            <option value="compact" selected>compact</option>
+            <option value="scaffold">scaffold</option>
+        </select>
         <span id="instantiation-preview-status"></span>
         <pre id="instantiation-preview-output"></pre>
         <button id="copy-instantiation-preview-btn"></button>
@@ -37,6 +41,7 @@ function buildElements() {
         instantiationPresetAllButton: document.getElementById('instantiation-preset-all-btn'),
         instantiationPresetNoneButton: document.getElementById('instantiation-preset-none-btn'),
         instantiationPackageSourceSelect: document.getElementById('instantiation-package-source-select'),
+        instantiationSnippetModeSelect: document.getElementById('instantiation-snippet-mode-select'),
         instantiationPreviewStatus: document.getElementById('instantiation-preview-status'),
         instantiationPreviewOutput: document.getElementById('instantiation-preview-output'),
         copyInstantiationPreviewButton: document.getElementById('copy-instantiation-preview-btn'),
@@ -46,7 +51,7 @@ function buildElements() {
 }
 
 describe('ui/instantiation-controls-dialog', () => {
-    it('defaults to changed controls, supports select-all, and forwards the selected keys into snippet generation', async () => {
+    it('defaults to changed controls, keeps select-all safe for values, and forwards the selected keys into snippet generation', async () => {
         const elements = buildElements();
         const generateWebInstantiationCode = vi.fn().mockResolvedValue({ code: '<script>demo</script>' });
         const controller = createInstantiationControlsDialogController({
@@ -98,6 +103,16 @@ describe('ui/instantiation-controls-dialog', () => {
                             source: 'state-machine',
                             stateMachineName: 'Main',
                         },
+                        {
+                            descriptor: {
+                                kind: 'trigger',
+                                name: 'reset',
+                                path: 'card/reset',
+                            },
+                            kind: 'trigger',
+                            name: 'reset',
+                            path: 'card/reset',
+                        },
                     ],
                     kind: 'vm',
                     label: 'Root VM',
@@ -113,21 +128,30 @@ describe('ui/instantiation-controls-dialog', () => {
         controller.setup();
         await expect(controller.openDialog()).resolves.toEqual({ open: true, selectionCount: 1 });
         expect(controller.getSelectedControlKeys()).toEqual(['vm:card/progress:number']);
-        expect(elements.instantiationSelectionSummary.textContent).toContain('1 of 2');
+        expect(elements.instantiationSelectionSummary.textContent).toContain('1 of 3');
 
         elements.instantiationPresetAllButton.click();
         expect(controller.getSelectedControlKeys()).toEqual([
             'vm:card/progress:number',
             'sm:Main:armed:boolean',
+            'vm:card/reset:trigger',
         ]);
 
+        elements.instantiationSnippetModeSelect.value = 'scaffold';
         elements.instantiationDialogSnippetButton.click();
         await vi.waitFor(() => {
-            expect(generateWebInstantiationCode).toHaveBeenCalledWith({
-                packageSource: 'cdn',
-                selectedControlKeys: ['vm:card/progress:number', 'sm:Main:armed:boolean'],
-            });
+            expect(generateWebInstantiationCode).toHaveBeenCalled();
         });
+        const lastCall = generateWebInstantiationCode.mock.calls.at(-1)?.[0];
+        expect(lastCall).toEqual(expect.objectContaining({
+            packageSource: 'cdn',
+            snippetMode: 'scaffold',
+        }));
+        expect([...lastCall.selectedControlKeys].sort()).toEqual([
+            'sm:Main:armed:boolean',
+            'vm:card/progress:number',
+            'vm:card/reset:trigger',
+        ]);
         expect(elements.instantiationPreviewOutput.textContent).toContain('<script>demo</script>');
     });
 

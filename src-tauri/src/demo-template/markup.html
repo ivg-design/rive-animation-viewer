@@ -1,0 +1,160 @@
+<body>
+    <div class="app-shell">
+        <!-- ── Top bar ───────────────────────────────────────── -->
+        <header class="top-bar" role="toolbar" aria-label="Animation controls">
+            <div class="header-left">
+                <div class="brand-block">
+                    <div class="brand-icon" aria-hidden="true">
+                        <img src="__APP_ICON_DATA_URL__" alt="" class="brand-app-icon">
+                    </div>
+                    <strong class="brand-text">Rive Demo Viewer</strong>
+                </div>
+            </div>
+
+            <div class="header-center">
+                <button type="button" class="icon-btn" id="btn-reset" title="Reset" aria-label="Reset">
+                    <i data-lucide="rotate-ccw" class="lucide-16"></i>
+                </button>
+                <button type="button" class="icon-btn icon-btn-accent" id="btn-play" title="Play" aria-label="Play">
+                    <i data-lucide="play" class="lucide-18"></i>
+                </button>
+                <button type="button" class="icon-btn" id="btn-pause" title="Pause" aria-label="Pause">
+                    <i data-lucide="pause" class="lucide-16"></i>
+                </button>
+                <select id="layout-select" class="header-select" aria-label="Layout fit">
+                    <option value="contain">FIT: CONTAIN</option>
+                    <option value="cover">FIT: COVER</option>
+                    <option value="fill">FIT: FILL</option>
+                    <option value="fitWidth">FIT: WIDTH</option>
+                    <option value="fitHeight">FIT: HEIGHT</option>
+                    <option value="scaleDown">FIT: SCALE DOWN</option>
+                    <option value="none">FIT: NONE</option>
+                    <option value="layout">FIT: LAYOUT</option>
+                </select>
+                <select id="alignment-select" class="header-select" aria-label="Layout alignment">
+                    <option value="topLeft">ALIGN: TOP LEFT</option>
+                    <option value="topCenter">ALIGN: TOP CENTER</option>
+                    <option value="topRight">ALIGN: TOP RIGHT</option>
+                    <option value="centerLeft">ALIGN: CENTER LEFT</option>
+                    <option value="center">ALIGN: CENTER</option>
+                    <option value="centerRight">ALIGN: CENTER RIGHT</option>
+                    <option value="bottomLeft">ALIGN: BOTTOM LEFT</option>
+                    <option value="bottomCenter">ALIGN: BOTTOM CENTER</option>
+                    <option value="bottomRight">ALIGN: BOTTOM RIGHT</option>
+                </select>
+                <div class="fps-chip" id="fps-chip"><span class="dot"></span>-- FPS</div>
+            </div>
+
+            <div class="header-right">
+                <select id="instantiation-package-source-select" class="header-select header-select-compact" aria-label="Instantiation snippet source" hidden>
+                    <option value="cdn">CODE: CDN</option>
+                    <option value="local">CODE: LOCAL</option>
+                </select>
+                <button type="button" id="copy-instantiation-btn" class="btn-compact" hidden>COPY CODE</button>
+                <div class="settings-wrapper">
+                    <button type="button" id="settings-btn" class="icon-btn icon-btn-ghost" title="Settings" aria-label="Settings">
+                        <i data-lucide="settings" class="lucide-18"></i>
+                    </button>
+                    <div class="settings-popover" id="settings-popover" hidden>
+                        <div class="settings-row">
+                            <label class="settings-label" for="canvas-color-input">BG Color</label>
+                            <div class="settings-controls">
+                                <input type="color" id="canvas-color-input" value="__CANVAS_COLOR__" class="color-input">
+                                <button type="button" id="canvas-color-reset-btn" class="settings-toggle">NO BG</button>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <label class="settings-label" for="transparency-mode-toggle">Transparency</label>
+                            <button type="button" id="transparency-mode-toggle" class="settings-toggle" aria-pressed="false" disabled aria-disabled="true">OFF</button>
+                        </div>
+                        <p class="settings-note">Transparency controls are disabled in exported demos. Use the desktop app for transparency and click-through mode.</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- ── Error toast ───────────────────────────────────── -->
+        <div class="error" id="error-message"></div>
+
+        <!-- ── Workspace ─────────────────────────────────────── -->
+        <div class="workspace">
+            <section class="center-panel" id="center-panel">
+                <!-- Canvas -->
+                <div class="canvas-container" id="canvas-container">
+                    <canvas id="rive-canvas"></canvas>
+                </div>
+
+                <!-- Runtime strip -->
+                <div class="runtime-strip">
+                    <div class="runtime-strip-left">
+                        <span class="runtime-chip runtime-chip-runtime"><span class="dot dot-sm" aria-hidden="true"></span>Runtime: __RUNTIME_DISPLAY__</span>
+                        <span class="runtime-chip">v__RUNTIME_VERSION__</span>
+                        <span class="runtime-strip-sep" aria-hidden="true">|</span>
+                        <span class="runtime-chip runtime-chip-file"><i data-lucide="file" class="lucide-10"></i>__FILE_NAME__</span>
+                    </div>
+                    <div class="runtime-strip-right">
+                        <span class="runtime-chip runtime-chip-status" id="info">Loading...</span>
+                    </div>
+                </div>
+
+                <div class="panel-resizer panel-resizer-horizontal" id="center-resizer" aria-hidden="true"></div>
+
+                <button type="button" id="show-event-log-btn" class="workspace-edge-toggle workspace-edge-toggle-bottom" title="Show Event Log" aria-label="Show Event Log" hidden>
+                    <i data-lucide="chevron-up" class="lucide-14"></i>
+                </button>
+
+                <!-- Event log panel -->
+                <div class="event-log-panel" id="event-log-panel">
+                    <div class="event-log-header" id="event-log-header">
+                        <div class="event-log-summary-left">
+                            <i data-lucide="chevron-down" class="lucide-14 event-log-chevron"></i>
+                            <span>EVENT LOG</span>
+                            <span class="pill" id="event-log-count">0</span>
+                        </div>
+                        <div class="event-log-summary-right">
+                            <div class="event-filter-toggles" role="group" aria-label="Event source filters">
+                                <button type="button" id="event-filter-native" class="event-filter-toggle is-active" aria-pressed="true">NATIVE</button>
+                                <button type="button" id="event-filter-rive-user" class="event-filter-toggle is-active" aria-pressed="true">RIVE USER</button>
+                                <button type="button" id="event-filter-ui" class="event-filter-toggle is-active" aria-pressed="true">UI</button>
+                            </div>
+                            <input type="search" id="event-filter-search" class="event-filter-search" placeholder="SEARCH">
+                            <button type="button" class="btn-compact" id="event-log-clear-btn">CLEAR</button>
+                        </div>
+                    </div>
+                    <div class="event-log-body">
+                        <div class="event-log-list" id="event-log-list">
+                            <p class="empty-state">No events yet.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <button type="button" id="show-right-panel-btn" class="workspace-edge-toggle workspace-edge-toggle-right" title="Show Properties Panel" aria-label="Show Properties Panel" hidden>
+                <i data-lucide="chevron-left" class="lucide-14"></i>
+            </button>
+            <div class="panel-resizer" id="right-resizer" aria-hidden="true"></div>
+
+            <!-- ── Properties panel ──────────────────────────── -->
+            <aside class="properties-panel" id="right-panel">
+                <div class="panel-heading panel-heading-mirrored">
+                    <button type="button" id="toggle-right-panel-btn" class="icon-btn panel-toggle-btn" title="Hide Properties Panel" aria-label="Hide Properties Panel" aria-pressed="true">
+                        <i data-lucide="panel-right-close" class="lucide-14"></i>
+                    </button>
+                    <div class="panel-heading-main panel-heading-main-end">
+                        <span class="panel-marker"></span>
+                        <span>PROPERTIES</span>
+                        <span class="pill" id="vm-controls-count">0</span>
+                    </div>
+                </div>
+                <div class="properties-panel-body" id="vm-controls-panel">
+                    <p class="empty-state" id="vm-controls-empty">No bound ViewModel inputs detected.</p>
+                    <div class="vm-controls-tree" id="vm-controls-tree"></div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- ── Fullscreen exit hint ──────────────────────────────── -->
+    <div class="fullscreen-exit-hint" id="fullscreen-exit-hint">
+        <i data-lucide="minimize-2" class="lucide-18"></i>
+    </div>

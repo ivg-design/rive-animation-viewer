@@ -1,0 +1,350 @@
+/* ── Properties panel ────────────────────────────────────── */
+
+.properties-panel {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    gap: 0;
+    position: relative;
+    overflow: hidden;
+    border-left: 1px solid var(--border);
+    background: var(--bg-zinc);
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* ── Panel heading ───────────────────────────────────────── */
+
+.panel-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 40px;
+    height: 40px;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+.panel-heading-main {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-white);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.25px;
+    font-weight: 600;
+    line-height: 1;
+    flex: 1;
+    min-width: 0;
+}
+
+.panel-heading-main > .pill {
+    margin-left: auto;
+}
+
+.panel-heading-mirrored {
+    flex-direction: row;
+}
+
+.panel-heading-main-end {
+    display: flex;
+    flex: 1;
+    justify-content: flex-end;
+}
+
+.panel-heading-main-end > .pill {
+    margin-left: 8px;
+}
+
+.panel-toggle-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-sm);
+    border-color: transparent;
+    background: transparent;
+    color: var(--text-ghost);
+    padding: 0;
+}
+
+.panel-toggle-btn.is-collapsed {
+    opacity: 0.58;
+}
+
+.panel-marker {
+    width: 6px;
+    height: 6px;
+    border-radius: 1px;
+    background: var(--neon);
+    flex-shrink: 0;
+}
+
+/* ── Properties panel body ───────────────────────────────── */
+
+.properties-panel-body {
+    position: absolute;
+    top: 40px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 3px;
+    scrollbar-gutter: stable;
+}
+
+/* ── VM controls ─────────────────────────────────────────── */
+
+.vm-controls-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 0;
+}
+
+.vm-section {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--bg-void);
+    overflow: visible;
+}
+
+.vm-section-header {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 0 8px;
+    color: var(--text-white);
+    font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.25px;
+    line-height: 1;
+}
+
+.vm-section-header::-webkit-details-marker {
+    display: none;
+}
+
+.vm-section-bar {
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.vm-section-chevron {
+    color: var(--text-ghost);
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+}
+
+.vm-section:not([open]) .vm-section-chevron {
+    transform: rotate(-90deg);
+}
+
+.vm-section-count {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+.vm-section-body {
+    border-top: 1px solid var(--border);
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.vm-section-body[data-depth] {
+    position: relative;
+    margin-left: 0;
+    padding-left: 10px;
+    border-left: 2px solid var(--depth-color, var(--border));
+    border-radius: 0;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 2px;
+}
+
+/* Nested sections inside a section */
+.vm-section .vm-section {
+    border-color: var(--border);
+    background: var(--bg-zinc);
+    border-radius: var(--radius-md);
+}
+
+.vm-section .vm-section .vm-section-header {
+    min-height: 30px;
+    font-size: 10px;
+    padding: 0 8px;
+    gap: 6px;
+}
+
+.vm-section .vm-section .vm-section-body {
+    padding: 3px 3px 3px 10px;
+    gap: 2px;
+}
+
+/* Third level nesting */
+.vm-section .vm-section .vm-section {
+    background: var(--bg-void);
+}
+
+.vm-section .vm-section .vm-section .vm-section-header {
+    min-height: 28px;
+    font-size: 10px;
+}
+
+/* ── VM control row ──────────────────────────────────────── */
+
+.vm-control-row {
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-zinc);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 48%);
+    gap: 6px;
+    padding: 5px 6px;
+    align-items: center;
+}
+
+.vm-control-label {
+    min-width: 0;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vm-control-input {
+    min-width: 0;
+}
+
+.vm-control-input input[type='text'],
+.vm-control-input input[type='number'],
+.vm-control-input select {
+    width: 100%;
+    height: 28px;
+    padding: 0 8px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-zinc);
+    color: var(--text-white);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.vm-control-input input[type='checkbox'] {
+    width: 18px;
+    height: 18px;
+    appearance: none;
+    border: 1px solid var(--border-bright);
+    border-radius: 4px;
+    background: var(--bg-void);
+    position: relative;
+    cursor: pointer;
+}
+
+.vm-control-input input[type='checkbox']:checked {
+    border-color: var(--neon);
+    background: var(--neon);
+}
+
+.vm-control-input input[type='checkbox']:checked::after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 2px;
+    width: 5px;
+    height: 9px;
+    border: solid var(--text-dark);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.vm-control-input button {
+    width: 100%;
+    height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-elevated);
+    color: var(--text-white);
+    font-size: 11px;
+    font-weight: 600;
+    font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.vm-control-input button:hover {
+    border-color: var(--border-bright);
+    background: #2c2c32;
+}
+
+.vm-color-control {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 56px;
+    gap: 6px;
+}
+
+.vm-color-control input[type='color'] {
+    width: 100%;
+    height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-zinc);
+}
+
+.vm-color-control input[type='number'] {
+    width: 56px;
+    height: 28px;
+    padding: 0 6px;
+    font-size: 11px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-zinc);
+    color: var(--text-white);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+/* ── Scrollbar styling ───────────────────────────────────── */
+
+.properties-panel-body::-webkit-scrollbar,
+.event-log-body::-webkit-scrollbar {
+    width: 10px;
+}
+
+.properties-panel-body::-webkit-scrollbar-track,
+.event-log-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.properties-panel-body::-webkit-scrollbar-thumb,
+.event-log-body::-webkit-scrollbar-thumb {
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background: var(--border);
+    background-clip: padding-box;
+}
+
+.properties-panel-body::-webkit-scrollbar-thumb:hover,
+.event-log-body::-webkit-scrollbar-thumb:hover {
+    background: var(--border-bright);
+    background-clip: padding-box;
+}
+

@@ -122,10 +122,12 @@ describe('platform/web-instantiation', () => {
         expect(code).toContain('const VM_OVERRIDES = {');
         expect(code).toContain('"card-vm/chart-picker": "bar", // enum: bar | line | area');
         expect(code).toContain('"card-vm/accent-color": "#FF336699", // color (ARGB hex)');
-        expect(code).toContain('const VM_STARTUP_TRIGGERS = [');
+        expect(code).toContain('const VM_TRIGGER_PATHS = [');
         expect(code).toContain('"card-vm/refresh", // trigger');
         expect(code).toContain('"main-sm": {');
         expect(code).toContain('"progress": 0.33, // number');
+        expect(code).toContain('function fireRavConfiguredTriggers(');
+        expect(code).not.toContain('applied += fireRavStartupTriggers(instance);');
     });
 
     it('generates CDN/internal snippets and returns metadata', () => {
@@ -156,7 +158,67 @@ describe('platform/web-instantiation', () => {
         expect(result.code).toContain('canvas.style.background = "transparent";');
         expect(result.helperApi.global).toBe('window.ravRive');
         expect(result.helperApi.methods).toContain('window.ravRive.applyVmOverrides()');
-        expect(result.helperApi.methods).toContain('window.ravRive.fireStartupTriggers()');
+        expect(result.helperApi.methods).toContain('window.ravRive.fireConfiguredTriggers()');
         expect(result.notes[1]).toContain('internal wiring');
+    });
+
+    it('supports scaffold snippets with commented unselected controls', () => {
+        const descriptor = buildEffectiveInstantiationDescriptor({
+            artboardState: {
+                currentArtboard: 'Main',
+                currentPlaybackName: 'main-sm',
+                currentPlaybackType: 'stateMachine',
+            },
+            currentFileName: 'scaffold-demo.riv',
+            currentLayoutAlignment: 'center',
+            currentLayoutFit: 'contain',
+            runtimeName: 'webgl2',
+            runtimeVersion: '2.36.0',
+            sourceMode: 'internal',
+        });
+
+        const result = buildWebInstantiationResult(descriptor, {
+            packageSource: 'cdn',
+            snippetMode: 'scaffold',
+            selectedControlKeys: ['vm:card-vm/title:string'],
+            controlSnapshot: [
+                {
+                    descriptor: {
+                        kind: 'string',
+                        name: 'title',
+                        path: 'card-vm/title',
+                        source: 'view-model',
+                    },
+                    kind: 'string',
+                    value: 'Revenue',
+                },
+                {
+                    descriptor: {
+                        kind: 'number',
+                        name: 'progress',
+                        path: 'card-vm/progress',
+                        source: 'view-model',
+                    },
+                    kind: 'number',
+                    value: 0.7777,
+                },
+                {
+                    descriptor: {
+                        kind: 'trigger',
+                        name: 'refresh',
+                        path: 'card-vm/refresh',
+                        source: 'view-model',
+                    },
+                    kind: 'trigger',
+                    value: null,
+                },
+            ],
+        });
+
+        expect(result.snippetMode).toBe('scaffold');
+        expect(result.code).toContain('"card-vm/title": "Revenue", // string');
+        expect(result.code).toContain('//   "card-vm/progress": 0.78, // number');
+        expect(result.code).toContain('//   "card-vm/refresh", // trigger');
+        expect(result.notes).toContain('Scaffold mode includes every discovered bound control and comments out anything that is not explicitly selected.');
     });
 });

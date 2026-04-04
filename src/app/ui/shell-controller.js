@@ -1,4 +1,5 @@
 import { LAYOUT_ALIGNMENTS, LAYOUT_FITS } from '../core/constants.js';
+import { setupCenterPanelResizer, setupShellPanelResizers } from './layout/resizers.js';
 import { getRuntimeDisplayName } from './status-controller.js';
 
 export function clamp(value, min, max) {
@@ -89,9 +90,8 @@ export function createShellController({
         showRightButton.hidden = isRightPanelVisible;
         persistPanelVisibility();
         handleResize();
-        if (visibilityResizeTimeoutId) {
-            clearTimeoutFn(visibilityResizeTimeoutId);
-        }
+        updateVersionInfo();
+        if (visibilityResizeTimeoutId) clearTimeoutFn(visibilityResizeTimeoutId);
         visibilityResizeTimeoutId = setTimeoutFn(handleResize, 250);
         return getSidebarVisibility();
     }
@@ -109,9 +109,7 @@ export function createShellController({
     async function reloadActiveAnimation() {
         const currentFileUrl = getCurrentFileUrl();
         const currentFileName = getCurrentFileName();
-        if (!currentFileUrl || !currentFileName) {
-            return;
-        }
+        if (!currentFileUrl || !currentFileName) return;
         if (typeof reloadCurrentAnimation === 'function') {
             await reloadCurrentAnimation();
             return;
@@ -122,9 +120,7 @@ export function createShellController({
     function setupSettingsPopover() {
         const button = elements.settingsButton;
         const popover = elements.settingsPopover;
-        if (!button || !popover) {
-            return;
-        }
+        if (!button || !popover) return;
 
         button.addEventListener('click', (event) => {
             event.stopPropagation();
@@ -145,9 +141,7 @@ export function createShellController({
     }
 
     function setupRuntimeSelect() {
-        if (!elements.runtimeSelect) {
-            return;
-        }
+        if (!elements.runtimeSelect) return;
 
         elements.runtimeSelect.addEventListener('change', async (event) => {
             const selected = event.target.value;
@@ -174,9 +168,7 @@ export function createShellController({
 
     function setupLayoutSelect() {
         const select = elements.layoutSelect;
-        if (!select) {
-            return;
-        }
+        if (!select) return;
 
         select.value = getCurrentLayoutFit();
         select.addEventListener('change', async (event) => {
@@ -201,9 +193,7 @@ export function createShellController({
 
     function setupAlignmentSelect() {
         const select = elements.alignmentSelect;
-        if (!select) {
-            return;
-        }
+        if (!select) return;
 
         select.value = getCurrentLayoutAlignment();
         select.addEventListener('change', async (event) => {
@@ -228,9 +218,7 @@ export function createShellController({
 
     function setupDemoButton() {
         const button = elements.demoBundleButton || documentRef.getElementById('demo-bundle-btn');
-        if (!button) {
-            return;
-        }
+        if (!button) return;
 
         const setButtonState = (enabled) => {
             button.disabled = !enabled;
@@ -278,110 +266,30 @@ export function createShellController({
 
     function setupPanelResizers() {
         const grid = elements.mainGrid;
-        const leftResizer = elements.leftResizer;
-        const rightResizer = elements.rightResizer;
-        if (!grid || !leftResizer || !rightResizer) {
+        if (!grid) {
             return;
         }
-
-        const setGridVar = (key, value) => {
-            grid.style.setProperty(key, `${Math.round(value)}px`);
-        };
-
-        const startResizerDrag = (event, side) => {
-            if ((side === 'left' && !isLeftPanelVisible) || (side === 'right' && !isRightPanelVisible)) {
-                return;
-            }
-            event.preventDefault();
-            const gridRect = grid.getBoundingClientRect();
-            const startX = event.clientX;
-            const initialLeft = grid.style.getPropertyValue('--left-width')
-                ? parseFloat(grid.style.getPropertyValue('--left-width'))
-                : elements.configPanel?.offsetWidth || 340;
-            const initialRight = grid.style.getPropertyValue('--right-width')
-                ? parseFloat(grid.style.getPropertyValue('--right-width'))
-                : elements.rightPanel?.offsetWidth || 330;
-
-            const activeResizer = side === 'left' ? leftResizer : rightResizer;
-            activeResizer.classList.add('is-dragging');
-            documentRef.body.style.cursor = 'col-resize';
-            documentRef.body.style.userSelect = 'none';
-
-            const onMove = (moveEvent) => {
-                const deltaX = moveEvent.clientX - startX;
-                if (side === 'left') {
-                    const maxLeft = Math.max(260, gridRect.width - initialRight - 380);
-                    const nextLeft = clamp(initialLeft + deltaX, 240, maxLeft);
-                    setGridVar('--left-width', nextLeft);
-                } else {
-                    const maxRight = Math.max(320, gridRect.width - initialLeft - 320);
-                    const nextRight = clamp(initialRight - deltaX, 260, maxRight);
-                    setGridVar('--right-width', nextRight);
-                }
-            };
-
-            const onUp = () => {
-                activeResizer.classList.remove('is-dragging');
-                documentRef.body.style.cursor = '';
-                documentRef.body.style.userSelect = '';
-                windowRef.removeEventListener('mousemove', onMove);
-                windowRef.removeEventListener('mouseup', onUp);
-                handleResize();
-            };
-
-            windowRef.addEventListener('mousemove', onMove);
-            windowRef.addEventListener('mouseup', onUp);
-        };
-
-        leftResizer.addEventListener('mousedown', (event) => startResizerDrag(event, 'left'));
-        rightResizer.addEventListener('mousedown', (event) => startResizerDrag(event, 'right'));
+        setupShellPanelResizers({
+            clamp,
+            documentRef,
+            elements,
+            handleResize,
+            isLeftPanelVisible: () => isLeftPanelVisible,
+            isRightPanelVisible: () => isRightPanelVisible,
+            setGridVar: (key, value) => {
+                grid.style.setProperty(key, `${Math.round(value)}px`);
+            },
+            windowRef,
+        });
     }
 
     function setupCenterResizer() {
-        const centerPanel = elements.centerPanel;
-        const centerResizer = elements.centerResizer;
-        if (!centerPanel || !centerResizer) {
-            return;
-        }
-
-        const getMaxLogHeight = () => {
-            const panelHeight = centerPanel.getBoundingClientRect?.().height || 0;
-            if (!panelHeight) {
-                return Number.MAX_SAFE_INTEGER;
-            }
-            const minCanvasHeight = 96;
-            const reservedHeight = 36 + 2 + minCanvasHeight;
-            return Math.max(120, Math.floor(panelHeight - reservedHeight));
-        };
-
-        centerResizer.addEventListener('mousedown', (event) => {
-            event.preventDefault();
-            const startY = event.clientY;
-            const startHeight = centerPanel.style.getPropertyValue('--center-log-height')
-                ? parseFloat(centerPanel.style.getPropertyValue('--center-log-height'))
-                : 230;
-
-            centerResizer.classList.add('is-dragging');
-            documentRef.body.style.cursor = 'row-resize';
-            documentRef.body.style.userSelect = 'none';
-
-            const onMove = (moveEvent) => {
-                const deltaY = moveEvent.clientY - startY;
-                const nextHeight = clamp(startHeight - deltaY, 120, getMaxLogHeight());
-                centerPanel.style.setProperty('--center-log-height', `${Math.round(nextHeight)}px`);
-            };
-
-            const onUp = () => {
-                centerResizer.classList.remove('is-dragging');
-                documentRef.body.style.cursor = '';
-                documentRef.body.style.userSelect = '';
-                windowRef.removeEventListener('mousemove', onMove);
-                windowRef.removeEventListener('mouseup', onUp);
-                handleResize();
-            };
-
-            windowRef.addEventListener('mousemove', onMove);
-            windowRef.addEventListener('mouseup', onUp);
+        setupCenterPanelResizer({
+            clamp,
+            documentRef,
+            elements,
+            handleResize,
+            windowRef,
         });
     }
 

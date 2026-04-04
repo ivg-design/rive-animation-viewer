@@ -1,3 +1,9 @@
+import {
+    populateArtboardSwitcherUi,
+    populatePlaybackSelectUi,
+    populateVmInstanceSelectUi,
+} from './artboards/ui-population.js';
+
 export function parsePlaybackTarget(target) {
     if (!target) {
         return { type: null, name: null };
@@ -18,6 +24,7 @@ export function createArtboardSwitcherController({
     getCurrentFileName = () => null,
     getCurrentFileUrl = () => null,
     getRiveInstance = () => null,
+    setTimeoutFn = globalThis.setTimeout?.bind(globalThis),
 } = {}) {
     const {
         initLucideIcons = () => {},
@@ -34,6 +41,7 @@ export function createArtboardSwitcherController({
     let defaultArtboardName = null;
     let defaultPlaybackKey = null;
     let fileContentsCache = null;
+    let pendingSelectionTask = null;
 
     function resetForNewFile() {
         currentArtboardName = null;
@@ -66,167 +74,59 @@ export function createArtboardSwitcherController({
         currentArtboardName = riveInstance?.artboard?.name || currentArtboardName || config.artboard || null;
     }
 
+    function scheduleSelectionChange(callback) {
+        if (pendingSelectionTask) {
+            pendingSelectionTask.cancelled = true;
+        }
+        const task = { cancelled: false };
+        pendingSelectionTask = task;
+        const run = () => {
+            if (task.cancelled) {
+                return;
+            }
+            pendingSelectionTask = null;
+            callback();
+        };
+        if (typeof setTimeoutFn === 'function') {
+            setTimeoutFn(run, 0);
+            return;
+        }
+        run();
+    }
+
     function populateArtboardSwitcher() {
-        const switcher = elements.artboardSwitcher;
-        const artboardSelect = elements.artboardSelect;
-        const riveInstance = getRiveInstance();
-        if (!switcher || !artboardSelect || !riveInstance) {
-            if (switcher) {
-                switcher.hidden = true;
-            }
-            return;
-        }
-
-        const contents = riveInstance.contents;
-        if (!contents?.artboards?.length) {
-            fileContentsCache = null;
-            switcher.hidden = true;
-            return;
-        }
-        fileContentsCache = contents;
-
-        artboardSelect.innerHTML = '';
-        const artboards = contents.artboards;
-        artboards.forEach((artboard) => {
-            const name = typeof artboard === 'string' ? artboard : artboard.name;
-            const option = documentRef.createElement('option');
-            option.value = name;
-            option.textContent = name;
-            if (name === currentArtboardName) {
-                option.selected = true;
-            }
-            artboardSelect.appendChild(option);
+        const nextState = populateArtboardSwitcherUi({
+            currentArtboardName,
+            defaultArtboardName,
+            elements,
+            fileContentsCache,
+            getRiveInstance,
+            initLucideIcons,
         });
-
-        if (defaultArtboardName === null) {
-            defaultArtboardName = currentArtboardName || (artboards[0]?.name ?? artboards[0]);
-        }
-
+        defaultArtboardName = nextState.defaultArtboardName;
+        fileContentsCache = nextState.fileContentsCache;
         populatePlaybackSelect();
         populateVmInstanceSelect();
-
-        if (elements.artboardSwitcherCount) {
-            elements.artboardSwitcherCount.textContent = String(artboards.length);
-        }
-
-        switcher.hidden = false;
-        initLucideIcons();
     }
 
     function populatePlaybackSelect() {
-        const select = elements.playbackSelect;
-        if (!select || !fileContentsCache) {
-            return;
-        }
-
-        select.innerHTML = '';
-        const selectedArtboardName = elements.artboardSelect?.value || currentArtboardName;
-        const artboards = fileContentsCache?.artboards || [];
-        const artboard = artboards.find((entry) => {
-            const name = typeof entry === 'string' ? entry : entry.name;
-            return name === selectedArtboardName;
-        });
-
-        if (!artboard || typeof artboard === 'string') {
-            return;
-        }
-
-        const stateMachines = artboard.stateMachines || [];
-        stateMachines.forEach((stateMachine) => {
-            const name = typeof stateMachine === 'string' ? stateMachine : stateMachine.name;
-            const option = documentRef.createElement('option');
-            option.value = `sm:${name}`;
-            option.textContent = name;
-            select.appendChild(option);
-        });
-
-        const animations = artboard.animations || [];
-        animations.forEach((animation) => {
-            const name = typeof animation === 'string' ? animation : animation.name;
-            const option = documentRef.createElement('option');
-            option.value = `anim:${name}`;
-            option.textContent = name;
-            select.appendChild(option);
-        });
-
-        if (currentPlaybackName) {
-            const currentKey = currentPlaybackType === 'animation'
-                ? `anim:${currentPlaybackName}`
-                : `sm:${currentPlaybackName}`;
-            const match = Array.from(select.options).find((option) => option.value === currentKey);
-            if (match) {
-                select.value = currentKey;
-            }
-        }
-
-        if (defaultPlaybackKey === null && select.options.length > 0) {
-            defaultPlaybackKey = select.value;
-        }
+        ({ defaultPlaybackKey } = populatePlaybackSelectUi({
+            currentArtboardName,
+            currentPlaybackName,
+            currentPlaybackType,
+            defaultPlaybackKey,
+            documentRef,
+            elements,
+            fileContentsCache,
+        }));
     }
 
     function populateVmInstanceSelect() {
-        const row = elements.vmInstanceRow;
-        const select = elements.vmInstanceSelect;
-        const riveInstance = getRiveInstance();
-        if (!row || !select || !riveInstance) {
-            if (row) {
-                row.hidden = true;
-            }
-            return;
-        }
-
-        select.innerHTML = '';
-
-        try {
-            const viewModelDefinition = typeof riveInstance.defaultViewModel === 'function'
-                ? riveInstance.defaultViewModel()
-                : null;
-            if (!viewModelDefinition) {
-                row.hidden = true;
-                return;
-            }
-
-            const instanceCount = typeof viewModelDefinition.instanceCount === 'number'
-                ? viewModelDefinition.instanceCount
-                : 0;
-            if (instanceCount <= 1) {
-                row.hidden = true;
-                return;
-            }
-
-            const instanceNames = Array.isArray(viewModelDefinition.instanceNames)
-                ? viewModelDefinition.instanceNames
-                : [];
-
-            if (instanceNames.length > 0) {
-                instanceNames.forEach((name) => {
-                    const option = documentRef.createElement('option');
-                    option.value = name;
-                    option.textContent = name;
-                    select.appendChild(option);
-                });
-            } else {
-                for (let index = 0; index < instanceCount; index += 1) {
-                    const option = documentRef.createElement('option');
-                    option.value = String(index);
-                    option.textContent = `Instance ${index}`;
-                    select.appendChild(option);
-                }
-            }
-
-            const currentViewModelInstance = riveInstance.viewModelInstance;
-            if (currentViewModelInstance?.name) {
-                const match = Array.from(select.options).find((option) => option.value === currentViewModelInstance.name);
-                if (match) {
-                    select.value = currentViewModelInstance.name;
-                }
-            }
-
-            row.hidden = false;
-        } catch (error) {
-            console.warn('[rive-viewer] VM instance enumeration failed:', error);
-            row.hidden = true;
-        }
+        populateVmInstanceSelectUi({
+            documentRef,
+            elements,
+            getRiveInstance,
+        });
     }
 
     async function switchArtboard(artboardName, playbackTarget) {
@@ -367,22 +267,31 @@ export function createArtboardSwitcherController({
 
         if (artboardSelect) {
             artboardSelect.addEventListener('change', () => {
-                populatePlaybackSelect();
-                const playbackTarget = elements.playbackSelect?.value || null;
-                switchArtboard(artboardSelect.value, playbackTarget);
+                const nextArtboard = artboardSelect.value;
+                scheduleSelectionChange(() => {
+                    populatePlaybackSelect();
+                    const playbackTarget = elements.playbackSelect?.value || null;
+                    switchArtboard(nextArtboard, playbackTarget);
+                });
             });
         }
 
         if (playbackSelect) {
             playbackSelect.addEventListener('change', () => {
-                const artboard = elements.artboardSelect?.value || currentArtboardName;
-                switchArtboard(artboard, playbackSelect.value);
+                const nextPlayback = playbackSelect.value;
+                scheduleSelectionChange(() => {
+                    const artboard = elements.artboardSelect?.value || currentArtboardName;
+                    switchArtboard(artboard, nextPlayback);
+                });
             });
         }
 
         if (viewModelSelect) {
             viewModelSelect.addEventListener('change', () => {
-                switchVmInstance(viewModelSelect.value);
+                const nextInstance = viewModelSelect.value;
+                scheduleSelectionChange(() => {
+                    switchVmInstance(nextInstance);
+                });
             });
         }
 

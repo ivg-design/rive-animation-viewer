@@ -60,6 +60,13 @@
     text-overflow: ellipsis;
 }
 
+.runtime-chip-runtime,
+#runtime-strip-version,
+#runtime-strip-build,
+.runtime-strip-sep {
+    flex-shrink: 0;
+}
+
 .runtime-chip-console,
 .runtime-chip-mcp,
 .runtime-chip-update {
@@ -80,12 +87,17 @@
 }
 
 .runtime-chip-runtime {
-    color: var(--text-ghost);
+    color: var(--text-primary);
+    min-width: 102px;
+    overflow: visible;
+    text-overflow: clip;
+    font-weight: 600;
 }
 
 .runtime-chip-file {
-    flex: 1 1 auto;
+    flex: 1 1 164px;
     min-width: 0;
+    max-width: 220px;
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -93,6 +105,8 @@
 }
 
 .runtime-chip-status {
+    flex: 1 1 auto;
+    min-width: 120px;
     color: var(--text-ghost);
     max-width: 100%;
     overflow: hidden;
@@ -154,10 +168,10 @@
 
 /* WAITING — bridge enabled, no client connected */
 .runtime-chip-mcp[data-mcp-state="waiting"] {
-    color: #fbbf24;
-    opacity: 0.88;
-    border-color: #655126;
-    background: #1d1810;
+    color: #ffd46b;
+    opacity: 0.95;
+    border-color: #8b6b1a;
+    background: #241d0d;
 }
 
 .runtime-chip-mcp[data-mcp-state="waiting"] .mcp-dot {
@@ -173,11 +187,11 @@
 
 /* CONNECTED — agent is live */
 .runtime-chip-mcp[data-mcp-state="connected"] {
-    color: #d9fb70;
+    color: #f0ffb0;
     opacity: 1;
     text-shadow: 0 0 12px #c4f82a40;
-    border-color: #6f8d18;
-    background: #16200d;
+    border-color: #91b01e;
+    background: #1b2910;
 }
 
 .runtime-chip-mcp[data-mcp-state="connected"] .mcp-dot {
@@ -204,19 +218,12 @@
     text-transform: uppercase;
 }
 
-.runtime-chip-console[data-console-mode="events"] {
-    color: #93c5fd;
-    opacity: 0.92;
-    border-color: #3d5e90;
-    background: #121a27;
-}
-
-.runtime-chip-console[data-console-mode="js"] {
-    color: var(--neon);
+.runtime-chip-console[data-console-mode="open"] {
+    color: #f0ffb0;
     opacity: 1;
     text-shadow: 0 0 10px #c4f82a2e;
-    border-color: #6f8d18;
-    background: #16200d;
+    border-color: #7c941e;
+    background: #18230f;
 }
 
 .runtime-chip-update {

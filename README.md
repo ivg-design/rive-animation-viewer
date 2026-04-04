@@ -4,9 +4,17 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.0.5` (2026-04-03)
-- Latest patch: `2.0.5` fixes the Windows release regression in the stable MCP launcher-path helper so the full cross-platform `2.0.x` MCP and updater fixes can be published cleanly.
-- Validation target: the installed `/Applications/Rive Animation Viewer.app` remains on `2.0.3` specifically so the signed `2.0.5` release can be used to verify the updater path end to end.
+- Current release: `2.1.0` (2026-04-04)
+- Latest minor: `2.1.0` ships the full architecture refactor, custom desktop About window, console/header polish, MCP/runtime strip fixes, and Windows shell cleanup in one release.
+- Validation target: release from `main` so installed desktop builds can pick up the `2.1.0` updater payload directly.
+
+## 2.1.0 Highlights
+
+- **Architecture sweep**: Root runtime drift is gone. App boot now starts from `src/app/main-entry.js`, the frontend MCP bridge lives under `src/app/platform/mcp`, injected snippets are source-backed, and architecture rules now enforce modular growth.
+- **Custom desktop About**: RAV now ships a proper in-app About window with runtime/build metadata, credits, dependency inventory, product links, and native Help-menu integration.
+- **Console mode cleanup**: The runtime strip console control is now open/close only, the console header toggles `Events` / `JS`, and JS `FOLLOW` now tracks the real visible transcript correctly.
+- **Indicator and logging fixes**: Runtime and MCP status chips again reflect the real live state, and cyclic MCP payloads no longer crash the event console renderer.
+- **Windows polish**: Dark-mode menu chrome remains visible and the bundled MCP sidecar no longer opens a stray PowerShell window on launch.
 
 ## 2.0.5 Highlights
 
@@ -133,11 +141,20 @@ RAV includes a built-in MCP (Model Context Protocol) sidecar that lets Claude Co
 
 #### Architecture
 
+Runtime source structure is now enforced by an architecture budget:
+
+- [ARCHITECTURE.md](/Users/ivg/github/rive-animation-viewer-audit-20260401/ARCHITECTURE.md) defines module and folder rules
+- [architecture-budget.json](/Users/ivg/github/rive-animation-viewer-audit-20260401/architecture-budget.json) locks current oversized files so they cannot keep growing
+- `.dependency-cruiser.cjs` enforces layer boundaries and cycle bans
+- `npm run check:architecture` and `npm run check:deps` run automatically as part of `npm run test`
+
+The key rule is simple: new hand-written source files may not exceed `400` lines, and folders must subgroup before they turn into flat dumping grounds.
+
 ```
 MCP Client ←(stdio)→ rav-mcp sidecar ←(WebSocket :9274)→ RAV Frontend
 ```
 
-The desktop app bundles a native `rav-mcp` sidecar binary inside the app resources and exposes a stable launcher path for external clients. The frontend bridge (`mcp-bridge.js`) starts automatically when RAV launches, attaches to the configured port, and keeps retrying until a client attaches.
+The desktop app bundles a native `rav-mcp` sidecar binary inside the app resources and exposes a stable launcher path for external clients. The frontend MCP bridge client starts automatically when RAV launches, attaches to the configured port, and keeps retrying until a client attaches.
 
 #### Setup (one-time)
 
@@ -229,17 +246,18 @@ All MCP commands, responses, and connection events appear in the event console w
 
 ```
 rive-local/
-├── app.js                    # Composition root / bootstrap
-├── mcp-bridge.js             # MCP WebSocket bridge client (frontend)
 ├── index.html                # Main UI shell
 ├── styles/                   # Split UI stylesheets
 ├── mcp-server/
 │   ├── index.js              # Reference JS MCP server
 │   └── README.md             # MCP protocol/setup guide
 ├── src/app/
+│   ├── main-entry.js         # Frontend composition root / bootstrap
+│   ├── bootstrap/            # App wiring stacks
 │   ├── core/                 # Constants + DOM element registry
-│   ├── platform/             # Runtime loader, export, updater, bridge helpers
+│   ├── platform/             # Runtime, export, updater, session, MCP helpers
 │   ├── rive/                 # Instance, playback, VM, artboard controllers
+│   ├── snippets/             # Source-backed and generated injected snippets
 │   └── ui/                   # Editor, consoles, dialogs, shell/status controllers
 ├── vendor/
 │   └── codemirror-bundle.js  # Bundled CodeMirror
@@ -312,7 +330,7 @@ The editor intercepts Tab key events when focused:
 - Manually inserts/removes spaces at cursor position
 
 ### VM Explorer Architecture
-- Loaded as external module from `vm-explorer-snippet.js` (contains only functional code)
+- Loaded as external module from `src/app/snippets/vm-explorer-snippet.js` (contains only functional code)
 - Usage guide displayed when injecting, not in the snippet itself
 - Walks ViewModelInstance property trees recursively
 - Builds path references for direct access

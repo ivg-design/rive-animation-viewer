@@ -95,6 +95,7 @@ describe('platform/global-bindings', () => {
         });
 
         controller.bind();
+        expect(chip.dataset.mcpState).toBe('connected');
         expect(windowRef.__riveRuntimeCache.getRuntimeVersion()).toBe('1.2.3');
         expect(windowRef.__riveRuntimeCache.getRuntimeSourceText()).toBe('runtime();');
         expect(windowRef.__riveAnimationCache.getBuffer()).toBeInstanceOf(ArrayBuffer);
@@ -160,7 +161,7 @@ describe('platform/global-bindings', () => {
         await expect(windowRef._mcpExportDemoToPath('/tmp/out')).resolves.toBe('/tmp/out');
         expect(exportDemoToPath).toHaveBeenCalledWith('/tmp/out');
         await expect(windowRef._mcpGenerateWebInstantiationCode('cdn')).resolves.toEqual({ code: '<script></script>' });
-        expect(generateWebInstantiationCode).toHaveBeenCalledWith('cdn');
+        expect(generateWebInstantiationCode).toHaveBeenCalledWith('cdn', undefined);
         expect(windowRef._mcpGetLiveConfigState()).toEqual({ draftDirty: true, sourceMode: 'editor' });
         await expect(windowRef._mcpToggleInstantiationControlsDialog('toggle')).resolves.toEqual({ open: true });
         await expect(windowRef._mcpToggleLiveConfigSource()).resolves.toBeUndefined();

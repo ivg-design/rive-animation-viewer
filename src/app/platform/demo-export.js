@@ -123,7 +123,11 @@ export function createDemoExportController({
         });
     }
 
-    async function buildInstantiationContext({ packageSource = 'local', selectedControlKeys } = {}) {
+    function resolveAllControlSnapshot() {
+        return captureVmControlSnapshot();
+    }
+
+    async function buildInstantiationContext({ packageSource = 'local', selectedControlKeys, snippetMode = 'compact' } = {}) {
         const currentFileName = getCurrentFileName();
         if (!currentFileName) {
             throw new Error('Please load a Rive file first.');
@@ -134,7 +138,9 @@ export function createDemoExportController({
         const runtimeAsset = getRuntimeAsset(runtimeName);
         const selectedRuntimeSemver = runtimeAsset?.version || getEffectiveRuntimeVersionToken(getRuntimeVersionToken());
         const liveConfigState = getLiveConfigState();
-        const controlSnapshot = resolveSelectedControlSnapshot(selectedControlKeys);
+        const controlSnapshot = snippetMode === 'scaffold'
+            ? resolveAllControlSnapshot()
+            : resolveSelectedControlSnapshot(selectedControlKeys);
         const descriptor = buildEffectiveInstantiationDescriptor({
             artboardState: getArtboardStateSnapshot(),
             currentFileName,
@@ -157,11 +163,13 @@ export function createDemoExportController({
             result: buildWebInstantiationResult(descriptor, {
                 controlSnapshot,
                 packageSource,
+                selectedControlKeys,
+                snippetMode,
             }),
         };
     }
 
-    async function buildExportContext({ selectedControlKeys } = {}) {
+    async function buildExportContext({ selectedControlKeys, snippetMode = 'compact' } = {}) {
         const currentFileBuffer = getCurrentFileBuffer();
         const currentFileName = getCurrentFileName();
         if (!currentFileBuffer || !currentFileName) {
@@ -195,12 +203,16 @@ export function createDemoExportController({
         });
         const instantiationSnippets = {
             cdn: buildWebInstantiationResult(descriptor, {
-                controlSnapshot,
+                controlSnapshot: snippetMode === 'scaffold' ? resolveAllControlSnapshot() : controlSnapshot,
                 packageSource: 'cdn',
+                selectedControlKeys,
+                snippetMode,
             }),
             local: buildWebInstantiationResult(descriptor, {
-                controlSnapshot,
+                controlSnapshot: snippetMode === 'scaffold' ? resolveAllControlSnapshot() : controlSnapshot,
                 packageSource: 'local',
+                selectedControlKeys,
+                snippetMode,
             }),
         };
         const payload = buildDemoBundlePayload({
@@ -302,8 +314,8 @@ export function createDemoExportController({
         return result;
     }
 
-    async function generateWebInstantiationCode({ packageSource = 'cdn', selectedControlKeys } = {}) {
-        const context = await buildInstantiationContext({ packageSource, selectedControlKeys });
+    async function generateWebInstantiationCode({ packageSource = 'cdn', selectedControlKeys, snippetMode = 'compact' } = {}) {
+        const context = await buildInstantiationContext({ packageSource, selectedControlKeys, snippetMode });
         return context.result;
     }
 

@@ -1,147 +1,26 @@
-const DEFAULT_EDITOR_CODE = `// Rive instantiation config — riveInst is the global instance
-// Uncomment any property to override defaults
+import {
+    DEFAULT_EDITOR_CODE,
+} from '../snippets/editor-defaults.js';
+import {
+    createTextareaEditorAdapter,
+    evaluateEditorConfig,
+    extractBraceBlock,
+    hasVmExplorerSnippet,
+    replaceOnLoadBlock,
+} from './editor/editor-code-utils.js';
+import { setVmExplorerSnippetEnabledOnEditor } from './editor/vm-explorer-toggle.js';
 
-({
-  autoplay: true,
-  autoBind: true,
-
-  // artboard: "MyArtboard",
-  // stateMachines: "main-sm",
-  // animations: "idle",
-
-  // layout: { fit: "contain", alignment: "center" },
-  //   fit options: contain, cover, fill, fitWidth, fitHeight, scaleDown, none, layout
-  //   alignment: center, topLeft, topCenter, topRight, etc.
-  // useOffscreenRenderer: true, // recommended for transparent overlays with glows/shadows
-
-  onLoad: () => {
-    riveInst.resizeDrawingSurfaceToCanvas();
-    window.refreshVmInputControls?.();
-  },
-
-  // onStateChange: (event) => { console.log("state:", event); },
-  // onAdvance: (event) => { console.log("advance:", event); },
-  // onPlay: () => { console.log("play"); },
-  // onPause: () => { console.log("pause"); },
-  // onStop: () => { console.log("stop"); },
-  // onLoop: (event) => { console.log("loop:", event); },
-})`;
-
-function createTextareaEditorAdapter(textarea) {
-    return {
-        dispatch(transaction = {}) {
-            const change = transaction?.changes;
-            if (!change || typeof change.insert !== 'string') {
-                return;
-            }
-            textarea.value = change.insert;
-        },
-        dom: textarea,
-        state: {
-            doc: {
-                toString: () => textarea.value,
-            },
-        },
-    };
-}
-
-export function replaceOnLoadBlock(code, replacement) {
-    const onLoadIdx = code.indexOf('onLoad:');
-    if (onLoadIdx === -1) {
-        const lastClose = code.lastIndexOf('}');
-        if (lastClose === -1) {
-            return null;
-        }
-        const before = code.substring(0, lastClose).trimEnd();
-        const needsComma = before.endsWith(',') ? '' : ',';
-        return before + needsComma + '\n  ' + replacement.trim() + '\n' + code.substring(lastClose);
-    }
-
-    const braceStart = code.indexOf('{', onLoadIdx + 'onLoad:'.length);
-    if (braceStart === -1) {
-        return null;
-    }
-
-    let depth = 0;
-    let end = -1;
-    for (let index = braceStart; index < code.length; index += 1) {
-        if (code[index] === '{') {
-            depth += 1;
-        } else if (code[index] === '}') {
-            depth -= 1;
-            if (depth === 0) {
-                end = index;
-                break;
-            }
-        }
-    }
-    if (end === -1) {
-        return null;
-    }
-
-    return code.substring(0, onLoadIdx) + replacement.trim() + code.substring(end + 1);
-}
-
-export function extractBraceBlock(text, onLoadIdx, prefix) {
-    const braceStart = text.indexOf('{', onLoadIdx + prefix.length);
-    if (braceStart === -1) {
-        return null;
-    }
-
-    let depth = 0;
-    let end = -1;
-    for (let index = braceStart; index < text.length; index += 1) {
-        if (text[index] === '{') {
-            depth += 1;
-        } else if (text[index] === '}') {
-            depth -= 1;
-            if (depth === 0) {
-                end = index;
-                break;
-            }
-        }
-    }
-    if (end === -1) {
-        return null;
-    }
-
-    return text.substring(onLoadIdx, end + 1);
-}
-
-export function evaluateEditorConfig(code, evalFn = eval) {
-    const trimmed = String(code || '').trim();
-    if (!trimmed) {
-        return {};
-    }
-
-    let result;
-    try {
-        result = evalFn(`(function() {
-            return (
-                ${trimmed}
-            );
-        })()`);
-    } catch (error) {
-        throw new Error(`Invalid JavaScript config: ${error.message}`);
-    }
-
-    if (!result || Array.isArray(result) || typeof result !== 'object') {
-        throw new Error('Initialization config must return an object');
-    }
-
-    return result;
-}
-
-export function hasVmExplorerSnippet(code) {
-    const text = String(code || '');
-    return text.includes('vmExplore') || text.includes('vmRootInstance');
-}
+export {
+    evaluateEditorConfig,
+    extractBraceBlock,
+    hasVmExplorerSnippet,
+    replaceOnLoadBlock,
+} from './editor/editor-code-utils.js';
 
 export function createCodeEditorController({
     callbacks = {},
     codeMirrorModulesRef = () => null,
     documentRef = globalThis.document,
-    fetchImpl = globalThis.fetch?.bind(globalThis),
     getCurrentFileName = () => null,
     getCurrentFileUrl = () => null,
     loadCodeMirror = async () => false,
@@ -158,7 +37,6 @@ export function createCodeEditorController({
 
     const liveModeChip = documentRef.getElementById('editor-live-mode-chip');
     let configDirty = false;
-    let devToolsEnabled = false;
     let editorView = null;
     let isAutoFilling = false;
     let liveConfigSource = 'internal';
@@ -445,75 +323,15 @@ export function createCodeEditorController({
     }
 
     async function setVmExplorerSnippetEnabled(enabled, { openDevtools = false } = {}) {
-        if (!editorView) {
-            showError('Code editor is not available');
-            return { ok: false, injected: false };
-        }
-
-        const invoke = getTauriInvoker();
-        if (openDevtools && invoke && !devToolsEnabled) {
-            try {
-                devToolsEnabled = true;
-                await invoke('open_devtools');
-            } catch {
-                /* noop */
-            }
-        }
-
-        try {
-            const currentCode = editorView.state.doc.toString();
-            const snippetInjected = hasVmExplorerSnippet(currentCode);
-            if (snippetInjected === Boolean(enabled)) {
-                return { ok: true, changed: false, injected: snippetInjected };
-            }
-
-            let newCode;
-            if (!enabled) {
-                newCode = replaceOnLoadBlock(currentCode, `onLoad: () => {
-    riveInst.resizeDrawingSurfaceToCanvas();
-    window.refreshVmInputControls?.();
-  }`);
-                updateInfo('VM explorer removed — restored default');
-                console.log('VM explorer removed. Default onLoad restored.');
-            } else {
-                let explorerOnLoad = null;
-                try {
-                    const response = await fetchImpl('/vm-explorer-snippet.js');
-                    if (response?.ok) {
-                        const text = await response.text();
-                        const startMarker = 'onLoad: () => {';
-                        const startIdx = text.indexOf(startMarker);
-                        if (startIdx !== -1) {
-                            explorerOnLoad = extractBraceBlock(text, startIdx, 'onLoad:');
-                        }
-                    }
-                } catch {
-                    /* noop */
-                }
-
-                if (!explorerOnLoad) {
-                    showError('Could not load VM explorer snippet');
-                    return;
-                }
-
-                newCode = replaceOnLoadBlock(currentCode, explorerOnLoad);
-                updateInfo('VM explorer injected — click Apply & Reload');
-                console.log('%cVM Explorer injected. Click Apply & Reload to activate.', 'color: #C4F82A; font-weight: bold');
-                console.log('After reload: vmExplore(), vmGet("path"), vmSet("path", val), vmFire("path")');
-            }
-
-            if (!newCode || newCode === currentCode) {
-                showError('Could not modify onLoad block — check editor code syntax');
-                return;
-            }
-
-            setEditorCode(newCode);
-            markDraftState(true);
-            return { ok: true, changed: true, injected: Boolean(enabled) };
-        } catch (error) {
-            showError(`Failed to modify code: ${error.message}`);
-            throw error;
-        }
+        return setVmExplorerSnippetEnabledOnEditor({
+            editorView,
+            enabled,
+            getTauriInvoker,
+            markDraftState,
+            setEditorCode,
+            showError,
+            updateInfo,
+        }, { openDevtools });
     }
 
     async function injectCodeSnippet() {

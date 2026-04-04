@@ -54,6 +54,10 @@ function createHarness(overrides = {}) {
         getCurrentFileName: () => currentFileName,
         getCurrentFileUrl: () => currentFileUrl,
         getRiveInstance: () => riveInstance,
+        setTimeoutFn: overrides.setTimeoutFn ?? ((callback) => {
+            callback();
+            return 1;
+        }),
     });
 
     return {
@@ -139,6 +143,10 @@ describe('rive/artboard-switcher', () => {
             getCurrentFileName: () => 'demo.riv',
             getCurrentFileUrl: () => 'blob:demo',
             getRiveInstance: () => null,
+            setTimeoutFn: (callback) => {
+                callback();
+                return 1;
+            },
         });
 
         await controller.switchArtboard('Menu', 'anim:Bounce');
@@ -238,6 +246,10 @@ describe('rive/artboard-switcher', () => {
                 }),
                 viewModelInstance: null,
             }),
+            setTimeoutFn: (callback) => {
+                callback();
+                return 1;
+            },
         });
 
         controller.syncStateFromConfig({
@@ -328,6 +340,51 @@ describe('rive/artboard-switcher', () => {
         );
     });
 
+    it('defers popup-menu driven switches until after the change handler returns', () => {
+        const elements = createElements();
+        const scheduled = [];
+        const harness = createHarness({
+            elements,
+            setTimeoutFn: (callback) => {
+                scheduled.push(callback);
+                return scheduled.length;
+            },
+        });
+        harness.setRiveInstance({
+            contents: {
+                artboards: [
+                    {
+                        name: 'First',
+                        animations: ['Idle'],
+                        stateMachines: ['Boot'],
+                    },
+                    {
+                        name: 'Second',
+                        animations: ['Bounce'],
+                        stateMachines: ['Main'],
+                    },
+                ],
+            },
+            defaultViewModel: () => ({ instanceCount: 1 }),
+            viewModelInstance: null,
+        });
+        harness.controller.syncStateFromConfig({
+            artboard: 'First',
+            configuredStateMachines: ['Boot'],
+        });
+        harness.controller.populateArtboardSwitcher();
+        harness.controller.setupArtboardSwitcher();
+
+        elements.artboardSelect.value = 'Second';
+        elements.artboardSelect.dispatchEvent(new Event('change'));
+
+        expect(harness.callbacks.loadRiveAnimation).not.toHaveBeenCalled();
+        expect(scheduled).toHaveLength(1);
+
+        scheduled[0]();
+        expect(harness.callbacks.loadRiveAnimation).toHaveBeenCalled();
+    });
+
     it('executes default callback paths safely', async () => {
         const elements = createElements();
         const controller = createArtboardSwitcherController({
@@ -356,6 +413,10 @@ describe('rive/artboard-switcher', () => {
                 }),
                 viewModelInstance: { name: 'Preview' },
             }),
+            setTimeoutFn: (callback) => {
+                callback();
+                return 1;
+            },
         });
 
         controller.populateArtboardSwitcher();

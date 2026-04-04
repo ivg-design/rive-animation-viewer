@@ -1,71 +1,11 @@
 import { MCP_SCRIPT_ACCESS_STORAGE_KEY } from '../core/constants.js';
-
-function shellSingleQuote(value) {
-    return `'${String(value).replace(/'/g, `'\\''`)}'`;
-}
-
-function buildMcpArgs(port) {
-    return ['--stdio-only', '--port', String(port)];
-}
-
-function buildClaudeCodeCommand(serverPath, port) {
-    const payload = JSON.stringify({
-        type: 'stdio',
-        command: serverPath,
-        args: buildMcpArgs(port),
-    });
-    return `claude mcp add-json -s user rav-mcp ${shellSingleQuote(payload)}`;
-}
-
-function buildClaudeDesktopSnippet(serverPath, port) {
-    return JSON.stringify({
-        mcpServers: {
-            'rav-mcp': {
-                command: serverPath,
-                args: buildMcpArgs(port),
-            },
-        },
-    }, null, 2);
-}
-
-function buildCodexSnippet(serverPath, port) {
-    return [
-        '[mcp_servers."rav-mcp"]',
-        `command = ${JSON.stringify(serverPath)}`,
-        `args = ${JSON.stringify(buildMcpArgs(port))}`,
-    ].join('\n');
-}
-
-function buildGenericSnippet(serverPath, port) {
-    return JSON.stringify({
-        name: 'rav-mcp',
-        transport: {
-            type: 'stdio',
-            command: serverPath,
-            args: buildMcpArgs(port),
-        },
-    }, null, 2);
-}
-
-function setCopyHandlers(dialog) {
-    dialog.querySelectorAll('.mcp-copy-btn').forEach((button) => {
-        button.onclick = () => {
-            const targetId = button.dataset.target;
-            const pre = document.getElementById(targetId);
-            if (!pre) {
-                return;
-            }
-            navigator.clipboard.writeText(pre.textContent).then(() => {
-                button.textContent = 'COPIED';
-                button.classList.add('copied');
-                setTimeout(() => {
-                    button.textContent = 'COPY';
-                    button.classList.remove('copied');
-                }, 2000);
-            });
-        };
-    });
-}
+import {
+    buildClaudeCodeCommand,
+    buildClaudeDesktopSnippet,
+    buildCodexSnippet,
+    buildGenericSnippet,
+    setCopyHandlers,
+} from './mcp/snippets.js';
 
 export function createMcpSetupController({
     elements,
@@ -390,7 +330,7 @@ export function createMcpSetupController({
         }
 
         if (!handlersBound) {
-            setCopyHandlers(dialog);
+            setCopyHandlers(dialog, document, navigator);
             setPortHandlers();
             setScriptAccessHandlers();
             setInstallHandlers();

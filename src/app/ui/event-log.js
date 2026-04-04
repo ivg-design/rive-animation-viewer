@@ -1,3 +1,5 @@
+import { createSafeInspectPreview } from '../core/safe-inspect.js';
+
 const EVENT_LOG_LIMIT = 500;
 
 export function createEventLogController({
@@ -137,12 +139,6 @@ export function createEventLogController({
         getScrollContainer()?.addEventListener('scroll', syncFollowStateFromScroll);
         syncFollowButton();
 
-        if (elements.eventLogHeader && elements.eventLogPanel && elements.centerPanel) {
-            elements.eventLogHeader.addEventListener('click', (event) => {
-                if (event.target.closest('.event-log-summary-right')) return;
-                setCollapsed(!isCollapsed());
-            });
-        }
     }
 
     function isCollapsed() {
@@ -276,15 +272,33 @@ export function createEventLogController({
                         const value = payload[key];
                         if (typeof value === 'number') return `${key}: ${roundNum(value)}`;
                         if (typeof value === 'string') return `${key}: ${value}`;
-                        return `${key}: ${JSON.stringify(value)}`;
+                        return `${key}: ${formatPayloadValue(value)}`;
                     });
                     parts.push(values.join('  '));
                 }
             } else {
-                parts.push(String(payload));
+                parts.push(formatPayloadValue(payload));
             }
         }
         return parts.join(' • ');
+    }
+
+    function formatPayloadValue(value) {
+        if (
+            value === null
+            || value === undefined
+            || typeof value === 'string'
+            || typeof value === 'number'
+            || typeof value === 'boolean'
+        ) {
+            return String(value);
+        }
+
+        const preview = createSafeInspectPreview(value);
+        if (typeof preview === 'string') {
+            return preview;
+        }
+        return safeJson(preview);
     }
 
     function roundNum(value) {
