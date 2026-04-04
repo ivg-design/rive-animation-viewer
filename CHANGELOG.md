@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-04-04
+
+### Fixed
+
+- **Windows release workflow** — Fixed the architecture-budget checker to resolve its config path with `fileURLToPath(import.meta.url)` instead of a raw file-URL pathname, which was producing invalid `D:\\D:\\...` paths on GitHub's Windows runners and aborting the release before the Windows artifact built.
+
 ## [2.1.0] - 2026-04-04
 
 ### Added

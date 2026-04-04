@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-04-04
+
+### Fixed
+
+- **Windows release workflow** — Fixed the architecture checker so it resolves config paths correctly on Windows runners, restoring successful cross-platform release publishing after the `2.1.0` Windows job failed before packaging.
+
 ## [2.1.0] - 2026-04-04
 
 ### Added
