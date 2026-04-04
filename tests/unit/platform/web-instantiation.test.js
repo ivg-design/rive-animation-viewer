@@ -117,6 +117,9 @@ describe('platform/web-instantiation', () => {
         expect(code).toContain('const userConfig = (');
         expect(code).toContain('...userConfig,');
         expect(code).toContain('ravRive.applySnapshot();');
+        expect(code).toContain('onLoadError: (error, ...args) => {');
+        expect(code).toContain('console.error("Rive load error:", error, ...args);');
+        expect(code).toContain('userConfig.onLoadError?.(error, ...args);');
         expect(code).toContain('stateMachines: "main-sm"');
         expect(code).toContain('canvas.style.background = "#112233";');
         expect(code).toContain('const VM_OVERRIDES = {');
@@ -126,8 +129,11 @@ describe('platform/web-instantiation', () => {
         expect(code).toContain('"card-vm/refresh", // trigger');
         expect(code).toContain('"main-sm": {');
         expect(code).toContain('"progress": 0.33, // number');
+        expect(code).toContain('// card-vm');
         expect(code).toContain('function fireRavConfiguredTriggers(');
+        expect(code).toContain('Snapshot restores value-like overrides only. Triggers remain manual.');
         expect(code).not.toContain('applied += fireRavStartupTriggers(instance);');
+        expect(code).not.toContain('fireStartupTriggers()');
     });
 
     it('generates CDN/internal snippets and returns metadata', () => {
@@ -153,13 +159,14 @@ describe('platform/web-instantiation', () => {
         expect(result.packageSource).toBe('cdn');
         expect(result.sourceMode).toBe('internal');
         expect(result.code).toContain('<script src="https://unpkg.com/@rive-app/canvas@2.35.0"></script>');
-        expect(result.code).toContain('window.ravRive = ravRive;');
+        expect(result.code).toContain('<!-- Embeddable RAV snippet. Wrap it in a full HTML document if you want a standalone page. -->');
+        expect(result.code).not.toContain('window.ravRive = ravRive;');
         expect(result.code).toContain('animations: "idle"');
         expect(result.code).toContain('canvas.style.background = "transparent";');
-        expect(result.helperApi.global).toBe('window.ravRive');
-        expect(result.helperApi.methods).toContain('window.ravRive.applyVmOverrides()');
-        expect(result.helperApi.methods).toContain('window.ravRive.fireConfiguredTriggers()');
+        expect(result.helperApi).toBeNull();
         expect(result.notes[1]).toContain('internal wiring');
+        expect(result.notes).toContain('No bound ViewModel or writable state-machine controls were detected, so the snippet stays minimal and autoplay-focused.');
+        expect(result.notes).toContain('Canvas runtime is supported, but WebGL2 is recommended for feathering and other advanced visual effects.');
     });
 
     it('supports scaffold snippets with commented unselected controls', () => {
@@ -220,5 +227,37 @@ describe('platform/web-instantiation', () => {
         expect(result.code).toContain('//   "card-vm/progress": 0.78, // number');
         expect(result.code).toContain('//   "card-vm/refresh", // trigger');
         expect(result.notes).toContain('Scaffold mode includes every discovered bound control and comments out anything that is not explicitly selected.');
+    });
+
+    it('keeps zero-control compact snippets lean while preserving helper access', () => {
+        const descriptor = buildEffectiveInstantiationDescriptor({
+            artboardState: {
+                currentArtboard: 'Main',
+                currentPlaybackName: 'idle',
+                currentPlaybackType: 'animation',
+            },
+            currentFileName: 'zero-controls.riv',
+            currentLayoutAlignment: 'center',
+            currentLayoutFit: 'contain',
+            runtimeName: 'webgl2',
+            runtimeVersion: '2.36.0',
+            sourceMode: 'internal',
+        });
+
+        const result = buildWebInstantiationResult(descriptor, {
+            packageSource: 'cdn',
+            controlSnapshot: [],
+            snippetMode: 'compact',
+        });
+
+        expect(result.code).not.toContain('const VM_OVERRIDES = {');
+        expect(result.code).not.toContain('const STATE_MACHINE_OVERRIDES = {');
+        expect(result.code).not.toContain('const VM_TRIGGER_PATHS = [');
+        expect(result.code).not.toContain('const STATE_MACHINE_TRIGGER_INPUTS = [');
+        expect(result.code).not.toContain('const ravRive = createRavWebController(() => riveInst);');
+        expect(result.code).not.toContain('window.ravRive = ravRive;');
+        expect(result.code).not.toContain('ravRive.applySnapshot();');
+        expect(result.helperApi).toBeNull();
+        expect(result.notes).toContain('No bound ViewModel or writable state-machine controls were detected, so the snippet stays minimal and autoplay-focused.');
     });
 });

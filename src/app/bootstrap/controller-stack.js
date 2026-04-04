@@ -24,6 +24,7 @@ export function createControllerStack({
         getCurrentFileMimeType,
         getCurrentFileName,
         getCurrentFilePreferenceId,
+        getCurrentFileSourcePath,
         getCurrentFileSizeBytes,
         getCurrentFileUrl,
         getCurrentLayoutAlignment,
@@ -57,6 +58,7 @@ export function createControllerStack({
         placeholders,
         callbacks: {
             getCurrentFileName,
+            getCurrentFileSourcePath,
             getCurrentFileSizeBytes,
             getCurrentRuntime,
             getCurrentRuntimeSource: () => runtimeLoaderController?.getCurrentRuntimeSource?.(),

@@ -210,10 +210,11 @@ export default function DocsPage() {
           </p>
 
           <p>
-            In <strong>2.1.0</strong>, the desktop shell also gained a custom About window, compact console
-            mode switching, and corrected runtime/MCP strip indicators while keeping the streamlined default
-            startup state: the right properties panel opens by default while the editor and console stay closed
-            until you explicitly open them.
+            In <strong>2.1.1</strong>, the desktop shell keeps the streamlined default startup state
+            from 2.1.0 while hardening the surrounding chrome: the right properties panel still opens
+            by default, the editor and console still stay closed until you explicitly open them, and the
+            desktop window/header, runtime strip, MCP activity indicator, and JavaScript console behavior
+            are now aligned with the shipped app.
           </p>
 
           <h3>Left Panel &mdash; Animation Canvas</h3>
@@ -268,9 +269,19 @@ export default function DocsPage() {
 
           <h3>Runtime Strip</h3>
           <p>
-            When the console is closed, only the runtime strip remains visible. It shows the MCP indicator,
-            console state, runtime version, loaded file, update status, and refresh state. The console chip
-            cycles between <strong>closed</strong>, <strong>event console</strong>, and <strong>JS console</strong>.
+            When the console is closed, only the runtime strip remains visible. It now keeps only the
+            information that is useful in that compact space: the MCP indicator, console open/close state,
+            compact runtime summary, update status, and the currently loaded playback summary.
+          </p>
+          <p>
+            The console chip is now open/close only. Once the panel is open, the header toggle inside the
+            console switches between <strong>Events</strong> and <strong>JS</strong>.
+          </p>
+          <p>
+            The <strong>MCP</strong> chip has three live states: disabled (red with a strike-through),
+            connected but idle (dim yellow), and active command handling (bright yellow with glow).
+            The runtime summary is abbreviated to a compact <code>RT</code> label with the active engine
+            and runtime version.
           </p>
 
           <h3>Code Editor Panel</h3>
@@ -509,11 +520,12 @@ export default function DocsPage() {
 
           <h3>Consistent Row Chrome</h3>
           <p>
-            As of <strong>2.1.0</strong>, the JavaScript console uses one consistent visual language for every row and its
+            As of <strong>2.1.1</strong>, the JavaScript console uses one consistent visual language for every row and its
             <strong>FOLLOW</strong> behavior tracks the actual visible Eruda transcript correctly.
             REPL commands, REPL results, warnings, errors, and app-generated log lines all render with the same
             timestamp-and-badge treatment. This keeps the console readable without giving up Eruda&apos;s native
-            lazy object inspection for complex runtime objects like <code>riveInst</code>.
+            lazy object inspection for complex runtime objects like <code>riveInst</code>, and the panel no
+            longer freezes when toggled or when follow/copy logic reorders the visible transcript.
           </p>
 
           <h3>Available Globals</h3>
@@ -765,7 +777,7 @@ export default function DocsPage() {
           <p>
             The RAV app starts its bridge automatically when it launches. The MCP dialog reports
             <strong>MCP ready</strong> when the bundled sidecar path and bridge are healthy, and the
-            runtime-strip MCP indicator brightens when a client is actively connected.
+            runtime-strip MCP indicator only brightens when a real MCP command is actively being handled.
           </p>
 
           <h3>Setup (one-time)</h3>
@@ -794,7 +806,7 @@ export default function DocsPage() {
             </li>
             <li>
               <strong>Open RAV</strong> &mdash; launch the desktop app. The <strong>MCP</strong>{" "}
-              indicator in the runtime strip turns indigo when a client connection is established.
+              indicator in the runtime strip stays dim yellow while connected and idle, and turns bright yellow only while an MCP command is actively running.
             </li>
           </ol>
           <p>
@@ -870,15 +882,15 @@ export default function DocsPage() {
           <h3>Event Console</h3>
           <p>
             All MCP commands, responses, and connection events appear in the event console
-            with the <code>MCP</code> source tag (indigo). Messages are formatted as human-readable
+            with the <code>MCP</code> source tag. Messages are formatted as human-readable
             summaries with elapsed time &mdash; no raw JSON. Use the <strong>MCP</strong> filter
             toggle to show or hide MCP traffic.
           </p>
 
           <h3>Connection Indicator</h3>
           <p>
-            The runtime strip shows an <strong>MCP</strong> chip with a status dot. Connected is bright
-            indigo. Disconnected is dim but still visible. Disabled is red with a strike-through.
+            The runtime strip shows an <strong>MCP</strong> chip with a status dot. Disabled is red with a strike-through.
+            Connected but idle is dim yellow with no glow. Active MCP use is bright yellow with a glow and only appears while a command is actually being handled.
           </p>
           <p>
             The runtime summary chip beside it now resolves against the actual loaded runtime metadata again,

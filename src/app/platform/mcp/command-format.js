@@ -10,8 +10,10 @@ export function updateStatusIndicator(state, windowRef = globalThis.window) {
             ? state
             : !state?.enabled
                 ? 'off'
+                : state?.indicatorState
+                    ? state.indicatorState
                 : state?.connected
-                    ? 'connected'
+                    ? 'idle'
                     : 'waiting';
         windowRef._mcpUpdateStatus(normalizedState);
     }

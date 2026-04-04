@@ -40,6 +40,7 @@ export function createFileSessionController({
     let currentFileMimeType = 'application/octet-stream';
     let currentFileName = null;
     let currentFilePreferenceId = null;
+    let currentFileSourcePath = '';
     let currentFileSizeBytes = 0;
     let currentFileUrl = null;
     let lastObjectUrl = null;
@@ -60,6 +61,10 @@ export function createFileSessionController({
 
     function getCurrentFilePreferenceId() {
         return currentFilePreferenceId;
+    }
+
+    function getCurrentFileSourcePath() {
+        return currentFileSourcePath;
     }
 
     function getCurrentFileSizeBytes() {
@@ -103,6 +108,7 @@ export function createFileSessionController({
 
         currentFileUrl = url;
         currentFileName = name;
+        currentFileSourcePath = typeof metadata.sourcePath === 'string' ? metadata.sourcePath : '';
         resetArtboardSwitcherState();
         if (buffer instanceof ArrayBuffer) {
             currentFileBuffer = buffer;
@@ -130,6 +136,7 @@ export function createFileSessionController({
         currentFileBuffer = null;
         currentFileSizeBytes = 0;
         currentFilePreferenceId = null;
+        currentFileSourcePath = '';
         resetArtboardSwitcherState();
         updateFileTriggerButton('empty');
         if (elements.canvasContainer) {
@@ -261,9 +268,21 @@ export function createFileSessionController({
         windowRef,
     });
 
-    function handleFileButtonClick() {
+    async function handleFileButtonClick() {
         if (!elements.fileInput) {
             return;
+        }
+        const invoke = getTauriInvoker();
+        if (isTauriEnvironment() && typeof invoke === 'function') {
+            try {
+                const filePath = extractOpenedFilePath(await invoke('pick_riv_file'));
+                if (filePath) {
+                    await loadRivFromPath(filePath, { source: 'open-button' });
+                }
+                return;
+            } catch (error) {
+                console.warn('[rive-viewer] native file picker failed, falling back to browser input:', error);
+            }
         }
         if (currentFileUrl) {
             clearCurrentFile();
@@ -282,6 +301,7 @@ export function createFileSessionController({
         getCurrentFileMimeType,
         getCurrentFileName,
         getCurrentFilePreferenceId,
+        getCurrentFileSourcePath,
         getCurrentFileSizeBytes,
         getCurrentFileUrl,
         handleFileButtonClick,

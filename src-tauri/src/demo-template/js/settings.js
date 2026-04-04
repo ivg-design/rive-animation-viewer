@@ -28,6 +28,35 @@
                 return;
             }
 
+            var copyWithFallback = function (text) {
+                if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                    return navigator.clipboard.writeText(text);
+                }
+
+                return new Promise(function (resolve, reject) {
+                    try {
+                        var textarea = document.createElement('textarea');
+                        textarea.value = text;
+                        textarea.setAttribute('readonly', '');
+                        textarea.style.position = 'fixed';
+                        textarea.style.opacity = '0';
+                        textarea.style.pointerEvents = 'none';
+                        document.body.appendChild(textarea);
+                        textarea.focus();
+                        textarea.select();
+                        var copied = document.execCommand('copy');
+                        document.body.removeChild(textarea);
+                        if (copied) {
+                            resolve();
+                            return;
+                        }
+                        reject(new Error('Clipboard copy command was rejected.'));
+                    } catch (error) {
+                        reject(error);
+                    }
+                });
+            };
+
             var resolveSnippet = function () {
                 var currentSnippet = INSTANTIATION_SNIPPETS[currentInstantiationPackageSource];
                 if (typeof currentSnippet === 'string' && currentSnippet.trim()) {
@@ -61,12 +90,7 @@
                     button.textContent = 'COPY CODE';
                 };
 
-                if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
-                    logEvent('ui', 'copy-instantiation-failed', 'Clipboard API unavailable in exported demo.');
-                    return;
-                }
-
-                navigator.clipboard.writeText(resolveSnippet()).then(function () {
+                copyWithFallback(resolveSnippet()).then(function () {
                     button.textContent = 'COPIED';
                     logEvent('ui', 'copy-instantiation', 'Copied ' + currentInstantiationPackageSource + ' web instantiation code.');
                     setTimeout(resetLabel, 1600);

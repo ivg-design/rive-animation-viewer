@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "2.1.0"
+version = "2.1.1"
 description = "A Tauri App"
 authors = ["IVG Design"]
 license = "MIT"
@@ -27,6 +27,10 @@ tokio = { version = "1.46", features = ["full"] }
 tokio-tungstenite = "0.24"
 toml_edit = "0.22"
 uuid = { version = "1", features = ["v4"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-app-kit = { version = "0.3.2", features = ["NSColor", "NSView", "NSWindow", "objc2-quartz-core"] }
+objc2-quartz-core = { version = "0.3.2", features = ["CALayer"] }
 
 [profile.release]
 strip = true

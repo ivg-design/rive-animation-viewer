@@ -59,6 +59,7 @@ export function createAppLifecycle({
         updaterController,
         updateInfo,
         updateVersionInfo,
+        windowChromeController,
     } = callbacks;
 
     function buildLiveInstantiationDescriptor() {
@@ -166,6 +167,7 @@ export function createAppLifecycle({
         initLucideIcons();
         resolveAppVersion?.();
         updateVersionInfo('Loading runtime...');
+        await windowChromeController?.setup?.();
         bindUiActionHandlers({
             elements,
             actions: {
@@ -223,6 +225,7 @@ export function createAppLifecycle({
             scriptConsoleController.destroy();
             shellController?.dispose();
             fileSessionController?.dispose();
+            windowChromeController?.dispose?.();
         };
         const cleanupTransparency = () => {
             cleanupTransparencyRuntime().catch(() => {

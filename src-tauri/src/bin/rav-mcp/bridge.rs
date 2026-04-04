@@ -157,6 +157,9 @@ impl Bridge {
                 BridgePeerRole::App => {
                     state.app_connection_id = Some(connection_id);
                     state.app_sender = Some(sender);
+                    if let Some(app_sender) = state.app_sender.clone() {
+                        outgoing.push((app_sender, build_client_presence_payload(&state)));
+                    }
                     let drained_pending: Vec<(String, u64)> =
                         state.pending_client_requests.drain().collect();
                     for (request_id, client_id) in drained_pending {
@@ -170,6 +173,9 @@ impl Bridge {
                 }
                 BridgePeerRole::Client => {
                     state.client_senders.insert(connection_id, sender);
+                    if let Some(app_sender) = state.app_sender.clone() {
+                        outgoing.push((app_sender, build_client_presence_payload(&state)));
+                    }
                 }
             }
             connection_id
@@ -269,6 +275,9 @@ impl Bridge {
                     state
                         .pending_client_requests
                         .retain(|_, client_id| *client_id != connection_id);
+                    if let Some(app_sender) = state.app_sender.clone() {
+                        outgoing.push((app_sender, build_client_presence_payload(&state)));
+                    }
                 }
             }
         }
@@ -283,6 +292,15 @@ fn reject_all_pending(state: &mut BridgeState, message: String) {
     for (_, pending) in state.pending.drain() {
         let _ = pending.send(Err(message.clone()));
     }
+}
+
+fn build_client_presence_payload(state: &BridgeState) -> String {
+    json!({
+        "bridgeEvent": "mcp-client-state",
+        "clientCount": state.client_senders.len(),
+        "connected": !state.client_senders.is_empty(),
+    })
+    .to_string()
 }
 
 #[cfg(test)]

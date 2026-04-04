@@ -261,4 +261,52 @@ describe('platform/mcp-bridge', () => {
             },
         });
     });
+
+    it('stays active while an MCP client is attached and returns to idle on detach', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        vi.stubGlobal('setInterval', vi.fn(() => 1));
+        vi.stubGlobal('clearInterval', vi.fn());
+        window._mcpLogEvent = vi.fn();
+        window._mcpUpdateStatus = vi.fn();
+
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-indicator-state');
+        await flushBridgeMicrotasks();
+
+        const socket = FakeWebSocket.instances[0];
+        expect(window._mcpUpdateStatus).toHaveBeenLastCalledWith('waiting');
+
+        socket.accept();
+        await flushBridgeMicrotasks();
+        expect(window._mcpUpdateStatus).toHaveBeenLastCalledWith('idle');
+
+        await socket.onmessage?.({
+            data: {
+                bridgeEvent: 'mcp-client-state',
+                clientCount: 1,
+                connected: true,
+            },
+        });
+        await flushBridgeMicrotasks();
+        expect(window._mcpUpdateStatus).toHaveBeenLastCalledWith('active');
+
+        await socket.onmessage?.({
+            data: {
+                bridgeEvent: 'mcp-client-state',
+                clientCount: 1,
+                connected: true,
+            },
+        });
+        await flushBridgeMicrotasks();
+        expect(window._mcpUpdateStatus).toHaveBeenLastCalledWith('active');
+
+        await socket.onmessage?.({
+            data: {
+                bridgeEvent: 'mcp-client-state',
+                clientCount: 0,
+                connected: false,
+            },
+        });
+        await flushBridgeMicrotasks();
+        expect(window._mcpUpdateStatus).toHaveBeenLastCalledWith('idle');
+    });
 });

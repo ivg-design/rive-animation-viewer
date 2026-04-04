@@ -9,6 +9,8 @@ use std::sync::Mutex;
 use tauri::menu::{Menu, MenuItemBuilder, HELP_SUBMENU_ID};
 #[cfg(target_os = "macos")]
 use tauri::menu::{PredefinedMenuItem, Submenu, WINDOW_SUBMENU_ID};
+#[cfg(target_os = "macos")]
+use tauri::TitleBarStyle;
 use tauri::{Emitter, Manager};
 
 use crate::app::constants::{ABOUT_MENU_ID, DEFAULT_MCP_PORT, ONLINE_DOCS_MENU_ID, RAV_DOCS_URL};
@@ -21,7 +23,7 @@ use crate::app::support::{
     queue_pending_opened_file,
     try_emit_open_file,
 };
-use crate::app::window_controls::open_external_url;
+use crate::app::window_controls::{configure_native_window_chrome, open_external_url};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 fn main() {
@@ -64,10 +66,21 @@ fn main() {
                 app.set_menu(menu)?;
             }
 
-            #[cfg(target_os = "windows")]
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.set_background_color(Some(tauri::window::Color(10, 10, 10, 255)));
-                let _ = window.set_theme(Some(tauri::Theme::Dark));
+                #[cfg(target_os = "windows")]
+                {
+                    let _ = window.set_decorations(false);
+                    let _ = window.set_background_color(Some(tauri::window::Color(10, 10, 10, 255)));
+                    let _ = window.set_theme(Some(tauri::Theme::Dark));
+                }
+
+                #[cfg(target_os = "macos")]
+                {
+                    let _ = window.set_decorations(true);
+                    let _ = window.set_title_bar_style(TitleBarStyle::Overlay);
+                }
+
+                let _ = configure_native_window_chrome(&window);
             }
 
             let bridge_manager = app.state::<McpBridgeManager>();
@@ -96,6 +109,12 @@ fn main() {
             app::window_controls::set_window_click_through,
             app::window_controls::set_window_click_through_mode,
             app::window_controls::get_window_cursor_position,
+            app::window_controls::pick_riv_file,
+            app::window_controls::window_chrome_is_maximized,
+            app::window_controls::window_chrome_toggle_maximize,
+            app::window_controls::window_chrome_minimize,
+            app::window_controls::window_chrome_close,
+            app::window_controls::window_chrome_start_dragging,
             get_opened_file,
             read_riv_file
         ])
@@ -104,7 +123,7 @@ fn main() {
         .run(|app, event| {
             if matches!(event, tauri::RunEvent::Exit) {
                 if let Some(manager) = app.try_state::<McpBridgeManager>() {
-                    kill_spawned_mcp_bridge(&manager);
+                    kill_spawned_mcp_bridge(app, &manager);
                 }
             }
 

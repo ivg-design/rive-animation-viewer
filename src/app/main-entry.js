@@ -70,6 +70,7 @@ const getCurrentFileBuffer = () => fileSessionController?.getCurrentFileBuffer()
 const getCurrentFileMimeType = () => fileSessionController?.getCurrentFileMimeType() ?? 'application/octet-stream';
 const getCurrentFileName = () => fileSessionController?.getCurrentFileName() ?? null;
 const getCurrentFilePreferenceId = () => fileSessionController?.getCurrentFilePreferenceId() ?? null;
+const getCurrentFileSourcePath = () => fileSessionController?.getCurrentFileSourcePath() ?? '';
 const getCurrentFileSizeBytes = () => fileSessionController?.getCurrentFileSizeBytes() ?? 0;
 const getCurrentFileUrl = () => fileSessionController?.getCurrentFileUrl() ?? null;
 const getCurrentLayoutAlignment = () => appState.currentLayoutAlignment;
@@ -143,6 +144,7 @@ const controllerStack = createControllerStack({
         getCurrentFileMimeType,
         getCurrentFileName,
         getCurrentFilePreferenceId,
+        getCurrentFileSourcePath,
         getCurrentFileSizeBytes,
         getCurrentFileUrl,
         getCurrentLayoutAlignment,
@@ -196,6 +198,7 @@ startApp({
         ...controllerStack,
         ensureTauriBridge,
         getCurrentFileName,
+        getCurrentFileSourcePath,
         getCurrentFileUrl,
         getCurrentLayoutAlignment,
         getCurrentLayoutFit,

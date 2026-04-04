@@ -56,6 +56,8 @@
     overflow-y: auto;
     flex: 1;
     min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: #313542 #0f1015;
 }
 
 .mcp-setup-intro {
@@ -261,6 +263,32 @@
     word-break: break-all;
     overflow-x: auto;
     user-select: all;
+    scrollbar-width: thin;
+    scrollbar-color: #313542 #0f1015;
+}
+
+.mcp-setup-body::-webkit-scrollbar,
+.mcp-snippet-block pre::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.mcp-setup-body::-webkit-scrollbar-track,
+.mcp-snippet-block pre::-webkit-scrollbar-track {
+    background: #0f1015;
+    border-radius: 10px;
+}
+
+.mcp-setup-body::-webkit-scrollbar-thumb,
+.mcp-snippet-block pre::-webkit-scrollbar-thumb {
+    background: #313542;
+    border: 1px solid #0f111a;
+    border-radius: 10px;
+}
+
+.mcp-setup-body::-webkit-scrollbar-thumb:hover,
+.mcp-snippet-block pre::-webkit-scrollbar-thumb:hover {
+    background: #4c5268;
 }
 
 .mcp-copy-btn {

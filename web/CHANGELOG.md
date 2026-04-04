@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-04-04
+
+### Changed
+
+- **Desktop window chrome** — macOS now uses a supported overlay-titlebar host with the custom RAV header, corrected window controls, centered file metadata, and properly rounded outer corners instead of the unstable square-host experiments from the late 2.1.0 cycle.
+- **Runtime strip cleanup** — The bottom strip is slimmer and more focused, with compact runtime labeling and a simple open/close console control instead of the old overloaded mode cycling.
+- **Snippet/export templates** — Generated web snippets now stay lean when no controls are selected and document manual trigger firing more clearly.
+
+### Fixed
+
+- **MCP activity states** — The MCP chip now differentiates disabled, connected-idle, and active command execution states instead of staying fully lit while idle.
+- **JavaScript console stability** — JS console toggling, follow anchoring, visible-transcript copy, and REPL row ordering were hardened without losing Eruda's native object inspection.
+- **Snippet/demo bootstrap** — Exported demos no longer reference missing helper functions during startup, and helper runtime code now handles falsy VM returns safely.
+- **Desktop surface polish** — About, MCP, and snippet/export panels now share styled scrollbars, and the About dialog uses a tighter desktop layout without full-window scrolling.
+
 ## [2.1.0] - 2026-04-04
 
 ### Added

@@ -9,6 +9,31 @@ export function safelyInvokeUserCallback(callback, event, callbackName) {
     }
 }
 
+function getActiveViewModelLabel(riveInstance) {
+    if (!riveInstance) {
+        return 'none';
+    }
+
+    try {
+        const instanceName = typeof riveInstance.viewModelInstance?.name === 'string'
+            ? riveInstance.viewModelInstance.name.trim()
+            : '';
+        const definition = typeof riveInstance.defaultViewModel === 'function'
+            ? riveInstance.defaultViewModel()
+            : null;
+        const definitionName = typeof definition?.name === 'string'
+            ? definition.name.trim()
+            : '';
+
+        if (instanceName && definitionName && instanceName !== definitionName) {
+            return `${definitionName}/${instanceName}`;
+        }
+        return instanceName || definitionName || 'none';
+    } catch {
+        return 'none';
+    }
+}
+
 export function createRiveInstanceController({
     callbacks = {},
     elements,
@@ -164,7 +189,7 @@ export function createRiveInstanceController({
             return;
         }
 
-        updateInfo(`Loading ${fileName} (${getCurrentRuntime()})...`);
+        updateInfo(`Loading ${fileName}...`);
         resetVmInputControls('Loading ViewModel inputs...');
         logEvent('native', 'load-start', `Loading ${fileName} on ${getCurrentRuntime()}.`);
 
@@ -252,12 +277,9 @@ export function createRiveInstanceController({
                 } else if (names.length > 0) {
                     activeStateMachine = names[0];
                 }
+                const activeViewModel = getActiveViewModelLabel(riveInstance);
 
-                updateInfo(
-                    names.length > 0
-                        ? `Loaded: ${fileName} (${getCurrentRuntime()}) - state machine "${activeStateMachine}" active`
-                        : `Loaded: ${fileName} (${getCurrentRuntime()}) - no state machines`,
-                );
+                updateInfo(`Loaded: SM ${activeStateMachine} · VM ${activeViewModel}`);
                 syncArtboardStateAfterLoad(riveInstance, config);
                 refreshInfoStrip();
 

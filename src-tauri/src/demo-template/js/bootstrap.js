@@ -144,3 +144,19 @@
 
         /* ── Canvas background ───────────────────────────────── */
 
+        function updateCanvasBackground() {
+            var canvasBackground = isCanvasEffectivelyTransparent() ? 'transparent' : currentCanvasColor;
+            document.documentElement.style.setProperty('--canvas-color', canvasBackground);
+
+            if (els.canvasContainer) {
+                els.canvasContainer.style.background = canvasBackground;
+            }
+            if (els.canvas) {
+                els.canvas.style.background = canvasBackground;
+            }
+
+            var themeColorMeta = document.querySelector('meta[name="theme-color"]');
+            if (themeColorMeta) {
+                themeColorMeta.setAttribute('content', normalizeCanvasColor(currentCanvasColor) || DEFAULT_CANVAS_COLOR);
+            }
+        }

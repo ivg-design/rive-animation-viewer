@@ -44,6 +44,9 @@ export function createMcpBridgeTransport({
     getState,
     getWatchdogIntervalMs = () => 1500,
     onConnected = () => {},
+    onClientPresenceChange = () => {},
+    onCommandEnd = () => {},
+    onCommandStart = () => {},
     onDisconnected = () => {},
     onReconnectDelayChange = () => {},
     setConnectPromise = () => {},
@@ -134,6 +137,15 @@ export function createMcpBridgeTransport({
                     return;
                 }
 
+                if (message?.bridgeEvent === 'mcp-client-state') {
+                    onClientPresenceChange({
+                        clientCount: Number(message.clientCount || 0),
+                        connected: Boolean(message.connected),
+                    });
+                    syncState();
+                    return;
+                }
+
                 const { id, command, params } = message;
                 if (!id || !command) return;
                 const handler = commandHandlers[command];
@@ -144,16 +156,19 @@ export function createMcpBridgeTransport({
                 }
 
                 mcpLog('recv', formatCommandSummary(command, params), undefined, windowRef);
+                onCommandStart(command);
                 const startedAt = performance.now();
                 try {
                     const result = await handler(params || {});
                     const elapsed = Math.round(performance.now() - startedAt);
                     mcpLog('reply', `${command.replace(/^rav_/, '')} → ${formatResultSummary(command, result)}  (${elapsed}ms)`, undefined, windowRef);
                     nextSocket.send(JSON.stringify({ id, result }));
+                    onCommandEnd(command);
                 } catch (error) {
                     const elapsed = Math.round(performance.now() - startedAt);
                     mcpLog('error', `${command.replace(/^rav_/, '')} failed: ${error.message}  (${elapsed}ms)`, undefined, windowRef);
                     nextSocket.send(JSON.stringify({ id, error: error.message }));
+                    onCommandEnd(command);
                 }
             };
 

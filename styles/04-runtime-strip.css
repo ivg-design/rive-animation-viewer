@@ -61,8 +61,6 @@
 }
 
 .runtime-chip-runtime,
-#runtime-strip-version,
-#runtime-strip-build,
 .runtime-strip-sep {
     flex-shrink: 0;
 }
@@ -81,27 +79,10 @@
     color: var(--text-white);
 }
 
-.runtime-chip-runtime .dot {
-    width: 6px;
-    height: 6px;
-}
-
 .runtime-chip-runtime {
     color: var(--text-primary);
-    min-width: 102px;
-    overflow: visible;
-    text-overflow: clip;
+    min-width: 140px;
     font-weight: 600;
-}
-
-.runtime-chip-file {
-    flex: 1 1 164px;
-    min-width: 0;
-    max-width: 220px;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    color: var(--text-dim);
 }
 
 .runtime-chip-status {
@@ -114,7 +95,7 @@
     white-space: nowrap;
 }
 
-/* MCP indicator — three states: off, waiting, connected */
+/* MCP indicator — off, idle, active */
 .runtime-chip-mcp {
     gap: 4px;
     border: 1px solid #384052;
@@ -166,18 +147,21 @@
     opacity: 0.95;
 }
 
-/* WAITING — bridge enabled, no client connected */
-.runtime-chip-mcp[data-mcp-state="waiting"] {
+/* WAITING / IDLE — dim connected/standby yellow with no glow */
+.runtime-chip-mcp[data-mcp-state="waiting"],
+.runtime-chip-mcp[data-mcp-state="idle"] {
     color: #ffd46b;
-    opacity: 0.95;
+    opacity: 0.78;
     border-color: #8b6b1a;
     background: #241d0d;
+    text-shadow: none;
 }
 
-.runtime-chip-mcp[data-mcp-state="waiting"] .mcp-dot {
+.runtime-chip-mcp[data-mcp-state="waiting"] .mcp-dot,
+.runtime-chip-mcp[data-mcp-state="idle"] .mcp-dot {
     background: #fbbf24;
-    box-shadow: 0 0 0 1px #f59e0b40;
-    animation: mcp-pulse 2s ease-in-out infinite;
+    box-shadow: none;
+    animation: none;
 }
 
 @keyframes mcp-pulse {
@@ -185,8 +169,8 @@
     50% { opacity: 1; }
 }
 
-/* CONNECTED — agent is live */
-.runtime-chip-mcp[data-mcp-state="connected"] {
+/* ACTIVE — agent is live */
+.runtime-chip-mcp[data-mcp-state="active"] {
     color: #f0ffb0;
     opacity: 1;
     text-shadow: 0 0 12px #c4f82a40;
@@ -194,7 +178,7 @@
     background: #1b2910;
 }
 
-.runtime-chip-mcp[data-mcp-state="connected"] .mcp-dot {
+.runtime-chip-mcp[data-mcp-state="active"] .mcp-dot {
     background: var(--neon);
     box-shadow: 0 0 10px #c4f82a80, 0 0 4px #c4f82a66;
     animation: none;

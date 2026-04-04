@@ -18,6 +18,7 @@ const WATCHDOG_INTERVAL_MS = 1500;
 const PORT_SYNC_TIMEOUT_MS = 800;
 
 const state = {
+    activeCommandCount: 0,
     baseReconnectDelay: RECONNECT_DELAY_MS,
     bridgePortSyncPromise: null,
     connected: false,
@@ -25,12 +26,45 @@ const state = {
     connectionAttempts: 0,
     enabled: true,
     maxReconnectDelay: MAX_RECONNECT_DELAY_MS,
+    mcpClientCount: 0,
     port: readInitialBridgePort(window),
     reconnectDelay: RECONNECT_DELAY_MS,
     reconnectTimer: null,
     socket: null,
     watchdogTimer: null,
 };
+
+function getIndicatorState() {
+    if (!state.enabled) {
+        return 'off';
+    }
+    if (!state.connected) {
+        return 'waiting';
+    }
+    return state.mcpClientCount > 0 || state.activeCommandCount > 0 ? 'active' : 'idle';
+}
+
+function syncIndicator() {
+    transport.syncState();
+}
+
+function markCommandStart() {
+    if (!state.enabled || !state.connected) {
+        return;
+    }
+    state.activeCommandCount += 1;
+    syncIndicator();
+}
+
+function markCommandEnd() {
+    state.activeCommandCount = Math.max(0, state.activeCommandCount - 1);
+    syncIndicator();
+}
+
+function updateClientPresence({ clientCount = 0, connected = false } = {}) {
+    state.mcpClientCount = connected ? Math.max(1, clientCount) : Math.max(0, clientCount);
+    syncIndicator();
+}
 
 function getBridgeUrl() {
     return `ws://127.0.0.1:${state.port}`;
@@ -87,13 +121,25 @@ const transport = createMcpBridgeTransport({
     getEnabled: () => state.enabled,
     getReconnectDelay: () => state.reconnectDelay,
     getSocket: () => state.socket,
-    getState: () => state,
+    getState: () => ({ ...state, indicatorState: getIndicatorState() }),
     getWatchdogIntervalMs: () => WATCHDOG_INTERVAL_MS,
     onConnected: () => {
+        state.activeCommandCount = 0;
         state.connected = true;
         state.reconnectDelay = state.baseReconnectDelay;
     },
+    onClientPresenceChange: ({ clientCount, connected }) => {
+        updateClientPresence({ clientCount, connected });
+    },
+    onCommandEnd: () => {
+        markCommandEnd();
+    },
+    onCommandStart: () => {
+        markCommandStart();
+    },
     onDisconnected: () => {
+        state.activeCommandCount = 0;
+        state.mcpClientCount = 0;
         state.connected = false;
     },
     onReconnectDelayChange: (delay) => {
@@ -119,6 +165,7 @@ window._mcpBridge = {
     get connected() { return state.connected; },
     get connectionAttempts() { return state.connectionAttempts; },
     get enabled() { return state.enabled; },
+    get indicatorState() { return getIndicatorState(); },
     get port() { return state.port; },
     get state() { return !state.enabled ? 'off' : state.connected ? 'connected' : 'waiting'; },
 
@@ -127,6 +174,8 @@ window._mcpBridge = {
             return;
         }
         state.enabled = true;
+        state.activeCommandCount = 0;
+        state.mcpClientCount = 0;
         state.reconnectDelay = state.baseReconnectDelay;
         transport.syncState();
         transport.connect();
@@ -137,6 +186,8 @@ window._mcpBridge = {
             return;
         }
         state.enabled = false;
+        state.activeCommandCount = 0;
+        state.mcpClientCount = 0;
         transport.disconnect();
         transport.syncState();
         void invokeDesktop('stop_mcp_bridge', {}, window);

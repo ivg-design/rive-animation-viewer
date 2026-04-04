@@ -1,7 +1,11 @@
 import { DEFAULT_RUNTIME_VERSION } from '../core/constants.js';
 
 export function getRuntimeDisplayName(runtimeName = 'webgl2') {
-    return runtimeName === 'canvas' ? 'Canvas' : 'WebGL';
+    return runtimeName === 'canvas' ? 'Canvas' : 'WebGL2';
+}
+
+export function getRuntimeStatusLabel(runtimeName = 'webgl2') {
+    return runtimeName === 'canvas' ? 'CANVAS' : 'WEBGL2';
 }
 
 export function formatByteSize(value) {
@@ -27,6 +31,29 @@ export function escapeHtml(value, documentRef = globalThis.document) {
     return div.innerHTML;
 }
 
+function splitDirectoryAndFileLabel(pathLabel, fallbackFileName) {
+    const normalizedPath = String(pathLabel || '').trim();
+    const normalizedFileName = String(fallbackFileName || '').trim();
+    if (!normalizedPath) {
+        return {
+            directoryLabel: '',
+            fileLabel: normalizedFileName,
+        };
+    }
+    const lastSeparatorIndex = Math.max(normalizedPath.lastIndexOf('/'), normalizedPath.lastIndexOf('\\'));
+    if (lastSeparatorIndex === -1) {
+        return {
+            directoryLabel: '',
+            fileLabel: normalizedPath,
+        };
+    }
+    const fileLabel = normalizedPath.slice(lastSeparatorIndex + 1) || normalizedFileName;
+    return {
+        directoryLabel: normalizedPath.slice(0, lastSeparatorIndex + 1),
+        fileLabel,
+    };
+}
+
 export function createStatusController({
     callbacks = {},
     clearTimeoutFn = globalThis.clearTimeout,
@@ -38,6 +65,7 @@ export function createStatusController({
 } = {}) {
     const {
         getCurrentFileName = () => null,
+        getCurrentFileSourcePath = () => '',
         getCurrentFileSizeBytes = () => 0,
         getCurrentRuntime = () => 'webgl2',
         getCurrentRuntimeSource = () => '',
@@ -100,29 +128,59 @@ export function createStatusController({
         return full.length > 12 ? `${full.slice(0, 12)}…` : full;
     }
 
+    function buildHeaderFileMeta() {
+        const currentFileName = getCurrentFileName();
+        if (!currentFileName) {
+            return null;
+        }
+
+        const currentFileSourcePath = getCurrentFileSourcePath();
+        const sizeLabel = formatByteSize(getCurrentFileSizeBytes());
+        const { directoryLabel, fileLabel } = splitDirectoryAndFileLabel(
+            currentFileSourcePath || currentFileName,
+            currentFileName,
+        );
+        return {
+            directoryLabel,
+            fileLabel,
+            fullLabel: currentFileSourcePath || currentFileName,
+            sizeLabel,
+        };
+    }
+
+    function updateHeaderFileMeta() {
+        if (!elements.headerFileMeta) {
+            return;
+        }
+        const value = buildHeaderFileMeta();
+        if (!value?.fileLabel) {
+            elements.headerFileMeta.textContent = '';
+            elements.headerFileMeta.title = '';
+            elements.headerFileMeta.hidden = true;
+            return;
+        }
+        const fullLabel = value.sizeLabel ? `${value.fullLabel} · ${value.sizeLabel}` : value.fullLabel;
+        const directoryMarkup = value.directoryLabel
+            ? `<span class="header-file-meta-directory">${escapeHtml(value.directoryLabel, documentRef)}</span>`
+            : '';
+        const sizeMarkup = value.sizeLabel
+            ? `<span class="header-file-meta-size">${escapeHtml(value.sizeLabel, documentRef)}</span>`
+            : '';
+        elements.headerFileMeta.innerHTML = `
+            ${directoryMarkup}
+            <span class="header-file-meta-file">${escapeHtml(value.fileLabel, documentRef)}</span>
+            ${sizeMarkup}
+        `;
+        elements.headerFileMeta.title = fullLabel;
+        elements.headerFileMeta.hidden = false;
+    }
+
     function refreshInfoStrip() {
         const currentRuntime = getCurrentRuntime();
-        const currentFileName = getCurrentFileName();
+        updateHeaderFileMeta();
         if (elements.runtimeStripRuntime) {
-            elements.runtimeStripRuntime.innerHTML = `<span class="dot dot-sm" aria-hidden="true"></span>Runtime: ${getRuntimeDisplayName(currentRuntime)}`;
-        }
-        if (elements.runtimeStripVersion) {
             const runtimeVersion = getCurrentRuntimeVersion(currentRuntime) || DEFAULT_RUNTIME_VERSION;
-            elements.runtimeStripVersion.textContent = `v${runtimeVersion}`;
-        }
-        if (elements.runtimeStripBuild) {
-            elements.runtimeStripBuild.textContent = getShortBuildIdLabel();
-        }
-        if (elements.runtimeStripFile) {
-            if (currentFileName) {
-                const sizeLabel = formatByteSize(getCurrentFileSizeBytes());
-                const fileLabel = sizeLabel ? `${currentFileName} · ${sizeLabel}` : currentFileName;
-                elements.runtimeStripFile.innerHTML = `<i data-lucide="file" class="lucide-10"></i>${escapeHtml(fileLabel, documentRef)}`;
-                initLucideIcons();
-            } else {
-                elements.runtimeStripFile.innerHTML = '<i data-lucide="file" class="lucide-10"></i>No animation loaded';
-                initLucideIcons();
-            }
+            elements.runtimeStripRuntime.textContent = `RT: ${getRuntimeStatusLabel(currentRuntime)} v${runtimeVersion}`;
         }
     }
 
@@ -165,7 +223,7 @@ export function createStatusController({
         const appVersionLabel = resolvedAppVersion || 'dev';
         const currentRuntime = getCurrentRuntime();
         const releaseLine = `Release: v${appVersionLabel} · Build: ${getBuildIdLabel()}`;
-        const footer = '<div class="version-footer">© 2025 IVG Design · MIT License · Runtime © Rive</div>';
+        const footer = '<div class="version-footer">© 2026 IVG Design · MIT License · Runtime © Rive</div>';
 
         if (statusMessage) {
             elements.versionInfo.innerHTML = `${releaseLine}<br>${statusMessage}${footer}`;

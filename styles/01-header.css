@@ -48,6 +48,7 @@
     min-width: max-content;
 }
 
+
 /* ── Brand ────────────────────────────────────────────────── */
 
 .brand-block {
@@ -392,7 +393,6 @@
     background: var(--neon);
     flex-shrink: 0;
 }
-
 .dot-sm {
     width: 6px;
     height: 6px;
