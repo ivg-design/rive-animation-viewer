@@ -4,13 +4,8 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.1.1` (2026-04-04)
-- Latest patch: `2.1.1` fixes the Windows release workflow regression in the new architecture-budget checker so cross-platform signed releases can publish cleanly again.
-- Validation target: release from `main` so installed desktop builds can pick up the `2.1.1` updater payload directly.
-
-## 2.1.1 Highlights
-
-- **Windows release workflow fix**: The architecture-budget checker now resolves its config path correctly on Windows runners, fixing the `D:\\D:\\...` path error that broke the `2.1.0` Windows release job before packaging.
+- Current release: `2.1.0` (2026-04-04)
+- Validation target: release from `main` so installed desktop builds can pick up the `2.1.0` updater payload directly.
 
 ## 2.1.0 Highlights
 
@@ -19,6 +14,7 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 - **Console mode cleanup**: The runtime strip console control is now open/close only, the console header toggles `Events` / `JS`, and JS `FOLLOW` now tracks the real visible transcript correctly.
 - **Indicator and logging fixes**: Runtime and MCP status chips again reflect the real live state, and cyclic MCP payloads no longer crash the event console renderer.
 - **Windows polish**: Dark-mode menu chrome remains visible and the bundled MCP sidecar no longer opens a stray PowerShell window on launch.
+- **Windows release workflow fix**: The architecture-budget checker now resolves its config path correctly on Windows runners, fixing the `D:\\D:\\...` path error that blocked the original `2.1.0` Windows packaging step.
 
 ## 2.0.5 Highlights
 

@@ -6,14 +6,9 @@ mod app;
 use std::collections::VecDeque;
 use std::sync::Mutex;
 
-use tauri::menu::{
-    Menu,
-    MenuItemBuilder,
-    PredefinedMenuItem,
-    Submenu,
-    HELP_SUBMENU_ID,
-    WINDOW_SUBMENU_ID,
-};
+use tauri::menu::{Menu, MenuItemBuilder, HELP_SUBMENU_ID};
+#[cfg(target_os = "macos")]
+use tauri::menu::{PredefinedMenuItem, Submenu, WINDOW_SUBMENU_ID};
 use tauri::{Emitter, Manager};
 
 use crate::app::constants::{ABOUT_MENU_ID, DEFAULT_MCP_PORT, ONLINE_DOCS_MENU_ID, RAV_DOCS_URL};

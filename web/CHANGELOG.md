@@ -4,12 +4,6 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
-## [2.1.1] - 2026-04-04
-
-### Fixed
-
-- **Windows release workflow** — Fixed the architecture checker so it resolves config paths correctly on Windows runners, restoring successful cross-platform release publishing after the `2.1.0` Windows job failed before packaging.
-
 ## [2.1.0] - 2026-04-04
 
 ### Added
@@ -29,6 +23,7 @@ All notable changes to this project are documented in this file.
 - **Runtime and MCP indicators** — The runtime strip now reflects the real loaded runtime and live MCP connection state again after the refactor.
 - **Event console cyclic payload crash** — Event-log rendering now safely formats cyclic MCP payloads without crashing.
 - **Windows desktop polish** — The Windows app now keeps its dark menu bar visible and no longer opens a stray PowerShell window for the MCP sidecar.
+- **Windows release workflow** — The architecture checker now resolves config paths correctly on Windows runners, restoring successful cross-platform release publishing for `2.1.0`.
 
 ## [2.0.5] - 2026-04-03
 

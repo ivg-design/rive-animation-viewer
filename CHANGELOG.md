@@ -4,12 +4,6 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
-## [2.1.1] - 2026-04-04
-
-### Fixed
-
-- **Windows release workflow** — Fixed the architecture-budget checker to resolve its config path with `fileURLToPath(import.meta.url)` instead of a raw file-URL pathname, which was producing invalid `D:\\D:\\...` paths on GitHub's Windows runners and aborting the release before the Windows artifact built.
-
 ## [2.1.0] - 2026-04-04
 
 ### Added
@@ -30,6 +24,7 @@ All notable changes to this project are documented in this file.
 - **Event console cyclic payload crash** — Event-log rendering now handles cyclic MCP payloads safely instead of crashing on `JSON.stringify` when command metadata contains self-references.
 - **Desktop About integration** — Native `About Rive Animation Viewer` now opens the custom dialog reliably, centered and styled to match the RAV desktop aesthetic.
 - **Windows shell polish** — Windows startup now uses opaque dark chrome so the native menu bar remains visible in dark mode, and the bundled MCP sidecar launches without opening a stray PowerShell window.
+- **Windows release workflow** — Fixed the architecture-budget checker to resolve its config path with `fileURLToPath(import.meta.url)` instead of a raw file-URL pathname, which was producing invalid `D:\\D:\\...` paths on GitHub's Windows runners and aborting the release before the Windows artifact built.
 
 ## [2.0.5] - 2026-04-03
 
