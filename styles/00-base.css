@@ -13,6 +13,7 @@
     --text-dim: #a1a1aa;
     --text-ghost: #52525b;
     --text-muted: #71717a;
+    --text-primary: #a1a1aa;
     --text-white: #ffffff;
     --left-width: 320px;
     --right-width: 320px;
@@ -20,6 +21,8 @@
     --split-size: 8px;
     --radius-sm: 4px;
     --radius-md: 8px;
+    --radius-control: 8px;
+    --radius-toolbar: 12px;
     --radius-lg: 12px;
     --radius-xl: 16px;
     --gap-micro: 2px;
@@ -34,7 +37,7 @@
     --pad-base: 12px;
     --pad-spacious: 16px;
     --pad-panel: 32px;
-    --header-control-h: 36px;
+    --header-control-h: 40px;
 }
 
 * {
@@ -83,7 +86,7 @@ body.transparency-mode .app-shell {
 
 html.is-tauri-window,
 body.is-tauri-window {
-    background: transparent;
+    background: #101116;
 }
 
 body.transparency-mode .workspace,

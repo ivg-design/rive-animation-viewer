@@ -1,8 +1,8 @@
 use serde_json::{json, Value};
 
 use crate::bridge::Bridge;
-use crate::constants::{DEFAULT_PROTOCOL_VERSION, SERVER_NAME, SERVER_VERSION};
-use crate::instructions::SERVER_INSTRUCTIONS;
+use crate::support::constants::{DEFAULT_PROTOCOL_VERSION, SERVER_NAME, SERVER_VERSION};
+use crate::support::instructions::SERVER_INSTRUCTIONS;
 use crate::tool_registry::tools_list;
 
 pub fn jsonrpc_error(id: Value, code: i64, message: impl Into<String>) -> Value {

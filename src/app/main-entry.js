@@ -1,6 +1,6 @@
 import './platform/mcp/bridge-client.js';
 import { createCodeMirrorLoader } from './bootstrap/codemirror-loader.js';
-import { createControllerStack } from './bootstrap/controller-stack.js';
+import { createControllerStack } from './bootstrap/stacks/controller-stack.js';
 import { installAppDialogs } from './bootstrap/dom/dialogs.js';
 import { createInstanceHooks } from './bootstrap/instance-hooks.js';
 import { startApp } from './bootstrap/startup.js';
@@ -12,13 +12,13 @@ import {
     RUNTIME_VERSION_OPTION_COUNT,
 } from './core/constants.js';
 import { getElements } from './core/elements.js';
-import { normalizeOpenedFilePath } from './platform/file-session.js';
+import { normalizeOpenedFilePath } from './platform/session/file-session.js';
 import {
     buildFileRuntimePreferenceId as createFileRuntimePreferenceId,
     loadRuntimeMeta,
     loadRuntimeVersionByFile,
     loadRuntimeVersionPreference,
-} from './platform/runtime-utils.js';
+} from './platform/runtime/runtime-utils.js';
 import { createTauriBridgeController } from './platform/tauri-bridge.js';
 
 const tauriController = createTauriBridgeController();

@@ -10,9 +10,12 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "macOSPrivateApi": true,
+    "macOSPrivateApi": false,
     "withGlobalTauri": true,
     "security": {
+      "capabilities": [
+        "main-capability"
+      ],
       "csp": null
     },
     "windows": [
@@ -23,12 +26,10 @@
         "minWidth": 1090,
         "minHeight": 850,
         "resizable": true,
-        "decorations": true,
+        "decorations": false,
         "shadow": true,
-        "backgroundColor": "#00000000",
-        "transparent": true,
-        "titleBarStyle": "Overlay",
-        "hiddenTitle": true,
+        "backgroundColor": "#101116",
+        "transparent": false,
         "theme": "Dark",
         "fullscreen": false
       }

@@ -1,12 +1,12 @@
-import { createAppUpdaterController } from '../platform/app-updater.js';
-import { createEventLogController } from '../ui/event-log.js';
-import { createMcpSetupController } from '../ui/mcp-setup.js';
-import { createAboutDialogController } from '../ui/about/about-dialog.js';
-import { createCodeEditorController } from '../ui/code-editor.js';
-import { createConsoleModeController } from '../ui/console/console-mode-controller.js';
-import { createScriptConsoleController } from '../ui/script-console.js';
-import { createStatusController } from '../ui/status-controller.js';
-import { createWindowChromeController } from '../ui/window-chrome.js';
+import { createAppUpdaterController } from '../../platform/app-updater.js';
+import { createEventLogController } from '../../ui/event-log.js';
+import { createMcpSetupController } from '../../ui/mcp-setup.js';
+import { createAboutDialogController } from '../../ui/about/about-dialog.js';
+import { createCodeEditorController } from '../../ui/code-editor.js';
+import { createConsoleModeController } from '../../ui/console/console-mode-controller.js';
+import { createScriptConsoleController } from '../../ui/script-console.js';
+import { createStatusController } from '../../ui/status/status-controller.js';
+import { createWindowChromeController } from '../../ui/window/window-chrome.js';
 
 export function createUiStack({
     elements,

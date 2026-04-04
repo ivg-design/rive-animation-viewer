@@ -1,46 +1,89 @@
         function setupFullscreen() {
-            const hint = els.fullscreenExitHint;
-            if (!hint) return;
+            var button = els.fullscreenToggleBtn;
+            if (!button) return;
 
-            let hoverTimer = null;
-
-            document.addEventListener('keydown', function (e) {
-                if (e.key === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-                    const tag = (e.target.tagName || '').toLowerCase();
-                    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-                    document.body.classList.toggle('fullscreen-mode');
-                    handleResize();
-                }
-            });
-
-            hint.addEventListener('click', function () {
-                document.body.classList.remove('fullscreen-mode');
+            function syncFullscreenState() {
+                var isFullscreen = Boolean(document.fullscreenElement) || isFallbackFullscreenMode;
+                document.body.classList.toggle('fullscreen-mode', isFullscreen);
+                button.setAttribute('aria-pressed', String(isFullscreen));
+                button.title = isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen';
+                button.setAttribute('aria-label', button.title);
                 handleResize();
-            });
+            }
 
-            // Show hint on hover in bottom-right corner
-            document.addEventListener('mousemove', function (e) {
-                if (!document.body.classList.contains('fullscreen-mode')) {
-                    hint.style.opacity = '0';
+            button.addEventListener('click', function () {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen().catch(function () {
+                        isFallbackFullscreenMode = false;
+                        syncFullscreenState();
+                    });
                     return;
                 }
-                const threshold = 80;
-                const inCorner = e.clientX > window.innerWidth - threshold && e.clientY > window.innerHeight - threshold;
-                if (inCorner) {
-                    if (!hoverTimer) {
-                        hoverTimer = setTimeout(function () {
-                            hint.style.opacity = '1';
-                        }, 1000);
-                    }
-                } else {
-                    clearTimeout(hoverTimer);
-                    hoverTimer = null;
-                    hint.style.opacity = '0';
+
+                if (document.documentElement && typeof document.documentElement.requestFullscreen === 'function') {
+                    document.documentElement.requestFullscreen().then(function () {
+                        isFallbackFullscreenMode = false;
+                        syncFullscreenState();
+                    }).catch(function () {
+                        isFallbackFullscreenMode = true;
+                        syncFullscreenState();
+                    });
+                    return;
+                }
+
+                isFallbackFullscreenMode = true;
+                syncFullscreenState();
+            });
+
+            document.addEventListener('fullscreenchange', function () {
+                if (!document.fullscreenElement) {
+                    isFallbackFullscreenMode = false;
+                }
+                syncFullscreenState();
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key !== 'Escape') return;
+                if (document.fullscreenElement) {
+                    document.exitFullscreen().catch(function () {
+                        isFallbackFullscreenMode = false;
+                        syncFullscreenState();
+                    });
+                    return;
+                }
+                if (isFallbackFullscreenMode) {
+                    isFallbackFullscreenMode = false;
+                    syncFullscreenState();
                 }
             });
+
+            syncFullscreenState();
         }
 
         /* ── Event log ───────────────────────────────────────── */
+
+        function setEventLogCollapsed(collapsed) {
+            var centerPanel = els.centerPanel;
+            var eventLogPanel = els.eventLogPanel;
+            var toggleButton = els.eventLogToggleBtn;
+            var isCollapsed = Boolean(collapsed);
+
+            if (centerPanel) {
+                centerPanel.classList.toggle('event-log-collapsed', isCollapsed);
+            }
+            if (eventLogPanel) {
+                eventLogPanel.classList.toggle('collapsed', isCollapsed);
+            }
+            if (toggleButton) {
+                toggleButton.textContent = isCollapsed ? 'OPEN' : 'CLOSE';
+                toggleButton.setAttribute('aria-pressed', String(!isCollapsed));
+                toggleButton.title = isCollapsed ? 'Open event log' : 'Close event log';
+                toggleButton.setAttribute('aria-label', toggleButton.title);
+            }
+
+            handleResize();
+            setTimeout(handleResize, 250);
+        }
 
         function setupEventLog() {
             var nativeToggle = els.eventFilterNative;
@@ -48,10 +91,7 @@
             var uiToggle = els.eventFilterUi;
             var searchInput = els.eventFilterSearch;
             var clearButton = els.eventLogClearBtn;
-            var header = els.eventLogHeader;
-            var centerPanel = els.centerPanel;
-            var eventLogPanel = els.eventLogPanel;
-            var showEventLogBtn = els.showEventLogBtn;
+            var toggleButton = els.eventLogToggleBtn;
 
             if (!nativeToggle || !riveUserToggle || !uiToggle || !searchInput || !clearButton) return;
 
@@ -90,24 +130,10 @@
                 logEvent('ui', 'log-cleared', 'Event log cleared.');
             });
 
-            if (header && centerPanel && eventLogPanel) {
-                header.addEventListener('click', function (e) {
-                    if (e.target.closest('.event-log-summary-right')) return;
-                    var isCollapsed = centerPanel.classList.toggle('event-log-collapsed');
-                    eventLogPanel.classList.toggle('collapsed', isCollapsed);
-                    if (showEventLogBtn) showEventLogBtn.hidden = !isCollapsed;
-                    handleResize();
-                    setTimeout(handleResize, 250);
-                });
-            }
-
-            if (showEventLogBtn && centerPanel && eventLogPanel) {
-                showEventLogBtn.addEventListener('click', function () {
-                    centerPanel.classList.remove('event-log-collapsed');
-                    eventLogPanel.classList.remove('collapsed');
-                    showEventLogBtn.hidden = true;
-                    handleResize();
-                    setTimeout(handleResize, 250);
+            if (toggleButton) {
+                toggleButton.addEventListener('click', function () {
+                    var isCollapsed = els.centerPanel && els.centerPanel.classList.contains('event-log-collapsed');
+                    setEventLogCollapsed(!isCollapsed);
                 });
             }
         }
@@ -263,4 +289,3 @@
         }
 
         /* ── VM accessor helpers ─────────────────────────────── */
-

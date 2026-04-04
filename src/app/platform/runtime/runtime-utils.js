@@ -6,7 +6,7 @@ import {
     RUNTIME_META_STORAGE_KEY,
     RUNTIME_PACKAGE_NAMES,
     RUNTIME_VERSION_PREF_STORAGE_KEY,
-} from '../core/constants.js';
+} from '../../core/constants.js';
 
 export function getRuntimePackageName(runtimeName) {
     return RUNTIME_PACKAGE_NAMES[runtimeName] || RUNTIME_PACKAGE_NAMES.webgl2;

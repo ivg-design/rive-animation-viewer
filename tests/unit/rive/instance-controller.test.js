@@ -115,7 +115,7 @@ describe('rive/instance-controller', () => {
         expect(callbacks.populateArtboardSwitcher).toHaveBeenCalled();
         expect(callbacks.syncArtboardStateAfterLoad).toHaveBeenCalledWith(instance, capturedConfig);
         expect(callbacks.updateInfo).toHaveBeenNthCalledWith(1, 'Loading demo.riv...');
-        expect(callbacks.updateInfo).toHaveBeenNthCalledWith(2, 'Loaded: SM DetectedSM · VM VM');
+        expect(callbacks.updateInfo).toHaveBeenNthCalledWith(2, 'Loaded: [SM] DetectedSM · [VM] VM');
         expect(userOnLoad).toHaveBeenCalled();
 
         const riveEventListener = instance.on.mock.calls[0][1];

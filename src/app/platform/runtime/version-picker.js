@@ -5,7 +5,7 @@ import {
     RUNTIME_VERSION_OPTION_COUNT,
 } from '../../core/constants.js';
 import { fetchRuntimeVersionOptions } from './assets.js';
-import { normalizeRuntimeVersionToken } from '../runtime-utils.js';
+import { normalizeRuntimeVersionToken } from './runtime-utils.js';
 
 export function createRuntimeVersionPickerController({
     applyRuntimeVersionToken,

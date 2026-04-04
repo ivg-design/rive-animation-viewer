@@ -22,7 +22,10 @@
 
                     var fullPath = basePath ? basePath + '/' + name : name;
                     var accessorInfo = getVmAccessor(instance, name);
-                    if (accessorInfo && VM_CONTROL_KINDS.has(accessorInfo.kind) && !seenInputPaths.has(fullPath)) {
+                    if (accessorInfo
+                        && VM_CONTROL_KINDS.has(accessorInfo.kind)
+                        && !seenInputPaths.has(fullPath)
+                        && isControlDescriptorAllowed({ kind: accessorInfo.kind, name: name, path: fullPath, source: 'view-model' })) {
                         node.inputs.push({ name: name, path: fullPath, kind: accessorInfo.kind });
                         seenInputPaths.add(fullPath);
                         totalInputs += 1;
@@ -97,9 +100,18 @@
                     var inputName = input && typeof input.name === 'string' && input.name ? input.name : null;
                     if (!inputKind || !inputName) return;
 
-                    childNode.inputs.push({
+                    var descriptor = {
+                        kind: inputKind,
                         name: inputName,
                         path: 'stateMachine/' + stateMachineName + '/' + inputName,
+                        source: 'state-machine',
+                        stateMachineName: stateMachineName,
+                    };
+                    if (!isControlDescriptorAllowed(descriptor)) return;
+
+                    childNode.inputs.push({
+                        name: inputName,
+                        path: descriptor.path,
                         kind: inputKind,
                         source: 'state-machine',
                         stateMachineName: stateMachineName,
@@ -116,4 +128,3 @@
         }
 
         /* ── VM controls rendering ───────────────────────────── */
-

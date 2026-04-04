@@ -57,7 +57,7 @@ describe('rive/playback-controls', () => {
 
         expect(riveInstance.stop).toHaveBeenCalled();
         expect(riveInstance.play).toHaveBeenCalledWith('Bounce');
-        expect(harness.callbacks.updateInfo).toHaveBeenCalledWith('Playing');
+        expect(harness.callbacks.updateInfo).toHaveBeenCalledWith('Playing: [ANIM] Bounce');
     });
 
     it('pauses active playback when an instance is available', () => {
@@ -69,6 +69,7 @@ describe('rive/playback-controls', () => {
         harness.controller.pause();
 
         expect(riveInstance.pause).toHaveBeenCalled();
+        expect(harness.callbacks.updateInfo).toHaveBeenCalledWith('Paused: [ANIM] Bounce');
         expect(harness.callbacks.logEvent).toHaveBeenCalledWith('ui', 'pause', 'Playback paused from UI.');
     });
 

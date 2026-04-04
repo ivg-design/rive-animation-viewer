@@ -10,14 +10,14 @@ import {
     RUNTIME_VERSION_DISCOVERY_URL,
     RUNTIME_VERSION_OPTION_COUNT,
     RUNTIME_VERSION_PREF_STORAGE_KEY,
-} from '../core/constants.js';
+} from '../../core/constants.js';
 import {
     createRuntimeAssetLoader,
     fetchRuntimeVersionOptions,
     resolveRuntimeSource,
     responseToRuntimeAsset,
-} from './runtime/assets.js';
-import { createRuntimeVersionPickerController } from './runtime/version-picker.js';
+} from './assets.js';
+import { createRuntimeVersionPickerController } from './version-picker.js';
 import {
     getEffectiveRuntimeVersionToken as resolveEffectiveRuntimeVersionToken,
     getRuntimeCacheKey as buildRuntimeCacheKey,
@@ -27,7 +27,7 @@ import {
     normalizeRuntimeVersionToken,
 } from './runtime-utils.js';
 
-export { fetchRuntimeVersionOptions, resolveRuntimeSource, responseToRuntimeAsset } from './runtime/assets.js';
+export { fetchRuntimeVersionOptions, resolveRuntimeSource, responseToRuntimeAsset } from './assets.js';
 
 export function createRuntimeLoaderController({
     elements,

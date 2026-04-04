@@ -22,7 +22,7 @@
         function safeVmCall(target, method, arg) {
             if (!target || typeof target[method] !== 'function') return null;
             try {
-                return target[method](arg) || null;
+                return target[method](arg);
             } catch (e) {
                 return null;
             }
@@ -114,9 +114,30 @@
 
         function getStateMachineInputKind(input) {
             if (!input || typeof input !== 'object') return null;
-            if (typeof input.fire === 'function') return 'trigger';
+            var runtimeInputTypes = typeof rive !== 'undefined' ? rive && rive.StateMachineInputType : null;
+            var inputType = typeof input.type === 'number' ? input.type : null;
+            if (runtimeInputTypes && inputType !== null) {
+                if (inputType === runtimeInputTypes.Boolean) return 'boolean';
+                if (inputType === runtimeInputTypes.Number) return 'number';
+                if (inputType === runtimeInputTypes.Trigger) return 'trigger';
+            }
+
+            var rawInputTypes = typeof rive !== 'undefined' ? rive && rive.SMIInput : null;
+            if (rawInputTypes && inputType !== null) {
+                if (inputType === rawInputTypes.bool) return 'boolean';
+                if (inputType === rawInputTypes.number) return 'number';
+                if (inputType === rawInputTypes.trigger) return 'trigger';
+            }
+
+            var constructorName = typeof input.constructor && typeof input.constructor.name === 'string'
+                ? input.constructor.name.toLowerCase()
+                : '';
+            if (constructorName.includes('bool')) return 'boolean';
+            if (constructorName.includes('number')) return 'number';
+            if (constructorName.includes('trigger')) return 'trigger';
             if (typeof input.value === 'boolean') return 'boolean';
             if (typeof input.value === 'number') return 'number';
+            if (typeof input.fire === 'function' && !('value' in input)) return 'trigger';
             return null;
         }
 
@@ -158,7 +179,7 @@
                 } catch (e) { inputs = []; }
 
                 inputs.forEach(function (input) {
-                    if (!input || input.name !== triggerName || typeof input.fire !== 'function') return;
+                    if (!input || input.name !== triggerName || getStateMachineInputKind(input) !== 'trigger' || typeof input.fire !== 'function') return;
                     try {
                         input.fire();
                         firedCount++;
@@ -170,4 +191,3 @@
         }
 
         /* ── Dynamic VM hierarchy discovery (fallback) ───────── */
-

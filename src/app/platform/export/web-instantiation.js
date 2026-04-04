@@ -1,13 +1,13 @@
-import { buildControlHelperLines, buildControlUsageExamples } from './export/control-blocks.js';
+import { buildControlHelperLines, buildControlUsageExamples } from './control-blocks.js';
 import {
     buildEffectiveInstantiationDescriptor,
     normalizeAnimationSelection,
     resolveLivePlaybackSelection,
-} from './export/descriptor.js';
+} from './descriptor.js';
 import {
     normalizeControlSnapshot,
     normalizeSnippetMode,
-} from './export/control-snapshot.js';
+} from './control-snapshot.js';
 
 const CALLBACK_NAMES = [
     'onLoad',

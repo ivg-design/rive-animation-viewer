@@ -15,21 +15,24 @@ export function createWindowChromeController({
     elements,
 } = {}) {
     const {
-        getTauriInvoker = () => null,
         isTauriEnvironment = () => false,
     } = callbacks;
 
     let controlsBound = false;
-
-    async function invokeWindowChrome(command) {
+    let controlClickHandler = null;
+    function getCurrentTauriWindow(windowRef = documentRef?.defaultView || globalThis.window) {
         if (!isTauriEnvironment()) {
             return null;
         }
-        const invoke = getTauriInvoker();
-        if (typeof invoke !== 'function') {
+        const windowApi = windowRef?.__TAURI__?.window;
+        if (typeof windowApi?.getCurrentWindow !== 'function') {
             return null;
         }
-        return invoke(command);
+        try {
+            return windowApi.getCurrentWindow();
+        } catch {
+            return null;
+        }
     }
 
     function applyWindowChromeClasses() {
@@ -55,63 +58,51 @@ export function createWindowChromeController({
     }
 
     async function syncMaximizeState() {
-        const isMaximized = await invokeWindowChrome('window_chrome_is_maximized').catch(() => false);
+        const appWindow = getCurrentTauriWindow();
+        const isMaximized = appWindow ? await appWindow.isMaximized().catch(() => false) : false;
         applyMaximizeState(Boolean(isMaximized));
     }
 
     async function handleWindowControl(action) {
+        const appWindow = getCurrentTauriWindow();
+        if (!appWindow) {
+            return;
+        }
         if (action === 'close') {
-            await invokeWindowChrome('window_chrome_close');
+            await appWindow.close().catch(() => {});
             return;
         }
         if (action === 'minimize') {
-            await invokeWindowChrome('window_chrome_minimize');
+            await appWindow.minimize().catch(() => {});
             return;
         }
         if (action === 'maximize') {
-            const nextState = await invokeWindowChrome('window_chrome_toggle_maximize').catch(() => null);
-            if (typeof nextState === 'boolean') {
-                applyMaximizeState(nextState);
-            } else {
-                await syncMaximizeState();
-            }
+            await appWindow.toggleMaximize().catch(() => {});
+            await syncMaximizeState();
         }
-    }
-
-    async function handleTitlebarMouseDown(event) {
-        if (event.button !== 0) {
-            return;
-        }
-        const eventTarget = event.target;
-        if (!(eventTarget instanceof Element)) {
-            return;
-        }
-        if (eventTarget.closest('.window-controls')) {
-            return;
-        }
-        event.preventDefault();
-        void invokeWindowChrome('window_chrome_start_dragging');
     }
 
     function bindWindowControls() {
-        if (controlsBound) {
+        if (controlsBound || !elements.windowControls) {
             return;
         }
-        elements.windowCloseButton?.addEventListener('click', () => {
-            void handleWindowControl('close');
-        });
-        elements.windowMinimizeButton?.addEventListener('click', () => {
-            void handleWindowControl('minimize');
-        });
-        elements.windowMaximizeButton?.addEventListener('click', () => {
-            void handleWindowControl('maximize');
-        });
-        elements.windowTitlebar?.addEventListener('mousedown', (event) => {
-            void handleTitlebarMouseDown(event);
-        });
-        elements.windowTitlebarCenter?.addEventListener('dblclick', () => {
-            void handleWindowControl('maximize');
-        });
+        controlClickHandler = (event) => {
+            const controlButton = event.target instanceof Element
+                ? event.target.closest('[data-window-control]')
+                : null;
+            if (!(controlButton instanceof HTMLElement)) {
+                return;
+            }
+            const action = controlButton.dataset.windowControl;
+            if (!action) {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            void handleWindowControl(action);
+        };
+        elements.windowControls.addEventListener('click', controlClickHandler);
+        elements.windowControls.dataset.bound = 'true';
         controlsBound = true;
     }
 
@@ -129,7 +120,13 @@ export function createWindowChromeController({
         await syncMaximizeState();
     }
 
-    function dispose() {}
+    function dispose() {
+        if (controlsBound && elements.windowControls && controlClickHandler) {
+            elements.windowControls.removeEventListener('click', controlClickHandler);
+        }
+        controlsBound = false;
+        controlClickHandler = null;
+    }
 
     return {
         dispose,

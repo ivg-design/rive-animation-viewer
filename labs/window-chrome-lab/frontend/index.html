@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Window Chrome Lab</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="titlebar" data-tauri-drag-region>
+      <div class="titlebar__brand" data-tauri-drag-region>
+        <img
+          class="titlebar__logo"
+          src="../../../icons/rav-logo.png"
+          alt="RAV"
+          width="28"
+          height="28"
+        />
+        <div class="titlebar__text" data-tauri-drag-region>
+          <strong>Window Chrome Lab</strong>
+          <span>Minimal Tauri 2 custom-header probe</span>
+        </div>
+      </div>
+      <div class="titlebar__center" data-tauri-drag-region>
+        <span id="titlebar-state">Waiting for runtime...</span>
+      </div>
+      <div id="window-controls" class="titlebar__controls">
+        <button type="button" class="window-button" data-action="minimize" aria-label="Minimize">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 17.5h12" />
+            <path d="M8.5 11.25 12 14.75l3.5-3.5" />
+          </svg>
+        </button>
+        <button type="button" class="window-button" data-action="maximize" aria-label="Toggle maximize">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6.5h12" />
+            <path d="M8.5 12.75 12 9.25l3.5 3.5" />
+          </svg>
+        </button>
+        <button type="button" class="window-button window-button--close" data-action="close" aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M7.5 7.5 16.5 16.5" />
+            <path d="M16.5 7.5 7.5 16.5" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <main class="app-shell">
+      <section class="panel">
+        <h1>Custom Header Probe</h1>
+        <p>
+          This lab intentionally uses the smallest possible Tauri 2 custom-header setup:
+          undecorated window, HTML titlebar, drag region, and direct window commands.
+        </p>
+      </section>
+
+      <section class="panel panel--grid">
+        <div>
+          <h2>Window State</h2>
+          <dl id="state-grid" class="state-grid"></dl>
+        </div>
+        <div>
+          <h2>Probe Actions</h2>
+          <div class="probe-results">
+            <div class="probe-pill">
+              <span>JS probe</span>
+              <strong id="js-probe-result">pending</strong>
+            </div>
+            <div class="probe-pill">
+              <span>Rust probe</span>
+              <strong id="rust-probe-result">pending</strong>
+            </div>
+          </div>
+          <div class="actions">
+            <button type="button" id="refresh-state-btn">Refresh state</button>
+            <button type="button" id="js-minimize-btn">JS minimize probe</button>
+            <button type="button" id="rust-minimize-btn">Rust minimize probe</button>
+            <button type="button" id="restore-btn">Restore window</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel__header">
+          <h2>Event Log</h2>
+          <button type="button" id="clear-log-btn" class="ghost-button">Clear</button>
+        </div>
+        <pre id="log-output" class="log-output" aria-live="polite"></pre>
+      </section>
+    </main>
+
+    <script src="./main.js"></script>
+  </body>
+</html>

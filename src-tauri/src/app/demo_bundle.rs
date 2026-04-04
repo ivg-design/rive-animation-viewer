@@ -19,25 +19,25 @@ const DEMO_TEMPLATE_STYLES: &str = concat!(
     include_str!("../demo-template/css/overlays.css"),
 );
 const DEMO_TEMPLATE_APP_JS: &str = concat!(
-    include_str!("../demo-template/js/preamble.js"),
+    include_str!("../demo-template/js/core/preamble.js"),
     "\n",
-    include_str!("../demo-template/js/bootstrap.js"),
+    include_str!("../demo-template/js/core/bootstrap.js"),
     "\n",
-    include_str!("../demo-template/js/playback-layout.js"),
+    include_str!("../demo-template/js/core/playback-layout.js"),
     "\n",
-    include_str!("../demo-template/js/settings.js"),
+    include_str!("../demo-template/js/core/settings.js"),
     "\n",
-    include_str!("../demo-template/js/event-log.js"),
+    include_str!("../demo-template/js/core/event-log.js"),
     "\n",
-    include_str!("../demo-template/js/vm-accessors.js"),
+    include_str!("../demo-template/js/vm/accessors.js"),
     "\n",
-    include_str!("../demo-template/js/vm-hierarchy.js"),
+    include_str!("../demo-template/js/vm/hierarchy.js"),
     "\n",
-    include_str!("../demo-template/js/vm-controls-render.js"),
+    include_str!("../demo-template/js/vm/controls-render.js"),
     "\n",
-    include_str!("../demo-template/js/vm-sync.js"),
+    include_str!("../demo-template/js/vm/sync.js"),
     "\n",
-    include_str!("../demo-template/js/rive-loader.js"),
+    include_str!("../demo-template/js/core/rive-loader.js"),
 );
 
 #[tauri::command]
@@ -243,6 +243,10 @@ mod tests {
 
         assert!(html.contains("function updateCanvasBackground()"));
         assert!(html.contains("id=\"copy-instantiation-btn\""));
+        assert!(html.contains("id=\"fullscreen-toggle-btn\""));
+        assert!(html.contains("id=\"event-log-toggle-btn\""));
         assert!(html.contains("copy web instantiation code"));
+        assert!(!html.contains("id=\"show-event-log-btn\""));
+        assert!(!html.contains("fullscreen-exit-hint"));
     }
 }

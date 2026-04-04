@@ -4,7 +4,7 @@ import {
     generateWebInstantiationCode,
     normalizeAnimationSelection,
     resolveLivePlaybackSelection,
-} from '../../../src/app/platform/web-instantiation.js';
+} from '../../../src/app/platform/export/web-instantiation.js';
 
 describe('platform/web-instantiation', () => {
     it('normalizes animation/state selections and resolves the live playback target', () => {
@@ -131,6 +131,9 @@ describe('platform/web-instantiation', () => {
         expect(code).toContain('"progress": 0.33, // number');
         expect(code).toContain('// card-vm');
         expect(code).toContain('function fireRavConfiguredTriggers(');
+        expect(code).toContain('function getRavStateMachineInputKind(input) {');
+        expect(code).toContain('if (typeof input.fire === "function" && !(\"value\" in input)) return "trigger";');
+        expect(code).toContain('return getRavStateMachineInputKind(input) === "trigger";');
         expect(code).toContain('Snapshot restores value-like overrides only. Triggers remain manual.');
         expect(code).not.toContain('applied += fireRavStartupTriggers(instance);');
         expect(code).not.toContain('fireStartupTriggers()');

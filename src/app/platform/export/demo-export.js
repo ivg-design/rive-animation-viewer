@@ -1,5 +1,5 @@
-import { normalizeStateMachineSelection } from '../rive/default-state-machine.js';
-import { controlSnapshotKeyForDescriptor } from '../rive/vm-controls.js';
+import { normalizeStateMachineSelection } from '../../rive/default-state-machine.js';
+import { controlSnapshotKeyForDescriptor } from '../../rive/vm-controls.js';
 import {
     buildEffectiveInstantiationDescriptor,
     buildWebInstantiationResult,

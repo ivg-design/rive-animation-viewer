@@ -10,7 +10,7 @@ import {
     fetchRuntimeVersionOptions,
     responseToRuntimeAsset,
     resolveRuntimeSource,
-} from '../../../src/app/platform/runtime-loader.js';
+} from '../../../src/app/platform/runtime/runtime-loader.js';
 
 function createHarness(overrides = {}) {
     let runtimeVersionToken = overrides.runtimeVersionToken ?? 'latest';

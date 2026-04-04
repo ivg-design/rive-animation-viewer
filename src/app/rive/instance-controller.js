@@ -1,3 +1,5 @@
+import { buildPlaybackContext, buildPlaybackStatusLabel } from './playback-status.js';
+
 export function safelyInvokeUserCallback(callback, event, callbackName) {
     if (typeof callback !== 'function') {
         return;
@@ -6,31 +8,6 @@ export function safelyInvokeUserCallback(callback, event, callbackName) {
         callback(event);
     } catch (error) {
         console.warn(`Error in user ${callbackName}:`, error);
-    }
-}
-
-function getActiveViewModelLabel(riveInstance) {
-    if (!riveInstance) {
-        return 'none';
-    }
-
-    try {
-        const instanceName = typeof riveInstance.viewModelInstance?.name === 'string'
-            ? riveInstance.viewModelInstance.name.trim()
-            : '';
-        const definition = typeof riveInstance.defaultViewModel === 'function'
-            ? riveInstance.defaultViewModel()
-            : null;
-        const definitionName = typeof definition?.name === 'string'
-            ? definition.name.trim()
-            : '';
-
-        if (instanceName && definitionName && instanceName !== definitionName) {
-            return `${definitionName}/${instanceName}`;
-        }
-        return instanceName || definitionName || 'none';
-    } catch {
-        return 'none';
     }
 }
 
@@ -58,6 +35,7 @@ export function createRiveInstanceController({
         resetVmInputControls = () => {},
         setVmControlBaselineSnapshot = () => {},
         showError = () => {},
+        getPlaybackState = () => ({}),
         syncArtboardStateAfterLoad = () => {},
         syncArtboardStateFromConfig = () => {},
         updateInfo = () => {},
@@ -277,10 +255,11 @@ export function createRiveInstanceController({
                 } else if (names.length > 0) {
                     activeStateMachine = names[0];
                 }
-                const activeViewModel = getActiveViewModelLabel(riveInstance);
-
-                updateInfo(`Loaded: SM ${activeStateMachine} · VM ${activeViewModel}`);
                 syncArtboardStateAfterLoad(riveInstance, config);
+                updateInfo(buildPlaybackStatusLabel(buildPlaybackContext({
+                    playbackState: getPlaybackState(),
+                    riveInstance,
+                })));
                 refreshInfoStrip();
 
                 if (typeof userOnLoad === 'function') {

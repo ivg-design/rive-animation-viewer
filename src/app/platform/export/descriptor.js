@@ -1,6 +1,6 @@
 import { DEFAULT_CANVAS_COLOR } from '../../core/constants.js';
 import { normalizeStateMachineSelection } from '../../rive/default-state-machine.js';
-import { getRuntimePackageName } from '../runtime-utils.js';
+import { getRuntimePackageName } from '../runtime/runtime-utils.js';
 
 export function normalizeAnimationSelection(value) {
     if (Array.isArray(value)) {

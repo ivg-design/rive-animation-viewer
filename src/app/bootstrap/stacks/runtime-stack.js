@@ -1,5 +1,5 @@
-import { createRuntimeLoaderController } from '../platform/runtime-loader.js';
-import { createTransparencyController } from '../platform/transparency-controller.js';
+import { createRuntimeLoaderController } from '../../platform/runtime/runtime-loader.js';
+import { createTransparencyController } from '../../platform/transparency-controller.js';
 
 export function createRuntimeStack({
     elements,

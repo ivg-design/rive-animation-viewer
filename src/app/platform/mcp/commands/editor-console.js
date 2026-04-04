@@ -66,11 +66,12 @@ export function createEditorConsoleCommands({
             const input = documentRef.getElementById('canvas-color-input');
             if (!input) throw new Error('Canvas color input not found');
             if (color === 'transparent') {
-                const button = documentRef.getElementById('transparency-mode-toggle');
+                const button = documentRef.getElementById('canvas-color-reset-btn');
                 if (button) {
                     button.click();
+                    return { ok: true, color: 'transparent' };
                 }
-                return { ok: true, color: 'transparent' };
+                throw new Error('Canvas transparency toggle not found');
             }
             input.value = color;
             input.dispatchEvent(new Event('input', { bubbles: true }));

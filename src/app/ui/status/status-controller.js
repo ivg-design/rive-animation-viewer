@@ -1,4 +1,4 @@
-import { DEFAULT_RUNTIME_VERSION } from '../core/constants.js';
+import { DEFAULT_RUNTIME_VERSION } from '../../core/constants.js';
 
 export function getRuntimeDisplayName(runtimeName = 'webgl2') {
     return runtimeName === 'canvas' ? 'Canvas' : 'WebGL2';

@@ -1,13 +1,13 @@
-import { OPEN_FILE_POLL_INTERVAL_MS } from '../core/constants.js';
-import { createDragAndDropSetup } from './session/drag-drop.js';
-import { createFileInputSetup, createPathRivLoader } from './session/local-file.js';
-import { extractOpenedFilePath } from './session/path-utils.js';
+import { OPEN_FILE_POLL_INTERVAL_MS } from '../../core/constants.js';
+import { createDragAndDropSetup } from './drag-drop.js';
+import { createFileInputSetup, createPathRivLoader } from './local-file.js';
+import { extractOpenedFilePath } from './path-utils.js';
 
 export {
     extractOpenedFilePath,
     getFileNameFromPath,
     normalizeOpenedFilePath,
-} from './session/path-utils.js';
+} from './path-utils.js';
 
 export function createFileSessionController({
     callbacks = {},

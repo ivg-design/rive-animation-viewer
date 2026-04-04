@@ -1,8 +1,8 @@
-import { createArtboardSwitcherController } from '../rive/artboard-switcher.js';
-import { detectDefaultStateMachineName } from '../rive/default-state-machine.js';
-import { createRiveInstanceController } from '../rive/instance-controller.js';
-import { createPlaybackController } from '../rive/playback-controls.js';
-import { createVmControlsController } from '../rive/vm-controls.js';
+import { createArtboardSwitcherController } from '../../rive/artboard-switcher.js';
+import { detectDefaultStateMachineName } from '../../rive/default-state-machine.js';
+import { createRiveInstanceController } from '../../rive/instance-controller.js';
+import { createPlaybackController } from '../../rive/playback-controls.js';
+import { createVmControlsController } from '../../rive/vm-controls.js';
 
 export function createRiveStack({
     elements,
@@ -123,6 +123,7 @@ export function createRiveStack({
             resetVmInputControls: resetVmInputs,
             setVmControlBaselineSnapshot: setVmBaseline,
             showError,
+            getPlaybackState: getArtboardStateSnapshot,
             syncArtboardStateAfterLoad: syncArtboardAfterLoad,
             syncArtboardStateFromConfig: syncArtboardFromConfig,
             updateInfo,

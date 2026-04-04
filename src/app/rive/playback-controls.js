@@ -1,3 +1,5 @@
+import { buildPlaybackContext, buildPlaybackStatusLabel } from './playback-status.js';
+
 export function createPlaybackController({
     callbacks = {},
     documentRef = globalThis.document,
@@ -57,7 +59,10 @@ export function createPlaybackController({
         } else {
             riveInstance.play();
         }
-        updateInfo('Playing');
+        updateInfo(buildPlaybackStatusLabel(buildPlaybackContext({
+            playbackState,
+            riveInstance,
+        }), 'Playing'));
         logEvent('ui', 'play', 'Playback started from UI.');
     }
 
@@ -68,7 +73,10 @@ export function createPlaybackController({
             return;
         }
         riveInstance.pause();
-        updateInfo('Paused');
+        updateInfo(buildPlaybackStatusLabel(buildPlaybackContext({
+            playbackState: getPlaybackState(),
+            riveInstance,
+        }), 'Paused'));
         logEvent('ui', 'pause', 'Playback paused from UI.');
     }
 

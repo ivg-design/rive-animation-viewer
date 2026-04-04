@@ -235,7 +235,7 @@ describe('rive/vm-controls', () => {
             zero() {
                 return 0;
             },
-        }, 'zero')).toBeNull();
+        }, 'zero')).toBe(0);
 
         expect(getVmListLength({ size: 3 })).toBe(3);
         expect(getVmListLength({ length: -9 })).toBe(0);
@@ -275,6 +275,7 @@ describe('rive/vm-controls', () => {
         expect(getStateMachineInputKind({ constructor: { name: 'TriggerInput' } }, {})).toBe('trigger');
         expect(getStateMachineInputKind({ value: false }, {})).toBe('boolean');
         expect(getStateMachineInputKind({ value: 4 }, {})).toBe('number');
+        expect(getStateMachineInputKind({ value: false, fire() {} }, {})).toBe('boolean');
         expect(hexToRgb('bad')).toEqual({ r: 0, g: 0, b: 0 });
     });
 

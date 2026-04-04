@@ -22,6 +22,11 @@
         const EVENT_LOG_LIMIT = 500;
         const VM_CONTROL_SYNC_INTERVAL_MS = 120;
         const VM_DEPTH_COLORS = ['#C4F82A', '#38BDF8', '#A78BFA', '#FB923C', '#F472B6', '#34D399'];
+        const ALLOWED_CONTROL_KEYS = new Set(
+            CONTROL_SNAPSHOT
+                .map(function (entry) { return controlSnapshotKeyForDescriptor(entry && entry.descriptor ? entry.descriptor : entry); })
+                .filter(Boolean)
+        );
 
         let riveInstance = null;
         let currentControlSnapshot = JSON.parse(JSON.stringify(CONTROL_SNAPSHOT));
@@ -49,6 +54,73 @@
         let vmControlBindings = [];
         let lastFpsUpdate = 0;
         let frameCount = 0;
+        let isFallbackFullscreenMode = false;
+
+        function controlSnapshotKeyForDescriptor(descriptor) {
+            if (!descriptor) return null;
+            if (descriptor.source === 'state-machine') {
+                return 'sm:' + (descriptor.stateMachineName || '') + ':' + (descriptor.name || '') + ':' + (descriptor.kind || '');
+            }
+            return 'vm:' + (descriptor.path || '') + ':' + (descriptor.kind || '');
+        }
+
+        function normalizeControlDescriptor(input) {
+            var source = input && input.descriptor ? input.descriptor : input;
+            if (!source || typeof source !== 'object') return null;
+            return {
+                kind: source.kind || null,
+                name: source.name || null,
+                path: source.path || null,
+                source: source.source || 'view-model',
+                stateMachineName: source.stateMachineName || null,
+            };
+        }
+
+        function isControlDescriptorAllowed(descriptor) {
+            if (!ALLOWED_CONTROL_KEYS.size) return false;
+            var normalized = normalizeControlDescriptor(descriptor);
+            if (!normalized) return false;
+            var key = controlSnapshotKeyForDescriptor(normalized);
+            return Boolean(key) && ALLOWED_CONTROL_KEYS.has(key);
+        }
+
+        function countHierarchyInputs(node) {
+            if (!node) return 0;
+            var total = Array.isArray(node.inputs) ? node.inputs.length : 0;
+            if (Array.isArray(node.children)) {
+                node.children.forEach(function (child) {
+                    total += countHierarchyInputs(child);
+                });
+            }
+            return total;
+        }
+
+        function filterHierarchyNode(node) {
+            if (!node || typeof node !== 'object') return null;
+
+            var inputs = Array.isArray(node.inputs)
+                ? node.inputs.filter(function (input) {
+                    return isControlDescriptorAllowed(normalizeControlDescriptor(input));
+                })
+                : [];
+
+            var children = Array.isArray(node.children)
+                ? node.children
+                    .map(function (child) { return filterHierarchyNode(child); })
+                    .filter(Boolean)
+                : [];
+
+            if (!inputs.length && !children.length) {
+                return null;
+            }
+
+            var nextNode = Object.assign({}, node, {
+                children: children,
+                inputs: inputs,
+            });
+            nextNode.totalInputs = countHierarchyInputs(nextNode);
+            return nextNode;
+        }
 
         /* ── DOM references ──────────────────────────────────── */
 
@@ -77,9 +149,9 @@
             rightPanel: document.getElementById('right-panel'),
             copyInstantiationBtn: document.getElementById('copy-instantiation-btn'),
             instantiationPackageSourceSelect: document.getElementById('instantiation-package-source-select'),
+            eventLogToggleBtn: document.getElementById('event-log-toggle-btn'),
             toggleRightPanelBtn: document.getElementById('toggle-right-panel-btn'),
             showRightPanelBtn: document.getElementById('show-right-panel-btn'),
-            showEventLogBtn: document.getElementById('show-event-log-btn'),
             settingsBtn: document.getElementById('settings-btn'),
             settingsPopover: document.getElementById('settings-popover'),
             layoutSelect: document.getElementById('layout-select'),
@@ -90,7 +162,7 @@
             btnPlay: document.getElementById('btn-play'),
             btnPause: document.getElementById('btn-pause'),
             btnReset: document.getElementById('btn-reset'),
-            fullscreenExitHint: document.getElementById('fullscreen-exit-hint'),
+            fullscreenToggleBtn: document.getElementById('fullscreen-toggle-btn'),
         };
 
         /* ── Initialization ──────────────────────────────────── */

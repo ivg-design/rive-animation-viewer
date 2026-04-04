@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use std::env;
 
-use crate::constants::{DEFAULT_COMMAND_TIMEOUT_MS, DEFAULT_WS_PORT};
+use crate::support::constants::{DEFAULT_COMMAND_TIMEOUT_MS, DEFAULT_WS_PORT};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum RunMode {

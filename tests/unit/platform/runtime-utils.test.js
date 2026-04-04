@@ -17,7 +17,7 @@ import {
     normalizeFileRuntimePreferenceId,
     normalizeRuntimeVersionToken,
     parseSemverParts,
-} from '../../../src/app/platform/runtime-utils.js';
+} from '../../../src/app/platform/runtime/runtime-utils.js';
 
 describe('platform/runtime-utils', () => {
     it('normalizes runtime tokens and package names', () => {

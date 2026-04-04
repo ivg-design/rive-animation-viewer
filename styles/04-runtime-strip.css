@@ -6,7 +6,7 @@
     background: var(--bg-zinc);
     color: var(--text-dim);
     font-size: 10px;
-    padding: 0 16px;
+    padding: 0 8px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -25,15 +25,17 @@
 }
 
 .runtime-strip-left {
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-width: 0;
     overflow: hidden;
 }
 
 .runtime-strip-right {
-    flex: 0 1 38%;
+    flex: 1 1 auto;
+    margin-left: auto;
     justify-content: flex-end;
     overflow: hidden;
+    gap: 0;
 }
 
 .runtime-strip-sep {
@@ -87,12 +89,17 @@
 
 .runtime-chip-status {
     flex: 1 1 auto;
-    min-width: 120px;
-    color: var(--text-ghost);
+    min-width: 0;
+    margin-left: auto;
+    color: var(--text-primary);
+    font-weight: 500;
+    justify-content: flex-end;
+    text-align: right;
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    letter-spacing: 0.02em;
 }
 
 /* MCP indicator — off, idle, active */

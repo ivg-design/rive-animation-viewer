@@ -4,7 +4,7 @@ import {
     formatByteSize,
     getRuntimeDisplayName,
     getRuntimeStatusLabel,
-} from '../../../src/app/ui/status-controller.js';
+} from '../../../src/app/ui/status/status-controller.js';
 
 function createElements() {
     document.body.innerHTML = `

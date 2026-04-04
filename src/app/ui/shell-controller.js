@@ -1,6 +1,6 @@
 import { LAYOUT_ALIGNMENTS, LAYOUT_FITS } from '../core/constants.js';
 import { setupCenterPanelResizer, setupShellPanelResizers } from './layout/resizers.js';
-import { getRuntimeDisplayName } from './status-controller.js';
+import { getRuntimeDisplayName } from './status/status-controller.js';
 
 export function clamp(value, min, max) {
     return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));

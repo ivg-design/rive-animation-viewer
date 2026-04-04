@@ -86,12 +86,8 @@
             if (els.centerPanel && Number.isFinite(eventLogHeight)) {
                 els.centerPanel.style.setProperty('--center-log-height', clamp(eventLogHeight, 120, 420) + 'px');
             }
-            if (els.centerPanel && els.eventLogPanel) {
-                els.centerPanel.classList.toggle('event-log-collapsed', collapsedEventLog);
-                els.eventLogPanel.classList.toggle('collapsed', collapsedEventLog);
-            }
-            if (els.showEventLogBtn) {
-                els.showEventLogBtn.hidden = !collapsedEventLog;
+            if (typeof setEventLogCollapsed === 'function') {
+                setEventLogCollapsed(collapsedEventLog);
             }
 
             document.documentElement.classList.toggle('transparency-mode', isTransparencyModeEnabled);

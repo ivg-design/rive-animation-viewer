@@ -6,7 +6,7 @@ use tokio::sync::mpsc;
 use tokio_tungstenite::{accept_async, connect_async, tungstenite::Message};
 
 use crate::bridge::Bridge;
-use crate::constants::RECONNECT_DELAY_MS;
+use crate::support::constants::RECONNECT_DELAY_MS;
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum BridgePeerRole {

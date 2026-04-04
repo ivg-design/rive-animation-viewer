@@ -5,4 +5,4 @@ pub mod node_runtime;
 pub mod state;
 pub mod support;
 pub mod updater;
-pub mod window_controls;
+pub mod window;

@@ -1,8 +1,8 @@
-import { createDemoExportController } from '../platform/demo-export.js';
-import { createFileSessionController } from '../platform/file-session.js';
-import { createGlobalBindingsController } from '../platform/global-bindings.js';
-import { createShellController } from '../ui/shell-controller.js';
-import { createInstantiationControlsDialogController } from '../ui/instantiation-controls-dialog.js';
+import { createDemoExportController } from '../../platform/export/demo-export.js';
+import { createFileSessionController } from '../../platform/session/file-session.js';
+import { createGlobalBindingsController } from '../../platform/global-bindings.js';
+import { createShellController } from '../../ui/shell-controller.js';
+import { createInstantiationControlsDialogController } from '../../ui/instantiation-controls-dialog.js';
 
 export function createPlatformStack({
     elements,

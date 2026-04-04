@@ -46,34 +46,6 @@ body.fullscreen-mode .center-panel {
     grid-template-rows: 1fr !important;
 }
 
-.fullscreen-exit-hint {
-    position: fixed;
-    bottom: 16px;
-    right: 16px;
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-md);
-    background: var(--bg-zinc);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 5000;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-}
-
-body.fullscreen-mode .fullscreen-exit-hint {
-    pointer-events: auto;
-}
-
-body.fullscreen-mode .fullscreen-exit-hint:hover {
-    opacity: 1 !important;
-}
-
 /* ── Responsive ──────────────────────────────────────────── */
 
 @media (max-width: 1100px) {

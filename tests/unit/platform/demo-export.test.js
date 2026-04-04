@@ -3,7 +3,7 @@ import {
     buildDemoBundlePayload,
     createDemoExportController,
     resolveExportStateMachines,
-} from '../../../src/app/platform/demo-export.js';
+} from '../../../src/app/platform/export/demo-export.js';
 
 describe('platform/demo-export', () => {
     it('builds export payloads and resolves state-machine fallbacks', () => {

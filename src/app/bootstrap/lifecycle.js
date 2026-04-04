@@ -1,5 +1,5 @@
 import { bindUiActionHandlers } from '../ui/action-bindings.js';
-import { buildEffectiveInstantiationDescriptor } from '../platform/web-instantiation.js';
+import { buildEffectiveInstantiationDescriptor } from '../platform/export/web-instantiation.js';
 
 export function createAppLifecycle({
     callbacks,

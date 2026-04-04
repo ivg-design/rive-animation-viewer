@@ -13,11 +13,6 @@
 }
 
 body.is-tauri-window {
-    background: transparent;
-}
-
-body.is-tauri-window .app-shell {
-    height: 100%;
     border: 1px solid rgba(93, 100, 120, 0.32);
     border-radius: 18px;
     overflow: hidden;
@@ -25,6 +20,11 @@ body.is-tauri-window .app-shell {
     box-shadow:
         0 22px 54px rgba(6, 8, 12, 0.46),
         0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+}
+
+body.is-tauri-window .app-shell {
+    height: 100%;
+    background: #101116;
 }
 
 .titlebar-row,
@@ -36,19 +36,18 @@ body.is-tauri-window .app-shell {
 }
 
 .titlebar-row {
-    min-height: 46px;
-    padding: 0 14px 0 0;
+    min-height: 50px;
+    padding: 6px 8px 0;
     grid-template-columns: max-content minmax(0, 1fr) max-content;
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.018) 0%, rgba(255, 255, 255, 0) 100%);
     border-top-left-radius: 18px;
     border-top-right-radius: 18px;
-    overflow: hidden;
 }
 
 .toolbar-row {
     min-height: 56px;
-    padding: 8px 10px 10px;
+    padding: 8px 8px 10px;
     grid-template-columns: max-content minmax(0, 1fr) max-content;
 }
 
@@ -65,17 +64,12 @@ body.is-tauri-window .app-shell {
 
 .titlebar-left {
     justify-content: flex-start;
-    padding-left: 0;
     min-width: max-content;
-    -webkit-app-region: drag;
-    app-region: drag;
 }
 
 .titlebar-center {
     justify-content: center;
-    padding: 0 18px;
-    -webkit-app-region: drag;
-    app-region: drag;
+    padding: 0 12px;
 }
 
 .titlebar-right {
@@ -99,30 +93,22 @@ body.is-tauri-window .app-shell {
 
 .brand-block-titlebar {
     gap: 10px;
+    margin-left: 0;
 }
 
 .brand-block-titlebar .brand-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 18px 0 12px 0;
+    width: 42px;
+    height: 42px;
+    border-radius: var(--radius-toolbar);
     border-color: #2f3648;
     box-shadow: 0 8px 22px rgba(9, 12, 18, 0.22);
+    margin-top: 1px;
 }
 
 .brand-block-titlebar .brand-text {
     font-size: 16px;
     font-weight: 700;
     letter-spacing: 0.48px;
-}
-
-.titlebar-left,
-.titlebar-center {
-    cursor: grab;
-}
-
-.titlebar-left:active,
-.titlebar-center:active {
-    cursor: grabbing;
 }
 
 .titlebar-left *,
@@ -133,14 +119,12 @@ body.is-tauri-window .app-shell {
 .window-controls {
     display: inline-flex;
     align-items: center;
-    gap: 14px;
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
+    gap: 8px;
 }
 
 .window-control-btn {
-    width: 38px;
-    height: 38px;
+    width: 42px;
+    height: 42px;
     border: none;
     background: transparent;
     color: #8c92a1;
@@ -169,10 +153,15 @@ body.is-tauri-window .app-shell {
     width: 24px;
     height: 24px;
     stroke: currentColor;
-    stroke-width: 2.15;
+    stroke-width: 1.35;
     fill: none;
     stroke-linecap: round;
     stroke-linejoin: round;
+    transition: stroke-width 120ms ease;
+}
+
+.window-control-btn:hover .window-control-icon {
+    stroke-width: 1.8;
 }
 
 .window-control-btn-maximize:hover {

@@ -284,16 +284,15 @@
             // Use embedded hierarchy if available, otherwise fall back to dynamic discovery.
             var vmHierarchy = null;
             if (VM_HIERARCHY && VM_HIERARCHY.label) {
-                vmHierarchy = JSON.parse(JSON.stringify(VM_HIERARCHY));
-                vmHierarchy.totalInputs = countAllInputs(vmHierarchy);
+                vmHierarchy = filterHierarchyNode(JSON.parse(JSON.stringify(VM_HIERARCHY)));
             } else {
                 var rootVm = resolveVmRootInstance();
                 vmHierarchy = rootVm ? buildVmHierarchy(rootVm) : null;
             }
 
             var stateMachineHierarchy = buildStateMachineHierarchy();
-            var vmTotal = vmHierarchy && vmHierarchy.totalInputs ? vmHierarchy.totalInputs : 0;
-            var smTotal = stateMachineHierarchy && stateMachineHierarchy.totalInputs ? stateMachineHierarchy.totalInputs : 0;
+            var vmTotal = vmHierarchy ? countHierarchyInputs(vmHierarchy) : 0;
+            var smTotal = stateMachineHierarchy ? countHierarchyInputs(stateMachineHierarchy) : 0;
             var totalControls = vmTotal + smTotal;
 
             countEl.textContent = String(totalControls);
