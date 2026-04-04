@@ -107,6 +107,10 @@ body.js-console-mode > .eruda-container:not(.rav-eruda) {
     font-family: "Space Mono", monospace !important;
 }
 
+.script-console-output .luna-console-fake-logs {
+    display: none !important;
+}
+
 .script-console-output .luna-console-logs {
     background: #0a0d13 !important;
     overflow-y: auto !important;

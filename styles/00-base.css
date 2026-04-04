@@ -81,6 +81,11 @@ body.transparency-mode .app-shell {
     background: transparent;
 }
 
+html.is-tauri-window,
+body.is-tauri-window {
+    background: transparent;
+}
+
 body.transparency-mode .workspace,
 body.transparency-mode #center-panel,
 body.transparency-mode .center-panel {
@@ -88,11 +93,19 @@ body.transparency-mode .center-panel {
 }
 
 :is(
+    body,
     #code-editor .cm-scroller,
     #code-editor textarea,
     .mcp-setup-body,
+    .mcp-snippet-block pre,
+    .panel-section-body,
     .instantiation-controls-tree,
     .instantiation-preview-output,
+    .properties-panel-body,
+    .vm-controls-body,
+    .event-log-body,
+    .script-console-output .luna-console-logs,
+    .script-console-output .luna-console-logs-space,
     .about-dialog-body,
     .about-dialog-dependencies
 ) {
@@ -101,11 +114,19 @@ body.transparency-mode .center-panel {
 }
 
 :is(
+    body,
     #code-editor .cm-scroller,
     #code-editor textarea,
     .mcp-setup-body,
+    .mcp-snippet-block pre,
+    .panel-section-body,
     .instantiation-controls-tree,
     .instantiation-preview-output,
+    .properties-panel-body,
+    .vm-controls-body,
+    .event-log-body,
+    .script-console-output .luna-console-logs,
+    .script-console-output .luna-console-logs-space,
     .about-dialog-body,
     .about-dialog-dependencies
 )::-webkit-scrollbar {
@@ -114,11 +135,19 @@ body.transparency-mode .center-panel {
 }
 
 :is(
+    body,
     #code-editor .cm-scroller,
     #code-editor textarea,
     .mcp-setup-body,
+    .mcp-snippet-block pre,
+    .panel-section-body,
     .instantiation-controls-tree,
     .instantiation-preview-output,
+    .properties-panel-body,
+    .vm-controls-body,
+    .event-log-body,
+    .script-console-output .luna-console-logs,
+    .script-console-output .luna-console-logs-space,
     .about-dialog-body,
     .about-dialog-dependencies
 )::-webkit-scrollbar-track {
@@ -127,11 +156,19 @@ body.transparency-mode .center-panel {
 }
 
 :is(
+    body,
     #code-editor .cm-scroller,
     #code-editor textarea,
     .mcp-setup-body,
+    .mcp-snippet-block pre,
+    .panel-section-body,
     .instantiation-controls-tree,
     .instantiation-preview-output,
+    .properties-panel-body,
+    .vm-controls-body,
+    .event-log-body,
+    .script-console-output .luna-console-logs,
+    .script-console-output .luna-console-logs-space,
     .about-dialog-body,
     .about-dialog-dependencies
 )::-webkit-scrollbar-thumb {
@@ -141,11 +178,19 @@ body.transparency-mode .center-panel {
 }
 
 :is(
+    body,
     #code-editor .cm-scroller,
     #code-editor textarea,
     .mcp-setup-body,
+    .mcp-snippet-block pre,
+    .panel-section-body,
     .instantiation-controls-tree,
     .instantiation-preview-output,
+    .properties-panel-body,
+    .vm-controls-body,
+    .event-log-body,
+    .script-console-output .luna-console-logs,
+    .script-console-output .luna-console-logs-space,
     .about-dialog-body,
     .about-dialog-dependencies
 )::-webkit-scrollbar-thumb:hover {

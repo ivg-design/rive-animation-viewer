@@ -1,0 +1,47 @@
+/* ── Header file metadata ─────────────────────────────────── */
+
+.header-right-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--gap-base);
+    flex: 0 0 auto;
+}
+
+.header-file-meta {
+    width: min(100%, 860px);
+    max-width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--text-muted);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.12px;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.header-file-meta-directory {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+    color: #8f94a1;
+}
+
+.header-file-meta-file {
+    flex: 0 0 auto;
+    color: #d8dbe5;
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.header-file-meta-size {
+    flex: 0 0 auto;
+    color: #666d7f;
+}

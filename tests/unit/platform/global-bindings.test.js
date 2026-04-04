@@ -11,7 +11,7 @@ describe('platform/global-bindings', () => {
         expect(() => updateMcpStatusChip(null, 'off')).not.toThrow();
         updateMcpStatusChip(chip, 'connected');
 
-        expect(chip.dataset.mcpState).toBe('connected');
+        expect(chip.dataset.mcpState).toBe('idle');
         expect(chip.title).toContain('connected');
     });
 
@@ -45,6 +45,7 @@ describe('platform/global-bindings', () => {
         const toggleLiveConfigSource = vi.fn().mockResolvedValue(undefined);
         const windowRef = {
             _mcpBridge: {
+                indicatorState: 'idle',
                 state: 'connected',
                 disable,
                 enable,
@@ -95,7 +96,7 @@ describe('platform/global-bindings', () => {
         });
 
         controller.bind();
-        expect(chip.dataset.mcpState).toBe('connected');
+        expect(chip.dataset.mcpState).toBe('idle');
         expect(windowRef.__riveRuntimeCache.getRuntimeVersion()).toBe('1.2.3');
         expect(windowRef.__riveRuntimeCache.getRuntimeSourceText()).toBe('runtime();');
         expect(windowRef.__riveAnimationCache.getBuffer()).toBeInstanceOf(ArrayBuffer);
@@ -154,6 +155,7 @@ describe('platform/global-bindings', () => {
         expect(execScriptConsole).toHaveBeenCalledWith('1 + 1');
         expect(closeScriptConsole).toHaveBeenCalled();
 
+        windowRef._mcpBridge.indicatorState = 'off';
         windowRef._mcpBridge.state = 'off';
         chip.click();
         expect(enable).toHaveBeenCalledTimes(1);

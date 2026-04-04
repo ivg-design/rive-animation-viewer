@@ -3,13 +3,15 @@ export function updateMcpStatusChip(chip, state) {
         return;
     }
 
-    chip.dataset.mcpState = state;
+    const normalizedState = state === 'connected' ? 'idle' : state;
+    chip.dataset.mcpState = normalizedState;
     const labels = {
-        off: 'MCP Bridge: disabled (click to enable)',
-        waiting: 'MCP Bridge: disconnected (click to disable)',
-        connected: 'MCP Bridge: connected (click to disable)',
+        active: 'MCP: connected and actively handling agent commands (click to disable)',
+        idle: 'MCP: connected and idle (click to disable)',
+        off: 'MCP: disabled (click to enable)',
+        waiting: 'MCP: waiting for bridge connection (click to disable)',
     };
-    chip.title = labels[state] || labels.off;
+    chip.title = labels[normalizedState] || labels.off;
 }
 
 export function createGlobalBindingsController({
@@ -110,7 +112,7 @@ export function createGlobalBindingsController({
         };
         updateMcpStatusChip(
             elements.mcpStatusChip,
-            windowRef._mcpBridge?.state || 'off',
+            windowRef._mcpBridge?.indicatorState || windowRef._mcpBridge?.state || 'off',
         );
         windowRef._mcpExportDemoToPath = async (outputPath) => exportDemoToPath(outputPath);
         windowRef._mcpGenerateWebInstantiationCode = async (packageSource, snippetMode) => getGenerateWebInstantiationCode(packageSource, snippetMode);
@@ -129,14 +131,14 @@ export function createGlobalBindingsController({
 
         elements.mcpStatusChip?.addEventListener('click', () => {
             const bridge = windowRef._mcpBridge;
-            const bridgeState = bridge?.state;
+            const bridgeState = bridge?.indicatorState || bridge?.state;
 
             if (bridgeState === 'off' && typeof bridge?.enable === 'function') {
                 bridge.enable();
                 return;
             }
 
-            if ((bridgeState === 'waiting' || bridgeState === 'connected') && typeof bridge?.disable === 'function') {
+            if ((bridgeState === 'waiting' || bridgeState === 'connected' || bridgeState === 'idle' || bridgeState === 'active') && typeof bridge?.disable === 'function') {
                 bridge.disable();
                 return;
             }

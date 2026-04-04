@@ -30,7 +30,7 @@ const features = [
   {
     icon: FileCode,
     title: "Export + Snippets",
-    description: "One Export flow for standalone HTML plus canonical CDN/local instantiation snippets with control-selection, Copy Code, and live-state serialization.",
+    description: "One Export flow for standalone HTML plus canonical CDN/local instantiation snippets with control-selection, Copy Code, live-state serialization, and slim zero-control output.",
   },
   {
     icon: Eye,
@@ -50,7 +50,7 @@ const features = [
   {
     icon: AppWindow,
     title: "Desktop Native",
-    description: "Tauri v2 desktop app with .riv association, open-with forwarding, drag/drop loading, a custom About window, and single-instance file handoff.",
+    description: "Tauri v2 desktop app with .riv association, open-with forwarding, drag/drop loading, a custom About window, single-instance file handoff, and a stabilized custom desktop header.",
   },
   {
     icon: RotateCcw,
@@ -80,7 +80,7 @@ const features = [
   {
     icon: ShieldCheck,
     title: "MCP + Script Access",
-    description: "Bundled native rav-mcp sidecar, stable launcher path, one-click add/reinstall/remove for supported clients, editable port, and corrected live MCP/runtime status signaling.",
+    description: "Bundled native rav-mcp sidecar, stable launcher path, one-click add/reinstall/remove for supported clients, editable port, and a three-state MCP activity indicator.",
   },
   {
     icon: Cable,

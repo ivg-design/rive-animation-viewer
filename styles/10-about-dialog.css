@@ -299,6 +299,26 @@
     scrollbar-gutter: stable;
 }
 
+.about-dialog-dependencies::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.about-dialog-dependencies::-webkit-scrollbar-track {
+    background: #0f1015;
+    border-radius: 10px;
+}
+
+.about-dialog-dependencies::-webkit-scrollbar-thumb {
+    background: #313542;
+    border: 1px solid #0f111a;
+    border-radius: 10px;
+}
+
+.about-dialog-dependencies::-webkit-scrollbar-thumb:hover {
+    background: #4c5268;
+}
+
 .about-dialog-dependency-row {
     display: grid;
     grid-template-columns: 1fr auto;

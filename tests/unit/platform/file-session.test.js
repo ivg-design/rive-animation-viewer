@@ -201,6 +201,59 @@ describe('platform/file-session', () => {
         expect(logEvent).toHaveBeenCalledWith('ui', 'file-cleared', 'Cleared current animation.');
     });
 
+    it('uses the native file picker in Tauri and preserves the selected source path', async () => {
+        const elements = createElements();
+        const loadRiveAnimation = vi.fn().mockResolvedValue();
+        const applyStoredRuntimeVersionForCurrentFile = vi.fn().mockResolvedValue();
+        const invoke = vi.fn(async (command, payload) => {
+            if (command === 'pick_riv_file') {
+                return '/tmp/native-demo.riv';
+            }
+            if (command === 'read_riv_file') {
+                expect(payload).toEqual({ path: '/tmp/native-demo.riv' });
+                return Buffer.from('rive-demo').toString('base64');
+            }
+            throw new Error(`unexpected invoke: ${command}`);
+        });
+
+        const controller = createFileSessionController({
+            callbacks: {
+                applyStoredRuntimeVersionForCurrentFile,
+                buildFileRuntimePreferenceId: vi.fn(() => 'pref'),
+                cleanupInstance: vi.fn(),
+                ensureTauriBridge: vi.fn(),
+                getTauriInvoker: () => invoke,
+                hideError: vi.fn(),
+                initLucideIcons: vi.fn(),
+                isTauriEnvironment: () => true,
+                loadRiveAnimation,
+                logEvent: vi.fn(),
+                refreshInfoStrip: vi.fn(),
+                resetArtboardSwitcherState: vi.fn(),
+                resetVmInputControls: vi.fn(),
+                showError: vi.fn(),
+            },
+            elements,
+            setTimeoutFn: vi.fn(),
+            clearTimeoutFn: vi.fn(),
+            urlApi: {
+                createObjectURL: vi.fn(() => 'blob:native-demo'),
+                revokeObjectURL: vi.fn(),
+            },
+            windowRef: {
+                addEventListener: vi.fn(),
+                removeEventListener: vi.fn(),
+                atob: (value) => Buffer.from(value, 'base64').toString('binary'),
+            },
+        });
+
+        await controller.handleFileButtonClick();
+
+        expect(controller.getCurrentFileName()).toBe('native-demo.riv');
+        expect(controller.getCurrentFileSourcePath()).toBe('/tmp/native-demo.riv');
+        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:native-demo', 'native-demo.riv', { forceAutoplay: true });
+    });
+
     it('handles drag-and-drop payloads from files and local file paths', async () => {
         const elements = createElements();
         const listeners = {};

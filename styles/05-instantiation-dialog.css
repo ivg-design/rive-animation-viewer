@@ -122,6 +122,8 @@
 .instantiation-controls-tree {
     overflow: auto;
     padding: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: #313542 #0f1015;
 }
 
 .instantiation-tree-node {
@@ -241,6 +243,32 @@
     line-height: 1.6;
     white-space: pre-wrap;
     word-break: break-word;
+    scrollbar-width: thin;
+    scrollbar-color: #313542 #0f1015;
+}
+
+.instantiation-controls-tree::-webkit-scrollbar,
+.instantiation-preview-output::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.instantiation-controls-tree::-webkit-scrollbar-track,
+.instantiation-preview-output::-webkit-scrollbar-track {
+    background: #0f1015;
+    border-radius: 10px;
+}
+
+.instantiation-controls-tree::-webkit-scrollbar-thumb,
+.instantiation-preview-output::-webkit-scrollbar-thumb {
+    background: #313542;
+    border: 1px solid #0f111a;
+    border-radius: 10px;
+}
+
+.instantiation-controls-tree::-webkit-scrollbar-thumb:hover,
+.instantiation-preview-output::-webkit-scrollbar-thumb:hover {
+    background: #444b5d;
 }
 
 .instantiation-controls-footer {

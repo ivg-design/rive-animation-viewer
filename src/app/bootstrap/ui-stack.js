@@ -6,6 +6,7 @@ import { createCodeEditorController } from '../ui/code-editor.js';
 import { createConsoleModeController } from '../ui/console/console-mode-controller.js';
 import { createScriptConsoleController } from '../ui/script-console.js';
 import { createStatusController } from '../ui/status-controller.js';
+import { createWindowChromeController } from '../ui/window-chrome.js';
 
 export function createUiStack({
     elements,
@@ -15,6 +16,7 @@ export function createUiStack({
 } = {}) {
     const {
         getCurrentFileName,
+        getCurrentFileSourcePath,
         getCurrentFileSizeBytes,
         getCurrentRuntime,
         getCurrentRuntimeSource,
@@ -113,6 +115,7 @@ export function createUiStack({
     const statusController = createStatusController({
         callbacks: {
             getCurrentFileName,
+            getCurrentFileSourcePath,
             getCurrentFileSizeBytes,
             getCurrentRuntime,
             getCurrentRuntimeSource,
@@ -151,6 +154,14 @@ export function createUiStack({
         scriptConsoleController,
     });
 
+    const windowChromeController = createWindowChromeController({
+        callbacks: {
+            getTauriInvoker,
+            isTauriEnvironment,
+        },
+        elements,
+    });
+
     return {
         aboutDialogController,
         applyCodeAndReload,
@@ -177,5 +188,6 @@ export function createUiStack({
         statusController,
         toggleLiveConfigSource,
         updaterController,
+        windowChromeController,
     };
 }

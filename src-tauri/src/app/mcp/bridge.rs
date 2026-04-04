@@ -1,6 +1,8 @@
 use std::fs;
+use std::net::{SocketAddr, TcpStream};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
+use std::time::Duration;
 
 use tauri::Manager;
 use toml_edit::Array;
@@ -138,6 +140,13 @@ fn mcp_port_config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .map_err(|error| format!("Failed to resolve MCP config path: {}", error))
 }
 
+fn mcp_bridge_pid_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map(|path| path.join("mcp-bridge.pid"))
+        .map_err(|error| format!("Failed to resolve MCP bridge pid path: {}", error))
+}
+
 pub fn load_saved_mcp_port(app: &tauri::AppHandle) -> u16 {
     mcp_port_config_path(app)
         .ok()
@@ -155,6 +164,59 @@ pub fn persist_mcp_port(app: &tauri::AppHandle, port: u16) -> Result<(), String>
         .map_err(|error| format!("Failed to write {}: {}", path.display(), error))
 }
 
+fn load_saved_mcp_bridge_pid(app: &tauri::AppHandle) -> Option<u32> {
+    mcp_bridge_pid_path(app)
+        .ok()
+        .and_then(|path| fs::read_to_string(path).ok())
+        .and_then(|raw| raw.trim().parse::<u32>().ok())
+}
+
+fn persist_mcp_bridge_pid(app: &tauri::AppHandle, pid: u32) -> Result<(), String> {
+    let path = mcp_bridge_pid_path(app)?;
+    ensure_parent_directory(&path)?;
+    fs::write(&path, format!("{pid}\n"))
+        .map_err(|error| format!("Failed to write {}: {}", path.display(), error))
+}
+
+fn clear_mcp_bridge_pid(app: &tauri::AppHandle) {
+    if let Ok(path) = mcp_bridge_pid_path(app) {
+        let _ = fs::remove_file(path);
+    }
+}
+
+fn terminate_mcp_bridge_pid(pid: u32) {
+    #[cfg(target_os = "windows")]
+    {
+        let mut command = Command::new("taskkill");
+        command.args(["/PID", &pid.to_string(), "/T", "/F"]);
+        command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+        command.creation_flags(CREATE_NO_WINDOW);
+        let _ = command.status();
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = Command::new("kill")
+            .args(["-TERM", &pid.to_string()])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+}
+
+fn cleanup_stale_mcp_bridge(app: &tauri::AppHandle) {
+    if let Some(pid) = load_saved_mcp_bridge_pid(app) {
+        terminate_mcp_bridge_pid(pid);
+    }
+    clear_mcp_bridge_pid(app);
+}
+
+fn mcp_bridge_port_is_listening(port: u16) -> bool {
+    let addr = SocketAddr::from(([127, 0, 0, 1], normalize_mcp_port(Some(port))));
+    TcpStream::connect_timeout(&addr, Duration::from_millis(150)).is_ok()
+}
+
 pub fn current_mcp_port(manager: &McpBridgeManager) -> Result<u16, String> {
     manager
         .port
@@ -163,13 +225,14 @@ pub fn current_mcp_port(manager: &McpBridgeManager) -> Result<u16, String> {
         .map(|guard| *guard)
 }
 
-pub fn kill_spawned_mcp_bridge(manager: &McpBridgeManager) {
+pub fn kill_spawned_mcp_bridge(app: &tauri::AppHandle, manager: &McpBridgeManager) {
     if let Ok(mut child_guard) = manager.child.lock() {
         if let Some(mut child) = child_guard.take() {
             let _ = child.kill();
             let _ = child.wait();
         }
     }
+    cleanup_stale_mcp_bridge(app);
 }
 
 fn spawn_mcp_bridge_sidecar(app: &tauri::AppHandle, port: u16) -> Result<Child, String> {
@@ -185,9 +248,12 @@ fn spawn_mcp_bridge_sidecar(app: &tauri::AppHandle, port: u16) -> Result<Child, 
     #[cfg(target_os = "windows")]
     command.creation_flags(CREATE_NO_WINDOW);
 
-    command
+    let child = command
         .spawn()
-        .map_err(|error| format!("Failed to start {}: {}", server_path.display(), error))
+        .map_err(|error| format!("Failed to start {}: {}", server_path.display(), error))?;
+
+    persist_mcp_bridge_pid(app, child.id())?;
+    Ok(child)
 }
 
 pub fn ensure_mcp_bridge_running(app: &tauri::AppHandle, manager: &McpBridgeManager) -> Result<u16, String> {
@@ -209,6 +275,10 @@ pub fn ensure_mcp_bridge_running(app: &tauri::AppHandle, manager: &McpBridgeMana
             let _ = child.kill();
             let _ = child.wait();
         }
+        if mcp_bridge_port_is_listening(port) {
+            clear_mcp_bridge_pid(app);
+            return Ok(port);
+        }
         *child_guard = Some(spawn_mcp_bridge_sidecar(app, port)?);
     }
 
@@ -224,7 +294,7 @@ pub fn restart_mcp_bridge(app: &tauri::AppHandle, manager: &McpBridgeManager, po
             .map_err(|_| "Failed to update MCP port state".to_string())?;
         *port_guard = normalized;
     }
-    kill_spawned_mcp_bridge(manager);
+    kill_spawned_mcp_bridge(app, manager);
     ensure_mcp_bridge_running(app, manager)
 }
 
@@ -233,6 +303,7 @@ pub fn initialize_mcp_bridge(app: &tauri::AppHandle, manager: &McpBridgeManager)
     if let Ok(mut port_guard) = manager.port.lock() {
         *port_guard = saved_port;
     }
+    cleanup_stale_mcp_bridge(app);
     ensure_mcp_bridge_running(app, manager).map(|_| ())
 }
 
@@ -262,7 +333,10 @@ pub fn set_mcp_port(
 }
 
 #[tauri::command]
-pub fn stop_mcp_bridge(bridge_manager: tauri::State<'_, McpBridgeManager>) -> bool {
-    kill_spawned_mcp_bridge(&bridge_manager);
+pub fn stop_mcp_bridge(
+    app: tauri::AppHandle,
+    bridge_manager: tauri::State<'_, McpBridgeManager>,
+) -> bool {
+    kill_spawned_mcp_bridge(&app, &bridge_manager);
     true
 }

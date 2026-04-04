@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Rive Animation Viewer",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "identifier": "app.rive.animation.viewer",
   "build": {
     "beforeBuildCommand": "npm run build",
@@ -23,8 +23,12 @@
         "minWidth": 1090,
         "minHeight": 850,
         "resizable": true,
-        "backgroundColor": "#0A0A0AFF",
+        "decorations": true,
+        "shadow": true,
+        "backgroundColor": "#00000000",
         "transparent": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
         "theme": "Dark",
         "fullscreen": false
       }

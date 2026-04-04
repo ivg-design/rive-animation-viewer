@@ -1,0 +1,241 @@
+/* ── Desktop window chrome ───────────────────────────────── */
+
+.app-chrome {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    border-bottom: 1px solid var(--border);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0) 100%),
+        var(--bg-zinc);
+    position: relative;
+    z-index: 20;
+}
+
+body.is-tauri-window {
+    background: transparent;
+}
+
+body.is-tauri-window .app-shell {
+    height: 100%;
+    border: 1px solid rgba(93, 100, 120, 0.32);
+    border-radius: 18px;
+    overflow: hidden;
+    background: #101116;
+    box-shadow:
+        0 22px 54px rgba(6, 8, 12, 0.46),
+        0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+}
+
+.titlebar-row,
+.toolbar-row {
+    display: grid;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.titlebar-row {
+    min-height: 46px;
+    padding: 0 14px 0 0;
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.018) 0%, rgba(255, 255, 255, 0) 100%);
+    border-top-left-radius: 18px;
+    border-top-right-radius: 18px;
+    overflow: hidden;
+}
+
+.toolbar-row {
+    min-height: 56px;
+    padding: 8px 10px 10px;
+    grid-template-columns: max-content minmax(0, 1fr) max-content;
+}
+
+.titlebar-left,
+.titlebar-center,
+.titlebar-right,
+.toolbar-left,
+.toolbar-center,
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.titlebar-left {
+    justify-content: flex-start;
+    padding-left: 0;
+    min-width: max-content;
+    -webkit-app-region: drag;
+    app-region: drag;
+}
+
+.titlebar-center {
+    justify-content: center;
+    padding: 0 18px;
+    -webkit-app-region: drag;
+    app-region: drag;
+}
+
+.titlebar-right {
+    justify-content: flex-end;
+}
+
+.toolbar-left {
+    gap: 10px;
+    justify-content: flex-start;
+}
+
+.toolbar-center {
+    justify-content: center;
+    gap: var(--gap-micro);
+    min-width: max-content;
+}
+
+.toolbar-right {
+    justify-content: flex-end;
+}
+
+.brand-block-titlebar {
+    gap: 10px;
+}
+
+.brand-block-titlebar .brand-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 18px 0 12px 0;
+    border-color: #2f3648;
+    box-shadow: 0 8px 22px rgba(9, 12, 18, 0.22);
+}
+
+.brand-block-titlebar .brand-text {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.48px;
+}
+
+.titlebar-left,
+.titlebar-center {
+    cursor: grab;
+}
+
+.titlebar-left:active,
+.titlebar-center:active {
+    cursor: grabbing;
+}
+
+.titlebar-left *,
+.titlebar-center * {
+    pointer-events: none;
+}
+
+.window-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+}
+
+.window-control-btn {
+    width: 38px;
+    height: 38px;
+    border: none;
+    background: transparent;
+    color: #8c92a1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition:
+        color 120ms ease,
+        filter 120ms ease,
+        transform 120ms ease;
+}
+
+.window-control-btn:hover {
+    transform: translateY(-0.5px);
+}
+
+.window-control-btn:active {
+    transform: translateY(0);
+}
+
+.window-control-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    stroke: currentColor;
+    stroke-width: 2.15;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.window-control-btn-maximize:hover {
+    color: #5de084;
+    filter: drop-shadow(0 0 8px rgba(93, 224, 132, 0.42));
+}
+
+.window-control-btn-minimize:hover {
+    color: #f9d55f;
+    filter: drop-shadow(0 0 8px rgba(249, 213, 95, 0.38));
+}
+
+.window-control-btn-close:hover {
+    color: #ff7469;
+    filter: drop-shadow(0 0 8px rgba(255, 116, 105, 0.4));
+}
+
+.toolbar-row #file-trigger-btn {
+    padding: 0 14px;
+}
+
+.toolbar-row #demo-bundle-btn {
+    padding: 0 18px;
+}
+
+body:not(.is-tauri-window) .window-controls {
+    display: none;
+}
+
+@media (max-width: 1440px) {
+    .brand-block-titlebar .brand-text {
+        font-size: 15px;
+        letter-spacing: 0.36px;
+    }
+}
+
+@media (max-width: 920px) {
+    .titlebar-row {
+        gap: 10px;
+    }
+
+    .brand-block-titlebar .brand-icon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .brand-block-titlebar .brand-text-full {
+        display: none;
+    }
+
+    .brand-block-titlebar .brand-text-compact {
+        display: inline;
+        font-size: 15px;
+        letter-spacing: 0.42px;
+    }
+}
+
+@media (max-width: 1040px) {
+    .header-file-meta {
+        width: min(100%, 520px);
+    }
+
+    .header-file-meta-size {
+        display: none;
+    }
+}

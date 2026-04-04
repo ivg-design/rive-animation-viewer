@@ -25,6 +25,7 @@ function indentBlock(value, prefix = '  ') {
 }
 
 function buildConfigPropertyLines(descriptor, runtimeNamespace, useUserConfig = false) {
+    const useControlHelpers = descriptor.hasControlBindings !== false;
     const lines = [
         `src: "./${descriptor.fileName}",`,
         'canvas,',
@@ -63,12 +64,18 @@ function buildConfigPropertyLines(descriptor, runtimeNamespace, useUserConfig = 
 
     lines.push('onLoad: (...args) => {');
     lines.push('  riveInst.resizeDrawingSurfaceToCanvas();');
-    lines.push('  ravRive.applySnapshot();');
+    if (useControlHelpers) {
+        lines.push('  ravRive.applySnapshot();');
+    }
     if (useUserConfig) lines.push('  userConfig.onLoad?.(...args);');
+    lines.push('},');
+    lines.push('onLoadError: (error, ...args) => {');
+    lines.push('  console.error("Rive load error:", error, ...args);');
+    if (useUserConfig) lines.push('  userConfig.onLoadError?.(error, ...args);');
     lines.push('},');
 
     if (useUserConfig) {
-        CALLBACK_NAMES.filter((name) => name !== 'onLoad').forEach((name) => {
+        CALLBACK_NAMES.filter((name) => name !== 'onLoad' && name !== 'onLoadError').forEach((name) => {
             lines.push(`${name}: (...args) => userConfig.${name}?.(...args),`);
         });
     }
@@ -101,14 +108,21 @@ export function generateWebInstantiationCode(descriptor, {
     snippetMode = 'compact',
 } = {}) {
     const effectivePackageSource = packageSource === 'cdn' ? 'cdn' : 'local';
+    const normalizedSnapshot = normalizeControlSnapshot(controlSnapshot);
+    const hasControlBindings = normalizedSnapshot.length > 0;
     const runtimeBlock = buildRuntimeBlock(descriptor, { packageSource: effectivePackageSource });
     const lines = [
+        '<!-- Embeddable RAV snippet. Wrap it in a full HTML document if you want a standalone page. -->',
         '<canvas id="rive-canvas"></canvas>',
         ...(effectivePackageSource === 'local' ? ['<script type="module">'] : []),
         ...runtimeBlock,
-        ...buildControlHelperLines(controlSnapshot, { selectedControlKeys, snippetMode }),
-        '  window.ravRive = ravRive;',
+        ...buildControlHelperLines(normalizedSnapshot, { selectedControlKeys, snippetMode }),
     ];
+
+    if (hasControlBindings) {
+        lines.push('  // window.ravRive exposes the generated helper API for VM and state-machine control.');
+        lines.push('  window.ravRive = ravRive;');
+    }
 
     if (descriptor.sourceMode === 'editor' && descriptor.editorCode) {
         lines.push('  const userConfig = (');
@@ -122,7 +136,11 @@ export function generateWebInstantiationCode(descriptor, {
     if (descriptor.sourceMode === 'editor' && descriptor.editorCode) {
         lines.push('    ...userConfig,');
     }
-    buildConfigPropertyLines(descriptor, 'rive', descriptor.sourceMode === 'editor' && Boolean(descriptor.editorCode))
+    buildConfigPropertyLines(
+        { ...descriptor, hasControlBindings },
+        'rive',
+        descriptor.sourceMode === 'editor' && Boolean(descriptor.editorCode),
+    )
         .forEach((line) => lines.push(`    ${line}`));
     lines.push('  });');
     lines.push('');
@@ -147,6 +165,8 @@ export function buildWebInstantiationResult(descriptor, {
 } = {}) {
     const effectivePackageSource = packageSource === 'cdn' ? 'cdn' : 'local';
     const effectiveSnippetMode = normalizeSnippetMode(snippetMode);
+    const normalizedSnapshot = normalizeControlSnapshot(controlSnapshot);
+    const hasControlBindings = normalizedSnapshot.length > 0;
     return {
         code: generateWebInstantiationCode(descriptor, {
             packageSource: effectivePackageSource,
@@ -156,23 +176,26 @@ export function buildWebInstantiationResult(descriptor, {
         }),
         examples: buildControlUsageExamples(controlSnapshot),
         fileName: descriptor.fileName,
-        helperApi: {
-            global: 'window.ravRive',
-            methods: [
-                'window.ravRive.instance',
-                'window.ravRive.applySnapshot()',
-                'window.ravRive.applyVmOverrides()',
-                'window.ravRive.applyStateMachineOverrides()',
-                'window.ravRive.fireConfiguredTriggers()',
-                'window.ravRive.getVmRoot()',
-                'window.ravRive.resolveVmAccessor(path, expectedKind?)',
-                'window.ravRive.setVmValue(path, value, expectedKind?)',
-                'window.ravRive.fireVmTrigger(path)',
-                'window.ravRive.getStateMachineInput(stateMachineName, inputName)',
-                'window.ravRive.setStateMachineInput(stateMachineName, inputName, value)',
-                'window.ravRive.fireStateMachineInput(stateMachineName, inputName)',
-            ],
-        },
+        helperApi: hasControlBindings
+            ? {
+                global: 'window.ravRive',
+                note: 'window.ravRive exposes the generated helper API for VM and state-machine control.',
+                methods: [
+                    'window.ravRive.instance',
+                    'window.ravRive.applySnapshot()',
+                    'window.ravRive.applyVmOverrides()',
+                    'window.ravRive.applyStateMachineOverrides()',
+                    'window.ravRive.fireConfiguredTriggers()',
+                    'window.ravRive.getVmRoot()',
+                    'window.ravRive.resolveVmAccessor(path, expectedKind?)',
+                    'window.ravRive.setVmValue(path, value, expectedKind?)',
+                    'window.ravRive.fireVmTrigger(path)',
+                    'window.ravRive.getStateMachineInput(stateMachineName, inputName)',
+                    'window.ravRive.setStateMachineInput(stateMachineName, inputName, value)',
+                    'window.ravRive.fireStateMachineInput(stateMachineName, inputName)',
+                ],
+            }
+            : null,
         packageSource: effectivePackageSource,
         snippetMode: effectiveSnippetMode,
         runtimeName: descriptor.runtimeName,
@@ -190,9 +213,12 @@ export function buildWebInstantiationResult(descriptor, {
             effectiveSnippetMode === 'scaffold'
                 ? 'Scaffold mode includes every discovered bound control and comments out anything that is not explicitly selected.'
                 : 'Compact mode includes only the selected live controls.',
-            normalizeControlSnapshot(controlSnapshot).length > 0
+            hasControlBindings
                 ? 'The snippet organizes the selected controls into readable VM/state-machine override blocks, including enum option comments and explicit trigger helper sections.'
-                : 'The snippet exposes helper methods on window.ravRive for ViewModel and state-machine control.',
+                : 'No bound ViewModel or writable state-machine controls were detected, so the snippet stays minimal and autoplay-focused.',
+            descriptor.runtimeName === 'canvas'
+                ? 'Canvas runtime is supported, but WebGL2 is recommended for feathering and other advanced visual effects.'
+                : 'WebGL2 is the preferred runtime when you need full visual fidelity, including feathering and advanced effects.',
         ],
     };
 }

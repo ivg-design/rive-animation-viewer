@@ -4,8 +4,16 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.1.0` (2026-04-04)
-- Validation target: release from `main` so installed desktop builds can pick up the `2.1.0` updater payload directly.
+- Current release: `2.1.1` (2026-04-04)
+- Validation target: release from `main` so installed desktop builds can pick up the `2.1.1` updater payload directly.
+
+## 2.1.1 Highlights
+
+- **Desktop chrome stabilization**: macOS now uses a supported overlay-titlebar path with the custom RAV header, rounded outer corners, corrected window controls, and centered file metadata that keeps the filename visible while truncating long directories.
+- **Runtime strip cleanup**: The bottom strip is slimmer and clearer, with compact runtime labeling, a simpler open/close console affordance, and an MCP chip that now distinguishes disabled, connected-idle, and actively-in-use states.
+- **Console hardening**: The JavaScript console keeps full Eruda inspection, no longer freezes when toggled, and its `FOLLOW` behavior stays pinned to the real visible transcript.
+- **Snippet/export hardening**: Generated snippets now stay lean when no controls are selected, preserve falsy VM values correctly, keep triggers manual by default, and avoid the demo bootstrap/runtime helper regressions found during the template audit.
+- **Desktop polish**: About layout, dialog scrollbars, and shared scrollbar theming were tightened so the app no longer exposes stray native scrollbars across its desktop surfaces.
 
 ## 2.1.0 Highlights
 
@@ -181,7 +189,7 @@ command = "/Users/you/.local/bin/rav-mcp-rav"
 args = ["--stdio-only", "--port", "9274"]
 ```
 
-Open the RAV desktop app and enable the MCP bridge — the **MCP** indicator in the runtime strip brightens when connected. From then on, your MCP client can control RAV whenever both are running.
+Open the RAV desktop app and enable the MCP bridge. The **MCP** chip in the runtime strip has three live states: disabled (red, struck through), idle (dim yellow), and active (bright yellow with glow while an agent command is actually running). From then on, your MCP client can control RAV whenever both are running.
 
 #### Available Tools (31)
 
@@ -225,7 +233,7 @@ Open the RAV desktop app and enable the MCP bridge — the **MCP** indicator in 
 
 #### Event Console
 
-All MCP commands, responses, and connection events appear in the event console with the `MCP` source tag (indigo). Messages are formatted as human-readable summaries with elapsed time — no raw JSON. Use the `MCP` filter toggle to show/hide MCP traffic.
+All MCP commands, responses, and connection events appear in the event console with the `MCP` source tag. Messages are formatted as human-readable summaries with elapsed time — no raw JSON. Use the `MCP` filter toggle to show/hide MCP traffic.
 
 #### Configuration
 

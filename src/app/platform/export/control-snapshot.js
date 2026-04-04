@@ -48,7 +48,7 @@ export function formatSectionLabel(path = '') {
     return String(path || '')
         .split('/')
         .filter((segment) => segment && segment.trim().length > 0)
-        .map((segment) => segment.trim().toUpperCase())
+        .map((segment) => segment.trim())
         .join(' / ');
 }
 

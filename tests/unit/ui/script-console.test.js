@@ -140,6 +140,109 @@ function createFakeEruda() {
     return { consoleScroller, eruda, fakeLogs, logs, tool };
 }
 
+function createNestedFakeEruda() {
+    const consoleScroller = document.createElement('div');
+    consoleScroller.className = 'eruda-logs-container luna-console luna-console-platform-mac luna-console-theme-dark';
+    consoleScroller.scrollTop = 0;
+    Object.defineProperty(consoleScroller, 'clientHeight', {
+        configurable: true,
+        value: 100,
+    });
+    Object.defineProperty(consoleScroller, 'scrollHeight', {
+        configurable: true,
+        get: () => 400,
+    });
+
+    const fakeLogs = document.createElement('div');
+    fakeLogs.className = 'luna-console-fake-logs';
+    const fakeRows = document.createElement('div');
+    fakeRows.className = 'fake-rows';
+    fakeLogs.appendChild(fakeRows);
+    Object.defineProperty(fakeLogs, 'offsetTop', {
+        configurable: true,
+        value: 0,
+    });
+
+    const logsSpace = document.createElement('div');
+    logsSpace.className = 'luna-console-logs-space';
+
+    const logs = document.createElement('div');
+    logs.className = 'luna-console-logs';
+    const logRows = document.createElement('div');
+    logRows.className = 'log-rows';
+    logs.appendChild(logRows);
+    logsSpace.appendChild(logs);
+    Object.defineProperty(logs, 'offsetTop', {
+        configurable: true,
+        value: 280,
+    });
+
+    function buildRow(type, text) {
+        const row = document.createElement('div');
+        row.className = 'luna-console-log-container';
+        const item = document.createElement('div');
+        item.className = `luna-console-${type} luna-console-log-item`;
+        const content = document.createElement('div');
+        content.className = 'luna-console-log-content';
+        content.textContent = text;
+        item.appendChild(content);
+        row.appendChild(item);
+        return row;
+    }
+
+    function appendLogRow(type, text) {
+        logRows.appendChild(buildRow(type, text));
+        fakeRows.appendChild(buildRow(type, text));
+    }
+
+    const tool = {
+        _logger: {
+            evaluate: vi.fn((source) => {
+                appendLogRow('input', source);
+                appendLogRow('output', `result:${source}`);
+                return undefined;
+            }),
+            options: {},
+            warn: vi.fn(),
+        },
+        clear: vi.fn(() => {
+            logRows.innerHTML = '';
+            fakeRows.innerHTML = '';
+        }),
+        config: {
+            set: vi.fn(),
+        },
+        info: vi.fn((...args) => appendLogRow('info', args.join(' '))),
+        log: vi.fn((...args) => appendLogRow('log', args.join(' '))),
+        warn: vi.fn((...args) => appendLogRow('warn', args.join(' '))),
+        error: vi.fn((...args) => appendLogRow('error', args.join(' '))),
+        debug: vi.fn((...args) => appendLogRow('debug', args.join(' '))),
+    };
+
+    const eruda = {
+        destroy: vi.fn(),
+        get: vi.fn(() => tool),
+        init: vi.fn(({ container }) => {
+            const erudaContainer = document.createElement('div');
+            erudaContainer.className = 'eruda-container';
+            const devTools = document.createElement('div');
+            devTools.className = 'eruda-dev-tools';
+            const consoleEl = document.createElement('div');
+            consoleEl.className = 'eruda-console';
+            consoleScroller.appendChild(fakeLogs);
+            consoleScroller.appendChild(logsSpace);
+            consoleEl.appendChild(consoleScroller);
+            devTools.appendChild(consoleEl);
+            erudaContainer.appendChild(devTools);
+            container.appendChild(erudaContainer);
+        }),
+        remove: vi.fn(),
+        show: vi.fn(),
+    };
+
+    return { consoleScroller, eruda, logRows, tool };
+}
+
 function immediateSetTimeout(callback) {
     callback();
     return 1;
@@ -147,9 +250,18 @@ function immediateSetTimeout(callback) {
 
 describe('ui/script-console', () => {
     let originalClipboard;
+    let originalMutationObserver;
+    let controllers;
+
+    function track(controller) {
+        controllers.push(controller);
+        return controller;
+    }
 
     beforeEach(() => {
+        controllers = [];
         originalClipboard = navigator.clipboard;
+        originalMutationObserver = global.MutationObserver;
         Object.defineProperty(navigator, 'clipboard', {
             configurable: true,
             value: {
@@ -159,10 +271,12 @@ describe('ui/script-console', () => {
     });
 
     afterEach(() => {
+        controllers.forEach((controller) => controller?.destroy?.());
         Object.defineProperty(navigator, 'clipboard', {
             configurable: true,
             value: originalClipboard,
         });
+        global.MutationObserver = originalMutationObserver;
         delete window.riveInst;
         delete window.eruda;
         document.body.className = '';
@@ -171,10 +285,10 @@ describe('ui/script-console', () => {
 
     it('captures console output and restores console methods on destroy', () => {
         const elements = renderShell();
-        const controller = createScriptConsoleController({
+        const controller = track(createScriptConsoleController({
             elements,
             setTimeoutFn: immediateSetTimeout,
-        });
+        }));
         const originalLog = window.console.log;
 
         controller.installCapture();
@@ -196,13 +310,13 @@ describe('ui/script-console', () => {
         const renderEventLog = vi.fn();
         const { eruda, tool } = createFakeEruda();
         window.eruda = eruda;
-        const controller = createScriptConsoleController({
+        const controller = track(createScriptConsoleController({
             callbacks: {
                 renderEventLog,
             },
             elements,
             setTimeoutFn: immediateSetTimeout,
-        });
+        }));
 
         controller.installCapture();
         controller.setup();
@@ -230,10 +344,10 @@ describe('ui/script-console', () => {
         const elements = renderShell();
         const { eruda, logs, tool } = createFakeEruda();
         window.eruda = eruda;
-        const controller = createScriptConsoleController({
+        const controller = track(createScriptConsoleController({
             elements,
             setTimeoutFn: immediateSetTimeout,
-        });
+        }));
 
         controller.installCapture();
         controller.setup();
@@ -285,11 +399,11 @@ describe('ui/script-console', () => {
         const execLogEvent = vi.fn();
         const { eruda, tool } = createFakeEruda();
         window.eruda = eruda;
-        const controller = createScriptConsoleController({
+        const controller = track(createScriptConsoleController({
             callbacks: { logEvent: execLogEvent },
             elements,
             setTimeoutFn: immediateSetTimeout,
-        });
+        }));
 
         controller.installCapture();
         controller.setup();
@@ -334,11 +448,11 @@ describe('ui/script-console', () => {
             eruda,
             riveInst: fakeRiveInst,
         };
-        const controller = createScriptConsoleController({
+        const controller = track(createScriptConsoleController({
             elements,
             setTimeoutFn: immediateSetTimeout,
             windowRef,
-        });
+        }));
 
         controller.setup();
         await controller.open();
@@ -353,7 +467,7 @@ describe('ui/script-console', () => {
     it('prepends timestamps and keeps the newest eruda rows at the top', async () => {
         const elements = renderShell();
         const { eruda, logs } = createFakeEruda();
-        const controller = createScriptConsoleController({
+        const controller = track(createScriptConsoleController({
             elements,
             setTimeoutFn: immediateSetTimeout,
             windowRef: {
@@ -361,7 +475,7 @@ describe('ui/script-console', () => {
                 console: window.console,
                 eruda,
             },
-        });
+        }));
 
         controller.installCapture();
         controller.setup();
@@ -385,7 +499,7 @@ describe('ui/script-console', () => {
     it('normalizes command and result chrome with shared badges', async () => {
         const elements = renderShell();
         const { eruda, logs } = createFakeEruda();
-        const controller = createScriptConsoleController({
+        const controller = track(createScriptConsoleController({
             elements,
             setTimeoutFn: immediateSetTimeout,
             windowRef: {
@@ -393,7 +507,7 @@ describe('ui/script-console', () => {
                 console: window.console,
                 eruda,
             },
-        });
+        }));
 
         controller.setup();
         await controller.open();
@@ -403,5 +517,75 @@ describe('ui/script-console', () => {
         expect(rows).toHaveLength(2);
         expect(rows[0].querySelector('.rav-console-badge')?.textContent).toBe('RESULT');
         expect(rows[1].querySelector('.rav-console-badge')?.textContent).toBe('CMD');
+    });
+
+    it('keeps nested eruda command and result rows at the top', async () => {
+        const elements = renderShell();
+        const { eruda, logRows } = createNestedFakeEruda();
+        const controller = track(createScriptConsoleController({
+            elements,
+            setTimeoutFn: immediateSetTimeout,
+            windowRef: {
+                ...window,
+                console: window.console,
+                eruda,
+            },
+        }));
+
+        controller.installCapture();
+        controller.setup();
+        await controller.open();
+        console.info('older');
+        await controller.exec('1 + 1');
+
+        const rows = Array.from(logRows.querySelectorAll('.luna-console-log-container'));
+        expect(rows).toHaveLength(3);
+        expect(rows[0].textContent).toContain('result:1 + 1');
+        expect(rows[1].textContent).toContain('1 + 1');
+        expect(rows[2].textContent).toContain('older');
+    });
+
+    it('disconnects the eruda observer while normalizing DOM rows', async () => {
+        const elements = renderShell();
+        const { eruda } = createFakeEruda();
+        const instances = [];
+
+        class FakeMutationObserver {
+            constructor(callback) {
+                this.callback = callback;
+                this.disconnect = vi.fn();
+                this.observe = vi.fn();
+                instances.push(this);
+            }
+        }
+
+        global.MutationObserver = FakeMutationObserver;
+        window.eruda = eruda;
+
+        const controller = track(createScriptConsoleController({
+            elements,
+            setTimeoutFn: immediateSetTimeout,
+            windowRef: {
+                ...window,
+                console: window.console,
+                eruda,
+            },
+        }));
+
+        controller.installCapture();
+        controller.setup();
+        await controller.open();
+
+        expect(instances).toHaveLength(1);
+        const observer = instances[0];
+        const initialDisconnects = observer.disconnect.mock.calls.length;
+        const initialObserves = observer.observe.mock.calls.length;
+
+        console.info('observer-safe refresh');
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(observer.disconnect.mock.calls.length).toBeGreaterThan(initialDisconnects);
+        expect(observer.observe.mock.calls.length).toBeGreaterThan(initialObserves);
     });
 });

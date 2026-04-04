@@ -5,6 +5,7 @@ import {
 } from '../formatting.js';
 
 export function createErudaPresentationController({
+    MutationObserverCtor = globalThis.MutationObserver,
     bindScrollContainer = () => {},
     documentRef = globalThis.document,
     elements,
@@ -20,18 +21,41 @@ export function createErudaPresentationController({
         if (!output) {
             return [];
         }
-        return [
-            output.querySelector('.luna-console-logs'),
-            output.querySelector('.luna-console-fake-logs'),
-        ].filter(Boolean);
+        const visibleLogs = output.querySelector('.luna-console-logs');
+        if (visibleLogs) {
+            return [visibleLogs];
+        }
+
+        const logsSpace = output.querySelector('.luna-console-logs-space');
+        if (logsSpace) {
+            return [logsSpace];
+        }
+
+        const fakeLogs = output.querySelector('.luna-console-fake-logs');
+        return fakeLogs ? [fakeLogs] : [];
     }
 
     function getErudaRows(container) {
         if (!container) {
             return [];
         }
-        return Array.from(container.children).filter((child) =>
-            child.classList?.contains('luna-console-log-container'));
+        return Array.from(container.querySelectorAll('.luna-console-log-container'));
+    }
+
+    function getErudaRowGroups(container) {
+        const rows = getErudaRows(container);
+        const groups = new Map();
+        rows.forEach((row) => {
+            const parent = row.parentElement;
+            if (!parent) {
+                return;
+            }
+            if (!groups.has(parent)) {
+                groups.set(parent, []);
+            }
+            groups.get(parent).push(row);
+        });
+        return Array.from(groups.values());
     }
 
     function classifyErudaRow(row) {
@@ -101,7 +125,10 @@ export function createErudaPresentationController({
     function applyErudaDomFilter() {
         getErudaLogContainers().forEach((container) => {
             getErudaRows(container).forEach((row) => {
-                row.hidden = !shouldShowErudaRow(row);
+                const nextHidden = !shouldShowErudaRow(row);
+                if (row.hidden !== nextHidden) {
+                    row.hidden = nextHidden;
+                }
             });
         });
     }
@@ -153,23 +180,47 @@ export function createErudaPresentationController({
         }
 
         const level = classifyErudaRow(row);
-        badge.textContent = resolveErudaBadge(row);
-        badge.dataset.level = level;
-        badge.className = `rav-console-badge is-${resolveEntryLevel(level === 'info' ? 'log' : level)}`;
+        const nextText = resolveErudaBadge(row);
+        const nextLevel = level;
+        const nextClassName = `rav-console-badge is-${resolveEntryLevel(level === 'info' ? 'log' : level)}`;
+
+        if (badge.textContent !== nextText) {
+            badge.textContent = nextText;
+        }
+        if (badge.dataset.level !== nextLevel) {
+            badge.dataset.level = nextLevel;
+        }
+        if (badge.className !== nextClassName) {
+            badge.className = nextClassName;
+        }
     }
 
     function reorderRowsNewestFirst(container) {
-        const rows = getErudaRows(container);
-        if (rows.length < 2) {
+        getErudaRowGroups(container).forEach((rows) => {
+            if (rows.length < 2) {
+                return;
+            }
+            const orderedRows = rows
+                .slice()
+                .sort((left, right) => Number(right.dataset.ravSeq || 0) - Number(left.dataset.ravSeq || 0));
+            if (!orderedRows.some((row, index) => row !== rows[index])) {
+                return;
+            }
+            orderedRows.forEach((row) => row.parentElement?.appendChild(row));
+        });
+    }
+
+    function disconnectErudaObserver() {
+        state.erudaObserver?.disconnect?.();
+    }
+
+    function reconnectErudaObserver() {
+        if (!state.erudaObserver) {
             return;
         }
-        const orderedRows = rows
-            .slice()
-            .sort((left, right) => Number(right.dataset.ravSeq || 0) - Number(left.dataset.ravSeq || 0));
-        if (!orderedRows.some((row, index) => row !== rows[index])) {
-            return;
-        }
-        orderedRows.forEach((row) => container.appendChild(row));
+        getErudaLogContainers().forEach((container) => {
+            state.erudaObserver.observe(container, { childList: true, subtree: true });
+        });
     }
 
     function refreshErudaPresentation() {
@@ -178,6 +229,7 @@ export function createErudaPresentationController({
         }
 
         state.erudaPresentationSyncing = true;
+        disconnectErudaObserver();
         try {
             getErudaLogContainers().forEach((container) => {
                 const rows = getErudaRows(container);
@@ -193,23 +245,22 @@ export function createErudaPresentationController({
             }
         } finally {
             state.erudaPresentationSyncing = false;
+            reconnectErudaObserver();
         }
     }
 
     function observeErudaLogs() {
-        state.erudaObserver?.disconnect?.();
+        disconnectErudaObserver();
         const containers = getErudaLogContainers();
-        if (!containers.length || typeof MutationObserver !== 'function') {
+        if (!containers.length || typeof MutationObserverCtor !== 'function') {
             return;
         }
 
-        state.erudaObserver = new MutationObserver(() => {
+        state.erudaObserver = new MutationObserverCtor(() => {
             refreshErudaPresentation();
         });
 
-        containers.forEach((container) => {
-            state.erudaObserver.observe(container, { childList: true, subtree: false });
-        });
+        reconnectErudaObserver();
     }
 
     return {

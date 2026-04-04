@@ -6,12 +6,14 @@ describe('platform/mcp/command-format', () => {
         const windowRef = { _mcpUpdateStatus: update };
 
         updateStatusIndicator({ enabled: true, connected: true }, windowRef);
+        updateStatusIndicator({ enabled: true, connected: true, indicatorState: 'active' }, windowRef);
         updateStatusIndicator({ enabled: true, connected: false }, windowRef);
         updateStatusIndicator({ enabled: false, connected: false }, windowRef);
         updateStatusIndicator('connected', windowRef);
 
         expect(update.mock.calls).toEqual([
-            ['connected'],
+            ['idle'],
+            ['active'],
             ['waiting'],
             ['off'],
             ['connected'],

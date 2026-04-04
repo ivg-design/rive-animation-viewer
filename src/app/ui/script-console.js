@@ -288,6 +288,8 @@ export function createScriptConsoleController({
                 captureController.appendCapturedEntry({ method: 'command', args: [source], timestamp: Date.now() }, { mirrorToEruda: false });
                 const evaluation = consoleTool._logger.evaluate(source);
                 if (typeof evaluation?.then === 'function') await evaluation;
+                erudaPresentation.refreshErudaPresentation();
+                uiStateController.bindScrollContainer();
                 if (state.followLatest) {
                     setTimeoutFn?.(() => uiStateController.scrollConsoleToLatest(), 50);
                 }

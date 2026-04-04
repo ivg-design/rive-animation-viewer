@@ -3,26 +3,23 @@ import {
     escapeHtml,
     formatByteSize,
     getRuntimeDisplayName,
+    getRuntimeStatusLabel,
 } from '../../../src/app/ui/status-controller.js';
 
 function createElements() {
     document.body.innerHTML = `
         <div id="version-info"></div>
+        <div id="header-file-meta"></div>
         <div id="runtime-strip-runtime"></div>
-        <div id="runtime-strip-version"></div>
-        <div id="runtime-strip-build"></div>
-        <div id="runtime-strip-file"></div>
         <div id="info"></div>
         <div id="error-message"></div>
     `;
 
     return {
         error: document.getElementById('error-message'),
+        headerFileMeta: document.getElementById('header-file-meta'),
         info: document.getElementById('info'),
-        runtimeStripBuild: document.getElementById('runtime-strip-build'),
-        runtimeStripFile: document.getElementById('runtime-strip-file'),
         runtimeStripRuntime: document.getElementById('runtime-strip-runtime'),
-        runtimeStripVersion: document.getElementById('runtime-strip-version'),
         versionInfo: document.getElementById('version-info'),
     };
 }
@@ -30,7 +27,9 @@ function createElements() {
 describe('ui/status-controller', () => {
     it('formats runtime labels, byte sizes, and escaped text', () => {
         expect(getRuntimeDisplayName('canvas')).toBe('Canvas');
-        expect(getRuntimeDisplayName('webgl2')).toBe('WebGL');
+        expect(getRuntimeDisplayName('webgl2')).toBe('WebGL2');
+        expect(getRuntimeStatusLabel('canvas')).toBe('CANVAS');
+        expect(getRuntimeStatusLabel('webgl2')).toBe('WEBGL2');
         expect(formatByteSize(0)).toBe('');
         expect(formatByteSize(512)).toBe('512 B');
         expect(formatByteSize(2048)).toBe('2.0 KB');
@@ -42,6 +41,7 @@ describe('ui/status-controller', () => {
         const controller = createStatusController({
             callbacks: {
                 getCurrentFileName: () => '<demo>.riv',
+                getCurrentFileSourcePath: () => '/Users/ivg/demo/<demo>.riv',
                 getCurrentFileSizeBytes: () => 2048,
                 getCurrentRuntime: () => 'webgl2',
                 getCurrentRuntimeSource: () => 'bundle',
@@ -63,12 +63,16 @@ describe('ui/status-controller', () => {
         controller.updateVersionInfo();
         controller.updateInfo('Ready');
 
-        expect(elements.runtimeStripRuntime.innerHTML).toContain('Runtime: WebGL');
-        expect(elements.runtimeStripVersion.textContent).toBe('v1.2.3');
-        expect(elements.runtimeStripBuild.textContent).toBe('b0100');
-        expect(elements.runtimeStripFile.innerHTML).toContain('&lt;demo&gt;.riv · 2.0 KB');
+        expect(elements.runtimeStripRuntime.textContent).toBe('RT: WEBGL2 v1.2.3');
+        expect(elements.headerFileMeta.textContent).toContain('/Users/ivg/demo/');
+        expect(elements.headerFileMeta.textContent).toContain('<demo>.riv');
+        expect(elements.headerFileMeta.textContent).toContain('2.0 KB');
+        expect(elements.headerFileMeta.querySelector('.header-file-meta-directory')?.textContent).toBe('/Users/ivg/demo/');
+        expect(elements.headerFileMeta.querySelector('.header-file-meta-file')?.textContent).toBe('<demo>.riv');
+        expect(elements.headerFileMeta.querySelector('.header-file-meta-size')?.textContent).toBe('2.0 KB');
         expect(elements.versionInfo.innerHTML).toContain('Release: v3.4.5');
         expect(elements.versionInfo.innerHTML).toContain('Source: bundle');
+        expect(elements.versionInfo.innerHTML).toContain('© 2026 IVG Design');
         expect(elements.info.textContent).toBe('Ready');
     });
 

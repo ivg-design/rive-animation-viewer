@@ -101,7 +101,7 @@ function buildVmTriggerLines(controlSnapshot = [], { activeKeys = null, snippetM
         (entry) => entry.descriptor.source !== 'state-machine' && entry.kind === 'trigger' && entry.descriptor.path,
     );
     if (!triggerEntries.length) {
-        return ['  // Add any VM triggers you want to fire on load.', '  // "card-vm/refresh",'];
+        return ['  // Add any VM triggers you want available for manual firing.', '  // "card-vm/refresh",'];
     }
 
     const lines = [];
@@ -123,7 +123,7 @@ function buildStateMachineTriggerLines(controlSnapshot = [], { activeKeys = null
         (entry) => entry.descriptor.source === 'state-machine' && entry.kind === 'trigger',
     );
     if (!triggerEntries.length) {
-        return ['  // Add any state machine triggers you want to fire on load.', '  // { stateMachine: "main-sm", input: "pulse" },'];
+        return ['  // Add any state machine triggers you want available for manual firing.', '  // { stateMachine: "main-sm", input: "pulse" },'];
     }
     return triggerEntries.map((entry) =>
         maybeCommentLine(
@@ -135,6 +135,12 @@ function buildStateMachineTriggerLines(controlSnapshot = [], { activeKeys = null
 export function buildControlHelperLines(controlSnapshot = [], { selectedControlKeys = [], snippetMode = 'compact' } = {}) {
     const effectiveSnippetMode = normalizeSnippetMode(snippetMode);
     const activeKeys = normalizeSelectedControlKeySet(selectedControlKeys);
+    const normalizedSnapshot = normalizeControlSnapshot(controlSnapshot);
+
+    if (normalizedSnapshot.length === 0) {
+        return [];
+    }
+
     return [
         '  // =============================================================================',
         '  // CONTROL OVERRIDES',

@@ -213,4 +213,36 @@ mod tests {
         assert!(html.contains("instantiationSnippets"));
         assert!(html.contains("controlSnapshot"));
     }
+
+    #[test]
+    fn demo_html_includes_canvas_background_helper_and_copy_button() {
+        let payload = DemoBundlePayload {
+            animation_base64: "AQID".into(),
+            animations: vec!["idle".into()],
+            artboard_name: Some("Main".into()),
+            autoplay: true,
+            canvas_color: Some("#0d1117".into()),
+            canvas_transparent: false,
+            control_snapshot: None,
+            default_instantiation_package_source: "cdn".into(),
+            file_name: "demo.riv".into(),
+            instantiation_code: "console.log('snippet');".into(),
+            instantiation_snippets: Some(r#"{"cdn":"console.log('cdn');","local":"console.log('local');"}"#.into()),
+            instantiation_source_mode: "internal".into(),
+            layout_alignment: "center".into(),
+            layout_fit: "contain".into(),
+            layout_state: Some("{}".into()),
+            runtime_name: "webgl2".into(),
+            runtime_script: "console.log('runtime');".into(),
+            runtime_version: Some("2.37.0".into()),
+            state_machines: vec!["main-sm".into()],
+            vm_hierarchy: None,
+        };
+
+        let html = build_demo_html(&payload).expect("demo html");
+
+        assert!(html.contains("function updateCanvasBackground()"));
+        assert!(html.contains("id=\"copy-instantiation-btn\""));
+        assert!(html.contains("copy web instantiation code"));
+    }
 }

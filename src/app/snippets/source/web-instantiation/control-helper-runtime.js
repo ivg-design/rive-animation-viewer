@@ -1,7 +1,7 @@
 function safeRavVmCall(target, methodName, ...args) {
   if (!target || typeof target[methodName] !== "function") return null;
   try {
-    return target[methodName](...args) || null;
+    return target[methodName](...args);
   } catch {
     return null;
   }
@@ -97,6 +97,15 @@ function getRavStateMachineInput(stateMachineName, inputName, instance = riveIns
   }
 }
 
+function isRavStateMachineTriggerInput(input) {
+  if (!input) return false;
+  const triggerType = typeof rive !== "undefined"
+    ? rive?.StateMachineInputType?.Trigger
+    : undefined;
+  if (triggerType !== undefined && input.type === triggerType) return true;
+  return typeof input.fire === "function" && !("value" in input);
+}
+
 function parseRavArgbHex(value) {
   const cleanValue = typeof value === "string" ? value.trim() : "";
   const normalized = cleanValue.startsWith("#") ? cleanValue.slice(1) : cleanValue;
@@ -105,8 +114,10 @@ function parseRavArgbHex(value) {
 }
 
 function setRavVmValue(path, value, expectedKind, instance = riveInst) {
-  const colorValue = typeof value === "number" && Number.isFinite(value)
-    ? value >>> 0
+  const colorValue = expectedKind === "color"
+    ? typeof value === "number" && Number.isFinite(value)
+      ? value >>> 0
+      : parseRavArgbHex(value)
     : parseRavArgbHex(value);
   const probeKinds = expectedKind
     ? [expectedKind]
@@ -142,31 +153,67 @@ function fireRavVmTrigger(path, instance = riveInst) {
 
 function setRavStateMachineInput(stateMachineName, inputName, value, instance = riveInst) {
   const input = getRavStateMachineInput(stateMachineName, inputName, instance);
-  if (!input || typeof input.fire === "function" || !("value" in input)) return false;
+  if (!input || isRavStateMachineTriggerInput(input) || !("value" in input)) return false;
   input.value = value;
   return true;
 }
 
 function fireRavStateMachineInput(stateMachineName, inputName, instance = riveInst) {
   const input = getRavStateMachineInput(stateMachineName, inputName, instance);
-  if (!input || typeof input.fire !== "function") return false;
+  if (!input || !isRavStateMachineTriggerInput(input) || typeof input.fire !== "function") return false;
   input.fire();
   return true;
 }
 
-function applyRavVmOverrides(instance = riveInst, overrides = VM_OVERRIDES) {
-  if (!instance || !overrides || typeof overrides !== "object") return 0;
+function resolveRavVmOverrides(overrides = undefined) {
+  if (overrides && typeof overrides === "object") return overrides;
+  if (typeof VM_OVERRIDES !== "undefined" && VM_OVERRIDES && typeof VM_OVERRIDES === "object") {
+    return VM_OVERRIDES;
+  }
+  return null;
+}
+
+function resolveRavStateMachineOverrides(overrides = undefined) {
+  if (overrides && typeof overrides === "object") return overrides;
+  if (typeof STATE_MACHINE_OVERRIDES !== "undefined"
+      && STATE_MACHINE_OVERRIDES
+      && typeof STATE_MACHINE_OVERRIDES === "object") {
+    return STATE_MACHINE_OVERRIDES;
+  }
+  return null;
+}
+
+function resolveRavVmTriggerPaths(vmTriggers = undefined) {
+  if (Array.isArray(vmTriggers)) return vmTriggers;
+  if (typeof VM_TRIGGER_PATHS !== "undefined" && Array.isArray(VM_TRIGGER_PATHS)) {
+    return VM_TRIGGER_PATHS;
+  }
+  return [];
+}
+
+function resolveRavStateMachineTriggerInputs(stateMachineTriggers = undefined) {
+  if (Array.isArray(stateMachineTriggers)) return stateMachineTriggers;
+  if (typeof STATE_MACHINE_TRIGGER_INPUTS !== "undefined" && Array.isArray(STATE_MACHINE_TRIGGER_INPUTS)) {
+    return STATE_MACHINE_TRIGGER_INPUTS;
+  }
+  return [];
+}
+
+function applyRavVmOverrides(instance = riveInst, overrides = undefined) {
+  const resolvedOverrides = resolveRavVmOverrides(overrides);
+  if (!instance || !resolvedOverrides) return 0;
   let applied = 0;
-  Object.entries(overrides).forEach(([path, value]) => {
+  Object.entries(resolvedOverrides).forEach(([path, value]) => {
     if (setRavVmValue(path, value, undefined, instance)) applied += 1;
   });
   return applied;
 }
 
-function applyRavStateMachineOverrides(instance = riveInst, overrides = STATE_MACHINE_OVERRIDES) {
-  if (!instance || !overrides || typeof overrides !== "object") return 0;
+function applyRavStateMachineOverrides(instance = riveInst, overrides = undefined) {
+  const resolvedOverrides = resolveRavStateMachineOverrides(overrides);
+  if (!instance || !resolvedOverrides) return 0;
   let applied = 0;
-  Object.entries(overrides).forEach(([stateMachineName, inputs]) => {
+  Object.entries(resolvedOverrides).forEach(([stateMachineName, inputs]) => {
     if (!inputs || typeof inputs !== "object") return;
     Object.entries(inputs).forEach(([inputName, value]) => {
       if (setRavStateMachineInput(stateMachineName, inputName, value, instance)) applied += 1;
@@ -175,15 +222,17 @@ function applyRavStateMachineOverrides(instance = riveInst, overrides = STATE_MA
   return applied;
 }
 
-function fireRavConfiguredTriggers(instance = riveInst, vmTriggers = VM_TRIGGER_PATHS, stateMachineTriggers = STATE_MACHINE_TRIGGER_INPUTS) {
+function fireRavConfiguredTriggers(instance = riveInst, vmTriggers = undefined, stateMachineTriggers = undefined) {
+  const resolvedVmTriggers = resolveRavVmTriggerPaths(vmTriggers);
+  const resolvedStateMachineTriggers = resolveRavStateMachineTriggerInputs(stateMachineTriggers);
   let fired = 0;
-  if (Array.isArray(vmTriggers)) {
-    vmTriggers.forEach((path) => {
+  if (Array.isArray(resolvedVmTriggers)) {
+    resolvedVmTriggers.forEach((path) => {
       if (fireRavVmTrigger(path, instance)) fired += 1;
     });
   }
-  if (Array.isArray(stateMachineTriggers)) {
-    stateMachineTriggers.forEach((entry) => {
+  if (Array.isArray(resolvedStateMachineTriggers)) {
+    resolvedStateMachineTriggers.forEach((entry) => {
       if (fireRavStateMachineInput(entry?.stateMachine, entry?.input, instance)) fired += 1;
     });
   }
@@ -192,6 +241,7 @@ function fireRavConfiguredTriggers(instance = riveInst, vmTriggers = VM_TRIGGER_
 
 function applyRavControlSnapshot(instance = riveInst) {
   if (!instance) return 0;
+  // Snapshot restores value-like overrides only. Triggers remain manual.
   let applied = 0;
   applied += applyRavVmOverrides(instance);
   applied += applyRavStateMachineOverrides(instance);
@@ -213,9 +263,6 @@ function createRavWebController(getInstance) {
       return applyRavVmOverrides(getInstance());
     },
     fireConfiguredTriggers() {
-      return fireRavConfiguredTriggers(getInstance());
-    },
-    fireStartupTriggers() {
       return fireRavConfiguredTriggers(getInstance());
     },
     fireStateMachineInput(stateMachineName, inputName) {
