@@ -4,9 +4,13 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.1.0` (2026-04-04)
-- Latest minor: `2.1.0` ships the full architecture refactor, custom desktop About window, console/header polish, MCP/runtime strip fixes, and Windows shell cleanup in one release.
-- Validation target: release from `main` so installed desktop builds can pick up the `2.1.0` updater payload directly.
+- Current release: `2.1.1` (2026-04-04)
+- Latest patch: `2.1.1` fixes the Windows release workflow regression in the new architecture-budget checker so cross-platform signed releases can publish cleanly again.
+- Validation target: release from `main` so installed desktop builds can pick up the `2.1.1` updater payload directly.
+
+## 2.1.1 Highlights
+
+- **Windows release workflow fix**: The architecture-budget checker now resolves its config path correctly on Windows runners, fixing the `D:\\D:\\...` path error that broke the `2.1.0` Windows release job before packaging.
 
 ## 2.1.0 Highlights
 
