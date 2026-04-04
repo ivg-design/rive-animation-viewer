@@ -7,10 +7,12 @@ use toml_edit::Array;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
+#[cfg(not(target_os = "windows"))]
+use crate::app::support::home_dir;
 
 use crate::app::constants::{DEFAULT_MCP_PORT, MCP_CLIENT_LAUNCHER_NAME};
 use crate::app::state::McpBridgeManager;
-use crate::app::support::{ensure_parent_directory, home_dir};
+use crate::app::support::ensure_parent_directory;
 
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
@@ -37,7 +39,7 @@ pub fn resolve_mcp_server_path(app: &tauri::AppHandle) -> Result<PathBuf, String
         .ok_or_else(|| format!("MCP server not found in bundled sidecar locations for {}", binary_name))
 }
 
-pub fn mcp_client_launcher_path(_app: &tauri::AppHandle) -> Result<PathBuf, String> {
+pub fn mcp_client_launcher_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     #[cfg(target_os = "windows")]
     {
         return app
@@ -49,6 +51,7 @@ pub fn mcp_client_launcher_path(_app: &tauri::AppHandle) -> Result<PathBuf, Stri
 
     #[cfg(not(target_os = "windows"))]
     {
+        let _ = app;
         return home_dir()
             .map(|path| path.join(".local").join("bin").join(MCP_CLIENT_LAUNCHER_NAME))
             .ok_or_else(|| "Failed to resolve home directory for MCP launcher".to_string());
