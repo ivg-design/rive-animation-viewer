@@ -15,6 +15,7 @@ const RECONNECT_DELAY_MS = 1000;
 const MAX_RECONNECT_DELAY_MS = 4000;
 const CONNECT_TIMEOUT_MS = 2000;
 const WATCHDOG_INTERVAL_MS = 1500;
+const PORT_SYNC_TIMEOUT_MS = 800;
 
 const state = {
     baseReconnectDelay: RECONNECT_DELAY_MS,
@@ -41,7 +42,12 @@ async function syncBridgePortFromDesktop() {
     }
 
     state.bridgePortSyncPromise = (async () => {
-        const resolvedPort = await invokeDesktop('get_mcp_port', {}, window);
+        const resolvedPort = await Promise.race([
+            invokeDesktop('get_mcp_port', {}, window),
+            new Promise((resolve) => {
+                window.setTimeout(() => resolve(null), PORT_SYNC_TIMEOUT_MS);
+            }),
+        ]);
         if (resolvedPort === null || resolvedPort === undefined || resolvedPort === '') {
             return state.port;
         }
@@ -145,11 +151,6 @@ window._mcpBridge = {
     },
 
     reconnect() {
-        if (state.connectPromise && !state.socket) {
-            state.reconnectDelay = state.baseReconnectDelay;
-            transport.syncState();
-            return state.connectPromise;
-        }
         transport.disconnect();
         state.reconnectDelay = state.baseReconnectDelay;
         return transport.connect();

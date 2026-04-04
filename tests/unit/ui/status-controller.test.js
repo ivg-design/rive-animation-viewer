@@ -65,7 +65,7 @@ describe('ui/status-controller', () => {
 
         expect(elements.runtimeStripRuntime.innerHTML).toContain('Runtime: WebGL');
         expect(elements.runtimeStripVersion.textContent).toBe('v1.2.3');
-        expect(elements.runtimeStripBuild.textContent).toBe('b b0100');
+        expect(elements.runtimeStripBuild.textContent).toBe('b0100');
         expect(elements.runtimeStripFile.innerHTML).toContain('&lt;demo&gt;.riv · 2.0 KB');
         expect(elements.versionInfo.innerHTML).toContain('Release: v3.4.5');
         expect(elements.versionInfo.innerHTML).toContain('Source: bundle');
@@ -171,5 +171,31 @@ describe('ui/status-controller', () => {
         await noFetchController.resolveAppVersion();
         noFetchController.updateVersionInfo();
         expect(noFetchController.getBuildIdLabel()).toBe('dev');
+    });
+
+    it('uses runtime metadata in the info block even when the runtime registry object is unavailable', () => {
+        const elements = createElements();
+        const controller = createStatusController({
+            callbacks: {
+                getCurrentRuntime: () => 'webgl2',
+                getCurrentRuntimeSource: () => 'https://cdn.example/webgl2.js',
+                getCurrentRuntimeVersion: () => '2.36.0',
+                getLoadedRuntime: () => null,
+                getRuntimeVersionToken: () => 'latest',
+            },
+            elements,
+            placeholders: {
+                appBuild: 'b0101-20260403-abcdef',
+                appBuildPlaceholder: '__APP_BUILD__',
+                appVersion: '2.0.5',
+                appVersionPlaceholder: '__APP_VERSION__',
+            },
+        });
+
+        controller.updateVersionInfo();
+        expect(elements.versionInfo.innerHTML).toContain('Runtime: webgl2');
+        expect(elements.versionInfo.innerHTML).toContain('Version: 2.36.0');
+        expect(elements.versionInfo.innerHTML).toContain('Source: https://cdn.example/webgl2.js');
+        expect(elements.versionInfo.innerHTML).not.toContain('is loading');
     });
 });

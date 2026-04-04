@@ -50,6 +50,7 @@ export function createControllerStack({
         updateVersionInfo,
     } = callbacks;
     let runtimeStack = null;
+    let runtimeLoaderController = null;
 
     const uiStack = createUiStack({
         elements,
@@ -58,9 +59,9 @@ export function createControllerStack({
             getCurrentFileName,
             getCurrentFileSizeBytes,
             getCurrentRuntime,
-            getCurrentRuntimeSource: () => runtimeStack?.getCurrentRuntimeSource?.(),
-            getCurrentRuntimeVersion: () => runtimeStack?.getCurrentRuntimeVersion?.(),
-            getLoadedRuntime: () => runtimeStack?.getLoadedRuntime?.(),
+            getCurrentRuntimeSource: () => runtimeLoaderController?.getCurrentRuntimeSource?.(),
+            getCurrentRuntimeVersion: () => runtimeLoaderController?.getCurrentRuntimeVersion?.(),
+            getLoadedRuntime: () => runtimeLoaderController?.getLoadedRuntime?.(),
             getRuntimeVersionToken,
             getTauriEventListener,
             getTauriInvoker,
@@ -100,7 +101,7 @@ export function createControllerStack({
             updateVersionInfo,
         },
     });
-    const runtimeLoaderController = runtimeStack.runtimeLoaderController;
+    runtimeLoaderController = runtimeStack.runtimeLoaderController;
     const {
         applyRuntimeVersionToken,
         applyStoredRuntimeVersionForCurrentFile,

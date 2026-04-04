@@ -12,8 +12,11 @@ export const ABOUT_CREDITS = [
 
 export const ABOUT_LINKS = [
     { label: 'Documentation', url: 'https://forge.mograph.life/apps/rav/docs' },
-    { label: 'Project Site', url: 'https://forge.mograph.life/apps/rav' },
+    { label: 'RAV Site', url: 'https://forge.mograph.life/apps/rav' },
     { label: 'GitHub', url: 'https://github.com/ivg-design/rive-animation-viewer' },
+    { label: 'Rive Docs', url: 'https://rive.app/docs' },
+    { label: 'Rive Community', url: 'https://community.rive.app' },
+    { label: 'mograph.life', url: 'https://mograph.life' },
 ];
 
 export function buildDependencyEntries(packageData = {}) {

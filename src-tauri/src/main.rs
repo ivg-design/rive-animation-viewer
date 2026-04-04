@@ -6,7 +6,14 @@ mod app;
 use std::collections::VecDeque;
 use std::sync::Mutex;
 
-use tauri::menu::{Menu, MenuItemBuilder, MenuItemKind, HELP_SUBMENU_ID};
+use tauri::menu::{
+    Menu,
+    MenuItemBuilder,
+    PredefinedMenuItem,
+    Submenu,
+    HELP_SUBMENU_ID,
+    WINDOW_SUBMENU_ID,
+};
 use tauri::{Emitter, Manager};
 
 use crate::app::constants::{ABOUT_MENU_ID, DEFAULT_MCP_PORT, ONLINE_DOCS_MENU_ID, RAV_DOCS_URL};
@@ -45,6 +52,9 @@ fn main() {
                 let _ = open_external_url(RAV_DOCS_URL.to_string());
             }
             ABOUT_MENU_ID => {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.emit("show-about", ());
+                }
                 let _ = app.emit("show-about", ());
             }
             _ => {}
@@ -55,16 +65,14 @@ fn main() {
         .setup(|app| {
             #[cfg(desktop)]
             {
-                let menu = Menu::default(app.handle())?;
-                let about_item = MenuItemBuilder::with_id(ABOUT_MENU_ID, "About Rive Animation Viewer")
-                    .build(app.handle())?;
-                let docs_item = MenuItemBuilder::with_id(ONLINE_DOCS_MENU_ID, "RAV Documentation")
-                    .build(app.handle())?;
-                if let Some(MenuItemKind::Submenu(help_menu)) = menu.get(HELP_SUBMENU_ID) {
-                    help_menu.append(&about_item)?;
-                    help_menu.append(&docs_item)?;
-                }
+                let menu = build_desktop_menu(app.handle())?;
                 app.set_menu(menu)?;
+            }
+
+            #[cfg(target_os = "windows")]
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_background_color(Some(tauri::window::Color(10, 10, 10, 255)));
+                let _ = window.set_theme(Some(tauri::Theme::Dark));
             }
 
             let bridge_manager = app.state::<McpBridgeManager>();
@@ -147,6 +155,107 @@ fn main() {
                 }
             }
         });
+}
+
+#[cfg(desktop)]
+fn build_desktop_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<Menu<R>> {
+    #[cfg(target_os = "macos")]
+    {
+        let pkg_info = app.package_info();
+        let about_item = MenuItemBuilder::with_id(ABOUT_MENU_ID, "About Rive Animation Viewer")
+            .build(app)?;
+        let docs_item = MenuItemBuilder::with_id(ONLINE_DOCS_MENU_ID, "RAV Documentation")
+            .build(app)?;
+
+        let app_menu = Submenu::with_items(
+            app,
+            pkg_info.name.clone(),
+            true,
+            &[
+                &about_item,
+                &PredefinedMenuItem::separator(app)?,
+                &PredefinedMenuItem::services(app, None)?,
+                &PredefinedMenuItem::separator(app)?,
+                &PredefinedMenuItem::hide(app, None)?,
+                &PredefinedMenuItem::hide_others(app, None)?,
+                &PredefinedMenuItem::separator(app)?,
+                &PredefinedMenuItem::quit(app, None)?,
+            ],
+        )?;
+
+        let file_menu = Submenu::with_items(
+            app,
+            "File",
+            true,
+            &[&PredefinedMenuItem::close_window(app, None)?],
+        )?;
+
+        let edit_menu = Submenu::with_items(
+            app,
+            "Edit",
+            true,
+            &[
+                &PredefinedMenuItem::undo(app, None)?,
+                &PredefinedMenuItem::redo(app, None)?,
+                &PredefinedMenuItem::separator(app)?,
+                &PredefinedMenuItem::cut(app, None)?,
+                &PredefinedMenuItem::copy(app, None)?,
+                &PredefinedMenuItem::paste(app, None)?,
+                &PredefinedMenuItem::select_all(app, None)?,
+            ],
+        )?;
+
+        let view_menu = Submenu::with_items(
+            app,
+            "View",
+            true,
+            &[&PredefinedMenuItem::fullscreen(app, None)?],
+        )?;
+
+        let window_menu = Submenu::with_id_and_items(
+            app,
+            WINDOW_SUBMENU_ID,
+            "Window",
+            true,
+            &[
+                &PredefinedMenuItem::minimize(app, None)?,
+                &PredefinedMenuItem::maximize(app, None)?,
+                &PredefinedMenuItem::separator(app)?,
+                &PredefinedMenuItem::close_window(app, None)?,
+            ],
+        )?;
+
+        let help_menu = Submenu::with_id_and_items(
+            app,
+            HELP_SUBMENU_ID,
+            "Help",
+            true,
+            &[&docs_item],
+        )?;
+
+        return Menu::with_items(
+            app,
+            &[
+                &app_menu,
+                &file_menu,
+                &edit_menu,
+                &view_menu,
+                &window_menu,
+                &help_menu,
+            ],
+        );
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let menu = Menu::default(app)?;
+        let docs_item = MenuItemBuilder::with_id(ONLINE_DOCS_MENU_ID, "RAV Documentation")
+            .build(app)?;
+        if let Some(tauri::menu::MenuItemKind::Submenu(help_menu)) = menu.get(HELP_SUBMENU_ID) {
+            help_menu.append(&docs_item)?;
+        }
+        Ok(menu)
+    }
 }
 
 #[tauri::command]

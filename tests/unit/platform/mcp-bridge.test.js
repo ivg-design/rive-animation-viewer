@@ -5,6 +5,7 @@ function FakeWebSocket(url) {
     this.onerror = null;
     this.onmessage = null;
     this.onopen = null;
+    this.sent = [];
     FakeWebSocket.instances.push(this);
 }
 
@@ -28,7 +29,9 @@ FakeWebSocket.prototype.close = function close() {
     this.fail();
 };
 
-FakeWebSocket.prototype.send = function send() {};
+FakeWebSocket.prototype.send = function send(payload) {
+    this.sent.push(payload);
+};
 
 async function flushBridgeMicrotasks() {
     await Promise.resolve();
@@ -102,7 +105,7 @@ describe('platform/mcp-bridge', () => {
         expect(window._mcpBridge.port).toBe(9310);
     });
 
-    it('deduplicates reconnect attempts while desktop port sync is still pending', async () => {
+    it('restarts a pending reconnect attempt while desktop port sync is still pending', async () => {
         vi.stubGlobal('WebSocket', FakeWebSocket);
         vi.stubGlobal('setInterval', vi.fn(() => 1));
         vi.stubGlobal('clearInterval', vi.fn());
@@ -132,8 +135,8 @@ describe('platform/mcp-bridge', () => {
         await vi.advanceTimersByTimeAsync(10);
         await flushBridgeMicrotasks();
 
-        expect(FakeWebSocket.instances).toHaveLength(1);
-        expect(FakeWebSocket.instances[0].url).toBe('ws://127.0.0.1:9274');
+        expect(FakeWebSocket.instances).toHaveLength(2);
+        expect(FakeWebSocket.instances[1].url).toBe('ws://127.0.0.1:9274');
     });
 
     it('blocks script execution tools when MCP script access is disabled', async () => {
@@ -214,6 +217,48 @@ describe('platform/mcp-bridge', () => {
             sourceMode: 'editor',
             draftDirty: false,
             vmExplorerInjected: true,
+        });
+    });
+
+    it('decodes non-string websocket payloads and replies to bridge commands', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        vi.stubGlobal('setInterval', vi.fn(() => 1));
+        vi.stubGlobal('clearInterval', vi.fn());
+        window._mcpLogEvent = vi.fn();
+        window._mcpUpdateStatus = vi.fn();
+        window._mcpGetEventLog = vi.fn(() => [{ source: 'ui', type: 'info', message: 'hello' }]);
+
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-non-string-payload');
+        await flushBridgeMicrotasks();
+
+        const socket = FakeWebSocket.instances[0];
+        socket.accept();
+        await flushBridgeMicrotasks();
+
+        await socket.onmessage?.({
+            data: {
+                id: 'req-1',
+                command: 'rav_get_event_log',
+                params: { limit: 1 },
+            },
+        });
+        await flushBridgeMicrotasks();
+
+        const replyPayload = socket.sent.map((entry) => {
+            try {
+                return JSON.parse(entry);
+            } catch {
+                return null;
+            }
+        }).find((entry) => entry?.id === 'req-1');
+
+        expect(replyPayload).toEqual({
+            id: 'req-1',
+            result: {
+                entries: [{ source: 'ui', type: 'info', message: 'hello' }],
+                returned: 1,
+                total: 1,
+            },
         });
     });
 });

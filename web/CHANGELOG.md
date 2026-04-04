@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-04-04
+
+### Added
+
+- **Desktop About window** — Added a custom About dialog with build/runtime metadata, credits, dependency inventory, product links, and native Help-menu integration.
+- **Architecture enforcement** — Added an architecture budget, dependency-cruiser checks, and source-backed snippet generation to keep future development modular.
+
+### Changed
+
+- **Frontend architecture refactor** — App boot, MCP bridge code, runtime helpers, console logic, and injected snippet sources were regrouped by domain so the shipped app no longer depends on giant root runtime files.
+- **Console mode flow** — The runtime strip now opens and closes the console, while the console header switches between `Events` and `JS`.
+- **About dialog presentation** — The desktop About surface now uses a compact non-scrolling layout with two rows of links and an internally scrolling dependency list.
+
+### Fixed
+
+- **JavaScript Console follow behavior** — JS `FOLLOW` now tracks the visible transcript correctly instead of snapping to an empty viewport.
+- **Runtime and MCP indicators** — The runtime strip now reflects the real loaded runtime and live MCP connection state again after the refactor.
+- **Event console cyclic payload crash** — Event-log rendering now safely formats cyclic MCP payloads without crashing.
+- **Windows desktop polish** — The Windows app now keeps its dark menu bar visible and no longer opens a stray PowerShell window for the MCP sidecar.
+
 ## [2.0.5] - 2026-04-03
 
 ### Fixed

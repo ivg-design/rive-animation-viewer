@@ -5,6 +5,34 @@ import {
     updateStatusIndicator,
 } from './command-format.js';
 
+async function decodeBridgeMessageData(data) {
+    if (typeof data === 'string') {
+        return JSON.parse(data);
+    }
+
+    if (data instanceof ArrayBuffer) {
+        return JSON.parse(new TextDecoder().decode(data));
+    }
+
+    if (ArrayBuffer.isView(data)) {
+        return JSON.parse(new TextDecoder().decode(data));
+    }
+
+    if (typeof Blob !== 'undefined' && data instanceof Blob) {
+        return JSON.parse(await data.text());
+    }
+
+    if (data && typeof data.text === 'function') {
+        return JSON.parse(await data.text());
+    }
+
+    if (data && typeof data === 'object') {
+        return data;
+    }
+
+    throw new Error('Unsupported bridge payload type');
+}
+
 export function createMcpBridgeTransport({
     beforeConnect = async () => {},
     commandHandlers,
@@ -100,9 +128,9 @@ export function createMcpBridgeTransport({
                 if (getSocket() !== nextSocket) return;
                 let message;
                 try {
-                    message = JSON.parse(event.data);
-                } catch {
-                    console.warn('[rav-mcp-bridge] Invalid JSON from MCP server');
+                    message = await decodeBridgeMessageData(event.data);
+                } catch (error) {
+                    console.warn('[rav-mcp-bridge] Invalid bridge payload from MCP server', error);
                     return;
                 }
 

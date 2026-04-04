@@ -90,6 +90,7 @@ export function createShellController({
         showRightButton.hidden = isRightPanelVisible;
         persistPanelVisibility();
         handleResize();
+        updateVersionInfo();
         if (visibilityResizeTimeoutId) clearTimeoutFn(visibilityResizeTimeoutId);
         visibilityResizeTimeoutId = setTimeoutFn(handleResize, 250);
         return getSidebarVisibility();

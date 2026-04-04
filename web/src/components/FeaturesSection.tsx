@@ -50,7 +50,7 @@ const features = [
   {
     icon: AppWindow,
     title: "Desktop Native",
-    description: "Tauri v2 desktop app with .riv association, open-with forwarding, drag/drop loading, and single-instance file handoff.",
+    description: "Tauri v2 desktop app with .riv association, open-with forwarding, drag/drop loading, a custom About window, and single-instance file handoff.",
   },
   {
     icon: RotateCcw,
@@ -80,7 +80,7 @@ const features = [
   {
     icon: ShieldCheck,
     title: "MCP + Script Access",
-    description: "Bundled native rav-mcp sidecar, stable launcher path, one-click add/reinstall/remove for supported clients, editable port, and a Script Access gate for JS tools.",
+    description: "Bundled native rav-mcp sidecar, stable launcher path, one-click add/reinstall/remove for supported clients, editable port, and corrected live MCP/runtime status signaling.",
   },
   {
     icon: Cable,

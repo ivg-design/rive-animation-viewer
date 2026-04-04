@@ -77,6 +77,20 @@ describe('ui/event-log', () => {
         expect(document.getElementById('event-log-list').textContent).toContain('Bridge connected');
     });
 
+    it('renders cyclic payloads without crashing the event log', () => {
+        const controller = createEventLogController({
+            elements: buildElements(),
+            handleResize: vi.fn(),
+        });
+
+        controller.setupEventLog();
+        const payload = { name: 'bridge-state' };
+        payload.self = payload;
+        expect(() => controller.logEvent('mcp', 'recv', 'Bridge payload', payload)).not.toThrow();
+        expect(document.getElementById('event-log-list').textContent).toContain('Bridge payload');
+        expect(document.getElementById('event-log-list').textContent).toContain('[Circular]');
+    });
+
     it('filters, clears, and toggles collapse state', () => {
         const handleResize = vi.fn();
         const onCollapsedChange = vi.fn();
@@ -97,7 +111,7 @@ describe('ui/event-log', () => {
         document.getElementById('event-filter-search').dispatchEvent(new Event('input'));
         expect(document.getElementById('event-log-list').textContent).toContain('Native load');
 
-        document.getElementById('event-log-header').dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        controller.setCollapsed(true);
         expect(controller.isCollapsed()).toBe(true);
         expect(handleResize).toHaveBeenCalled();
         expect(onCollapsedChange).toHaveBeenCalledWith(true);

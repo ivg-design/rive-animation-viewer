@@ -13,14 +13,33 @@ function createSectionHeading(documentRef, text) {
     return heading;
 }
 
-function createDefinitionGrid(documentRef, rows = []) {
+function createSectionHeaderRow(documentRef, titleText, detailText = '') {
+    const row = documentRef.createElement('div');
+    row.className = 'about-dialog-card-heading';
+
+    row.append(createSectionHeading(documentRef, titleText));
+
+    if (detailText) {
+        const detail = documentRef.createElement('span');
+        detail.className = 'about-dialog-card-detail';
+        detail.textContent = detailText;
+        row.append(detail);
+    }
+
+    return row;
+}
+
+function createDefinitionGrid(documentRef, rows = [], className = '') {
     const grid = documentRef.createElement('dl');
-    grid.className = 'about-dialog-grid';
-    rows.forEach(({ label, value }) => {
+    grid.className = `about-dialog-grid ${className}`.trim();
+    rows.forEach(({ datasetKey, label, value }) => {
         const dt = documentRef.createElement('dt');
         dt.textContent = label;
         const dd = documentRef.createElement('dd');
         dd.textContent = value;
+        if (datasetKey) {
+            dd.dataset[datasetKey] = 'true';
+        }
         grid.append(dt, dd);
     });
     return grid;
@@ -45,6 +64,7 @@ export function createAboutDialogController({
     let dependencyList = null;
     let dependencyStatus = null;
     let loadedDependencies = false;
+    let menuHookRetryTimer = null;
     let tauriAboutUnlisten = null;
 
     function closeDialog() {
@@ -77,24 +97,30 @@ export function createAboutDialogController({
         dialog.id = 'about-dialog';
         dialog.innerHTML = `
             <div class="about-dialog-content">
-                <div class="about-dialog-header">
-                    <div>
-                        <p class="about-dialog-kicker">About</p>
-                        <h2>${ABOUT_APP_NAME}</h2>
+                <div class="about-dialog-hero">
+                    <div class="about-dialog-hero-brand">
+                        <div class="about-dialog-appmark" aria-hidden="true">
+                            <img src="icons/app-icon.png" alt="" class="about-dialog-appmark-image">
+                        </div>
+                        <div class="about-dialog-hero-copy">
+                            <p class="about-dialog-kicker">RAV // Desktop</p>
+                            <h2>${ABOUT_APP_NAME}</h2>
+                            <p class="about-dialog-summary-text">Inspect, drive, export, and automate .riv files with live editor injection, ViewModel tooling, a JavaScript REPL, and MCP control.</p>
+                        </div>
                     </div>
-                    <button type="button" class="icon-btn icon-btn-ghost about-dialog-close" aria-label="Close">
-                        <i data-lucide="x" class="lucide-18"></i>
-                    </button>
+                    <div class="about-dialog-hero-side">
+                        <button type="button" class="icon-btn icon-btn-ghost about-dialog-close" aria-label="Close">
+                            <i data-lucide="x" class="lucide-18"></i>
+                        </button>
+                        <div class="about-dialog-build-pill">v<span data-about-version></span> · <span data-about-build></span></div>
+                        <div class="about-dialog-runtime-line"><span class="dot dot-sm" aria-hidden="true"></span><span data-about-runtime></span></div>
+                    </div>
                 </div>
                 <div class="about-dialog-body">
-                    <section class="about-dialog-section about-dialog-summary">
-                        <div class="about-dialog-build-pill">v<span data-about-version></span> · <span data-about-build></span></div>
-                        <p class="about-dialog-summary-text">Desktop and web viewer for .riv files with live editing, ViewModel controls, export tooling, and MCP automation.</p>
-                    </section>
-                    <section class="about-dialog-section" data-about-metadata></section>
-                    <section class="about-dialog-section" data-about-credits></section>
-                    <section class="about-dialog-section" data-about-links></section>
-                    <section class="about-dialog-section" data-about-dependencies></section>
+                    <section class="about-dialog-card about-dialog-card-build" data-about-metadata></section>
+                    <section class="about-dialog-card about-dialog-card-links" data-about-links></section>
+                    <section class="about-dialog-card about-dialog-card-credits" data-about-credits></section>
+                    <section class="about-dialog-card about-dialog-card-dependencies" data-about-dependencies></section>
                 </div>
             </div>
         `;
@@ -113,23 +139,23 @@ export function createAboutDialogController({
 
         const metadataSection = dialog.querySelector('[data-about-metadata]');
         metadataSection.append(
-            createSectionHeading(documentRef, 'Build'),
+            createSectionHeaderRow(documentRef, 'Build Matrix'),
             createDefinitionGrid(documentRef, [
-                { label: 'Version', value: getAppVersionLabel() },
-                { label: 'Build', value: getAppBuildLabel() },
-                { label: 'Runtime', value: `${String(getCurrentRuntime()).toUpperCase()} ${getCurrentRuntimeVersion()}` },
-                { label: 'License', value: ABOUT_LICENSE },
-            ]),
+                { datasetKey: 'aboutVersionDetail', label: 'Version', value: getAppVersionLabel() },
+                { datasetKey: 'aboutBuildDetail', label: 'Build', value: getAppBuildLabel() },
+                { datasetKey: 'aboutRuntimeDetail', label: 'Runtime', value: `${String(getCurrentRuntime()).toUpperCase()} ${getCurrentRuntimeVersion()}` },
+                { datasetKey: 'aboutLicenseDetail', label: 'License', value: ABOUT_LICENSE },
+            ], 'about-dialog-grid-build'),
         );
 
         const creditsSection = dialog.querySelector('[data-about-credits]');
         creditsSection.append(
-            createSectionHeading(documentRef, 'Credits'),
-            createDefinitionGrid(documentRef, ABOUT_CREDITS),
+            createSectionHeaderRow(documentRef, 'Credits + Stack'),
+            createDefinitionGrid(documentRef, ABOUT_CREDITS, 'about-dialog-grid-credits'),
         );
 
         const linksSection = dialog.querySelector('[data-about-links]');
-        linksSection.append(createSectionHeading(documentRef, 'Links'));
+        linksSection.append(createSectionHeaderRow(documentRef, 'Links'));
         const linkList = documentRef.createElement('div');
         linkList.className = 'about-dialog-links';
         ABOUT_LINKS.forEach(({ label, url }) => {
@@ -145,13 +171,14 @@ export function createAboutDialogController({
         linksSection.append(linkList);
 
         const dependencySection = dialog.querySelector('[data-about-dependencies]');
-        dependencySection.append(createSectionHeading(documentRef, 'Dependencies'));
-        dependencyStatus = documentRef.createElement('p');
-        dependencyStatus.className = 'about-dialog-dependency-status';
-        dependencyStatus.textContent = 'Loading package metadata…';
+        dependencyStatus = documentRef.createElement('span');
+        dependencyStatus.className = 'about-dialog-card-detail';
+        dependencyStatus.textContent = 'Loading…';
+        dependencySection.append(createSectionHeaderRow(documentRef, 'Dependencies'));
+        dependencySection.querySelector('.about-dialog-card-heading')?.append(dependencyStatus);
         dependencyList = documentRef.createElement('div');
         dependencyList.className = 'about-dialog-dependencies';
-        dependencySection.append(dependencyStatus, dependencyList);
+        dependencySection.append(dependencyList);
 
         initLucideIcons();
         return dialog;
@@ -180,10 +207,15 @@ export function createAboutDialogController({
                 row.append(nameSpan, versionSpan);
                 dependencyList.append(row);
             });
-            dependencyStatus.textContent = `${entries.length} package entries`;
+            dependencyStatus.textContent = `${entries.length} deps`;
             loadedDependencies = true;
         } catch (error) {
-            dependencyStatus.textContent = `Could not load dependency metadata: ${error.message}`;
+            dependencyStatus.textContent = 'Load failed';
+            dependencyList.replaceChildren();
+            const detail = documentRef.createElement('p');
+            detail.className = 'about-dialog-dependency-error';
+            detail.textContent = `Could not load dependency metadata: ${error.message}`;
+            dependencyList.append(detail);
         }
     }
 
@@ -220,8 +252,14 @@ export function createAboutDialogController({
 
     async function openDialog() {
         const aboutDialog = ensureDialog();
+        const runtimeSummary = `${String(getCurrentRuntime()).toUpperCase()} ${getCurrentRuntimeVersion()}`;
         aboutDialog.querySelector('[data-about-version]').textContent = getAppVersionLabel();
         aboutDialog.querySelector('[data-about-build]').textContent = getAppBuildLabel();
+        aboutDialog.querySelector('[data-about-runtime]').textContent = runtimeSummary;
+        aboutDialog.querySelector('[data-about-version-detail]')?.replaceChildren(getAppVersionLabel());
+        aboutDialog.querySelector('[data-about-build-detail]')?.replaceChildren(getAppBuildLabel());
+        aboutDialog.querySelector('[data-about-runtime-detail]')?.replaceChildren(runtimeSummary);
+        aboutDialog.querySelector('[data-about-license-detail]')?.replaceChildren(ABOUT_LICENSE);
         if (!aboutDialog.open) {
             if (typeof aboutDialog.showModal === 'function') {
                 aboutDialog.showModal();
@@ -238,6 +276,13 @@ export function createAboutDialogController({
         }
         const listen = await getTauriEventListener();
         if (typeof listen !== 'function') {
+            if (menuHookRetryTimer) {
+                return;
+            }
+            menuHookRetryTimer = globalThis.setTimeout(() => {
+                menuHookRetryTimer = null;
+                void setupTauriMenuHook();
+            }, 500);
             return;
         }
         tauriAboutUnlisten = await listen('show-about', () => {

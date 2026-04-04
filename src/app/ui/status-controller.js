@@ -111,7 +111,7 @@ export function createStatusController({
             elements.runtimeStripVersion.textContent = `v${runtimeVersion}`;
         }
         if (elements.runtimeStripBuild) {
-            elements.runtimeStripBuild.textContent = `b ${getShortBuildIdLabel()}`;
+            elements.runtimeStripBuild.textContent = getShortBuildIdLabel();
         }
         if (elements.runtimeStripFile) {
             if (currentFileName) {
@@ -174,20 +174,20 @@ export function createStatusController({
         }
 
         const runtime = getLoadedRuntime(currentRuntime);
-        if (!runtime) {
+        const version = getCurrentRuntimeVersion(currentRuntime) || runtime?.version || null;
+        const source = getCurrentRuntimeSource(currentRuntime) || '';
+        if (!runtime && !version && !source) {
             elements.versionInfo.innerHTML = `${releaseLine}<br>Runtime ${currentRuntime} is loading...${footer}`;
             refreshInfoStrip();
             return;
         }
 
-        const version = getCurrentRuntimeVersion(currentRuntime) || runtime.version || 'resolving...';
-        const source = getCurrentRuntimeSource(currentRuntime);
         elements.versionInfo.innerHTML = `
         ${releaseLine}<br>
         Runtime: ${currentRuntime}<br>
-        Version: ${version}<br>
+        Version: ${version || 'resolving...'}<br>
         Requested: ${getRuntimeVersionToken()}<br>
-        Source: ${source}
+        Source: ${source || 'resolving...'}
         ${footer}
     `;
         refreshInfoStrip();

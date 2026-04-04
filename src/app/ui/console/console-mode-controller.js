@@ -9,17 +9,15 @@ export function createConsoleModeController({
         showError = () => {},
     } = callbacks;
 
-    let currentConsoleMode = 'closed';
+    let currentConsoleView = 'events';
     let syncingConsoleMode = false;
 
-    function deriveConsoleModeFromControllers() {
-        if (eventLogController?.isCollapsed?.()) {
-            return 'closed';
-        }
-        if (scriptConsoleController?.isOpen?.()) {
-            return 'js';
-        }
-        return 'events';
+    function isConsoleOpen() {
+        return !eventLogController?.isCollapsed?.();
+    }
+
+    function deriveConsoleViewFromControllers() {
+        return scriptConsoleController?.isOpen?.() ? 'js' : 'events';
     }
 
     function updateConsoleModeChip() {
@@ -28,23 +26,13 @@ export function createConsoleModeController({
             return;
         }
 
-        const labels = {
-            closed: 'OPEN CONSOLE',
-            events: 'EVENTS',
-            js: 'JS',
-        };
-        const titles = {
-            closed: 'Console closed (click to open the event console)',
-            events: 'Event console open (click to open JavaScript console)',
-            js: 'JavaScript console open (click to close console)',
-        };
-
-        chip.dataset.consoleMode = currentConsoleMode;
-        chip.title = titles[currentConsoleMode] || titles.closed;
+        const open = isConsoleOpen();
+        chip.dataset.consoleMode = open ? 'open' : 'closed';
+        chip.title = open ? 'Console open (click to close)' : 'Console closed (click to open)';
         if (elements.consoleModeChipLabel) {
-            elements.consoleModeChipLabel.textContent = labels[currentConsoleMode] || labels.closed;
+            elements.consoleModeChipLabel.textContent = open ? 'CLOSE' : 'OPEN';
         } else {
-            chip.textContent = labels[currentConsoleMode] || labels.closed;
+            chip.textContent = open ? 'CLOSE' : 'OPEN';
         }
     }
 
@@ -55,16 +43,18 @@ export function createConsoleModeController({
             if (normalizedMode === 'closed') {
                 scriptConsoleController.close();
                 eventLogController.setCollapsed(true);
-            } else if (normalizedMode === 'events') {
-                eventLogController.setCollapsed(false);
+                return;
+            }
+
+            currentConsoleView = normalizedMode;
+            eventLogController.setCollapsed(false);
+            if (normalizedMode === 'events') {
                 scriptConsoleController.close();
             } else {
-                eventLogController.setCollapsed(false);
                 await scriptConsoleController.open();
             }
-            currentConsoleMode = normalizedMode;
         } catch (error) {
-            currentConsoleMode = deriveConsoleModeFromControllers();
+            currentConsoleView = deriveConsoleViewFromControllers();
             showError(`Failed to open JavaScript console: ${error.message}`);
             logEvent('ui', 'console-open-failed', error.message);
             throw error;
@@ -74,18 +64,37 @@ export function createConsoleModeController({
         }
     }
 
+    async function setConsoleOpen(open) {
+        if (open) {
+            await setConsoleMode(currentConsoleView);
+            return;
+        }
+        syncingConsoleMode = true;
+        try {
+            scriptConsoleController.close();
+            eventLogController.setCollapsed(true);
+        } finally {
+            syncingConsoleMode = false;
+            updateConsoleModeChip();
+        }
+    }
+
+    async function toggleConsoleOpen() {
+        await setConsoleOpen(!isConsoleOpen());
+    }
+
     function handleEventLogCollapsedChange(collapsed) {
         if (syncingConsoleMode) {
             return;
         }
 
-        if (collapsed && scriptConsoleController?.isOpen()) {
-            scriptConsoleController.close();
+        if (collapsed) {
+            if (scriptConsoleController?.isOpen()) {
+                scriptConsoleController.close();
+            }
+        } else {
+            currentConsoleView = deriveConsoleViewFromControllers();
         }
-
-        currentConsoleMode = collapsed
-            ? 'closed'
-            : (scriptConsoleController?.isOpen() ? 'js' : 'events');
         updateConsoleModeChip();
     }
 
@@ -94,33 +103,34 @@ export function createConsoleModeController({
             return;
         }
 
-        currentConsoleMode = isOpen
-            ? 'js'
-            : (eventLogController?.isCollapsed?.() ? 'closed' : 'events');
+        currentConsoleView = isOpen ? 'js' : 'events';
         updateConsoleModeChip();
     }
 
     function handleScriptConsoleToggleRequest() {
-        const nextMode = deriveConsoleModeFromControllers() === 'js' ? 'events' : 'js';
+        const nextMode = deriveConsoleViewFromControllers() === 'js' ? 'events' : 'js';
         setConsoleMode(nextMode).catch(() => {
             /* setConsoleMode already reports errors */
         });
     }
 
-    async function cycleConsoleMode() {
-        const modeOrder = ['closed', 'events', 'js'];
-        currentConsoleMode = deriveConsoleModeFromControllers();
-        const currentIndex = modeOrder.indexOf(currentConsoleMode);
-        const nextMode = modeOrder[(currentIndex + 1) % modeOrder.length];
-        await setConsoleMode(nextMode);
+    async function activateEventsMode() {
+        await setConsoleMode('events');
+    }
+
+    async function activateJsMode() {
+        await setConsoleMode('js');
     }
 
     return {
-        cycleConsoleMode,
+        activateEventsMode,
+        activateJsMode,
         handleEventLogCollapsedChange,
         handleScriptConsoleOpenChange,
         handleScriptConsoleToggleRequest,
         setConsoleMode,
+        setConsoleOpen,
+        toggleConsoleOpen,
         updateConsoleModeChip,
     };
 }

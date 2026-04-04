@@ -210,8 +210,10 @@ export default function DocsPage() {
           </p>
 
           <p>
-            In <strong>2.0.2</strong>, the default startup state was tightened so the right properties
-            panel opens by default while the editor and console stay closed until you explicitly open them.
+            In <strong>2.1.0</strong>, the desktop shell also gained a custom About window, compact console
+            mode switching, and corrected runtime/MCP strip indicators while keeping the streamlined default
+            startup state: the right properties panel opens by default while the editor and console stay closed
+            until you explicitly open them.
           </p>
 
           <h3>Left Panel &mdash; Animation Canvas</h3>
@@ -252,6 +254,10 @@ export default function DocsPage() {
             Collapsible transcript panel with two modes: Event Console and JavaScript Console.
             Both modes are resizable, timestamped, newest-first, and expose a sticky <strong>FOLLOW</strong>
             control that keeps the latest message pinned in view.
+          </p>
+          <p>
+            The runtime strip control now simply opens or closes the console. Once the panel is open,
+            a compact header toggle switches between <strong>Events</strong> and <strong>JS</strong>.
           </p>
 
           <p>
@@ -487,9 +493,10 @@ export default function DocsPage() {
 
           <h3>Activating Console Mode</h3>
           <p>
-            Use the runtime-strip console control to cycle between closed, Event Console, and JavaScript
-            Console. When the JS console is active, the bottom panel shows a command input and output
-            stream while preserving the same transcript styling as the Event Console.
+            Use the runtime-strip console control to open or close the console panel. Inside the panel,
+            the header toggle switches between <strong>Events</strong> and <strong>JS</strong>. When the
+            JS console is active, the bottom panel shows a command input and output stream while preserving
+            the same transcript styling as the Event Console.
           </p>
 
           <h3>REPL Behavior</h3>
@@ -502,7 +509,8 @@ export default function DocsPage() {
 
           <h3>Consistent Row Chrome</h3>
           <p>
-            As of <strong>2.0.5</strong>, the JavaScript console uses one consistent visual language for every row and the bundled MCP launcher path ships cleanly across macOS and Windows releases.
+            As of <strong>2.1.0</strong>, the JavaScript console uses one consistent visual language for every row and its
+            <strong>FOLLOW</strong> behavior tracks the actual visible Eruda transcript correctly.
             REPL commands, REPL results, warnings, errors, and app-generated log lines all render with the same
             timestamp-and-badge treatment. This keeps the console readable without giving up Eruda&apos;s native
             lazy object inspection for complex runtime objects like <code>riveInst</code>.
@@ -871,6 +879,18 @@ export default function DocsPage() {
           <p>
             The runtime strip shows an <strong>MCP</strong> chip with a status dot. Connected is bright
             indigo. Disconnected is dim but still visible. Disabled is red with a strike-through.
+          </p>
+          <p>
+            The runtime summary chip beside it now resolves against the actual loaded runtime metadata again,
+            so it no longer gets stuck in a false &quot;loading&quot; state after startup.
+          </p>
+
+          <h3>About Window</h3>
+          <p>
+            Desktop builds now include a custom <strong>About Rive Animation Viewer</strong> window accessible
+            from both the settings popover and the native Help / application menu. It surfaces build metadata,
+            runtime version, credits, links, and dependency inventory in a compact desktop layout. Value fields
+            are selectable for copy, while the surrounding chrome remains non-selectable.
           </p>
 
           <p>

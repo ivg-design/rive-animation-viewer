@@ -95,6 +95,7 @@ describe('platform/global-bindings', () => {
         });
 
         controller.bind();
+        expect(chip.dataset.mcpState).toBe('connected');
         expect(windowRef.__riveRuntimeCache.getRuntimeVersion()).toBe('1.2.3');
         expect(windowRef.__riveRuntimeCache.getRuntimeSourceText()).toBe('runtime();');
         expect(windowRef.__riveAnimationCache.getBuffer()).toBeInstanceOf(ArrayBuffer);

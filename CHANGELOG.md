@@ -4,6 +4,27 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-04-04
+
+### Added
+
+- **Desktop About window** — Added a custom About dialog with build/runtime metadata, credits, dependency inventory, product links, and native Help-menu integration so desktop builds expose release information inside the app instead of only through Settings.
+- **Architecture enforcement** — Added a formal architecture budget, dependency-cruiser rules, and source generation for injected snippets so new development is constrained away from giant root modules and flat dumping-ground folders.
+
+### Changed
+
+- **Full frontend architecture refactor** — Removed root runtime entrypoint drift by moving app boot into `src/app/main-entry.js`, relocating the MCP frontend bridge under `src/app/platform/mcp/`, grouping runtime/export/session/console/editor code by domain, and converting injected snippets into source-backed modules that are generated for runtime consumption.
+- **Console mode flow** — The runtime strip console control now acts as open/close only, while the console header uses a compact `Events` / `JS` toggle for mode switching.
+- **About dialog presentation** — The desktop About surface now uses a compact non-scrolling desktop layout, two-row product links, selectable value fields, and a dependency list that scrolls internally without forcing the whole dialog to scroll.
+
+### Fixed
+
+- **JavaScript Console follow behavior** — JS `FOLLOW` now tracks the real Eruda transcript container, re-engages correctly, and no longer jumps to an empty viewport instead of the visible transcript.
+- **Runtime and MCP strip state** — Fixed runtime/MCP indicator regressions introduced during the refactor so the strip reflects the actual loaded runtime and live MCP connection state again.
+- **Event console cyclic payload crash** — Event-log rendering now handles cyclic MCP payloads safely instead of crashing on `JSON.stringify` when command metadata contains self-references.
+- **Desktop About integration** — Native `About Rive Animation Viewer` now opens the custom dialog reliably, centered and styled to match the RAV desktop aesthetic.
+- **Windows shell polish** — Windows startup now uses opaque dark chrome so the native menu bar remains visible in dark mode, and the bundled MCP sidecar launches without opening a stray PowerShell window.
+
 ## [2.0.5] - 2026-04-03
 
 ### Fixed

@@ -22,7 +22,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    cursor: pointer;
+    cursor: default;
     user-select: none;
     font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
     font-size: 11px;
@@ -40,15 +40,6 @@
     flex: 0 0 auto;
 }
 
-.event-log-summary-left .event-log-chevron {
-    color: var(--neon);
-    transition: transform 0.2s ease;
-}
-
-.event-log-panel.collapsed .event-log-chevron {
-    transform: rotate(-90deg);
-}
-
 .event-log-summary-right {
     display: inline-flex;
     align-items: center;
@@ -64,6 +55,58 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
+}
+
+.console-mode-toggle {
+    display: inline-flex;
+    align-items: stretch;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--bg-elevated);
+    box-shadow: inset 0 0 0 1px #ffffff08;
+}
+
+.console-mode-tab {
+    height: 22px;
+    min-width: 54px;
+    padding: 0 12px;
+    flex: 0 0 auto;
+    border: 0;
+    border-right: 1px solid var(--border);
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15px;
+    cursor: pointer;
+    transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.console-mode-tab:last-child {
+    border-right: 0;
+}
+
+.console-mode-tab:hover {
+    color: var(--text-white);
+    background: #ffffff08;
+}
+
+.console-mode-tab.is-active {
+    box-shadow: inset 0 0 0 1px #ffffff10;
+}
+
+#event-console-tab.is-active {
+    color: #d8e9ff;
+    background: #162131;
+}
+
+#script-console-tab.is-active {
+    color: var(--neon);
+    background: #16200d;
 }
 
 .event-filter-toggle {

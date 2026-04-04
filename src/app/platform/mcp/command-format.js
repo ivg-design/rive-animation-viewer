@@ -6,7 +6,14 @@ export function mcpLog(type, message, payload, windowRef = globalThis.window) {
 
 export function updateStatusIndicator(state, windowRef = globalThis.window) {
     if (typeof windowRef?._mcpUpdateStatus === 'function') {
-        windowRef._mcpUpdateStatus(state);
+        const normalizedState = typeof state === 'string'
+            ? state
+            : !state?.enabled
+                ? 'off'
+                : state?.connected
+                    ? 'connected'
+                    : 'waiting';
+        windowRef._mcpUpdateStatus(normalizedState);
     }
 }
 

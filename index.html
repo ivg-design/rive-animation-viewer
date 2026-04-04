@@ -174,9 +174,9 @@
                         <button type="button" class="runtime-chip runtime-chip-mcp" id="mcp-status-chip" data-mcp-state="waiting" title="MCP Bridge: waiting for connection (click to toggle)">
                             <span class="mcp-dot" aria-hidden="true"></span>MCP
                         </button>
-                        <button type="button" class="runtime-chip runtime-chip-console" id="console-mode-chip" data-console-mode="closed" title="Console closed (click to open the event console)">
+                        <button type="button" class="runtime-chip runtime-chip-console" id="console-mode-chip" data-console-mode="closed" title="Console closed (click to open)">
                             <i data-lucide="rows-3" class="lucide-10" aria-hidden="true"></i>
-                            <span id="console-mode-chip-label">OPEN CONSOLE</span>
+                            <span id="console-mode-chip-label">OPEN</span>
                         </button>
                         <span class="runtime-strip-sep" aria-hidden="true">|</span>
                         <span class="runtime-chip runtime-chip-runtime" id="runtime-strip-runtime"><span class="dot dot-sm" aria-hidden="true"></span>Runtime: WebGL</span>
@@ -200,8 +200,10 @@
                 <div class="event-log-panel" id="event-log-panel" hidden>
                     <div class="event-log-header" id="event-log-header">
                         <div class="event-log-summary-left">
-                            <i data-lucide="chevron-down" class="lucide-14 event-log-chevron"></i>
-                            <span id="event-log-title">EVENT CONSOLE</span>
+                            <div class="console-mode-toggle" role="group" aria-label="Console mode toggle">
+                                <button type="button" id="event-console-tab" class="console-mode-tab is-active" aria-pressed="true">Events</button>
+                                <button type="button" id="script-console-tab" class="console-mode-tab" aria-pressed="false">JS</button>
+                            </div>
                             <span class="pill" id="event-log-count">0</span>
                         </div>
                         <div class="event-log-summary-right" id="event-log-filter-controls">

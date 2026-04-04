@@ -5,12 +5,21 @@ export function createConsoleUiStateController({
     onScrollStateChange = () => {},
     state,
 } = {}) {
+    function getErudaLogList() {
+        if (!getErudaReady()) {
+            return null;
+        }
+        return elements.scriptConsoleOutput?.querySelector('.luna-console-logs') || null;
+    }
+
     function getErudaScrollContainer() {
         if (!getErudaReady()) {
             return null;
         }
-        return elements.scriptConsoleOutput?.querySelector('.luna-console-logs-space')
-            || elements.scriptConsoleOutput?.querySelector('.rav-eruda .luna-console-logs-space')
+        return elements.scriptConsoleOutput?.querySelector('.eruda-logs-container.luna-console')
+            || elements.scriptConsoleOutput?.querySelector('.rav-eruda .eruda-logs-container.luna-console')
+            || elements.scriptConsoleOutput?.querySelector('.luna-console')
+            || elements.scriptConsoleOutput?.querySelector('.luna-console-logs-space')
             || null;
     }
 
@@ -20,6 +29,35 @@ export function createConsoleUiStateController({
 
     function getListContainer() {
         return elements.scriptConsoleLogList || elements.scriptConsoleOutput || null;
+    }
+
+    function getLatestScrollTop() {
+        const container = getScrollContainer();
+        const logList = getErudaLogList();
+        if (!container || !logList || container === logList) {
+            return 0;
+        }
+        if (!logList.children.length) {
+            return 0;
+        }
+
+        const offsetTop = Number(logList.offsetTop);
+        if (Number.isFinite(offsetTop) && offsetTop > 0) {
+            return offsetTop;
+        }
+
+        const containerRect = typeof container.getBoundingClientRect === 'function'
+            ? container.getBoundingClientRect()
+            : null;
+        const logListRect = typeof logList.getBoundingClientRect === 'function'
+            ? logList.getBoundingClientRect()
+            : null;
+
+        if (!containerRect || !logListRect) {
+            return 0;
+        }
+
+        return Math.max(0, container.scrollTop + (logListRect.top - containerRect.top));
     }
 
     function syncLevelButtons() {
@@ -38,6 +76,21 @@ export function createConsoleUiStateController({
             element.classList.toggle('is-active', active);
             element.setAttribute('aria-pressed', String(active));
         });
+    }
+
+    function syncModeTabs() {
+        const eventTab = elements.eventConsoleTab;
+        const scriptTab = elements.scriptConsoleTab;
+        const isJsMode = state.isOpen;
+
+        if (eventTab) {
+            eventTab.classList.toggle('is-active', !isJsMode);
+            eventTab.setAttribute('aria-pressed', String(!isJsMode));
+        }
+        if (scriptTab) {
+            scriptTab.classList.toggle('is-active', isJsMode);
+            scriptTab.setAttribute('aria-pressed', String(isJsMode));
+        }
     }
 
     function syncFollowButton() {
@@ -59,7 +112,7 @@ export function createConsoleUiStateController({
         if (!container) {
             return;
         }
-        const nextFollowLatest = container.scrollTop <= 6;
+        const nextFollowLatest = Math.abs(container.scrollTop - getLatestScrollTop()) <= 6;
         if (nextFollowLatest === state.followLatest) {
             return;
         }
@@ -73,7 +126,7 @@ export function createConsoleUiStateController({
         if (!container) {
             return;
         }
-        container.scrollTop = 0;
+        container.scrollTop = getLatestScrollTop();
         syncFollowStateFromScroll();
     }
 
@@ -105,10 +158,7 @@ export function createConsoleUiStateController({
         }
 
         elements.eventLogPanel?.classList.toggle('script-console-mode', state.isOpen);
-
-        if (elements.eventLogTitle) {
-            elements.eventLogTitle.textContent = state.isOpen ? 'JAVASCRIPT CONSOLE' : 'EVENT CONSOLE';
-        }
+        syncModeTabs();
         if (elements.eventLogFilterControls) {
             elements.eventLogFilterControls.hidden = state.isOpen;
         }
@@ -132,6 +182,7 @@ export function createConsoleUiStateController({
         getScrollContainer,
         scrollConsoleToLatest,
         syncFollowButton,
+        syncModeTabs,
         syncFollowStateFromScroll,
         syncLevelButtons,
         syncUi,

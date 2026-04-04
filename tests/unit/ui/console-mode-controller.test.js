@@ -5,6 +5,8 @@ describe('ui/console/console-mode-controller', () => {
         const elements = {
             consoleModeChip: document.createElement('button'),
             consoleModeChipLabel: document.createElement('span'),
+            eventConsoleTab: document.createElement('button'),
+            scriptConsoleTab: document.createElement('button'),
         };
         const eventLogController = {
             collapsed: false,
@@ -35,18 +37,21 @@ describe('ui/console/console-mode-controller', () => {
         });
 
         await controller.setConsoleMode('closed');
-        expect(elements.consoleModeChipLabel.textContent).toBe('OPEN CONSOLE');
+        expect(elements.consoleModeChipLabel.textContent).toBe('OPEN');
+        expect(elements.consoleModeChip.dataset.consoleMode).toBe('closed');
 
         await controller.setConsoleMode('events');
-        expect(elements.consoleModeChipLabel.textContent).toBe('EVENTS');
+        expect(elements.consoleModeChipLabel.textContent).toBe('CLOSE');
+        expect(elements.consoleModeChip.dataset.consoleMode).toBe('open');
         expect(eventLogController.collapsed).toBe(false);
         expect(scriptConsoleController.openState).toBe(false);
 
         await controller.setConsoleMode('js');
-        expect(elements.consoleModeChipLabel.textContent).toBe('JS');
+        expect(elements.consoleModeChipLabel.textContent).toBe('CLOSE');
         expect(scriptConsoleController.openState).toBe(true);
 
+        eventLogController.collapsed = true;
         controller.handleEventLogCollapsedChange(true);
-        expect(elements.consoleModeChipLabel.textContent).toBe('OPEN CONSOLE');
+        expect(elements.consoleModeChipLabel.textContent).toBe('OPEN');
     });
 });

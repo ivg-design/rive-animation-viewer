@@ -5,6 +5,19 @@ export function createStatusPlaybackCommands({
     documentRef = globalThis.document,
     windowRef = globalThis.window,
 } = {}) {
+    function buildSafeArtboardState(snapshot) {
+        if (!snapshot || typeof snapshot !== 'object') {
+            return null;
+        }
+        return {
+            currentArtboard: snapshot.currentArtboard || null,
+            currentPlaybackName: snapshot.currentPlaybackName || null,
+            currentPlaybackType: snapshot.currentPlaybackType || null,
+            defaultArtboard: snapshot.defaultArtboard || null,
+            defaultPlaybackKey: snapshot.defaultPlaybackKey || null,
+        };
+    }
+
     return {
         async rav_status() {
             const inst = windowRef.riveInst;
@@ -38,7 +51,7 @@ export function createStatusPlaybackCommands({
                     draftDirty: Boolean(liveConfigState.draftDirty),
                     sourceMode: liveConfigState.sourceMode || 'internal',
                 },
-                artboard: windowRef._mcpGetArtboardState?.() || null,
+                artboard: buildSafeArtboardState(windowRef._mcpGetArtboardState?.()) || null,
             };
         },
 

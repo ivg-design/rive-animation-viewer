@@ -206,7 +206,7 @@ export function createPlatformStack({
             loadRiveAnimation,
             logEvent,
             closeScriptConsole: () => {
-                void consoleModeController.setConsoleMode('events');
+                void consoleModeController.setConsoleOpen(false);
                 return { open: false };
             },
             execScriptConsole: async (code) => {

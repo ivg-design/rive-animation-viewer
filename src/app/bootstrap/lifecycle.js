@@ -161,6 +161,7 @@ export function createAppLifecycle({
         console.log('[rive-viewer] init start');
         await ensureTauriBridge();
         await syncMcpPortFromDesktop();
+        windowRef._mcpBridge?.reconnect?.();
         windowRef.buildLiveInstantiationDescriptor = buildLiveInstantiationDescriptor;
         initLucideIcons();
         resolveAppVersion?.();
@@ -179,7 +180,17 @@ export function createAppLifecycle({
             },
         });
         elements.consoleModeChip?.addEventListener('click', () => {
-            consoleModeController.cycleConsoleMode().catch(() => {
+            consoleModeController.toggleConsoleOpen().catch(() => {
+                /* setConsoleMode already reports errors */
+            });
+        });
+        elements.eventConsoleTab?.addEventListener('click', () => {
+            consoleModeController.activateEventsMode().catch(() => {
+                /* setConsoleMode already reports errors */
+            });
+        });
+        elements.scriptConsoleTab?.addEventListener('click', () => {
+            consoleModeController.activateJsMode().catch(() => {
                 /* setConsoleMode already reports errors */
             });
         });

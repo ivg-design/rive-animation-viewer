@@ -4,6 +4,12 @@ use tauri::WebviewWindow;
 
 use crate::app::state::WindowCursorPosition;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
 #[cfg(debug_assertions)]
 #[tauri::command]
 pub fn open_devtools(window: WebviewWindow) {
@@ -34,6 +40,7 @@ pub fn open_external_url(url: String) -> Result<(), String> {
     let mut command = {
         let mut cmd = Command::new("cmd");
         cmd.args(["/C", "start", "", trimmed]);
+        cmd.creation_flags(CREATE_NO_WINDOW);
         cmd
     };
 

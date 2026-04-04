@@ -8,7 +8,8 @@ function renderShell() {
             <div id="event-log-header"></div>
             <div id="event-log-filter-controls"></div>
             <div id="script-console-summary-right" hidden></div>
-            <span id="event-log-title">EVENT CONSOLE</span>
+            <button id="event-console-tab"></button>
+            <button id="script-console-tab"></button>
             <span id="event-log-count">0</span>
             <div id="event-log-list"></div>
             <div id="script-console-view" hidden>
@@ -31,23 +32,31 @@ function renderShell() {
 }
 
 function createFakeEruda() {
-    const logsSpace = document.createElement('div');
-    logsSpace.className = 'luna-console-logs-space';
-    logsSpace.scrollTop = 0;
-    Object.defineProperty(logsSpace, 'clientHeight', {
+    const consoleScroller = document.createElement('div');
+    consoleScroller.className = 'eruda-logs-container luna-console luna-console-platform-mac luna-console-theme-dark';
+    consoleScroller.scrollTop = 0;
+    Object.defineProperty(consoleScroller, 'clientHeight', {
         configurable: true,
         value: 100,
     });
-    Object.defineProperty(logsSpace, 'scrollHeight', {
+    Object.defineProperty(consoleScroller, 'scrollHeight', {
         configurable: true,
         get: () => 400,
     });
 
     const fakeLogs = document.createElement('div');
     fakeLogs.className = 'luna-console-fake-logs';
+    Object.defineProperty(fakeLogs, 'offsetTop', {
+        configurable: true,
+        value: 0,
+    });
 
     const logs = document.createElement('div');
     logs.className = 'luna-console-logs';
+    Object.defineProperty(logs, 'offsetTop', {
+        configurable: true,
+        value: 280,
+    });
 
     function appendLogRow(type, text) {
         function buildRow() {
@@ -117,13 +126,9 @@ function createFakeEruda() {
             devTools.className = 'eruda-dev-tools';
             const consoleEl = document.createElement('div');
             consoleEl.className = 'eruda-console';
-            const lunaConsole = document.createElement('div');
-            lunaConsole.className = 'luna-console';
-
-            logsSpace.appendChild(fakeLogs);
-            logsSpace.appendChild(logs);
-            lunaConsole.appendChild(logsSpace);
-            consoleEl.appendChild(lunaConsole);
+            consoleScroller.appendChild(fakeLogs);
+            consoleScroller.appendChild(logs);
+            consoleEl.appendChild(consoleScroller);
             devTools.appendChild(consoleEl);
             erudaContainer.appendChild(devTools);
             container.appendChild(erudaContainer);
@@ -132,7 +137,7 @@ function createFakeEruda() {
         show: vi.fn(),
     };
 
-    return { eruda, fakeLogs, logs, logsSpace, tool };
+    return { consoleScroller, eruda, fakeLogs, logs, tool };
 }
 
 function immediateSetTimeout(callback) {
@@ -207,7 +212,8 @@ describe('ui/script-console', () => {
         await controller.exec('1 + 1');
 
         expect(document.body.classList.contains('js-console-mode')).toBe(true);
-        expect(elements.eventLogTitle.textContent).toBe('JAVASCRIPT CONSOLE');
+        expect(elements.scriptConsoleTab.classList.contains('is-active')).toBe(true);
+        expect(elements.eventConsoleTab.classList.contains('is-active')).toBe(false);
         expect(elements.scriptConsoleView.hidden).toBe(false);
         expect(elements.eventLogFilterControls.hidden).toBe(true);
         expect(tool._logger.evaluate).toHaveBeenCalledWith('1 + 1');
@@ -215,7 +221,8 @@ describe('ui/script-console', () => {
 
         elements.toggleScriptConsoleButton.click();
         expect(controller.isOpen()).toBe(false);
-        expect(elements.eventLogTitle.textContent).toBe('EVENT CONSOLE');
+        expect(elements.eventConsoleTab.classList.contains('is-active')).toBe(true);
+        expect(elements.scriptConsoleTab.classList.contains('is-active')).toBe(false);
         expect(renderEventLog).toHaveBeenCalled();
     });
 
@@ -259,14 +266,14 @@ describe('ui/script-console', () => {
         expect(navigator.clipboard.writeText.mock.calls.at(-1)[0]).toContain('LOG other info');
         expect(navigator.clipboard.writeText.mock.calls.at(-1)[0]).toContain('CMD 1 + 1');
 
-        const scrollContainer = elements.scriptConsoleOutput.querySelector('.luna-console-logs-space');
+        const scrollContainer = elements.scriptConsoleOutput.querySelector('.eruda-logs-container.luna-console');
         scrollContainer.scrollTop = 40;
         scrollContainer.dispatchEvent(new Event('scroll'));
         expect(controller.isFollowingLatest()).toBe(false);
 
         elements.scriptConsoleFollowButton.click();
         expect(controller.isFollowingLatest()).toBe(true);
-        expect(scrollContainer.scrollTop).toBe(0);
+        expect(scrollContainer.scrollTop).toBe(280);
 
         elements.scriptConsoleClearButton.click();
         expect(tool.clear).toHaveBeenCalled();

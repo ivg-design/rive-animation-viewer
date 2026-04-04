@@ -5,9 +5,15 @@ use std::process::{Child, Command, Stdio};
 use tauri::Manager;
 use toml_edit::Array;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 use crate::app::constants::{DEFAULT_MCP_PORT, MCP_CLIENT_LAUNCHER_NAME};
 use crate::app::state::McpBridgeManager;
 use crate::app::support::{ensure_parent_directory, home_dir};
+
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 pub fn resolve_mcp_server_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let binary_name = if cfg!(target_os = "windows") {
@@ -166,11 +172,17 @@ pub fn kill_spawned_mcp_bridge(manager: &McpBridgeManager) {
 fn spawn_mcp_bridge_sidecar(app: &tauri::AppHandle, port: u16) -> Result<Child, String> {
     let server_path = resolve_mcp_server_path(app)?;
     let port_text = normalize_mcp_port(Some(port)).to_string();
-    Command::new(&server_path)
+    let mut command = Command::new(&server_path);
+    command
         .args(["--bridge-only", "--port", &port_text])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stderr(Stdio::null());
+
+    #[cfg(target_os = "windows")]
+    command.creation_flags(CREATE_NO_WINDOW);
+
+    command
         .spawn()
         .map_err(|error| format!("Failed to start {}: {}", server_path.display(), error))
 }
