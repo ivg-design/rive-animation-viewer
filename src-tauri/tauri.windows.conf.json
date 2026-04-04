@@ -1,0 +1,18 @@
+{
+  "app": {
+    "windows": [
+      {
+        "title": "Rive Animation Viewer",
+        "width": 1250,
+        "height": 900,
+        "minWidth": 1090,
+        "minHeight": 850,
+        "resizable": true,
+        "backgroundColor": "#0A0A0AFF",
+        "theme": "Dark",
+        "transparent": false,
+        "fullscreen": false
+      }
+    ]
+  }
+}
