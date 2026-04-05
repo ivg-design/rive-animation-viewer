@@ -1,7 +1,7 @@
-import Image from "next/image";
 import { asset } from "@/lib/config";
 import { getLatestRelease, formatBytes } from "@/lib/github";
 import { Apple, Monitor } from "lucide-react";
+import InteractiveDemo from "./InteractiveDemo";
 
 export default async function HeroSection() {
   const release = await getLatestRelease();
@@ -72,20 +72,9 @@ export default async function HeroSection() {
         </p>
       </div>
 
-      {/* Hero product screenshot — the app IS the hero */}
-      <div className="relative z-10 mt-12 w-full max-w-[1100px]">
-        <div className="relative rounded-xl overflow-hidden border border-[var(--border-light)] shadow-2xl shadow-black/60">
-          <Image
-            src={asset("/docs/ui-overview.webp")}
-            alt="Rive Animation Viewer — full interface with editor, canvas, properties panel, and console"
-            width={1280}
-            height={800}
-            className="w-full h-auto"
-            priority
-          />
-          {/* Bottom fade to blend into next section */}
-          <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[var(--bg-void)] to-transparent" />
-        </div>
+      {/* Interactive demo — the live app IS the hero */}
+      <div className="relative z-10 mt-12 w-full px-4">
+        <InteractiveDemo />
       </div>
     </section>
   );

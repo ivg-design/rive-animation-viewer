@@ -88,7 +88,7 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
       </header>
 
       {/* Content */}
-      <main className="max-w-4xl mx-auto px-6 py-12">
+      <main className="max-w-3xl mx-auto px-6 py-16 md:py-20">
         <div className="docs-content">
           {children}
         </div>
