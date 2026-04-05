@@ -202,4 +202,58 @@ describe('ui/status-controller', () => {
         expect(elements.versionInfo.innerHTML).toContain('Source: https://cdn.example/webgl2.js');
         expect(elements.versionInfo.innerHTML).not.toContain('is loading');
     });
+
+    it('restores the last structured playback summary after transient status messages', () => {
+        const elements = createElements();
+        const scheduled = [];
+        const controller = createStatusController({
+            callbacks: {
+                getCurrentRuntime: () => 'webgl2',
+            },
+            elements,
+            setTimeoutFn: (callback) => {
+                scheduled.push(callback);
+                return `info-timer-${scheduled.length}`;
+            },
+        });
+        const structuredStatus = 'Loaded: [AB] Diagram · [SM] State Machine 1 · [VM] diagram_vm · [INST] row_1';
+
+        controller.updateInfo(structuredStatus);
+        controller.updateInfo('Canvas sizing set to auto');
+
+        expect(elements.info.textContent).toBe('Canvas sizing set to auto');
+        expect(scheduled).toHaveLength(1);
+
+        scheduled[0]();
+
+        expect(elements.info.dataset.statusMode).toBe('structured');
+        expect(elements.info.title).toBe(structuredStatus);
+        expect(elements.info.textContent).toContain('Diagram');
+        expect(elements.info.textContent).toContain('State Machine 1');
+        expect(elements.info.textContent).toContain('diagram_vm');
+        expect(elements.info.textContent).toContain('row_1');
+    });
+
+    it('cancels a pending transient restore when a newer structured status arrives', () => {
+        const elements = createElements();
+        const clearTimeoutFn = vi.fn();
+        const controller = createStatusController({
+            callbacks: {
+                getCurrentRuntime: () => 'webgl2',
+            },
+            clearTimeoutFn,
+            elements,
+            setTimeoutFn: () => 'info-timer-1',
+        });
+        const firstStatus = 'Loaded: [AB] Diagram · [SM] State Machine 1 · [VM] diagram_vm';
+        const secondStatus = 'Loaded: [AB] Diagram v2 · [ANIM] Idle · [VM] diagram_vm';
+
+        controller.updateInfo(firstStatus);
+        controller.updateInfo('Refreshed diagram_v5.riv');
+        controller.updateInfo(secondStatus);
+
+        expect(clearTimeoutFn).toHaveBeenCalledWith('info-timer-1');
+        expect(elements.info.dataset.statusMode).toBe('structured');
+        expect(elements.info.title).toBe(secondStatus);
+    });
 });

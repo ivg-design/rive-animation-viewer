@@ -4,8 +4,8 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.2.2` (2026-04-05)
-- Validation target: release from `main` so installed desktop builds can pick up the `2.2.2` updater payload directly.
+- Current release: `2.2.3` (2026-04-05)
+- Validation target: release from `main` so installed desktop builds can pick up the `2.2.3` updater payload directly.
 
 ## Regression Gates
 
@@ -19,6 +19,11 @@ The repo now has explicit prebuild guards for the surfaces that were regressing 
 - `cargo check --manifest-path src-tauri/Cargo.toml` validates the native Tauri layer
 
 These gates materially reduce regression risk, but they are still code- and DOM-contract tests, not full visual snapshot coverage. If we want pixel-level guarantees from this point forward, the next step is adding screenshot-based desktop smoke tests for the packaged app window.
+
+## 2.2.3 Highlights
+
+- **Status-strip lifecycle hardening**: Temporary notices like canvas sizing, refresh, restart, runtime, layout, and export confirmations now restore the last structured artboard/playback/ViewModel/instance summary automatically instead of getting stuck in the strip.
+- **Website-matched status icon colors**: The artboard, animation, state-machine, ViewModel, and instance glyphs in the runtime strip now use the RAV green/yellow palette instead of the old purple fallback tint.
 
 ## 2.2.2 Highlights
 

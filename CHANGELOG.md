@@ -8,6 +8,16 @@ All notable changes to this project are documented in this file.
 
 - **Regression guardrails** — Documented the current prebuild protection stack around architecture drift, dependency boundaries, custom window chrome, and exported demo chrome so the `2.1.x` stabilization work has explicit gates instead of relying on ad hoc manual checks.
 
+## [2.2.3] - 2026-04-05
+
+### Changed
+
+- **Status-strip palette alignment** — Structured playback status icons now use the green/yellow RAV website palette instead of the old purple fallback tint, so the runtime strip matches the rest of the product language.
+
+### Fixed
+
+- **Persistent status restoration** — Transient notices like canvas sizing changes, refresh completion, restart completion, export confirmation, and runtime/layout updates now restore the last structured artboard/playback/ViewModel/instance summary instead of leaving the status strip stranded on the temporary message.
+
 ## [2.2.2] - 2026-04-05
 
 ### Changed

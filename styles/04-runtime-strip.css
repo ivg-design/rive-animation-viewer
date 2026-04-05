@@ -133,8 +133,8 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    color: #b57ad6;
-    opacity: 0.92;
+    color: var(--neon);
+    opacity: 0.88;
 }
 
 .status-item-icon-svg {
@@ -149,6 +149,26 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--text-primary);
+}
+
+.status-item-ab .status-item-icon {
+    color: #6ee7b7;
+}
+
+.status-item-vm .status-item-icon {
+    color: #34d399;
+}
+
+.status-item-sm .status-item-icon {
+    color: #fbbf24;
+}
+
+.status-item-anim .status-item-icon {
+    color: #f5d55f;
+}
+
+.status-item-inst .status-item-icon {
+    color: #a3e635;
 }
 
 /* MCP indicator — off, idle, active */

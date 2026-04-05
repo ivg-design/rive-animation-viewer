@@ -1,8 +1,8 @@
 import { DEFAULT_RUNTIME_VERSION } from '../../core/constants.js';
-import { getStatusIconMarkup } from './status-icons.js';
+import { buildStructuredStatusMarkup, escapeHtml } from './status-message.js';
 
-const STRUCTURED_STATUS_TOKEN_PATTERN = /\[(AB|VM|SM|ANIM|INST)\]\s+/;
-const STRUCTURED_STATUS_SEGMENT_PATTERN = /^\[(AB|VM|SM|ANIM|INST)\]\s+(.+)$/;
+export { escapeHtml } from './status-message.js';
+
 
 export function getRuntimeDisplayName(runtimeName = 'webgl2') {
     return runtimeName === 'canvas' ? 'Canvas' : 'WebGL2';
@@ -26,15 +26,6 @@ export function formatByteSize(value) {
     return `${(kib / 1024).toFixed(2)} MB`;
 }
 
-export function escapeHtml(value, documentRef = globalThis.document) {
-    const div = documentRef?.createElement?.('div');
-    if (!div) {
-        return String(value ?? '');
-    }
-    div.textContent = String(value ?? '');
-    return div.innerHTML;
-}
-
 function splitDirectoryAndFileLabel(pathLabel, fallbackFileName) {
     const normalizedPath = String(pathLabel || '').trim();
     const normalizedFileName = String(fallbackFileName || '').trim();
@@ -55,68 +46,6 @@ function splitDirectoryAndFileLabel(pathLabel, fallbackFileName) {
     return {
         directoryLabel: normalizedPath.slice(0, lastSeparatorIndex + 1),
         fileLabel,
-    };
-}
-
-function parseStructuredStatusMessage(message) {
-    const fullText = String(message || '').trim();
-    if (!fullText) {
-        return null;
-    }
-
-    const tokenStart = fullText.search(STRUCTURED_STATUS_TOKEN_PATTERN);
-    if (tokenStart === -1) {
-        return null;
-    }
-
-    const prefixLabel = fullText.slice(0, tokenStart).trim().replace(/:\s*$/, '');
-    const segmentSource = fullText.slice(tokenStart);
-    const items = [];
-
-    for (const segment of segmentSource.split(/\s+·\s+/)) {
-        const normalizedSegment = segment.trim();
-        const match = normalizedSegment.match(STRUCTURED_STATUS_SEGMENT_PATTERN);
-        if (!match) {
-            return null;
-        }
-        const [, token, value] = match;
-        const normalizedValue = String(value || '').trim();
-        if (!normalizedValue) {
-            return null;
-        }
-        items.push({ token, value: normalizedValue });
-    }
-
-    if (items.length === 0) {
-        return null;
-    }
-
-    return {
-        fullText,
-        items,
-        prefixLabel,
-    };
-}
-
-function buildStructuredStatusMarkup(message, documentRef) {
-    const parsed = parseStructuredStatusMessage(message);
-    if (!parsed) {
-        return null;
-    }
-
-    const prefixMarkup = parsed.prefixLabel
-        ? `<span class="status-prefix">${escapeHtml(parsed.prefixLabel, documentRef)}:</span>`
-        : '';
-    const itemsMarkup = parsed.items.map(({ token, value }) => `
-        <span class="status-item status-item-${token.toLowerCase()}" data-status-token="${token}">
-            <span class="status-item-icon" aria-hidden="true">${getStatusIconMarkup(token)}</span>
-            <span class="status-item-value">${escapeHtml(value, documentRef)}</span>
-        </span>
-    `).join('');
-
-    return {
-        markup: `${prefixMarkup}${itemsMarkup}`,
-        title: parsed.fullText,
     };
 }
 
@@ -149,8 +78,35 @@ export function createStatusController({
     } = placeholders;
 
     let errorTimeoutId = null;
+    let infoRestoreTimeoutId = null;
+    let persistentInfoMessage = '';
     let resolvedAppVersion = appVersion;
     let resolvedAppBuild = appBuild;
+    const INFO_RESTORE_DELAY_MS = 2200;
+
+    function clearInfoRestoreTimeout() {
+        if (!infoRestoreTimeoutId) {
+            return;
+        }
+        clearTimeoutFn(infoRestoreTimeoutId);
+        infoRestoreTimeoutId = null;
+    }
+
+    function renderInfo(message) {
+        if (!elements.info) {
+            return;
+        }
+        const structuredStatus = buildStructuredStatusMarkup(message, documentRef);
+        if (structuredStatus) {
+            elements.info.innerHTML = structuredStatus.markup;
+            elements.info.title = structuredStatus.title;
+            elements.info.dataset.statusMode = 'structured';
+            return;
+        }
+        elements.info.textContent = message;
+        elements.info.title = String(message || '');
+        delete elements.info.dataset.statusMode;
+    }
 
     function getBuildIdLabel() {
         if (resolvedAppBuild && resolvedAppBuild !== appBuildPlaceholder) {
@@ -251,17 +207,25 @@ export function createStatusController({
     }
 
     function updateInfo(message) {
-        if (elements.info) {
-            const structuredStatus = buildStructuredStatusMarkup(message, documentRef);
-            if (structuredStatus) {
-                elements.info.innerHTML = structuredStatus.markup;
-                elements.info.title = structuredStatus.title;
-                elements.info.dataset.statusMode = 'structured';
-            } else {
-                elements.info.textContent = message;
-                elements.info.title = String(message || '');
-                delete elements.info.dataset.statusMode;
-            }
+        const normalizedMessage = String(message || '');
+        const isStructuredStatus = Boolean(buildStructuredStatusMarkup(normalizedMessage, documentRef));
+
+        if (isStructuredStatus) {
+            persistentInfoMessage = normalizedMessage;
+            clearInfoRestoreTimeout();
+            renderInfo(normalizedMessage);
+            refreshInfoStrip();
+            return;
+        }
+
+        renderInfo(normalizedMessage);
+        clearInfoRestoreTimeout();
+        if (persistentInfoMessage) {
+            infoRestoreTimeoutId = setTimeoutFn(() => {
+                infoRestoreTimeoutId = null;
+                renderInfo(persistentInfoMessage);
+                refreshInfoStrip();
+            }, INFO_RESTORE_DELAY_MS);
         }
         refreshInfoStrip();
     }
