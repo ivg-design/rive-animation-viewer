@@ -6,7 +6,18 @@ use tauri::WebviewWindow;
 use crate::app::state::WindowCursorPosition;
 
 #[cfg(target_os = "windows")]
+use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+#[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
+#[cfg(target_os = "windows")]
+use windows_sys::Win32::Foundation::HWND;
+#[cfg(target_os = "windows")]
+use windows_sys::Win32::Graphics::Dwm::{
+    DwmSetWindowAttribute,
+    DWMWA_WINDOW_CORNER_PREFERENCE,
+    DWMWCP_ROUND,
+    DWM_WINDOW_CORNER_PREFERENCE,
+};
 
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
@@ -123,4 +134,35 @@ pub fn pick_riv_file() -> Option<String> {
         .add_filter("Rive Animation", &["riv"])
         .pick_file()
         .map(|path| path.to_string_lossy().to_string())
+}
+
+#[cfg(target_os = "windows")]
+pub fn apply_windows_corner_preference(window: &WebviewWindow) -> Result<(), String> {
+    let window_handle = window.window_handle().map_err(|error| error.to_string())?;
+    let hwnd = match window_handle.as_raw() {
+        RawWindowHandle::Win32(handle) => handle.hwnd.get() as HWND,
+        _ => return Err("Expected a Win32 window handle".into()),
+    };
+
+    let preference: DWM_WINDOW_CORNER_PREFERENCE = DWMWCP_ROUND;
+    let result = unsafe {
+        DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            &preference as *const _ as *const _,
+            std::mem::size_of::<DWM_WINDOW_CORNER_PREFERENCE>() as u32,
+        )
+    };
+
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(format!("DwmSetWindowAttribute(DWMWA_WINDOW_CORNER_PREFERENCE) failed: 0x{result:08x}"))
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+#[allow(dead_code)]
+pub fn apply_windows_corner_preference(_window: &WebviewWindow) -> Result<(), String> {
+    Ok(())
 }

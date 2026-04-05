@@ -215,6 +215,11 @@ export default function DocsPage() {
             the editor and console still stay closed until you explicitly open them, and the desktop window/header,
             runtime strip, MCP activity indicator, and JavaScript console behavior are aligned with the shipped app.
           </p>
+          <p>
+            In <strong>2.2.1</strong>, the desktop chrome hardening continues with a native Windows rounded-corner
+            hint for the custom window and restored shared scrollbar skinning on macOS after the latest WKWebView
+            regression.
+          </p>
 
           <h3>Left Panel &mdash; Animation Canvas</h3>
           <p>
@@ -591,6 +596,10 @@ export default function DocsPage() {
           <p>
             RAV can export self-contained HTML demo files that embed the animation, runtime,
             and ViewModel controls into a single portable file.
+          </p>
+          <p>
+            When you pin the viewer to an explicit canvas size, <strong>2.2.1</strong> keeps that fixed-size canvas
+            centered in both the live app and the exported demo instead of anchoring it to the upper-left corner.
           </p>
 
           <h3>What Gets Exported</h3>

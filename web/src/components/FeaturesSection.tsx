@@ -50,7 +50,7 @@ const features = [
   {
     icon: AppWindow,
     title: "Desktop Native",
-    description: "Tauri v2 desktop app with .riv association, open-with forwarding, drag/drop loading, a custom About window, single-instance file handoff, and a stabilized custom desktop header.",
+    description: "Tauri v2 desktop app with .riv association, open-with forwarding, drag/drop loading, a custom About window, single-instance file handoff, stabilized custom desktop header, and native rounded-window integration on supported platforms.",
   },
   {
     icon: RotateCcw,

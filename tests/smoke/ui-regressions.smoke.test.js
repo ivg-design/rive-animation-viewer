@@ -49,6 +49,35 @@ describe('ui regression smoke', () => {
         expect(offenders).toEqual([]);
     });
 
+    it('does not mix standardized scrollbar properties with WebKit scrollbar skinning on app/demo surfaces', () => {
+        const scrollbarOwners = [
+            path.join(repoRoot, 'styles', '00-base.css'),
+            path.join(repoRoot, 'src-tauri', 'src', 'demo-template', 'css', 'base.css'),
+        ];
+
+        for (const owner of scrollbarOwners) {
+            const source = readFileSync(owner, 'utf8');
+            expect(source).toMatch(/::-webkit-scrollbar/);
+            expect(source).not.toMatch(/scrollbar-width\s*:\s*(?!auto)/);
+            expect(source).not.toMatch(/scrollbar-color\s*:/);
+        }
+    });
+
+    it('keeps the shared scrollbar skin covering the known scrollable surfaces', () => {
+        const appBaseCss = readFileSync(path.join(repoRoot, 'styles', '00-base.css'), 'utf8');
+        const demoBaseCss = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'demo-template', 'css', 'base.css'), 'utf8');
+
+        expect(appBaseCss).toContain('.properties-panel-body::-webkit-scrollbar');
+        expect(appBaseCss).toContain('.instantiation-controls-tree::-webkit-scrollbar');
+        expect(appBaseCss).toContain('.instantiation-preview-output::-webkit-scrollbar');
+        expect(appBaseCss).toContain('.mcp-setup-body::-webkit-scrollbar');
+        expect(appBaseCss).toContain('.about-dialog-dependencies::-webkit-scrollbar');
+        expect(appBaseCss).toContain('.event-log-body::-webkit-scrollbar');
+
+        expect(demoBaseCss).toContain('.properties-panel-body::-webkit-scrollbar');
+        expect(demoBaseCss).toContain('.event-log-body::-webkit-scrollbar');
+    });
+
     it('keeps the main app header on the custom titlebar contract', () => {
         const html = readFileSync(path.join(repoRoot, 'index.html'), 'utf8');
         const windowChromeCss = readFileSync(path.join(repoRoot, 'styles', '01-window-chrome.css'), 'utf8');
@@ -76,7 +105,9 @@ describe('ui regression smoke', () => {
 
     it('keeps the Tauri window capability wired for drag, minimize, maximize, and close', () => {
         const tauriConfig = JSON.parse(readFileSync(path.join(repoRoot, 'src-tauri', 'tauri.conf.json'), 'utf8'));
+        const cargoToml = readFileSync(path.join(repoRoot, 'src-tauri', 'Cargo.toml'), 'utf8');
         const mainRs = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'main.rs'), 'utf8');
+        const windowControls = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'app', 'window', 'controls.rs'), 'utf8');
         const capability = JSON.parse(readFileSync(path.join(repoRoot, 'src-tauri', 'capabilities', 'default.json'), 'utf8'));
         const mainWindow = tauriConfig.app.windows[0];
 
@@ -88,6 +119,11 @@ describe('ui regression smoke', () => {
         expect(mainWindow.trafficLightPosition).toEqual({ x: -120, y: -120 });
         expect(mainWindow.hiddenTitle).toBe(true);
         expect(mainRs).toContain('let _ = _window.set_decorations(false);');
+        expect(mainRs).toContain('apply_windows_corner_preference(&_window)');
+        expect(windowControls).toContain('DwmSetWindowAttribute');
+        expect(windowControls).toContain('DWMWA_WINDOW_CORNER_PREFERENCE');
+        expect(cargoToml).toContain("[target.'cfg(target_os = \"windows\")'.dependencies]");
+        expect(cargoToml).toContain('windows-sys');
         expect(capability.identifier).toBe('main-capability');
         expect(capability.windows).toContain('main');
         expect(capability.permissions).toEqual(expect.arrayContaining([
@@ -104,6 +140,7 @@ describe('ui regression smoke', () => {
         const eventLog = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'demo-template', 'js', 'core', 'event-log.js'), 'utf8');
         const vmAccessors = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'demo-template', 'js', 'vm', 'accessors.js'), 'utf8');
         const riveLoader = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'demo-template', 'js', 'core', 'rive-loader.js'), 'utf8');
+        const bootstrap = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'demo-template', 'js', 'core', 'bootstrap.js'), 'utf8');
 
         expect(markup).toContain('id="fullscreen-toggle-btn"');
         expect(markup).toContain('id="event-log-toggle-btn"');
@@ -119,5 +156,8 @@ describe('ui regression smoke', () => {
         expect(eventLog).toContain('document.documentElement.requestFullscreen');
         expect(vmAccessors).toContain('typeof input.fire === \'function\' && !(\'value\' in input)');
         expect(riveLoader).toContain('vmHierarchy = filterHierarchyNode(JSON.parse(JSON.stringify(VM_HIERARCHY)));');
+        expect(bootstrap).toContain('scheduleCanvasViewportAlignment');
+        expect(bootstrap).toContain('container.scrollLeft = offsets.left;');
+        expect(bootstrap).toContain('container.scrollTop = offsets.top;');
     });
 });

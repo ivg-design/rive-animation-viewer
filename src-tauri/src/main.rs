@@ -22,6 +22,8 @@ use crate::app::support::{
     try_emit_open_file,
 };
 use crate::app::window::controls::open_external_url;
+#[cfg(target_os = "windows")]
+use crate::app::window::controls::apply_windows_corner_preference;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 fn main() {
@@ -70,6 +72,9 @@ fn main() {
                     let _ = _window.set_decorations(false);
                     let _ = _window.set_background_color(Some(tauri::window::Color(10, 10, 10, 255)));
                     let _ = _window.set_theme(Some(tauri::Theme::Dark));
+                    if let Err(error) = apply_windows_corner_preference(&_window) {
+                        eprintln!("[rav-app] failed to apply Windows rounded corners: {error}");
+                    }
                 }
             }
 

@@ -1,4 +1,5 @@
 import {
+    buildCenteredCanvasScrollOffsets,
     buildCanvasSizingStateFromViewport,
     buildResolvedCanvasPixelSize,
     formatAspectRatioLabel,
@@ -61,5 +62,17 @@ describe('core/canvas-sizing', () => {
             width: 1024,
             height: 768,
         }));
+    });
+
+    it('builds centered scroll offsets for oversized fixed canvases', () => {
+        expect(buildCenteredCanvasScrollOffsets({
+            containerWidth: 900,
+            containerHeight: 600,
+            contentWidth: 1600,
+            contentHeight: 900,
+        })).toEqual({
+            left: 350,
+            top: 150,
+        });
     });
 });

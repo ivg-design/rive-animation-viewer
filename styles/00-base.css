@@ -95,108 +95,79 @@ body.transparency-mode .center-panel {
     background: transparent !important;
 }
 
-:is(
-    body,
-    #code-editor .cm-scroller,
-    #code-editor textarea,
-    .mcp-setup-body,
-    .mcp-snippet-block pre,
-    .panel-section-body,
-    .instantiation-controls-tree,
-    .instantiation-preview-output,
-    .properties-panel-body,
-    .vm-controls-body,
-    .event-log-body,
-    .script-console-output .luna-console-logs,
-    .script-console-output .luna-console-logs-space,
-    .about-dialog-body,
-    .about-dialog-dependencies
-) {
-    scrollbar-width: thin;
-    scrollbar-color: #313542 #0f1015;
-}
-
-:is(
-    body,
-    #code-editor .cm-scroller,
-    #code-editor textarea,
-    .mcp-setup-body,
-    .mcp-snippet-block pre,
-    .panel-section-body,
-    .instantiation-controls-tree,
-    .instantiation-preview-output,
-    .properties-panel-body,
-    .vm-controls-body,
-    .event-log-body,
-    .script-console-output .luna-console-logs,
-    .script-console-output .luna-console-logs-space,
-    .about-dialog-body,
-    .about-dialog-dependencies
-)::-webkit-scrollbar {
+body::-webkit-scrollbar,
+#code-editor .cm-scroller::-webkit-scrollbar,
+#code-editor textarea::-webkit-scrollbar,
+.mcp-setup-body::-webkit-scrollbar,
+.mcp-snippet-block pre::-webkit-scrollbar,
+.panel-section-body::-webkit-scrollbar,
+.instantiation-controls-tree::-webkit-scrollbar,
+.instantiation-preview-output::-webkit-scrollbar,
+.properties-panel-body::-webkit-scrollbar,
+.vm-controls-body::-webkit-scrollbar,
+.event-log-body::-webkit-scrollbar,
+.script-console-output .luna-console-logs::-webkit-scrollbar,
+.script-console-output .luna-console-logs-space::-webkit-scrollbar,
+.about-dialog-body::-webkit-scrollbar,
+.about-dialog-dependencies::-webkit-scrollbar {
     width: 10px;
     height: 10px;
 }
 
-:is(
-    body,
-    #code-editor .cm-scroller,
-    #code-editor textarea,
-    .mcp-setup-body,
-    .mcp-snippet-block pre,
-    .panel-section-body,
-    .instantiation-controls-tree,
-    .instantiation-preview-output,
-    .properties-panel-body,
-    .vm-controls-body,
-    .event-log-body,
-    .script-console-output .luna-console-logs,
-    .script-console-output .luna-console-logs-space,
-    .about-dialog-body,
-    .about-dialog-dependencies
-)::-webkit-scrollbar-track {
+body::-webkit-scrollbar-track,
+#code-editor .cm-scroller::-webkit-scrollbar-track,
+#code-editor textarea::-webkit-scrollbar-track,
+.mcp-setup-body::-webkit-scrollbar-track,
+.mcp-snippet-block pre::-webkit-scrollbar-track,
+.panel-section-body::-webkit-scrollbar-track,
+.instantiation-controls-tree::-webkit-scrollbar-track,
+.instantiation-preview-output::-webkit-scrollbar-track,
+.properties-panel-body::-webkit-scrollbar-track,
+.vm-controls-body::-webkit-scrollbar-track,
+.event-log-body::-webkit-scrollbar-track,
+.script-console-output .luna-console-logs::-webkit-scrollbar-track,
+.script-console-output .luna-console-logs-space::-webkit-scrollbar-track,
+.about-dialog-body::-webkit-scrollbar-track,
+.about-dialog-dependencies::-webkit-scrollbar-track {
     background: #0f1015;
     border-radius: 10px;
 }
 
-:is(
-    body,
-    #code-editor .cm-scroller,
-    #code-editor textarea,
-    .mcp-setup-body,
-    .mcp-snippet-block pre,
-    .panel-section-body,
-    .instantiation-controls-tree,
-    .instantiation-preview-output,
-    .properties-panel-body,
-    .vm-controls-body,
-    .event-log-body,
-    .script-console-output .luna-console-logs,
-    .script-console-output .luna-console-logs-space,
-    .about-dialog-body,
-    .about-dialog-dependencies
-)::-webkit-scrollbar-thumb {
+body::-webkit-scrollbar-thumb,
+#code-editor .cm-scroller::-webkit-scrollbar-thumb,
+#code-editor textarea::-webkit-scrollbar-thumb,
+.mcp-setup-body::-webkit-scrollbar-thumb,
+.mcp-snippet-block pre::-webkit-scrollbar-thumb,
+.panel-section-body::-webkit-scrollbar-thumb,
+.instantiation-controls-tree::-webkit-scrollbar-thumb,
+.instantiation-preview-output::-webkit-scrollbar-thumb,
+.properties-panel-body::-webkit-scrollbar-thumb,
+.vm-controls-body::-webkit-scrollbar-thumb,
+.event-log-body::-webkit-scrollbar-thumb,
+.script-console-output .luna-console-logs::-webkit-scrollbar-thumb,
+.script-console-output .luna-console-logs-space::-webkit-scrollbar-thumb,
+.about-dialog-body::-webkit-scrollbar-thumb,
+.about-dialog-dependencies::-webkit-scrollbar-thumb {
     background: #313542;
     border: 1px solid #0f111a;
     border-radius: 10px;
 }
 
-:is(
-    body,
-    #code-editor .cm-scroller,
-    #code-editor textarea,
-    .mcp-setup-body,
-    .mcp-snippet-block pre,
-    .panel-section-body,
-    .instantiation-controls-tree,
-    .instantiation-preview-output,
-    .properties-panel-body,
-    .vm-controls-body,
-    .event-log-body,
-    .script-console-output .luna-console-logs,
-    .script-console-output .luna-console-logs-space,
-    .about-dialog-body,
-    .about-dialog-dependencies
-)::-webkit-scrollbar-thumb:hover {
+body::-webkit-scrollbar-thumb:hover,
+#code-editor .cm-scroller::-webkit-scrollbar-thumb:hover,
+#code-editor textarea::-webkit-scrollbar-thumb:hover,
+.mcp-setup-body::-webkit-scrollbar-thumb:hover,
+.mcp-snippet-block pre::-webkit-scrollbar-thumb:hover,
+.panel-section-body::-webkit-scrollbar-thumb:hover,
+.instantiation-controls-tree::-webkit-scrollbar-thumb:hover,
+.instantiation-preview-output::-webkit-scrollbar-thumb:hover,
+.properties-panel-body::-webkit-scrollbar-thumb:hover,
+.vm-controls-body::-webkit-scrollbar-thumb:hover,
+.event-log-body::-webkit-scrollbar-thumb:hover,
+.script-console-output .luna-console-logs::-webkit-scrollbar-thumb:hover,
+.script-console-output .luna-console-logs-space::-webkit-scrollbar-thumb:hover,
+.about-dialog-body::-webkit-scrollbar-thumb:hover,
+.about-dialog-dependencies::-webkit-scrollbar-thumb:hover {
     background: #444b5d;
 }
 

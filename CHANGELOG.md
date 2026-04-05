@@ -8,6 +8,18 @@ All notable changes to this project are documented in this file.
 
 - **Regression guardrails** — Documented the current prebuild protection stack around architecture drift, dependency boundaries, custom window chrome, and exported demo chrome so the `2.1.x` stabilization work has explicit gates instead of relying on ad hoc manual checks.
 
+## [2.2.1] - 2026-04-05
+
+### Changed
+
+- **Scrollbar regression guardrails** — Strengthened the smoke suite so prebuild now fails if shared app/demo scrollbar owners mix WebKit pseudo-element skinning with standardized scrollbar properties on the same surfaces, which was the escape hatch behind the latest macOS scrollbar regressions.
+- **Windows window-corner path** — Desktop startup now applies the Windows 11 DWM rounded-corner preference for the custom RAV window instead of relying only on CSS/content clipping.
+
+### Fixed
+
+- **macOS scrollbar regression** — Restored styled scrollbars across the main app and exported demo by removing the shared `scrollbar-width` / `scrollbar-color` path that was overriding the intended WebKit scrollbar skin in WKWebView.
+- **Fixed-size export centering** — Fixed explicit pixel-size canvases so they stay centered in both the live viewer and exported demos instead of pinning the artboard to the upper-left corner when the canvas is larger than the viewport.
+
 ## [2.2.0] - 2026-04-04
 
 ### Added

@@ -121,6 +121,7 @@ Once connected, Claude has access to all RAV tools. Try:
 - `generate_web_instantiation_code` defaults to the CDN form unless you request `package_source: "local"`.
 - Generated snippets restore only the checked ViewModel/state-machine values on load, round numbers to 2 decimals, annotate enum choices inline, and expose helper methods on `window.ravRive`.
 - Fixed-size snippets and exported demos preserve explicit `width × height` canvas dimensions when the viewer is pinned to a pixel size.
+- Oversized fixed-size snippets and exported demos keep the canvas centered in the viewport instead of pinning it to the upper-left corner.
 - The **Snippet & Export Controls** dialog lets a human user choose exactly which values are serialized. If untouched, RAV defaults to the changed-control set.
 - `rav_toggle_instantiation_controls_dialog` is the MCP hook for opening that dialog when a human needs to curate the export.
 - Exported demos now embed both snippet forms, default the copy button to CDN, and expose a **Copy Instantiation Code** button in the demo toolbar.

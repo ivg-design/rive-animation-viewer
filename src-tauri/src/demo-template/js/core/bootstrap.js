@@ -135,6 +135,39 @@
             canvas.height = pixelHeight * dpr;
             canvas.style.width = pixelWidth + 'px';
             canvas.style.height = pixelHeight + 'px';
+            scheduleCanvasViewportAlignment(container, {
+                fixed: isFixed,
+                width: pixelWidth,
+                height: pixelHeight,
+            });
+        }
+
+        function buildCenteredCanvasScrollOffsets(containerWidth, containerHeight, contentWidth, contentHeight) {
+            return {
+                left: Math.max(0, Math.round((contentWidth - containerWidth) / 2)),
+                top: Math.max(0, Math.round((contentHeight - containerHeight) / 2)),
+            };
+        }
+
+        function scheduleCanvasViewportAlignment(container, canvasSize) {
+            var scheduler = typeof window.requestAnimationFrame === 'function'
+                ? window.requestAnimationFrame.bind(window)
+                : function (callback) { callback(); };
+            scheduler(function () {
+                if (!canvasSize || !canvasSize.fixed) {
+                    container.scrollLeft = 0;
+                    container.scrollTop = 0;
+                    return;
+                }
+                var offsets = buildCenteredCanvasScrollOffsets(
+                    container.clientWidth,
+                    container.clientHeight,
+                    canvasSize.width,
+                    canvasSize.height
+                );
+                container.scrollLeft = offsets.left;
+                container.scrollTop = offsets.top;
+            });
         }
 
         function handleResize() {
