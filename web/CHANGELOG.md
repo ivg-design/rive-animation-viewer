@@ -4,103 +4,111 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **Regression guardrails** — Documented the current prebuild protection stack around architecture drift, dependency boundaries, custom window chrome, and exported demo chrome so the `2.1.x` stabilization work has explicit gates instead of relying on ad hoc manual checks.
+
 ## [2.2.2] - 2026-04-05
 
 ### Changed
 
-- **Windows window-mode cleanup** — The desktop build now uses a Windows-specific window configuration so the custom header and rounded-corner hint are no longer competing with a late runtime decorations override.
-- **Shared layout mapping** — The live viewer, standalone demo, and exported snippets now resolve fit/alignment through the Rive runtime enums instead of raw strings.
+- **Windows window-mode contract** — Windows now uses its own explicit Tauri window config instead of inheriting the macOS overlay-titlebar settings and then mutating decorations at runtime, keeping the custom header and DWM rounded-corner hint on one consistent path.
+- **Shared runtime layout mapping** — The live app, generated web snippets, and standalone demo runtime now resolve fit/alignment through the Rive runtime enums rather than raw string tokens, so export behavior matches the viewer.
+- **Status-strip iconography** — Structured playback status now renders with dedicated artboard, animation, state machine, instance, and ViewModel icons instead of plain-text abbreviations.
 
 ### Fixed
 
-- **Windows rounded-corner regression** — Rounded corners on Windows are now driven from a single consistent window-mode path instead of the previous hybrid configuration.
-- **Fixed-size export alignment** — Fixed pixel-size exports now preserve the selected alignment while staying centered, instead of pinning the artboard into the upper-left.
+- **Windows rounded-corner regression** — Removed the decorated/undecorated hybrid startup path that was blocking the Windows rounded-corner treatment even after the DWM corner hint was applied.
+- **Fixed-size export alignment** — Explicit pixel-size canvases now honor the selected alignment in the exported demo and snippet runtime while remaining centered instead of drifting to the upper-left on macOS or Windows.
 
 ## [2.2.1] - 2026-04-05
 
 ### Changed
 
-- **Scrollbar regression guardrails** — Prebuild smoke coverage now rejects the specific mixed scrollbar styling contract that caused the macOS scrollbar regressions to slip through earlier green builds.
-- **Windows rounded corners** — The desktop app now applies the Windows 11 DWM rounded-corner preference for the custom RAV window at startup.
+- **Scrollbar regression guardrails** — Strengthened the smoke suite so prebuild now fails if shared app/demo scrollbar owners mix WebKit pseudo-element skinning with standardized scrollbar properties on the same surfaces, which was the escape hatch behind the latest macOS scrollbar regressions.
+- **Windows window-corner path** — Desktop startup now applies the Windows 11 DWM rounded-corner preference for the custom RAV window instead of relying only on CSS/content clipping.
 
 ### Fixed
 
-- **macOS scrollbar regression** — Shared main-app and exported-demo scrollbars are styled again after removing the conflicting standardized scrollbar properties from the shared WebKit scrollbar owners.
-- **Fixed-size demo centering** — Explicit pixel-size canvases now stay centered in the live viewer and in exported demos instead of pinning oversized canvases to the upper-left corner.
+- **macOS scrollbar regression** — Restored styled scrollbars across the main app and exported demo by removing the shared `scrollbar-width` / `scrollbar-color` path that was overriding the intended WebKit scrollbar skin in WKWebView.
+- **Fixed-size export centering** — Fixed explicit pixel-size canvases so they stay centered in both the live viewer and exported demos instead of pinning the artboard to the upper-left corner when the canvas is larger than the viewport.
 
 ## [2.2.0] - 2026-04-04
 
 ### Added
 
-- **Explicit canvas sizing** — RAV now supports fixed pixel canvas sizing with width/height controls, aspect-ratio locking, editor `canvasSize` config support, and a new MCP tool for remote canvas sizing changes.
+- **Explicit canvas sizing** — Added a shared canvas sizing model with Settings controls for `AUTO` vs `FIXED`, editable pixel width/height, aspect-ratio locking, editor `canvasSize` support, and a new `rav_set_canvas_size` MCP tool plus `rav_status` reporting for the active sizing mode.
 
 ### Changed
 
-- **Snippet/export carry-through** — Canonical snippets and exported demos now preserve the active fixed-size canvas dimensions instead of silently reverting to fluid host sizing.
-- **Docs refresh** — The docs and homepage feature cards now describe the canvas sizing workflow, updated MCP tool count, and the updater-sidecar shutdown safeguard used during desktop installs.
+- **Snippet/export carry-through** — Generated snippets, exported demos, and descriptor payloads now preserve the active canvas sizing mode. Fixed-size outputs emit explicit canvas pixel dimensions instead of collapsing back to host-driven layout.
+- **Documentation and release notes** — README, website docs, MCP reference docs, and release notes now document the canvas sizing workflow, updated MCP tool count, and the end-to-end behavior of fixed-size exports.
 
 ### Fixed
 
-- **Windows updater handoff** — Desktop update installation now waits for the app-owned MCP bridge to stop before install starts, preventing Windows file-lock stalls from `rive-mcp.exe`.
+- **Editor apply sizing propagation** — Applying editor code that contains `canvasSize` now updates the live app state correctly because the UI stack receives the shared canvas sizing setter through the controller bootstrap path.
+- **Windows updater handoff** — Desktop update install now waits for the app-owned MCP bridge to stop before installation begins, preventing `rive-mcp.exe` from keeping the old install locked during Windows updates.
 
 ## [2.1.1] - 2026-04-04
 
 ### Changed
 
-- **Desktop window chrome** — macOS now uses a supported overlay-titlebar host with the custom RAV header, corrected window controls, centered file metadata, and properly rounded outer corners instead of the unstable square-host experiments from the late 2.1.0 cycle.
-- **Runtime strip cleanup** — The bottom strip is slimmer and more focused, with compact runtime labeling and a simple open/close console control instead of the old overloaded mode cycling.
-- **Snippet/export templates** — Generated web snippets now stay lean when no controls are selected and document manual trigger firing more clearly.
+- **Desktop window chrome** — macOS now uses a supported overlay-titlebar host with the custom RAV header, corrected window controls, centered file metadata, and properly rounded outer window corners instead of the unstable square-host experiments from the late 2.1.0 cycle.
+- **Runtime strip cleanup** — Simplified the bottom strip so the console control is open/close only, runtime info is more compact, and the strip no longer repeats redundant build/file tokens already available elsewhere in the app.
+- **Snippet/export templates** — Tightened generated instantiation code so zero-control exports stay minimal, section labels preserve authored casing, manual trigger behavior is documented clearly, and runtime helpers no longer over-serialize placeholder blocks.
 
 ### Fixed
 
-- **MCP activity states** — The MCP chip now differentiates disabled, connected-idle, and active command execution states instead of staying fully lit while idle.
-- **JavaScript console stability** — JS console toggling, follow anchoring, visible-transcript copy, and REPL row ordering were hardened without losing Eruda's native object inspection.
-- **Snippet/demo bootstrap** — Exported demos no longer reference missing helper functions during startup, and helper runtime code now handles falsy VM returns safely.
-- **Desktop surface polish** — About, MCP, and snippet/export panels now share styled scrollbars, and the About dialog uses a tighter desktop layout without full-window scrolling.
+- **MCP activity states** — The MCP chip now distinguishes disabled, connected-idle, and actively-used states instead of staying bright while no command is running.
+- **JavaScript console stability** — Fixed multiple JS console regressions: toggle freezes, misplaced REPL rows, broken `FOLLOW` anchoring, and copy/filter behavior drifting away from the visible Eruda transcript.
+- **Snippet/demo runtime errors** — Exported demos no longer reference missing helper functions during bootstrap, and generated helper runtime code now handles falsy VM returns and trigger/value edge cases correctly.
+- **Desktop scrollbars and About layout** — Shared scrollbar theming now covers About, MCP, and export/snippet surfaces consistently, and the About dialog layout was tightened so desktop builds stay compact without full-window scrolling.
 
 ## [2.1.0] - 2026-04-04
 
 ### Added
 
-- **Desktop About window** — Added a custom About dialog with build/runtime metadata, credits, dependency inventory, product links, and native Help-menu integration.
-- **Architecture enforcement** — Added an architecture budget, dependency-cruiser checks, and source-backed snippet generation to keep future development modular.
+- **Desktop About window** — Added a custom About dialog with build/runtime metadata, credits, dependency inventory, product links, and native Help-menu integration so desktop builds expose release information inside the app instead of only through Settings.
+- **Architecture enforcement** — Added a formal architecture budget, dependency-cruiser rules, and source generation for injected snippets so new development is constrained away from giant root modules and flat dumping-ground folders.
 
 ### Changed
 
-- **Frontend architecture refactor** — App boot, MCP bridge code, runtime helpers, console logic, and injected snippet sources were regrouped by domain so the shipped app no longer depends on giant root runtime files.
-- **Console mode flow** — The runtime strip now opens and closes the console, while the console header switches between `Events` and `JS`.
-- **About dialog presentation** — The desktop About surface now uses a compact non-scrolling layout with two rows of links and an internally scrolling dependency list.
+- **Full frontend architecture refactor** — Removed root runtime entrypoint drift by moving app boot into `src/app/main-entry.js`, relocating the MCP frontend bridge under `src/app/platform/mcp/`, grouping runtime/export/session/console/editor code by domain, and converting injected snippets into source-backed modules that are generated for runtime consumption.
+- **Console mode flow** — The runtime strip console control now acts as open/close only, while the console header uses a compact `Events` / `JS` toggle for mode switching.
+- **About dialog presentation** — The desktop About surface now uses a compact non-scrolling desktop layout, two-row product links, selectable value fields, and a dependency list that scrolls internally without forcing the whole dialog to scroll.
 
 ### Fixed
 
-- **JavaScript Console follow behavior** — JS `FOLLOW` now tracks the visible transcript correctly instead of snapping to an empty viewport.
-- **Runtime and MCP indicators** — The runtime strip now reflects the real loaded runtime and live MCP connection state again after the refactor.
-- **Event console cyclic payload crash** — Event-log rendering now safely formats cyclic MCP payloads without crashing.
-- **Windows desktop polish** — The Windows app now keeps its dark menu bar visible and no longer opens a stray PowerShell window for the MCP sidecar.
-- **Windows release workflow** — The architecture checker now resolves config paths correctly on Windows runners, restoring successful cross-platform release publishing for `2.1.0`.
+- **JavaScript Console follow behavior** — JS `FOLLOW` now tracks the real Eruda transcript container, re-engages correctly, and no longer jumps to an empty viewport instead of the visible transcript.
+- **Runtime and MCP strip state** — Fixed runtime/MCP indicator regressions introduced during the refactor so the strip reflects the actual loaded runtime and live MCP connection state again.
+- **Event console cyclic payload crash** — Event-log rendering now handles cyclic MCP payloads safely instead of crashing on `JSON.stringify` when command metadata contains self-references.
+- **Desktop About integration** — Native `About Rive Animation Viewer` now opens the custom dialog reliably, centered and styled to match the RAV desktop aesthetic.
+- **Windows shell polish** — Windows startup now uses opaque dark chrome so the native menu bar remains visible in dark mode, and the bundled MCP sidecar launches without opening a stray PowerShell window.
+- **Windows release workflow** — Fixed the architecture-budget checker to resolve its config path with `fileURLToPath(import.meta.url)` instead of a raw file-URL pathname, which was producing invalid `D:\\D:\\...` paths on GitHub's Windows runners and aborting the release before the Windows artifact built.
 
 ## [2.0.5] - 2026-04-03
 
 ### Fixed
 
-- **Windows release build regression** — The stable MCP launcher-path helper now compiles correctly on Windows, restoring clean cross-platform release publishing after the 2.0.4 Windows job failed.
+- **Windows release build regression** — The stable MCP launcher-path helper now compiles correctly on Windows, unblocking cross-platform release publishing after the 2.0.4 tag failed its Windows job.
 
 ## [2.0.4] - 2026-04-03
 
 ### Added
 
-- **`rav_configure_workspace` MCP tool** — Agents can now set left/right sidebar visibility, switch the live runtime between `internal` and `editor`, and inject or remove the VM Explorer snippet in one call.
+- **`rav_configure_workspace` MCP tool** — Agents can now idempotently open or close the left and right sidebars, switch the live runtime between `internal` and `editor` source modes, and inject or remove the VM Explorer snippet without UI clicking or state guessing.
 
 ### Changed
 
-- **Stable MCP launcher path** — The MCP Setup dialog now exposes a stable launcher path for Codex and Claude clients instead of the app-bundle-internal binary path.
-- **Auto-update retry behavior** — The update chip now retries in the background after transient errors instead of waiting forever in `UPDATE RETRY`.
-- **Website/docs refresh** — The docs and homepage cards now describe the 31-tool MCP surface and the Claude compatibility fixes shipped in 2.0.4.
+- **Stable MCP launcher path** — The MCP Setup dialog now publishes a stable client launcher path (`rav-mcp-rav`) instead of pointing clients at the app-bundle-internal binary path, so Codex and Claude integrations survive app replacements more reliably.
+- **Auto-update retry behavior** — Desktop updater failures no longer leave the chip stranded in `UPDATE RETRY`; the app now retries on timer, focus return, visibility return, and network reconnection.
+- **Release/docs sync** — README, MCP server docs, website docs, and homepage feature cards now describe the 2.0.4 MCP/Claude compatibility fixes and 31-tool surface.
 
 ### Fixed
 
-- **Packaged-app MCP startup attach** — The frontend bridge now loads correctly on startup in packaged builds, so the running app actually attaches to the bundled sidecar on launch.
-- **Claude MCP health check compatibility** — The native sidecar now answers both standard MCP framing and Claude's newline-delimited JSON probe format.
+- **App-side MCP startup attach** — Packaged apps now load the frontend bridge as a real ES module, so the running app actually attaches to the bundled bridge sidecar on launch instead of leaving the sidecar listening with no live RAV connection behind it.
+- **Claude MCP health-check compatibility** — The native `rav-mcp` sidecar now accepts both standard `Content-Length` MCP framing and Claude's newline-delimited JSON probe format, which fixes Claude's `Failed to connect` health checks.
+- **Claude/Codex launcher install path** — One-click MCP setup now installs clients against the stable launcher shim rather than the app-bundle resource path, avoiding stale registrations after app updates.
 
 ## [2.0.3] - 2026-04-03
 
@@ -120,18 +128,18 @@ All notable changes to this project are documented in this file.
 ### Changed
 
 - **Toolbar control layout refinement** — Moved the runtime renderer selector into the central playback/layout control cluster, tightened the `OPEN` button to icon-plus-label width, and kept the primary file-open affordance bright green instead of dimming it while no file is loaded.
-- **Default workspace layout** — The app now starts with the right properties panel open while the editor and console stay closed by default.
-- **Console action affordances** — Event Console and JavaScript Console now use outlined SVG icon buttons for `FOLLOW`, `COPY`, and `CLEAR`, with consistent ordering after the search field and clearer active-state styling.
-- **Console chip styling** — `MCP` and `OPEN CONSOLE` in the runtime strip now use the same rectangular outlined button language as the rest of the UI.
-- **MCP setup responsiveness** — The MCP Setup dialog now opens immediately and resolves install-state data asynchronously instead of blocking the UI while probing client configs.
-- **Help menu destination** — The native Help menu now opens the online RAV documentation.
-- **Playback naming fidelity** — Playback selectors now display authored animation and state machine names exactly as they exist in the `.riv` file, without injected `SM:` display prefixes.
+- **Default workspace layout** — The app now starts with the right properties panel open while the editor and console stay closed by default, matching the streamlined inspection-first workflow.
+- **Console action affordances** — Event Console and JavaScript Console now use outlined SVG icon buttons for `FOLLOW`, `COPY`, and `CLEAR`, with consistent button ordering after the search field and clearer active-state styling.
+- **Console chip styling** — `MCP` and `OPEN CONSOLE` in the runtime strip now use the same rectangular outlined button language as the rest of the UI instead of pill chips.
+- **MCP setup responsiveness** — The MCP Setup dialog now paints immediately and refreshes its install-state data asynchronously, avoiding the perceived hang when opening the menu.
+- **Help menu destination** — The native Help menu now opens the live online RAV documentation instead of leaving Help unbound.
+- **Playback naming fidelity** — Playback selectors now display authored animation and state machine names exactly as they exist in the `.riv` file, without injected `SM:` display prefixes or rewritten capitalization.
 
 ### Fixed
 
-- **MCP client detection state** — MCP setup detection now distinguishes between installed, missing, and reinstall/remove states for supported clients.
-- **Console copy support** — Event Console now exposes the same clipboard copy action as the JavaScript Console.
-- **Initial console visibility** — Closed-console startup now hides the console chrome until the console is explicitly opened.
+- **MCP client detection state** — MCP setup detection now distinguishes between a client being installed, missing, or available for reinstall/removal rather than only reporting that the application executable exists.
+- **Console copy support** — Event Console now has clipboard copy parity with the JavaScript Console through a dedicated copy action.
+- **Initial console visibility** — Closed-console startup no longer leaves the full console chrome visible; only the runtime strip remains until the console is opened.
 
 ## [2.0.1] - 2026-04-02
 
@@ -139,7 +147,7 @@ All notable changes to this project are documented in this file.
 
 - **Updater install handoff** — Desktop update installation now reuses the already-checked update payload instead of performing a second network check before install, which avoids stale-state failures and makes the relaunch path more reliable.
 - **Updater check timeout** — Added an explicit desktop updater timeout so the update chip no longer waits indefinitely when the update endpoint is slow or unavailable.
-- **CI release sidecar packaging** — The native `rav-mcp` sidecar build now creates the Tauri `resources` directory before Cargo evaluates the app package, fixing cross-platform release workflow failures in fresh CI checkouts.
+- **CI release sidecar packaging** — The native `rav-mcp` sidecar build now creates the Tauri `src-tauri/resources` directory before Cargo evaluates the app package, fixing cross-platform release workflow failures in fresh CI checkouts.
 - **Updater signing configuration** — Provisioned a valid Tauri updater signing keypair and GitHub Actions secrets for the 2.0.1 release path so updater artifacts can be signed and published successfully.
 - **Merged updater manifests** — Release publishing now produces a single `latest.json` feed that carries Apple Silicon, Intel macOS, and Windows entries together instead of leaving the updater endpoint stuck on the last publishing job.
 - **Installed-app patch validation** — Verified the signed desktop updater end to end by installing `2.0.0` into `/Applications`, updating to `2.0.1`, relaunching, and confirming the relaunched app reports `available: false`.
@@ -149,22 +157,35 @@ All notable changes to this project are documented in this file.
 ### Added
 
 - **Bundled native `rav-mcp` sidecar** — Packaged desktop builds now ship with a Rust `rav-mcp` binary, so end users no longer need Node.js to use MCP.
-- **One-click MCP setup** — The MCP Setup dialog now detects Codex, Claude Code, and Claude Desktop, reports whether `rav-mcp` is already installed there, and exposes `ADD`, `REINSTALL`, and `REMOVE`.
+- **One-click MCP client setup** — The MCP Setup dialog now detects Codex, Claude Code, and Claude Desktop, reports whether `rav-mcp` is already installed there, and exposes `ADD`, `REINSTALL`, and `REMOVE`.
+- **Configurable MCP bridge port** — The bridge port is now configurable from the MCP Setup dialog and all generated snippets/install actions stay in sync with the selected port.
 - **MCP `Script Access` toggle** — JavaScript execution through MCP is now explicitly gated behind a dedicated toggle. Read-only control tools remain available even when script access is disabled.
+- **Native JS transcript console** — The JavaScript console is now a first-class RAV console with timestamps, newest-first ordering, filters, search, and `FOLLOW`.
+- **Unified console follow behavior** — Both Event Console and JavaScript Console now expose a sticky `FOLLOW` toggle that auto-disables when you scroll away from the latest message and re-enables when you return.
+- **`generate_web_instantiation_code` MCP tool** — Generates canonical web-instantiation snippets for either CDN or local-package usage based on the exact live animation state.
 - **Snippet & Export Controls dialog** — New in-app dialog for previewing snippets, choosing package source, and selecting which ViewModel and state-machine values are serialized into snippets and exported demos.
-- **Canonical web snippet generation** — `generate_web_instantiation_code` emits CDN or local-package snippets from the exact live runtime state, with helper APIs on `window.ravRive`.
+- **Selectable control export** — Branch-level checkboxes select nested control groups, leaf checkboxes select individual controls, and untouched dialogs default to the changed-control set.
+- **Exported demo toolbar code copy** — Exported demos now include a `Copy Instantiation Code` action and bundle the current canonical snippet variants.
+- **`window.ravRive` helper API in snippets** — Generated snippets and exported demos now expose helper methods for applying snapshots, reading VM paths, setting values, firing triggers, and accessing state machine inputs.
 - **Desktop updater flow** — Added background update checks, update chip states, install/relaunch commands, updater plugin wiring, and release-workflow support for signed updater artifacts.
+- **Desktop open-file coverage** — Added explicit tests for drag/drop, open-with, double-click, URI-list payloads, and startup file handoff.
 
 ### Changed
 
 - **Major UI refresh** — The editor header, runtime strip, consoles, MCP dialog, and export flow were refined into the new 2.0.0 interaction model.
 - **Editor live-source signaling** — The editor title block now acts as the live-source indicator. Neutral gray means internal wiring is active; green/pulsing means the applied editor config is driving the runtime.
+- **Apply action styling** — The script editor now uses a dedicated `APPLY` action with neon emphasis instead of a subtle icon-only affordance.
+- **Console toggle behavior** — The runtime strip now exposes a simpler open/close console affordance and hides the console toolbar entirely while the console is closed.
 - **Unified console direction** — Event Console and JavaScript Console now grow in the same direction, use the same timestamp format, and present the newest entry at the top.
 - **Layout controls surfaced** — Fit and alignment controls moved into the primary toolbar next to playback controls and are mirrored into exported demos.
 - **Snippet generation semantics** — Snippets now emit organized override blocks instead of giant value dumps, round floating-point numbers to 2 decimals, and include enum option comments plus startup trigger lists.
+- **Demo export semantics** — Exports now mirror the live source mode, current artboard/playback selection, selected control snapshot, fit/alignment toolbar placement, and instantiation snippet variants.
 - **MCP setup messaging** — Simplified setup status to `MCP ready` / `MCP disabled`, removed outdated Node wording, and clarified the difference between bridge readiness and active client connection.
 - **MCP bridge resilience** — Hardened bridge reconnect behavior, initial sidecar handshake timing, fresh-stdio first-call behavior, and post-reload reconnect persistence.
+- **Resizing behavior** — Sidebars and console resize more smoothly by deferring expensive canvas resizes until the drag completes and widening the drag hit targets.
+- **Runtime version picker** — Fallback runtime versions are now derived from the latest available versions instead of being hardcoded.
 - **Build pipeline** — `npm run build` now compiles the native `rav-mcp` sidecar before the frontend dist build, and packaged apps bundle/sign the sidecar automatically.
+- **Architecture** — `app.js` was reduced to a composition root by extracting runtime loading, export, shell/status, VM controls, transparency, state machine defaults, and other subsystems into focused modules.
 
 ### Fixed
 
@@ -173,8 +194,16 @@ All notable changes to this project are documented in this file.
 - **MCP reconnect race** — Fixed the bridge race that produced `InvalidStateError` during handshake when the app and sidecar connected simultaneously.
 - **First-call MCP write failures** — Fresh stdio MCP sessions now wait for the app bridge before failing write commands, preventing `RAV is not connected` on the first `rav_set_editor_code` / `rav_apply_code`.
 - **Exported HTML script escaping** — Fixed broken standalone demos caused by unescaped `</script>` content inside generated config/snippet payloads.
+- **Manual export parity** — Manual exports and MCP-triggered exports now use the same snippet/export builder path.
 - **Autoplay on file load** — File picker, drag/drop, open-with, and MCP file loads now consistently autoplay on open.
 - **Snippet/export tree UX** — Nested branches remain open while you check or uncheck child controls in the Snippet & Export Controls dialog.
+- **Bridge-side object URL cleanup** — Added final object-URL cleanup for open-file sessions.
+- **Runtime version picker injection risk** — Replaced unsafe `innerHTML` option interpolation for custom runtime versions.
+- **`rav_get_event_log` ordering** — Event log reads now return the newest matching entries first.
+- **`rav_status` detail completeness** — Status now includes alignment and the active instantiation mode/draft state.
+- **ViewModel trigger resume logic** — Corrected paused/playing detection used around VM trigger behavior.
+- **FOUC and panel state mismatches** — The shell layout now avoids initial panel-state flashes and keeps the UI state aligned with the DOM defaults.
+- **Desktop drag targets** — Sidebar and console resize hit zones are more forgiving and less jerky.
 - **Code coverage regressions** — Recovered full green tests around the new modularized controllers, export flow, MCP bridge, open-file path, updater flow, and console behavior.
 
 ## [1.9.9] - 2026-04-01
