@@ -81,6 +81,20 @@ export default function UiLayout() {
         indicator, console toggle, runtime version, loaded file, update status, and playback
         state with structured iconography.
       </p>
+
+      <h2>About Window</h2>
+      <div className="flex flex-col md:flex-row gap-6 my-6">
+        <div className="md:w-3/5 flex-shrink-0">
+          <Image src={asset("/docs/about-window.webp")} alt="About window with build matrix, credits, dependencies, and links" width={600} height={400} className="rounded-xl border border-[var(--border-dark)] w-full" />
+        </div>
+        <div className="md:w-2/5 flex flex-col justify-center">
+          <p className="text-sm text-[var(--text-dim)] leading-relaxed">
+            Desktop builds include a custom About window accessible from the Settings
+            popover or the native Help menu. It surfaces build metadata, runtime version,
+            credits, product links, and a scrollable dependency inventory.
+          </p>
+        </div>
+      </div>
     </>
   );
 }

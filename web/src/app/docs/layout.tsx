@@ -1,43 +1,90 @@
-import type { Metadata } from "next";
+"use client";
+
+import type { ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronLeft, BookOpen } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { ChevronLeft, BookOpen, ChevronRight } from "lucide-react";
 import { asset } from "@/lib/config";
 
-export const metadata: Metadata = {
-  title: {
-    template: "%s | RAV Docs",
-    default: "RAV Documentation",
-  },
-  description: "Complete RAV documentation for Rive Animation Viewer.",
-};
+const sections = [
+  { id: "getting-started", title: "Getting Started" },
+  { id: "opening-files", title: "Opening Files" },
+  { id: "ui-layout", title: "UI Layout" },
+  { id: "viewmodel-controls", title: "ViewModel Controls" },
+  { id: "artboard-switcher", title: "Artboard Switcher" },
+  { id: "consoles", title: "Consoles" },
+  { id: "export", title: "Export + Snippets" },
+  { id: "configuration", title: "Configuration" },
+  { id: "mcp", title: "MCP Integration" },
+  { id: "updates", title: "Auto Updates" },
+  { id: "shortcuts", title: "Shortcuts" },
+  { id: "troubleshooting", title: "Troubleshooting" },
+];
 
+export default function DocsLayout({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const currentSection = sections.find((s) => pathname?.endsWith(`/docs/${s.id}`));
+  const isLanding = !currentSection;
 
-export default function DocsLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[var(--bg-void)]">
-      {/* Header */}
+      {/* Sticky header with breadcrumb + inline TOC */}
       <header className="sticky top-0 z-40 bg-[var(--bg-void)]/90 backdrop-blur-sm border-b border-[var(--border-dark)]">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link
-            href={asset("/")}
-            className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-white)] transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5" />
-            <span>Back to RAV</span>
-          </Link>
-          <div className="flex items-center gap-3">
+        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm">
+            <Link
+              href={asset("/")}
+              className="text-[var(--text-muted)] hover:text-[var(--text-white)] transition-colors"
+            >
+              RAV
+            </Link>
+            <ChevronRight className="w-3 h-3 text-[var(--text-ghost)]" />
+            <Link
+              href={asset("/docs")}
+              className={`transition-colors ${isLanding ? "text-[var(--text-white)] font-semibold" : "text-[var(--text-muted)] hover:text-[var(--text-white)]"}`}
+            >
+              Docs
+            </Link>
+            {currentSection && (
+              <>
+                <ChevronRight className="w-3 h-3 text-[var(--text-ghost)]" />
+                <span className="text-[var(--text-white)] font-semibold">{currentSection.title}</span>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
             <Image
               src={asset("/images/app-icon.png")}
               alt="RAV"
-              width={32}
-              height={32}
-              className="rounded-lg"
+              width={24}
+              height={24}
+              className="rounded-md"
             />
-            <BookOpen className="w-5 h-5 text-[var(--neon)]" />
-            <span className="font-semibold text-[var(--text-white)]">Documentation</span>
+            <BookOpen className="w-4 h-4 text-[var(--neon)]" />
           </div>
         </div>
+
+        {/* Inline scrollable TOC — only on sub-pages */}
+        {!isLanding && (
+          <div className="border-t border-[var(--border-dark)] overflow-x-auto scrollbar-none">
+            <div className="max-w-5xl mx-auto px-6 flex items-center gap-1 py-1.5">
+              {sections.map((section) => (
+                <Link
+                  key={section.id}
+                  href={asset(`/docs/${section.id}`)}
+                  className={`flex-shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                    currentSection?.id === section.id
+                      ? "bg-[var(--neon-dim)] text-[var(--neon)]"
+                      : "text-[var(--text-muted)] hover:text-[var(--text-white)] hover:bg-[var(--bg-elevated)]"
+                  }`}
+                >
+                  {section.title}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Content */}

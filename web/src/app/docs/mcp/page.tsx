@@ -94,14 +94,6 @@ export default function McpIntegration() {
         <strong> Script Access</strong> in the MCP Setup dialog to unlock <code>rav_eval</code>,
         <code>rav_console_exec</code>, and <code>rav_apply_code</code>.
       </p>
-
-      <h2>About Window</h2>
-      <Image src={asset("/docs/about-window.webp")} alt="About window showing build matrix, credits, dependencies, and links" width={600} height={400} className="rounded-xl border border-[var(--border-dark)] my-4" />
-      <p>
-        Desktop builds include a custom About window accessible from the Settings popover
-        or the native Help menu. It shows build metadata, runtime version, credits, links,
-        and dependency inventory.
-      </p>
     </>
   );
 }
