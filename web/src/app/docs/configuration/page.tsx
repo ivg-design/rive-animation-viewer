@@ -1,9 +1,27 @@
+import Image from "next/image";
+import { asset } from "@/lib/config";
+
 export const metadata = { title: "Configuration" };
 
 export default function Configuration() {
   return (
     <>
       <h1>Configuration</h1>
+
+      <h2>Settings Panel</h2>
+
+      <Image src={asset("/docs/settings-popover.webp")} alt="Settings panel showing runtime version picker, BG color, canvas sizing with AUTO/FIXED toggle, pixel dimensions with aspect lock, and About button" width={500} height={320} className="rounded-xl border border-[var(--border-dark)] my-4" />
+
+      <p>The Settings gear in the toolbar opens the configuration panel with:</p>
+      <ol>
+        <li><strong>Runtime Ver</strong> &mdash; select Latest (auto), a pinned version, or Custom semver</li>
+        <li><strong>BG Color</strong> &mdash; canvas background color picker with NO BG reset</li>
+        <li><strong>Canvas Size</strong> &mdash; AUTO (fills viewport) or FIXED (explicit pixels)</li>
+        <li><strong>Pixels</strong> &mdash; width and height inputs with aspect-ratio LOCK</li>
+        <li><strong>About</strong> &mdash; opens the About window with build metadata and credits</li>
+      </ol>
+
+      <hr />
 
       <h2>Code Editor</h2>
       <p>
