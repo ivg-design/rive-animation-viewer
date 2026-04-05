@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { asset } from "@/lib/config";
-import { X } from "lucide-react";
+import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
 type GalleryItem = {
   src: string;
@@ -82,14 +82,33 @@ const items: GalleryItem[] = [
 export default function GallerySection() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
+  const goNext = useCallback(() => {
+    if (lightboxIndex !== null) setLightboxIndex((lightboxIndex + 1) % items.length);
+  }, [lightboxIndex]);
+
+  const goPrev = useCallback(() => {
+    if (lightboxIndex !== null) setLightboxIndex((lightboxIndex - 1 + items.length) % items.length);
+  }, [lightboxIndex]);
+
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxIndex(null);
+      if (e.key === "ArrowRight") goNext();
+      if (e.key === "ArrowLeft") goPrev();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [lightboxIndex, goNext, goPrev]);
+
   return (
     <section id="screenshots" className="flex flex-col items-center gap-12 py-24 px-8 section-gradient w-full">
       <div className="flex flex-col items-center gap-4">
         <span className="font-mono text-xs font-medium tracking-[3px] uppercase text-[var(--neon)]">
-          Screenshots
+          Interface
         </span>
         <h2 className="font-sans font-bold text-4xl text-[var(--text-white)]">
-          See it in action
+          Interface tour
         </h2>
       </div>
 
@@ -126,6 +145,18 @@ export default function GallerySection() {
             className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10"
           >
             <X className="w-6 h-6 text-white" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); goPrev(); }}
+            className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10"
+          >
+            <ChevronLeft className="w-6 h-6 text-white" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); goNext(); }}
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10"
+          >
+            <ChevronRight className="w-6 h-6 text-white" />
           </button>
           <div className="relative w-[90vw] h-[85vh] flex items-center justify-center">
             <Image

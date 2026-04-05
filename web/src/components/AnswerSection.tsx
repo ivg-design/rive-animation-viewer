@@ -4,18 +4,17 @@ export default function AnswerSection() {
       <div className="rounded-2xl border border-[var(--border-dark)] bg-[var(--bg-zinc)] p-6 md:p-8 flex flex-col gap-6">
         <div>
           <p className="text-xs uppercase tracking-[0.14em] text-[var(--neon)] font-semibold mb-3">
-            What is RAV?
+            Why RAV
           </p>
           <h2 className="text-3xl font-bold text-[var(--text-white)] mb-3">
-            The missing desktop companion for Rive
+            Test runtime behavior without standing up a web project
           </h2>
           <p className="text-[var(--text-dim)] leading-relaxed max-w-[720px]">
-            Rive files are designed in the browser, but testing them against real runtime
-            behavior requires a dedicated tool. RAV opens any <code>.riv</code> file, binds
-            its ViewModel, activates its state machines, and gives you live controls for
-            every property &mdash; without writing a single line of integration code.
-            When you&apos;re ready to ship, RAV generates the exact instantiation snippet
-            your codebase needs.
+            Rive files are designed in the browser editor, but verifying how they behave
+            in a real runtime &mdash; with ViewModels bound, state machines running, and
+            controls responding &mdash; requires integration code. RAV removes that step.
+            Open the <code>.riv</code>, inspect every property live, then export the exact
+            snippet your codebase needs.
           </p>
         </div>
 

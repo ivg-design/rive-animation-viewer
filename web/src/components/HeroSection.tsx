@@ -18,7 +18,7 @@ export default async function HeroSection() {
           alt="Rive Animation Viewer"
           width={120}
           height={120}
-          className="rounded-[28px] shadow-2xl animate-pulse-glow"
+          className="rounded-[28px] shadow-2xl"
           priority
         />
 
@@ -34,13 +34,14 @@ export default async function HeroSection() {
 
         {/* Title */}
         <h1 className="font-sans font-bold text-5xl md:text-[56px] text-center text-[var(--text-white)] leading-tight tracking-tight">
-          Rive Animation Viewer
+          The missing desktop companion for Rive
         </h1>
 
         {/* Tagline */}
         <p className="text-lg text-center text-[var(--text-dim)] leading-relaxed max-w-[600px]">
-          Inspect, debug, and test Rive animations on desktop. ViewModel controls,
-          event console, transparency overlay, and standalone export.
+          Open any <code className="text-[var(--neon)] bg-[var(--neon-dim)] px-1.5 py-0.5 rounded text-[15px]">.riv</code> file,
+          bind its ViewModel, activate state machines, and control every property live &mdash; then
+          export the exact snippet your codebase needs.
         </p>
 
         {/* Three Platform Download Links */}

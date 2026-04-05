@@ -81,43 +81,45 @@ export default function FeaturesSection() {
     <section id="features" className="flex flex-col items-center gap-12 py-24 px-8 w-full">
       <div className="flex flex-col items-center gap-4">
         <span className="font-mono text-xs font-medium tracking-[3px] uppercase text-[var(--neon)]">
-          Features
+          Capabilities
         </span>
         <h2 className="font-sans font-bold text-4xl text-[var(--text-white)]">
-          Everything you need to inspect Rive files
+          What RAV does
         </h2>
-        <p className="text-base text-[var(--text-muted)] max-w-[600px] text-center">
-          A purpose-built desktop player for the Rive animation workflow.
-        </p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-[1000px] w-full">
-        {features.map((feature, index) => (
-          <div
-            key={feature.title}
-            className="group relative p-4 rounded-xl bg-[var(--bg-zinc)] border border-[var(--border-dark)] hover:border-[var(--neon-glow)] hover:bg-[var(--bg-elevated)] transition-colors duration-300 opacity-0 animate-fade-in-up"
-            style={{ animationDelay: `${index * 50}ms` }}
-          >
-            {/* Static card content — never changes height */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--neon-dim)] group-hover:bg-[var(--neon-glow)] transition-colors duration-300 flex-shrink-0">
-                <feature.icon className="w-4 h-4 text-[var(--neon)]" />
+        {features.map((feature, index) => {
+          const isBottomRow = index >= features.length - 4;
+          return (
+            <div
+              key={feature.title}
+              className="group relative p-4 rounded-xl bg-[var(--bg-zinc)] border border-[var(--border-dark)] hover:border-[var(--neon-glow)] hover:bg-[var(--bg-elevated)] transition-colors duration-300"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--neon-dim)] group-hover:bg-[var(--neon-glow)] transition-colors duration-300 flex-shrink-0">
+                  <feature.icon className="w-4 h-4 text-[var(--neon)]" />
+                </div>
+                <h3 className="text-sm font-semibold text-[var(--text-white)] leading-tight">
+                  {feature.title}
+                </h3>
               </div>
-              <h3 className="text-sm font-semibold text-[var(--text-white)] leading-tight">
-                {feature.title}
-              </h3>
-            </div>
 
-            {/* Floating tooltip — overlays below the card, outside grid flow */}
-            <div className="pointer-events-none absolute left-0 right-0 top-full z-20 pt-1 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 ease-out">
-              <div className="mx-1 p-3 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-bright)] shadow-lg shadow-black/40">
-                <p className="text-xs text-[var(--text-dim)] leading-relaxed">
-                  {feature.description}
-                </p>
+              {/* Tooltip — flips upward for bottom row to prevent clipping */}
+              <div className={`pointer-events-none absolute left-0 right-0 z-20 opacity-0 group-hover:opacity-100 transition-all duration-200 ease-out ${
+                isBottomRow
+                  ? "bottom-full pb-1 translate-y-1 group-hover:translate-y-0"
+                  : "top-full pt-1 -translate-y-1 group-hover:translate-y-0"
+              }`}>
+                <div className="mx-1 p-3 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-bright)] shadow-lg shadow-black/40">
+                  <p className="text-xs text-[var(--text-dim)] leading-relaxed">
+                    {feature.description}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

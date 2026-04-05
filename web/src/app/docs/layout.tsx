@@ -92,6 +92,29 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
         <div className="docs-content">
           {children}
         </div>
+
+        {/* Prev / Next navigation */}
+        {currentSection && (() => {
+          const idx = sections.findIndex((s) => s.id === currentSection.id);
+          const prev = idx > 0 ? sections[idx - 1] : null;
+          const next = idx < sections.length - 1 ? sections[idx + 1] : null;
+          return (
+            <div className="flex items-center justify-between mt-16 pt-8 border-t border-[var(--border-dark)]">
+              {prev ? (
+                <Link href={asset(`/docs/${prev.id}`)} className="group flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-white)] transition-colors">
+                  <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+                  <span>{prev.title}</span>
+                </Link>
+              ) : <span />}
+              {next ? (
+                <Link href={asset(`/docs/${next.id}`)} className="group flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-white)] transition-colors">
+                  <span>{next.title}</span>
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              ) : <span />}
+            </div>
+          );
+        })()}
       </main>
 
       {/* Footer */}

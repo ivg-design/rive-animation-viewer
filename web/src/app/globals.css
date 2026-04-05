@@ -125,8 +125,8 @@ body {
 .delay-400 { animation-delay: 400ms; }
 .delay-500 { animation-delay: 500ms; }
 
-/* Global easing */
-* {
+/* Scoped easing — only on elements that actually transition */
+a, button, [class*="transition"], [class*="hover:"] {
   transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
