@@ -194,6 +194,23 @@ export function buildResolvedCanvasPixelSize(state, fallbackSize = {}) {
     };
 }
 
+export function buildCenteredCanvasScrollOffsets({
+    containerWidth,
+    containerHeight,
+    contentWidth,
+    contentHeight,
+} = {}) {
+    const safeContainerWidth = clampDimension(containerWidth, DEFAULT_CANVAS_WIDTH);
+    const safeContainerHeight = clampDimension(containerHeight, DEFAULT_CANVAS_HEIGHT);
+    const safeContentWidth = clampDimension(contentWidth, safeContainerWidth);
+    const safeContentHeight = clampDimension(contentHeight, safeContainerHeight);
+
+    return {
+        left: Math.max(0, Math.round((safeContentWidth - safeContainerWidth) / 2)),
+        top: Math.max(0, Math.round((safeContentHeight - safeContainerHeight) / 2)),
+    };
+}
+
 export function loadCanvasSizingPreference(storage = globalThis.localStorage) {
     try {
         const raw = storage?.getItem?.(CANVAS_SIZING_PREF_STORAGE_KEY);

@@ -215,66 +215,78 @@ describe('rive/instance-controller', () => {
         const elements = createElements();
         Object.defineProperty(elements.canvasContainer, 'clientWidth', { configurable: true, value: 640 });
         Object.defineProperty(elements.canvasContainer, 'clientHeight', { configurable: true, value: 360 });
-
-        let capturedConfig = null;
-        const controller = createRiveInstanceController({
-            callbacks: {
-                cleanupTransparencyRuntime: vi.fn().mockResolvedValue(undefined),
-                detectDefaultStateMachineName: vi.fn().mockResolvedValue(null),
-                ensureRuntime: vi.fn().mockResolvedValue({
-                    EventType: { RiveEvent: 'rive-event' },
-                    Layout: class Layout {
-                        constructor(config) {
-                            Object.assign(this, config);
-                        }
-                    },
-                    Rive: vi.fn((config) => {
-                        capturedConfig = config;
-                        return {
-                            cleanup: vi.fn(),
-                            off: vi.fn(),
-                            on: vi.fn(),
-                            resizeDrawingSurfaceToCanvas: vi.fn(),
-                            stateMachineNames: [],
-                        };
+        Object.defineProperty(elements.canvasContainer, 'scrollLeft', { configurable: true, writable: true, value: 0 });
+        Object.defineProperty(elements.canvasContainer, 'scrollTop', { configurable: true, writable: true, value: 0 });
+        const originalRequestAnimationFrame = window.requestAnimationFrame;
+        window.requestAnimationFrame = (callback) => {
+            callback();
+            return 1;
+        };
+        try {
+            let capturedConfig = null;
+            const controller = createRiveInstanceController({
+                callbacks: {
+                    cleanupTransparencyRuntime: vi.fn().mockResolvedValue(undefined),
+                    detectDefaultStateMachineName: vi.fn().mockResolvedValue(null),
+                    ensureRuntime: vi.fn().mockResolvedValue({
+                        EventType: { RiveEvent: 'rive-event' },
+                        Layout: class Layout {
+                            constructor(config) {
+                                Object.assign(this, config);
+                            }
+                        },
+                        Rive: vi.fn((config) => {
+                            capturedConfig = config;
+                            return {
+                                cleanup: vi.fn(),
+                                off: vi.fn(),
+                                on: vi.fn(),
+                                resizeDrawingSurfaceToCanvas: vi.fn(),
+                                stateMachineNames: [],
+                            };
+                        }),
                     }),
+                    hideError: vi.fn(),
+                    logEvent: vi.fn(),
+                    populateArtboardSwitcher: vi.fn(),
+                    refreshInfoStrip: vi.fn(),
+                    renderVmInputControls: vi.fn(),
+                    resetPlaybackChips: vi.fn(),
+                    resetVmInputControls: vi.fn(),
+                    showError: vi.fn(),
+                    syncArtboardStateAfterLoad: vi.fn(),
+                    syncArtboardStateFromConfig: vi.fn(),
+                    updateInfo: vi.fn(),
+                    updatePlaybackChips: vi.fn(),
+                },
+                elements,
+                getCurrentCanvasSizing: () => ({
+                    mode: 'fixed',
+                    width: 1920,
+                    height: 1080,
+                    lockAspectRatio: true,
+                    aspectRatio: 16 / 9,
                 }),
-                hideError: vi.fn(),
-                logEvent: vi.fn(),
-                populateArtboardSwitcher: vi.fn(),
-                refreshInfoStrip: vi.fn(),
-                renderVmInputControls: vi.fn(),
-                resetPlaybackChips: vi.fn(),
-                resetVmInputControls: vi.fn(),
-                showError: vi.fn(),
-                syncArtboardStateAfterLoad: vi.fn(),
-                syncArtboardStateFromConfig: vi.fn(),
-                updateInfo: vi.fn(),
-                updatePlaybackChips: vi.fn(),
-            },
-            elements,
-            getCurrentCanvasSizing: () => ({
-                mode: 'fixed',
-                width: 1920,
-                height: 1080,
-                lockAspectRatio: true,
-                aspectRatio: 16 / 9,
-            }),
-            getCurrentRuntime: () => 'webgl2',
-            getEditorConfig: () => ({}),
-            windowRef: window,
-        });
+                getCurrentRuntime: () => 'webgl2',
+                getEditorConfig: () => ({}),
+                windowRef: window,
+            });
 
-        await controller.loadRiveAnimation('blob:demo', 'demo.riv');
-        capturedConfig.onLoad();
+            await controller.loadRiveAnimation('blob:demo', 'demo.riv');
+            capturedConfig.onLoad();
 
-        const canvas = document.getElementById('rive-canvas');
-        expect(canvas.width).toBe(1920);
-        expect(canvas.height).toBe(1080);
-        expect(canvas.style.width).toBe('1920px');
-        expect(canvas.style.height).toBe('1080px');
-        expect(elements.canvasContainer.classList.contains('canvas-container-fixed-size')).toBe(true);
-        expect(canvas.classList.contains('rive-canvas-fixed-size')).toBe(true);
+            const canvas = document.getElementById('rive-canvas');
+            expect(canvas.width).toBe(1920);
+            expect(canvas.height).toBe(1080);
+            expect(canvas.style.width).toBe('1920px');
+            expect(canvas.style.height).toBe('1080px');
+            expect(elements.canvasContainer.classList.contains('canvas-container-fixed-size')).toBe(true);
+            expect(canvas.classList.contains('rive-canvas-fixed-size')).toBe(true);
+            expect(elements.canvasContainer.scrollLeft).toBe(640);
+            expect(elements.canvasContainer.scrollTop).toBe(360);
+        } finally {
+            window.requestAnimationFrame = originalRequestAnimationFrame;
+        }
     });
 
     it('reports missing files, initialization failures, and load errors', async () => {

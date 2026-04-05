@@ -1,4 +1,8 @@
-import { buildResolvedCanvasPixelSize, normalizeCanvasSizingState } from '../core/canvas-sizing.js';
+import {
+    buildCenteredCanvasScrollOffsets,
+    buildResolvedCanvasPixelSize,
+    normalizeCanvasSizingState,
+} from '../core/canvas-sizing.js';
 import { buildPlaybackContext, buildPlaybackStatusLabel } from './playback-status.js';
 
 export function safelyInvokeUserCallback(callback, event, callbackName) {
@@ -129,6 +133,32 @@ export function createRiveInstanceController({
             height: resolved.height,
             mode: resolved.fixed ? 'fixed' : 'auto',
         });
+        scheduleCanvasViewportAlignment(container, resolved);
+    }
+
+    function scheduleCanvasViewportAlignment(container, resolvedCanvasSize) {
+        if (!container) {
+            return;
+        }
+        const alignViewport = () => {
+            if (!resolvedCanvasSize?.fixed) {
+                container.scrollLeft = 0;
+                container.scrollTop = 0;
+                return;
+            }
+            const offsets = buildCenteredCanvasScrollOffsets({
+                containerWidth: container.clientWidth,
+                containerHeight: container.clientHeight,
+                contentWidth: resolvedCanvasSize.width,
+                contentHeight: resolvedCanvasSize.height,
+            });
+            container.scrollLeft = offsets.left;
+            container.scrollTop = offsets.top;
+        };
+        const scheduler = typeof windowRef.requestAnimationFrame === 'function'
+            ? windowRef.requestAnimationFrame.bind(windowRef)
+            : (callback) => callback();
+        scheduler(alignViewport);
     }
 
     function handleResize() {

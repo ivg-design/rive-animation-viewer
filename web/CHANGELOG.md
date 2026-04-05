@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-04-05
+
+### Changed
+
+- **Scrollbar regression guardrails** — Prebuild smoke coverage now rejects the specific mixed scrollbar styling contract that caused the macOS scrollbar regressions to slip through earlier green builds.
+- **Windows rounded corners** — The desktop app now applies the Windows 11 DWM rounded-corner preference for the custom RAV window at startup.
+
+### Fixed
+
+- **macOS scrollbar regression** — Shared main-app and exported-demo scrollbars are styled again after removing the conflicting standardized scrollbar properties from the shared WebKit scrollbar owners.
+- **Fixed-size demo centering** — Explicit pixel-size canvases now stay centered in the live viewer and in exported demos instead of pinning oversized canvases to the upper-left corner.
+
 ## [2.2.0] - 2026-04-04
 
 ### Added

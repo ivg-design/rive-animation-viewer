@@ -4,8 +4,8 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.2.0` (2026-04-04)
-- Validation target: release from `main` so installed desktop builds can pick up the `2.2.0` updater payload directly.
+- Current release: `2.2.1` (2026-04-05)
+- Validation target: release from `main` so installed desktop builds can pick up the `2.2.1` updater payload directly.
 
 ## Regression Gates
 
@@ -19,6 +19,12 @@ The repo now has explicit prebuild guards for the surfaces that were regressing 
 - `cargo check --manifest-path src-tauri/Cargo.toml` validates the native Tauri layer
 
 These gates materially reduce regression risk, but they are still code- and DOM-contract tests, not full visual snapshot coverage. If we want pixel-level guarantees from this point forward, the next step is adding screenshot-based desktop smoke tests for the packaged app window.
+
+## 2.2.1 Highlights
+
+- **Scrollbar regression fix**: Shared app/demo scrollbars on macOS are styled again, and the smoke suite now fails prebuild if shared scrollbar owners mix incompatible WebKit and standardized scrollbar styling paths.
+- **Fixed-size canvas centering**: Explicit pixel-size canvases now stay centered in both the live app and exported demos instead of snapping to the upper-left corner.
+- **Windows rounded-corner hint**: Desktop startup now applies the Windows 11 DWM rounded-corner preference for the custom RAV window so Windows can match the macOS chrome treatment more closely.
 
 ## 2.2.0 Highlights
 
