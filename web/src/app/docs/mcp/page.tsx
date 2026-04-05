@@ -21,7 +21,26 @@ export default function McpIntegration() {
         brightens when a client is actively connected.
       </p>
 
-      <Image src={asset("/docs/mcp-indicators.webp")} alt="MCP indicator in three states: connected, idle, disabled" width={300} height={100} className="rounded-lg border border-[var(--border-dark)] my-4" />
+      {/* Editorial: indicators left, legend right */}
+      <div className="flex flex-col md:flex-row gap-6 my-6">
+        <div className="md:w-2/5 flex-shrink-0">
+          <Image src={asset("/docs/mcp-indicators.webp")} alt="MCP indicator in three states" width={300} height={100} className="rounded-lg border border-[var(--border-dark)] w-full" />
+        </div>
+        <div className="md:w-3/5 flex flex-col justify-center gap-2">
+          <div className="flex gap-2 items-start">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3b82f6] text-white text-[10px] font-bold flex items-center justify-center">1</span>
+            <p className="text-sm text-[var(--text-dim)]"><strong className="text-[var(--text-white)]">Connected</strong> &mdash; bright indigo, client actively communicating</p>
+          </div>
+          <div className="flex gap-2 items-start">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3b82f6] text-white text-[10px] font-bold flex items-center justify-center">2</span>
+            <p className="text-sm text-[var(--text-dim)]"><strong className="text-[var(--text-white)]">Idle</strong> &mdash; dim indigo, bridge ready but no active client</p>
+          </div>
+          <div className="flex gap-2 items-start">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3b82f6] text-white text-[10px] font-bold flex items-center justify-center">3</span>
+            <p className="text-sm text-[var(--text-dim)]"><strong className="text-[var(--text-white)]">Disabled</strong> &mdash; red with strikethrough, bridge stopped</p>
+          </div>
+        </div>
+      </div>
 
       <h2>Setup</h2>
 

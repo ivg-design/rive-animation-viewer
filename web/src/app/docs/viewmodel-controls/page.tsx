@@ -13,12 +13,35 @@ export default function ViewModelControls() {
         as native controls in the right panel.
       </p>
 
-      <Image src={asset("/docs/vm-controls-panel.webp")} alt="Properties panel showing ViewModel and state machine controls with numbered callouts" width={400} height={900} className="rounded-xl border border-[var(--border-dark)] my-4" />
-
-      <ol className="text-sm text-[var(--text-dim)] mb-6 list-none pl-0 flex flex-col gap-1">
-        <li><strong className="text-[var(--neon)]">1</strong> ViewModel section &mdash; enum dropdowns, number inputs, boolean checkboxes, color picker with alpha, string inputs, collapsible nested instances</li>
-        <li><strong className="text-[var(--neon)]">2</strong> State Machine section &mdash; boolean inputs discovered from the active state machine</li>
-      </ol>
+      {/* Editorial layout: image left, callout legend right */}
+      <div className="flex flex-col md:flex-row gap-6 my-8">
+        <div className="md:w-1/2 flex-shrink-0">
+          <Image src={asset("/docs/vm-controls-panel.webp")} alt="Properties panel showing ViewModel and state machine controls" width={400} height={900} className="rounded-xl border border-[var(--border-dark)] w-full" />
+        </div>
+        <div className="md:w-1/2 flex flex-col justify-center gap-4">
+          <div className="flex gap-3 items-start">
+            <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[#3b82f6] text-white text-xs font-bold flex items-center justify-center">1</span>
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--text-white)] mb-1">ViewModel Section</h3>
+              <p className="text-xs text-[var(--text-dim)] leading-relaxed">
+                Enum dropdowns, number inputs, boolean checkboxes, color picker with alpha slider,
+                string inputs, and collapsible nested VM instances &mdash; all auto-discovered from
+                the loaded animation.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-3 items-start">
+            <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[#3b82f6] text-white text-xs font-bold flex items-center justify-center">2</span>
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--text-white)] mb-1">State Machine Section</h3>
+              <p className="text-xs text-[var(--text-dim)] leading-relaxed">
+                Boolean, number, and trigger inputs discovered from the active state machine,
+                synchronized with the running runtime.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <h2>Supported Input Types</h2>
       <table>

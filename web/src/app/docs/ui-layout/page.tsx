@@ -8,17 +8,26 @@ export default function UiLayout() {
     <>
       <h1>UI Layout</h1>
 
-      <Image src={asset("/docs/ui-overview.webp")} alt="RAV full application layout with numbered callouts" width={960} height={600} className="rounded-xl border border-[var(--border-dark)] mb-4" />
+      {/* Hero overview — full width with callout legend below */}
+      <Image src={asset("/docs/ui-overview.webp")} alt="RAV full application layout with numbered callouts" width={960} height={600} className="rounded-xl border border-[var(--border-dark)] w-full mb-4" />
 
-      <ol className="text-sm text-[var(--text-dim)] mb-6 list-none pl-0 flex flex-wrap gap-x-6 gap-y-1">
-        <li><strong className="text-[var(--neon)]">1</strong> Top toolbar &mdash; playback, renderer, fit, alignment</li>
-        <li><strong className="text-[var(--neon)]">2</strong> Script editor with live-source indicator</li>
-        <li><strong className="text-[var(--neon)]">3</strong> Animation canvas (drop zone)</li>
-        <li><strong className="text-[var(--neon)]">4</strong> Event / JS console</li>
-        <li><strong className="text-[var(--neon)]">5</strong> Properties panel (VM controls, artboard switcher)</li>
-      </ol>
-
-      <p>RAV uses a three-panel layout optimized for animation inspection:</p>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+        {[
+          { n: 1, label: "Toolbar", desc: "Playback, renderer, fit, alignment" },
+          { n: 2, label: "Script Editor", desc: "CodeMirror with live-source indicator" },
+          { n: 3, label: "Canvas", desc: "Animation viewport and drop zone" },
+          { n: 4, label: "Console", desc: "Event log or JavaScript REPL" },
+          { n: 5, label: "Properties", desc: "VM controls, artboard switcher" },
+        ].map((item) => (
+          <div key={item.n} className="flex items-start gap-2 p-2 rounded-lg bg-[var(--bg-zinc)] border border-[var(--border-dark)]">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3b82f6] text-white text-[10px] font-bold flex items-center justify-center">{item.n}</span>
+            <div>
+              <span className="text-xs font-semibold text-[var(--text-white)] block">{item.label}</span>
+              <span className="text-[10px] text-[var(--text-muted)]">{item.desc}</span>
+            </div>
+          </div>
+        ))}
+      </div>
 
       <h2>Top Toolbar</h2>
       <p>The toolbar is split into three clusters:</p>
@@ -28,34 +37,38 @@ export default function UiLayout() {
         <li><strong>Right</strong> &mdash; <strong>EXPORT</strong>, Settings gear, and MCP Setup (cable icon)</li>
       </ul>
 
-      <h2>Left Panel &mdash; Script Editor</h2>
-      <p>
-        An optional panel with a CodeMirror 6 editor for writing JavaScript configuration
-        objects. The <strong>EDITOR</strong> title block doubles as the live-source indicator:
-        neutral outline means internal wiring is active, green with a pulsing dot means the
-        applied editor config is driving the runtime.
-      </p>
+      <h2>Script Editor</h2>
 
-      <Image src={asset("/docs/editor-live-states.webp")} alt="Editor header in internal (1) and editor-active (2) states" width={400} height={60} className="rounded-lg border border-[var(--border-dark)] my-4" />
+      {/* Editorial: editor states image left, explanation right */}
+      <div className="flex flex-col md:flex-row gap-6 my-6">
+        <div className="md:w-2/5 flex-shrink-0">
+          <Image src={asset("/docs/editor-live-states.webp")} alt="Editor header in internal and editor-active states" width={400} height={60} className="rounded-lg border border-[var(--border-dark)] w-full" />
+        </div>
+        <div className="md:w-3/5 flex flex-col justify-center gap-3">
+          <div className="flex gap-2 items-start">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3b82f6] text-white text-[10px] font-bold flex items-center justify-center">1</span>
+            <p className="text-sm text-[var(--text-dim)]"><strong className="text-[var(--text-white)]">Internal mode</strong> &mdash; neutral outline, RAV&apos;s built-in wiring is active</p>
+          </div>
+          <div className="flex gap-2 items-start">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3b82f6] text-white text-[10px] font-bold flex items-center justify-center">2</span>
+            <p className="text-sm text-[var(--text-dim)]"><strong className="text-[var(--text-white)]">Editor mode</strong> &mdash; green pulsing dot, applied editor config is driving the runtime</p>
+          </div>
+        </div>
+      </div>
 
-      <ol className="text-sm text-[var(--text-dim)] mb-4 list-none pl-0 flex gap-x-6">
-        <li><strong className="text-[var(--neon)]">1</strong> Internal mode &mdash; neutral outline, RAV wiring active</li>
-        <li><strong className="text-[var(--neon)]">2</strong> Editor mode &mdash; green pulsing dot, applied config is live</li>
-      </ol>
-
-      <h2>Center Panel &mdash; Canvas</h2>
+      <h2>Canvas</h2>
       <p>
         The primary animation viewport. Renders the loaded Rive animation with the selected
         renderer (Canvas or WebGL2). Fit and alignment are controlled from the main toolbar.
       </p>
 
-      <h2>Right Panel &mdash; Properties</h2>
+      <h2>Properties Panel</h2>
       <p>
         Contains the Artboard/Animation switcher, ViewModel controls, and state machine inputs.
         Resizable by dragging the divider, collapsible entirely.
       </p>
 
-      <h2>Bottom Panel &mdash; Console</h2>
+      <h2>Console</h2>
       <p>
         Collapsible panel with two modes: Event Console and JavaScript Console. Both share
         newest-first ordering, timestamps, follow mode, and outlined action buttons (FOLLOW,
