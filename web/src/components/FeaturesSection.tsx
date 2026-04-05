@@ -1,76 +1,63 @@
 import {
   Gamepad2,
   Terminal,
-  AppWindow,
-  Eye,
   FileCode,
-  RefreshCw,
   Code2,
   MonitorCog,
-  Search,
-  MousePointerClick,
   RotateCcw,
   Cable,
   Layers,
   Download,
-  ShieldCheck,
+  Maximize,
+  MousePointerClick,
+  Search,
 } from "lucide-react";
 
 const features = [
   {
     icon: Gamepad2,
     title: "ViewModel Controls",
-    description: "Auto-discovered booleans, numbers, strings, triggers, enums, colors, and nested hierarchies with live runtime sync.",
-  },
-  {
-    icon: Terminal,
-    title: "Unified Consoles",
-    description: "Event Console and JavaScript Console share timestamps, newest-first transcripts, FOLLOW behavior, consistent row chrome, and outlined copy/clear actions.",
-  },
-  {
-    icon: FileCode,
-    title: "Export + Snippets",
-    description: "One Export flow for standalone HTML plus canonical CDN/local instantiation snippets with control-selection, Copy Code, live-state serialization, fixed canvas sizing carry-through, and shared runtime layout mapping.",
-  },
-  {
-    icon: Eye,
-    title: "Transparency Overlay",
-    description: "Transparent window mode with cursor-synced click-through for compositing over other apps.",
-  },
-  {
-    icon: Code2,
-    title: "Script Editor",
-    description: "CodeMirror 6 editor with internal-vs-editor live indication, yellow APPLY action, and runtime re-instantiation without throwing away the active view.",
-  },
-  {
-    icon: Search,
-    title: "VM Explorer",
-    description: "Inject the VM Explorer helper snippet and use vmExplore(), vmGet(), vmSet(), vmTree(), and vmPaths() for runtime debugging.",
-  },
-  {
-    icon: AppWindow,
-    title: "Desktop Native",
-    description: "Tauri v2 desktop app with .riv association, open-with forwarding, drag/drop loading, custom window chrome, single-instance file handoff, and platform-native rounded-window treatment where supported.",
-  },
-  {
-    icon: RotateCcw,
-    title: "State Preservation",
-    description: "Refresh and reload flows preserve current artboard, playback, and bound control values as far as the runtime allows.",
-  },
-  {
-    icon: MonitorCog,
-    title: "Renderer + Runtime",
-    description: "Switch between Canvas and WebGL2 on the fly, choose fit and alignment in the main toolbar, set explicit fixed canvas size with optional aspect lock, and pick Latest, the latest four versions, or Custom semver.",
-  },
-  {
-    icon: Download,
-    title: "Auto Updates",
-    description: "Signed desktop releases can be detected, downloaded, installed, and relaunched directly from the in-app update chip.",
+    description: "Auto-discovered booleans, numbers, strings, triggers, enums, colors, and nested hierarchies with live two-way runtime sync.",
   },
   {
     icon: Layers,
     title: "Artboards + Playback",
-    description: "Switch artboards, animations, and state machines from exact authored names while VM controls repopulate for the active target.",
+    description: "Switch artboards, animations, and state machines from exact authored names. VM controls and instances repopulate for each target.",
+  },
+  {
+    icon: Terminal,
+    title: "Dual Consoles",
+    description: "Event Console and JavaScript REPL share newest-first transcripts, timestamps, follow mode, level filters, and copy/clear actions.",
+  },
+  {
+    icon: FileCode,
+    title: "Export + Snippets",
+    description: "Standalone HTML export and canonical CDN/local instantiation snippets with per-control selection, inline preview, and live-state serialization.",
+  },
+  {
+    icon: Code2,
+    title: "Script Editor",
+    description: "CodeMirror 6 with internal-vs-editor live indication, APPLY action, and runtime re-instantiation that preserves artboard and control state.",
+  },
+  {
+    icon: MonitorCog,
+    title: "Renderer + Runtime",
+    description: "Canvas and WebGL2 on the fly. Fit, alignment, and explicit fixed canvas sizing in the toolbar. Latest, pinned, or custom runtime semver.",
+  },
+  {
+    icon: Maximize,
+    title: "Canvas Sizing",
+    description: "Pin to explicit pixel dimensions with aspect-ratio locking, or let the canvas auto-fill. Fixed sizes carry through to exports and snippets.",
+  },
+  {
+    icon: Cable,
+    title: "MCP Integration",
+    description: "Bundled native sidecar with 32 tools. One-click installs for Claude Code, Claude Desktop, and Codex. Script Access gate. Editable port.",
+  },
+  {
+    icon: RotateCcw,
+    title: "State Preservation",
+    description: "Refresh and reload flows preserve artboard, playback target, and bound control values. Reset restores captured state after re-instantiation.",
   },
   {
     icon: MousePointerClick,
@@ -78,14 +65,14 @@ const features = [
     description: "Auto-discovers boolean, number, and trigger inputs for state machines and keeps them synchronized with the running runtime.",
   },
   {
-    icon: ShieldCheck,
-    title: "MCP + Script Access",
-    description: "Bundled native rav-mcp sidecar, one-click install with add/reinstall/remove states for supported clients, editable port, canvas sizing control, and a Script Access gate for JS tools.",
+    icon: Download,
+    title: "Auto Updates",
+    description: "Signed releases detected, downloaded, installed, and relaunched from the in-app update chip. Merged feed across all platforms.",
   },
   {
-    icon: Cable,
-    title: "MCP Integration",
-    description: "Control RAV from agents through 32 MCP tools: open files, inspect state, set explicit canvas size, drive playback, edit scripts, generate snippets, and export demos with the live console behavior preserved.",
+    icon: Search,
+    title: "VM Explorer",
+    description: "Inject the helper snippet for vmExplore, vmGet, vmSet, vmTree, and vmPaths runtime debugging via the JavaScript console.",
   },
 ];
 
@@ -108,16 +95,18 @@ export default function FeaturesSection() {
         {features.map((feature, index) => (
           <div
             key={feature.title}
-            className="group flex flex-col gap-3 p-4 rounded-xl bg-[var(--bg-zinc)] border border-[var(--border-dark)] hover:border-[var(--neon-glow)] hover:bg-[var(--bg-elevated)] transition-all duration-300 opacity-0 animate-fade-in-up"
-            style={{ animationDelay: `${index * 60}ms` }}
+            className="group flex flex-col gap-2 p-4 rounded-xl bg-[var(--bg-zinc)] border border-[var(--border-dark)] hover:border-[var(--neon-glow)] hover:bg-[var(--bg-elevated)] transition-all duration-300 opacity-0 animate-fade-in-up"
+            style={{ animationDelay: `${index * 50}ms` }}
           >
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--neon-dim)] group-hover:bg-[var(--neon-glow)] transition-colors duration-300">
-              <feature.icon className="w-4 h-4 text-[var(--neon)]" />
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--neon-dim)] group-hover:bg-[var(--neon-glow)] transition-colors duration-300 flex-shrink-0">
+                <feature.icon className="w-4 h-4 text-[var(--neon)]" />
+              </div>
+              <h3 className="text-sm font-semibold text-[var(--text-white)] leading-tight">
+                {feature.title}
+              </h3>
             </div>
-            <h3 className="text-sm font-semibold text-[var(--text-white)] leading-tight">
-              {feature.title}
-            </h3>
-            <p className="text-xs text-[var(--text-dim)] leading-relaxed">
+            <p className="text-xs text-[var(--text-dim)] leading-relaxed max-h-0 overflow-hidden group-hover:max-h-24 transition-[max-height] duration-300 ease-in-out">
               {feature.description}
             </p>
           </div>
