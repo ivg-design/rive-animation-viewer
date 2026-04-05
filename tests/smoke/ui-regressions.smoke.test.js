@@ -105,11 +105,13 @@ describe('ui regression smoke', () => {
 
     it('keeps the Tauri window capability wired for drag, minimize, maximize, and close', () => {
         const tauriConfig = JSON.parse(readFileSync(path.join(repoRoot, 'src-tauri', 'tauri.conf.json'), 'utf8'));
+        const tauriWindowsConfig = JSON.parse(readFileSync(path.join(repoRoot, 'src-tauri', 'tauri.windows.conf.json'), 'utf8'));
         const cargoToml = readFileSync(path.join(repoRoot, 'src-tauri', 'Cargo.toml'), 'utf8');
         const mainRs = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'main.rs'), 'utf8');
         const windowControls = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'app', 'window', 'controls.rs'), 'utf8');
         const capability = JSON.parse(readFileSync(path.join(repoRoot, 'src-tauri', 'capabilities', 'default.json'), 'utf8'));
         const mainWindow = tauriConfig.app.windows[0];
+        const windowsMainWindow = tauriWindowsConfig.app.windows[0];
 
         expect(tauriConfig.app.security.capabilities).toContain('main-capability');
         expect(tauriConfig.app.macOSPrivateApi).toBe(true);
@@ -118,7 +120,12 @@ describe('ui regression smoke', () => {
         expect(mainWindow.titleBarStyle).toBe('Overlay');
         expect(mainWindow.trafficLightPosition).toEqual({ x: -120, y: -120 });
         expect(mainWindow.hiddenTitle).toBe(true);
-        expect(mainRs).toContain('let _ = _window.set_decorations(false);');
+        expect(windowsMainWindow.decorations).toBe(false);
+        expect(windowsMainWindow.transparent).toBe(false);
+        expect(windowsMainWindow.titleBarStyle).toBe('Visible');
+        expect(windowsMainWindow.trafficLightPosition).toBeNull();
+        expect(windowsMainWindow.hiddenTitle).toBe(false);
+        expect(mainRs).not.toContain('set_decorations(false)');
         expect(mainRs).toContain('apply_windows_corner_preference(&_window)');
         expect(windowControls).toContain('DwmSetWindowAttribute');
         expect(windowControls).toContain('DWMWA_WINDOW_CORNER_PREFERENCE');
@@ -156,6 +163,8 @@ describe('ui regression smoke', () => {
         expect(eventLog).toContain('document.documentElement.requestFullscreen');
         expect(vmAccessors).toContain('typeof input.fire === \'function\' && !(\'value\' in input)');
         expect(riveLoader).toContain('vmHierarchy = filterHierarchyNode(JSON.parse(JSON.stringify(VM_HIERARCHY)));');
+        expect(riveLoader).toContain('fit: resolveRiveLayoutFit(rive, currentLayoutFit)');
+        expect(riveLoader).toContain('alignment: resolveRiveLayoutAlignment(rive, currentLayoutAlignment)');
         expect(bootstrap).toContain('scheduleCanvasViewportAlignment');
         expect(bootstrap).toContain('container.scrollLeft = offsets.left;');
         expect(bootstrap).toContain('container.scrollTop = offsets.top;');

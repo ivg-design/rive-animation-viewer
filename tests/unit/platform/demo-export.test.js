@@ -152,6 +152,8 @@ describe('platform/demo-export', () => {
         }));
         expect(instantiationResult.code).toContain('<script src="https://unpkg.com/@rive-app/webgl2@2.0.0"></script>');
         expect(instantiationResult.code).toContain('canvas.width = 1440;');
+        expect(instantiationResult.code).toContain('fit: rive.Fit.Contain');
+        expect(instantiationResult.code).toContain('alignment: rive.Alignment.Center');
         expect(invoke).toHaveBeenCalledTimes(2);
     });
 

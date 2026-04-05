@@ -101,8 +101,8 @@
                 // Set layout
                 if (rive.Layout) {
                     riveConfig.layout = new rive.Layout({
-                        fit: currentLayoutFit,
-                        alignment: currentLayoutAlignment,
+                        fit: resolveRiveLayoutFit(rive, currentLayoutFit),
+                        alignment: resolveRiveLayoutAlignment(rive, currentLayoutAlignment),
                     });
                 }
                 if (isCanvasEffectivelyTransparent() && CONFIG.runtimeName !== 'canvas' && typeof riveConfig.useOffscreenRenderer === 'undefined') {
