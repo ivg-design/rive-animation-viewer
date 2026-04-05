@@ -338,6 +338,10 @@
     overflow: hidden;
 }
 
+#canvas-container.canvas-container-fixed-size {
+    overflow: auto;
+}
+
 body.transparency-mode .canvas-drop-target,
 body.transparency-mode #canvas-container {
     background: transparent !important;
@@ -354,6 +358,14 @@ body.transparency-mode .event-log-list {
     width: 100%;
     height: 100%;
     display: block;
+}
+
+#rive-canvas.rive-canvas-fixed-size {
+    width: auto;
+    height: auto;
+    flex: none;
+    max-width: none;
+    max-height: none;
 }
 
 .canvas-drop-target.drag-active {

@@ -83,6 +83,20 @@ function buildConfigPropertyLines(descriptor, runtimeNamespace, useUserConfig = 
     return lines;
 }
 
+function buildCanvasSizingLines(descriptor) {
+    const sizing = descriptor?.canvasSizing;
+    if (!sizing || sizing.mode !== 'fixed') {
+        return [];
+    }
+
+    return [
+        `  canvas.width = ${sizing.width};`,
+        `  canvas.height = ${sizing.height};`,
+        `  canvas.style.width = "${sizing.width}px";`,
+        `  canvas.style.height = "${sizing.height}px";`,
+    ];
+}
+
 function buildRuntimeBlock(descriptor, { packageSource = 'local' } = {}) {
     if (packageSource === 'cdn') {
         return [
@@ -116,6 +130,7 @@ export function generateWebInstantiationCode(descriptor, {
         '<canvas id="rive-canvas"></canvas>',
         ...(effectivePackageSource === 'local' ? ['<script type="module">'] : []),
         ...runtimeBlock,
+        ...buildCanvasSizingLines(descriptor),
         ...buildControlHelperLines(normalizedSnapshot, { selectedControlKeys, snippetMode }),
     ];
 
@@ -125,9 +140,10 @@ export function generateWebInstantiationCode(descriptor, {
     }
 
     if (descriptor.sourceMode === 'editor' && descriptor.editorCode) {
-        lines.push('  const userConfig = (');
+        lines.push('  const rawUserConfig = (');
         lines.push(indentBlock(descriptor.editorCode, '    '));
         lines.push('  );');
+        lines.push('  const { canvasSize: _ignoredCanvasSize, ...userConfig } = rawUserConfig || {};');
     }
 
     lines.push('  let riveInst;');
@@ -213,6 +229,9 @@ export function buildWebInstantiationResult(descriptor, {
             effectiveSnippetMode === 'scaffold'
                 ? 'Scaffold mode includes every discovered bound control and comments out anything that is not explicitly selected.'
                 : 'Compact mode includes only the selected live controls.',
+            descriptor.canvasSizing?.mode === 'fixed'
+                ? `The exported canvas is pinned to ${descriptor.canvasSizing.width} × ${descriptor.canvasSizing.height}px.`
+                : 'The exported canvas follows the size of its host element.',
             hasControlBindings
                 ? 'The snippet organizes the selected controls into readable VM/state-machine override blocks, including enum option comments and explicit trigger helper sections.'
                 : 'No bound ViewModel or writable state-machine controls were detected, so the snippet stays minimal and autoplay-focused.',

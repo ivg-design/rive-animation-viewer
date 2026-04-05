@@ -1,7 +1,8 @@
 use tauri_plugin_updater::UpdaterExt;
 
 use crate::app::constants::APP_UPDATE_TIMEOUT_SECS;
-use crate::app::state::{AppUpdateInstallResult, AppUpdateStatus, PendingAppUpdate};
+use crate::app::mcp::bridge::kill_spawned_mcp_bridge;
+use crate::app::state::{AppUpdateInstallResult, AppUpdateStatus, McpBridgeManager, PendingAppUpdate};
 
 #[tauri::command]
 pub async fn check_for_app_update(
@@ -37,6 +38,8 @@ pub async fn check_for_app_update(
 
 #[tauri::command]
 pub async fn install_app_update(
+    app: tauri::AppHandle,
+    bridge_manager: tauri::State<'_, McpBridgeManager>,
     pending_update: tauri::State<'_, PendingAppUpdate>,
 ) -> Result<AppUpdateInstallResult, String> {
     let update = {
@@ -52,6 +55,8 @@ pub async fn install_app_update(
     };
 
     let version = update.version.clone();
+
+    kill_spawned_mcp_bridge(&app, &bridge_manager);
 
     update
         .download_and_install(|_, _| {}, || {})

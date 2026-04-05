@@ -121,6 +121,17 @@ pub fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json
         .canvas_color
         .clone()
         .unwrap_or_else(|| "#0d1117".into()),
+      "canvasSizing": payload
+        .canvas_sizing
+        .as_deref()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+        .unwrap_or_else(|| json!({
+            "mode": "auto",
+            "width": 1280,
+            "height": 720,
+            "lockAspectRatio": false,
+            "aspectRatio": 1280.0 / 720.0
+        })),
       "canvasTransparent": payload.canvas_transparent,
       "layoutState": layout_state
     });
@@ -187,6 +198,7 @@ mod tests {
             artboard_name: Some("Main".into()),
             autoplay: true,
             canvas_color: Some("#0d1117".into()),
+            canvas_sizing: None,
             canvas_transparent: false,
             control_snapshot: Some(r#"[{"descriptor":{"path":"root/value","kind":"number"},"kind":"number","value":42}]"#.into()),
             default_instantiation_package_source: "cdn".into(),
@@ -222,6 +234,7 @@ mod tests {
             artboard_name: Some("Main".into()),
             autoplay: true,
             canvas_color: Some("#0d1117".into()),
+            canvas_sizing: None,
             canvas_transparent: false,
             control_snapshot: None,
             default_instantiation_package_source: "cdn".into(),

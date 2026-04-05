@@ -78,6 +78,32 @@ export function createEditorConsoleCommands({
             return { ok: true, color };
         },
 
+        async rav_set_canvas_size({
+            mode = 'fixed',
+            width,
+            height,
+            lockAspectRatio,
+        } = {}) {
+            if (typeof windowRef._mcpSetCanvasSizing !== 'function') {
+                throw new Error('Canvas sizing controls not available');
+            }
+
+            const normalizedMode = mode === 'auto' ? 'auto' : 'fixed';
+            const nextState = await windowRef._mcpSetCanvasSizing({
+                mode: normalizedMode,
+                width,
+                height,
+                lockAspectRatio,
+            }, normalizedMode === 'fixed'
+                ? 'Canvas size updated from MCP'
+                : 'Canvas sizing set to auto from MCP');
+
+            return {
+                ok: true,
+                canvasSize: nextState,
+            };
+        },
+
         async rav_eval({ expression }) {
             assertMcpScriptAccess('rav_eval', windowRef);
             if (!expression) throw new Error('expression is required');

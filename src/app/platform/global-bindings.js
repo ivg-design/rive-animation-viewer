@@ -25,6 +25,7 @@ export function createGlobalBindingsController({
         ensureEditorReady = async () => true,
         exportDemoToPath = async () => {},
         getArtboardStateSnapshot = () => ({}),
+        getCurrentCanvasSizing = () => null,
         getCurrentFileBuffer = () => null,
         getCurrentFileMimeType = () => 'application/octet-stream',
         getCurrentFileName = () => null,
@@ -55,6 +56,8 @@ export function createGlobalBindingsController({
         reset = () => {},
         resetToDefaultArtboard = () => {},
         setCurrentFile = () => {},
+        setCurrentCanvasSizing = () => {},
+        setCanvasSizingState = (canvasSizing) => canvasSizing,
         setEditorCode = () => {},
         setLiveConfigSource = async () => ({ sourceMode: 'internal' }),
         setSidebarVisibility = () => ({ left: false, right: true }),
@@ -119,6 +122,12 @@ export function createGlobalBindingsController({
         windowRef._mcpSwitchArtboard = switchArtboard;
         windowRef._mcpResetArtboard = resetToDefaultArtboard;
         windowRef._mcpGetArtboardState = () => getArtboardStateSnapshot();
+        windowRef._mcpGetCanvasSizing = () => getCurrentCanvasSizing();
+        windowRef._mcpSetCanvasSizing = (canvasSizing, message) => (
+            typeof setCanvasSizingState === 'function'
+                ? setCanvasSizingState(canvasSizing, message)
+                : (setCurrentCanvasSizing(canvasSizing), canvasSizing)
+        );
         windowRef._mcpGetLiveConfigState = () => getLiveConfigState();
         windowRef._mcpGetSidebarVisibility = () => getSidebarVisibility();
         windowRef._mcpGetVmExplorerSnippetState = () => getVmExplorerSnippetState();
@@ -139,12 +148,12 @@ export function createGlobalBindingsController({
             }
 
             if ((bridgeState === 'waiting' || bridgeState === 'connected' || bridgeState === 'idle' || bridgeState === 'active') && typeof bridge?.disable === 'function') {
-                bridge.disable();
+                void bridge.disable();
                 return;
             }
 
             if (typeof bridge?.toggle === 'function') {
-                bridge.toggle();
+                void bridge.toggle();
             }
         });
 

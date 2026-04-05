@@ -19,6 +19,13 @@
         const LAYOUT_FITS = ['cover', 'contain', 'fill', 'fitWidth', 'fitHeight', 'scaleDown', 'none', 'layout'];
         const LAYOUT_ALIGNMENTS = ['topLeft', 'topCenter', 'topRight', 'centerLeft', 'center', 'centerRight', 'bottomLeft', 'bottomCenter', 'bottomRight'];
         const VM_CONTROL_KINDS = new Set(['number', 'boolean', 'string', 'enum', 'color', 'trigger']);
+        const DEFAULT_CANVAS_SIZING = {
+            mode: 'auto',
+            width: 1280,
+            height: 720,
+            lockAspectRatio: false,
+            aspectRatio: 1280 / 720,
+        };
         const EVENT_LOG_LIMIT = 500;
         const VM_CONTROL_SYNC_INTERVAL_MS = 120;
         const VM_DEPTH_COLORS = ['#C4F82A', '#38BDF8', '#A78BFA', '#FB923C', '#F472B6', '#34D399'];
@@ -33,6 +40,7 @@
         let currentInstantiationPackageSource = CONFIG.defaultInstantiationPackageSource === 'local' ? 'local' : 'cdn';
         let currentLayoutAlignment = CONFIG.layoutAlignment || 'center';
         let currentLayoutFit = CONFIG.layoutFit || 'contain';
+        let currentCanvasSizing = normalizeCanvasSizingState(CONFIG.canvasSizing, DEFAULT_CANVAS_SIZING);
         let lastSolidCanvasColor = normalizeCanvasColor(CONFIG.canvasColor) || DEFAULT_CANVAS_COLOR;
         let currentCanvasColor = CONFIG.canvasTransparent ? TRANSPARENT_CANVAS_COLOR : lastSolidCanvasColor;
         let isTransparencyModeEnabled = false;
@@ -73,6 +81,31 @@
                 path: source.path || null,
                 source: source.source || 'view-model',
                 stateMachineName: source.stateMachineName || null,
+            };
+        }
+
+        function clampCanvasDimension(value, fallback) {
+            var numeric = Number.parseInt(String(value == null ? '' : value).trim(), 10);
+            if (!Number.isFinite(numeric)) {
+                return fallback;
+            }
+            return Math.max(1, Math.min(8192, Math.round(numeric)));
+        }
+
+        function normalizeCanvasSizingState(raw, fallback) {
+            var basis = fallback && typeof fallback === 'object' ? fallback : DEFAULT_CANVAS_SIZING;
+            var width = clampCanvasDimension(raw && raw.width, basis.width);
+            var height = clampCanvasDimension(raw && raw.height, basis.height);
+            var aspectRatio = Number(raw && raw.aspectRatio);
+            if (!Number.isFinite(aspectRatio) || aspectRatio <= 0) {
+                aspectRatio = width / height;
+            }
+            return {
+                mode: raw && raw.mode === 'fixed' ? 'fixed' : 'auto',
+                width: width,
+                height: height,
+                lockAspectRatio: Boolean(raw && raw.lockAspectRatio),
+                aspectRatio: aspectRatio,
             };
         }
 

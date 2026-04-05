@@ -1,5 +1,7 @@
 import { LAYOUT_ALIGNMENTS, LAYOUT_FITS } from '../core/constants.js';
+import { createDemoButtonController } from './layout/demo-button.js';
 import { setupCenterPanelResizer, setupShellPanelResizers } from './layout/resizers.js';
+import { createCanvasSizingControlsController } from './settings/canvas-sizing-controls.js';
 import { getRuntimeDisplayName } from './status/status-controller.js';
 
 export function clamp(value, min, max) {
@@ -41,6 +43,7 @@ export function createShellController({
         logEvent = () => {},
         reloadCurrentAnimation = async () => {},
         refreshInfoStrip = () => {},
+        setCurrentCanvasSizing = () => {},
         setCurrentLayoutAlignment = () => {},
         setCurrentLayoutFit = () => {},
         setCurrentRuntime = () => {},
@@ -50,7 +53,6 @@ export function createShellController({
         updateVersionInfo = () => {},
     } = callbacks;
 
-    let demoButtonIntervalId = null;
     let isLeftPanelVisible = false;
     let isRightPanelVisible = true;
     let visibilityResizeTimeoutId = null;
@@ -116,6 +118,33 @@ export function createShellController({
         }
         await loadRiveAnimation(currentFileUrl, currentFileName);
     }
+    const canvasSizingControlsController = createCanvasSizingControlsController({
+        callbacks: {
+            getCurrentCanvasSizing: callbacks.getCurrentCanvasSizing,
+            handleResize,
+            refreshInfoStrip,
+            setCurrentCanvasSizing,
+            updateInfo,
+        },
+        documentRef,
+        elements,
+    });
+    const {
+        applyCanvasSizing: applyCanvasSizingState,
+        setup: setupCanvasSizingControls,
+        syncCanvasSizingControls,
+    } = canvasSizingControlsController;
+    const demoButtonController = createDemoButtonController({
+        callbacks: {
+            getTauriInvoker,
+            syncTransparencyControls,
+        },
+        clearIntervalFn,
+        documentRef,
+        elements,
+        setIntervalFn,
+        windowRef,
+    });
 
     function setupSettingsPopover() {
         const button = elements.settingsButton;
@@ -124,6 +153,7 @@ export function createShellController({
 
         button.addEventListener('click', (event) => {
             event.stopPropagation();
+            syncCanvasSizingControls();
             popover.hidden = !popover.hidden;
         });
 
@@ -217,51 +247,7 @@ export function createShellController({
     }
 
     function setupDemoButton() {
-        const button = elements.demoBundleButton || documentRef.getElementById('demo-bundle-btn');
-        if (!button) return;
-
-        const setButtonState = (enabled) => {
-            button.disabled = !enabled;
-            button.classList.toggle('demo-button--disabled', !enabled);
-            button.title = enabled
-                ? 'Package the current animation into a demo executable'
-                : 'Available in the desktop app';
-        };
-
-        const refreshState = () => {
-            setButtonState(Boolean(getTauriInvoker()));
-            syncTransparencyControls();
-        };
-
-        refreshState();
-        if (demoButtonIntervalId) {
-            clearIntervalFn(demoButtonIntervalId);
-            demoButtonIntervalId = null;
-        }
-
-        let attempts = 0;
-        const maxAttempts = 20;
-        demoButtonIntervalId = setIntervalFn(() => {
-            refreshState();
-            if (getTauriInvoker()) {
-                clearIntervalFn(demoButtonIntervalId);
-                demoButtonIntervalId = null;
-                return;
-            }
-            attempts += 1;
-            if (attempts >= maxAttempts) {
-                clearIntervalFn(demoButtonIntervalId);
-                demoButtonIntervalId = null;
-            }
-        }, 300);
-
-        windowRef.addEventListener(
-            'tauri://ready',
-            () => {
-                refreshState();
-            },
-            { once: true },
-        );
+        demoButtonController.setup();
     }
 
     function setupPanelResizers() {
@@ -357,10 +343,7 @@ export function createShellController({
     }
 
     function dispose() {
-        if (demoButtonIntervalId) {
-            clearIntervalFn(demoButtonIntervalId);
-            demoButtonIntervalId = null;
-        }
+        demoButtonController.dispose();
         if (visibilityResizeTimeoutId) {
             clearTimeoutFn(visibilityResizeTimeoutId);
             visibilityResizeTimeoutId = null;
@@ -371,6 +354,7 @@ export function createShellController({
         setupRuntimeSelect();
         setupLayoutSelect();
         setupAlignmentSelect();
+        setupCanvasSizingControls();
         setupDemoButton();
         setupPanelResizers();
         setupCenterResizer();
@@ -380,12 +364,14 @@ export function createShellController({
 
     return {
         applyPanelVisibilityState,
+        applyCanvasSizingState,
         captureLayoutStateForExport,
         dispose,
         getSidebarVisibility,
         setSidebarVisibility,
         setup,
         setupAlignmentSelect,
+        setupCanvasSizingControls,
         setupCenterResizer,
         setupDemoButton,
         setupLayoutSelect,

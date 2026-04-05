@@ -20,6 +20,12 @@ describe('platform/demo-export', () => {
                 currentPlaybackName: 'idle',
                 currentPlaybackType: 'animation',
             },
+            currentCanvasSizing: {
+                mode: 'fixed',
+                width: 1600,
+                height: 900,
+                lockAspectRatio: true,
+            },
             currentFileBuffer: buffer,
             currentFileName: 'demo.riv',
             currentLayoutAlignment: 'topLeft',
@@ -40,6 +46,7 @@ describe('platform/demo-export', () => {
             animations: ['idle'],
             autoplay: false,
             canvas_color: '#112233',
+            canvas_sizing: '{"mode":"fixed","width":1600,"height":900,"lockAspectRatio":true}',
             control_snapshot: null,
             default_instantiation_package_source: 'cdn',
             file_name: 'demo.riv',
@@ -104,6 +111,12 @@ describe('platform/demo-export', () => {
             captureVmControlSnapshot: () => fullSnapshot,
             getCurrentFileBuffer: () => buffer,
             getCurrentFileName: () => 'demo.riv',
+            getCurrentCanvasSizing: () => ({
+                mode: 'fixed',
+                width: 1440,
+                height: 810,
+                lockAspectRatio: true,
+            }),
             getCurrentLayoutAlignment: () => 'center',
             getCurrentLayoutFit: () => 'contain',
             getCurrentRuntime: () => 'webgl2',
@@ -128,17 +141,17 @@ describe('platform/demo-export', () => {
 
         await expect(controller.createDemoBundle()).resolves.toBe('/tmp/demo-app');
         await expect(controller.exportDemoToPath('/tmp/out')).resolves.toBe('/tmp/out');
-        await expect(controller.generateWebInstantiationCode({ packageSource: 'cdn' })).resolves.toEqual(
-            expect.objectContaining({
-                code: expect.stringContaining('<script src="https://unpkg.com/@rive-app/webgl2@2.0.0"></script>'),
-                helperApi: expect.objectContaining({
-                    global: 'window.ravRive',
-                }),
-                packageSource: 'cdn',
-                runtimeName: 'webgl2',
-                sourceMode: 'internal',
+        const instantiationResult = await controller.generateWebInstantiationCode({ packageSource: 'cdn' });
+        expect(instantiationResult).toEqual(expect.objectContaining({
+            helperApi: expect.objectContaining({
+                global: 'window.ravRive',
             }),
-        );
+            packageSource: 'cdn',
+            runtimeName: 'webgl2',
+            sourceMode: 'internal',
+        }));
+        expect(instantiationResult.code).toContain('<script src="https://unpkg.com/@rive-app/webgl2@2.0.0"></script>');
+        expect(instantiationResult.code).toContain('canvas.width = 1440;');
         expect(invoke).toHaveBeenCalledTimes(2);
     });
 

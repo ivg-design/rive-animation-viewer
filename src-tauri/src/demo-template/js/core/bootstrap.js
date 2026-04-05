@@ -124,11 +124,17 @@
             const canvas = els.canvas;
             if (!container || !canvas) return;
             const dpr = window.devicePixelRatio || 1;
+            const sizing = normalizeCanvasSizingState(currentCanvasSizing, DEFAULT_CANVAS_SIZING);
+            const isFixed = sizing.mode === 'fixed';
             const { clientWidth, clientHeight } = container;
-            canvas.width = clientWidth * dpr;
-            canvas.height = clientHeight * dpr;
-            canvas.style.width = clientWidth + 'px';
-            canvas.style.height = clientHeight + 'px';
+            const pixelWidth = isFixed ? sizing.width : clientWidth;
+            const pixelHeight = isFixed ? sizing.height : clientHeight;
+            container.classList.toggle('canvas-container-fixed-size', isFixed);
+            canvas.classList.toggle('rive-canvas-fixed-size', isFixed);
+            canvas.width = pixelWidth * dpr;
+            canvas.height = pixelHeight * dpr;
+            canvas.style.width = pixelWidth + 'px';
+            canvas.style.height = pixelHeight + 'px';
         }
 
         function handleResize() {

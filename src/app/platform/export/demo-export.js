@@ -29,6 +29,7 @@ export function buildDemoBundlePayload({
     controlSnapshot = null,
     currentFileBuffer,
     currentLayoutAlignment = 'center',
+    currentCanvasSizing = null,
     currentFileName,
     currentLayoutFit = 'contain',
     defaultInstantiationPackageSource = 'cdn',
@@ -57,6 +58,7 @@ export function buildDemoBundlePayload({
         animations: artboardState.currentPlaybackType === 'animation' && artboardState.currentPlaybackName ? [artboardState.currentPlaybackName] : [],
         artboard_name: artboardState.currentArtboard,
         canvas_color: transparencyState.canvasTransparent ? null : transparencyState.canvasColor,
+        canvas_sizing: currentCanvasSizing ? JSON.stringify(currentCanvasSizing) : null,
         canvas_transparent: transparencyState.canvasTransparent,
         control_snapshot: controlSnapshot ? JSON.stringify(controlSnapshot) : null,
         default_instantiation_package_source: defaultInstantiationPackageSource,
@@ -74,6 +76,7 @@ export function createDemoExportController({
     captureVmControlSnapshot = () => [],
     getCurrentFileBuffer = () => null,
     getCurrentFileName = () => null,
+    getCurrentCanvasSizing = () => null,
     getCurrentLayoutAlignment = () => 'center',
     getCurrentLayoutFit = () => 'contain',
     getCurrentRuntime = () => 'webgl2',
@@ -144,6 +147,7 @@ export function createDemoExportController({
         const descriptor = buildEffectiveInstantiationDescriptor({
             artboardState: getArtboardStateSnapshot(),
             currentFileName,
+            currentCanvasSizing: getCurrentCanvasSizing(),
             currentLayoutAlignment: getCurrentLayoutAlignment(),
             currentLayoutFit: getCurrentLayoutFit(),
             detectedStateMachines: Array.isArray(getRiveInstance()?.stateMachineNames)
@@ -189,6 +193,7 @@ export function createDemoExportController({
         const descriptor = buildEffectiveInstantiationDescriptor({
             artboardState: getArtboardStateSnapshot(),
             currentFileName,
+            currentCanvasSizing: getCurrentCanvasSizing(),
             currentLayoutAlignment: getCurrentLayoutAlignment(),
             currentLayoutFit: getCurrentLayoutFit(),
             detectedStateMachines: Array.isArray(getRiveInstance()?.stateMachineNames)
@@ -224,6 +229,7 @@ export function createDemoExportController({
             controlSnapshot,
             currentFileBuffer,
             currentFileName,
+            currentCanvasSizing: descriptor.canvasSizing,
             currentLayoutAlignment: getCurrentLayoutAlignment(),
             currentLayoutFit: getCurrentLayoutFit(),
             defaultInstantiationPackageSource: 'cdn',

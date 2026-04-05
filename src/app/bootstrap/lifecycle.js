@@ -22,6 +22,7 @@ export function createAppLifecycle({
         fileSessionController,
         getArtboardStateSnapshot,
         getCurrentFileName,
+        getCurrentCanvasSizing,
         getCurrentFileUrl,
         getCurrentLayoutAlignment,
         getCurrentLayoutFit,
@@ -67,6 +68,7 @@ export function createAppLifecycle({
         return buildEffectiveInstantiationDescriptor({
             artboardState: getArtboardStateSnapshot(),
             currentFileName: getCurrentFileName() || 'animation.riv',
+            currentCanvasSizing: getCurrentCanvasSizing(),
             currentLayoutAlignment: getCurrentLayoutAlignment(),
             currentLayoutFit: getCurrentLayoutFit(),
             detectedStateMachines: Array.isArray(getRiveInstance()?.stateMachineNames)

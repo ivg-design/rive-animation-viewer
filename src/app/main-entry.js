@@ -6,6 +6,11 @@ import { createInstanceHooks } from './bootstrap/instance-hooks.js';
 import { startApp } from './bootstrap/startup.js';
 import { createStatusHelpers } from './bootstrap/status-helpers.js';
 import {
+    loadCanvasSizingPreference,
+    normalizeCanvasSizingState,
+    persistCanvasSizingPreference,
+} from './core/canvas-sizing.js';
+import {
     DEFAULT_LAYOUT_ALIGNMENT,
     DEFAULT_LAYOUT_FIT,
     FALLBACK_RUNTIME_VERSION_OPTIONS,
@@ -51,6 +56,7 @@ const runtimeState = {
 };
 
 const appState = {
+    canvasSizing: loadCanvasSizingPreference(),
     currentLayoutAlignment: DEFAULT_LAYOUT_ALIGNMENT,
     currentLayoutFit: DEFAULT_LAYOUT_FIT,
     currentMcpPort: Number(globalThis.window?._mcpBridge?.port) || 9274,
@@ -73,6 +79,7 @@ const getCurrentFilePreferenceId = () => fileSessionController?.getCurrentFilePr
 const getCurrentFileSourcePath = () => fileSessionController?.getCurrentFileSourcePath() ?? '';
 const getCurrentFileSizeBytes = () => fileSessionController?.getCurrentFileSizeBytes() ?? 0;
 const getCurrentFileUrl = () => fileSessionController?.getCurrentFileUrl() ?? null;
+const getCurrentCanvasSizing = () => normalizeCanvasSizingState(appState.canvasSizing);
 const getCurrentLayoutAlignment = () => appState.currentLayoutAlignment;
 const getCurrentLayoutFit = () => appState.currentLayoutFit;
 const getCurrentMcpPort = () => appState.currentMcpPort;
@@ -147,6 +154,7 @@ const controllerStack = createControllerStack({
         getCurrentFileSourcePath,
         getCurrentFileSizeBytes,
         getCurrentFileUrl,
+        getCurrentCanvasSizing,
         getCurrentLayoutAlignment,
         getCurrentLayoutFit,
         getCurrentMcpPort,
@@ -168,6 +176,11 @@ const controllerStack = createControllerStack({
         },
         setCurrentLayoutFit: (nextLayoutFit) => {
             appState.currentLayoutFit = nextLayoutFit;
+        },
+        setCurrentCanvasSizing: (nextCanvasSizing) => {
+            appState.canvasSizing = normalizeCanvasSizingState(nextCanvasSizing, appState.canvasSizing);
+            persistCanvasSizingPreference(appState.canvasSizing);
+            return appState.canvasSizing;
         },
         setCurrentMcpPort,
         setCurrentRuntime: (nextRuntime) => {
@@ -200,6 +213,7 @@ startApp({
         getCurrentFileName,
         getCurrentFileSourcePath,
         getCurrentFileUrl,
+        getCurrentCanvasSizing,
         getCurrentLayoutAlignment,
         getCurrentLayoutFit,
         getCurrentRuntime,

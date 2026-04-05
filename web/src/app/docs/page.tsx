@@ -41,8 +41,8 @@ const topicCards = [
   { icon: Eye, title: "Transparency Mode", desc: "Click-through overlay", href: "#transparency-mode" },
   { icon: FileCode, title: "Standalone Export", desc: "Self-contained HTML", href: "#standalone-export" },
   { icon: AppWindow, title: "Script Console", desc: "REPL, timestamps, and follow mode", href: "#script-console" },
-  { icon: Settings, title: "Configuration", desc: "Editor source modes, renderer, runtime, and layout", href: "#configuration" },
-  { icon: Cable, title: "MCP Integration", desc: "Bundled sidecar, install detection, and Script Access", href: "#mcp-integration" },
+  { icon: Settings, title: "Configuration", desc: "Editor source modes, renderer, runtime, layout, and canvas sizing", href: "#configuration" },
+  { icon: Cable, title: "MCP Integration", desc: "Bundled sidecar, install detection, Script Access, and remote canvas sizing", href: "#mcp-integration" },
   { icon: RefreshCw, title: "Automatic Updates", desc: "Built-in updater flow", href: "#automatic-updates" },
   { icon: Keyboard, title: "Keyboard Shortcuts", desc: "Actual implemented keys", href: "#keyboard-shortcuts" },
   { icon: HelpCircle, title: "Troubleshooting", desc: "Common issues", href: "#troubleshooting" },
@@ -210,11 +210,10 @@ export default function DocsPage() {
           </p>
 
           <p>
-            In <strong>2.1.1</strong>, the desktop shell keeps the streamlined default startup state
-            from 2.1.0 while hardening the surrounding chrome: the right properties panel still opens
-            by default, the editor and console still stay closed until you explicitly open them, and the
-            desktop window/header, runtime strip, MCP activity indicator, and JavaScript console behavior
-            are now aligned with the shipped app.
+            In the current <strong>2.2.x</strong> desktop build, the shell keeps the streamlined startup state
+            from 2.1.x while hardening the surrounding chrome: the right properties panel still opens by default,
+            the editor and console still stay closed until you explicitly open them, and the desktop window/header,
+            runtime strip, MCP activity indicator, and JavaScript console behavior are aligned with the shipped app.
           </p>
 
           <h3>Left Panel &mdash; Animation Canvas</h3>
@@ -520,8 +519,8 @@ export default function DocsPage() {
 
           <h3>Consistent Row Chrome</h3>
           <p>
-            As of <strong>2.1.1</strong>, the JavaScript console uses one consistent visual language for every row and its
-            <strong>FOLLOW</strong> behavior tracks the actual visible Eruda transcript correctly.
+            In the current <strong>2.2.x</strong> build, the JavaScript console uses one consistent visual language
+            for every row and its <strong>FOLLOW</strong> behavior tracks the actual visible Eruda transcript correctly.
             REPL commands, REPL results, warnings, errors, and app-generated log lines all render with the same
             timestamp-and-badge treatment. This keeps the console readable without giving up Eruda&apos;s native
             lazy object inspection for complex runtime objects like <code>riveInst</code>, and the panel no
@@ -745,6 +744,23 @@ export default function DocsPage() {
             </tbody>
           </table>
 
+          <h3>Canvas Size</h3>
+          <p>
+            Settings now include a dedicated <strong>Canvas Size</strong> group. Leave it on
+            <strong>AUTO</strong> to let the canvas follow the viewer, or switch to
+            <strong>FIXED</strong> to pin the runtime to explicit pixel dimensions.
+          </p>
+          <ul>
+            <li><strong>Width / Height</strong> &mdash; set exact pixel dimensions from <code>1</code> to <code>8192</code></li>
+            <li><strong>LOCK</strong> &mdash; preserves the current aspect ratio while editing width or height</li>
+            <li><strong>Aspect</strong> &mdash; shows the reduced ratio for the current size, such as <code>16:9</code></li>
+            <li>Fixed sizing is mirrored into generated snippets and exported demos</li>
+          </ul>
+          <p>
+            Switching from <strong>AUTO</strong> to <strong>FIXED</strong> seeds the starting size from the
+            current live viewport so you can lock the current composition and refine it from there.
+          </p>
+
           <hr />
 
           {/* MCP Integration */}
@@ -755,7 +771,7 @@ export default function DocsPage() {
             <a href="https://claude.ai/code" target="_blank" rel="noopener noreferrer">Claude Code</a>{" "}
             , Claude Desktop, Codex, or any MCP client control the viewer remotely &mdash; open files,
             inspect ViewModels, drive playback, manipulate inputs, read event logs, edit scripts,
-            execute JS, generate web snippets, and export demos.
+            execute JS, set explicit canvas size, generate web snippets, and export demos.
           </p>
 
           <h3>What is MCP?</h3>
@@ -825,7 +841,7 @@ export default function DocsPage() {
             <li><strong>Install actions</strong> &mdash; shows <strong>ADD</strong>, <strong>REINSTALL</strong>, or <strong>REMOVE</strong> based on the actual detected state</li>
           </ul>
 
-          <h3>Available Tools (31)</h3>
+          <h3>Available Tools (32)</h3>
           <table>
             <thead>
               <tr>
@@ -849,6 +865,7 @@ export default function DocsPage() {
               <tr><td><code>rav_set_runtime</code></td><td>Switch runtime engine (webgl2 or canvas)</td></tr>
               <tr><td><code>rav_set_layout</code></td><td>Set canvas layout fit mode</td></tr>
               <tr><td><code>rav_set_canvas_color</code></td><td>Set background color or transparent</td></tr>
+              <tr><td><code>rav_set_canvas_size</code></td><td>Switch canvas sizing mode and set explicit pixel width/height with optional aspect lock</td></tr>
               <tr><td><code>rav_export_demo</code></td><td>Export a standalone HTML demo</td></tr>
               <tr><td><code>generate_web_instantiation_code</code></td><td>Generate the live canonical web snippet for <code>cdn</code> or <code>local</code> usage, including <code>window.ravRive</code> helpers and current control values</td></tr>
               <tr><td><code>rav_toggle_instantiation_controls_dialog</code></td><td>Open or close the in-app Snippet &amp; Export Controls dialog for manual control curation</td></tr>
@@ -863,10 +880,12 @@ export default function DocsPage() {
           <h3>Instantiation and Export Semantics</h3>
           <ul>
             <li><code>rav_status</code> reports whether the live runtime is using internal wiring or the applied editor config</li>
+            <li><code>rav_status</code> also reports the active canvas sizing state so agents can see whether the viewer is auto-sized or pinned to explicit pixels</li>
             <li><code>rav_apply_code</code> switches the live runtime to the last applied editor config</li>
             <li><code>generate_web_instantiation_code</code> always mirrors what is actually running, not the unsaved draft buffer</li>
             <li><code>generate_web_instantiation_code</code> defaults to the CDN form unless you explicitly request <code>package_source: &quot;local&quot;</code></li>
             <li>Generated snippets restore only the checked ViewModel/state-machine values on load, round numbers to 2 decimals, and expose helper methods on <code>window.ravRive</code></li>
+            <li>Fixed-size snippets and exported demos preserve explicit <code>width × height</code> canvas dimensions when the viewer is pinned to a pixel size</li>
             <li>The <strong>Snippet &amp; Export Controls</strong> dialog lets you choose exactly which values are serialized; if you never touch it, RAV defaults to the changed-control set</li>
             <li>Exported demos mirror the active live mode, surface fit/alignment in the main toolbar, and expose a <strong>Copy Instantiation Code</strong> toolbar button</li>
           </ul>
@@ -916,6 +935,10 @@ export default function DocsPage() {
             The only user-facing setting exposed there is the bridge port. Internal timeout and watchdog settings exist,
             but they are implementation details and are not part of the public UI contract.
           </p>
+          <p>
+            Explicit canvas sizing is configured from the main <strong>Settings</strong> popover, not from the MCP
+            dialog. Remote clients that need to change it should use <code>rav_set_canvas_size</code>.
+          </p>
 
           <hr />
 
@@ -949,6 +972,10 @@ export default function DocsPage() {
             Clicking the update chip downloads the signed updater artifact for your platform, installs it,
             and relaunches the app. Release builds publish updater archives and signatures alongside the
             normal desktop installers.
+          </p>
+          <p>
+            Before installation begins, the app now shuts down its own bundled MCP bridge sidecar. This avoids
+            Windows update stalls caused by <code>rive-mcp.exe</code> keeping the old install open.
           </p>
 
           <p>

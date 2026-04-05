@@ -132,6 +132,47 @@
                                     <button type="button" id="canvas-color-reset-btn" class="settings-toggle">NO BG</button>
                                 </div>
                             </div>
+                            <div class="settings-row settings-row-canvas-size">
+                                <label class="settings-label" for="canvas-size-width-input">Canvas Size</label>
+                                <div class="settings-controls settings-controls-canvas-size">
+                                    <button type="button" id="canvas-size-auto-btn" class="settings-toggle is-active" aria-pressed="true">AUTO</button>
+                                    <button type="button" id="canvas-size-fixed-btn" class="settings-toggle" aria-pressed="false">FIXED</button>
+                                </div>
+                            </div>
+                            <div class="settings-row settings-row-canvas-size-inputs">
+                                <label class="settings-label" for="canvas-size-width-input">Pixels</label>
+                                <div class="settings-controls settings-controls-canvas-size settings-controls-canvas-size-fields">
+                                    <input
+                                        type="number"
+                                        id="canvas-size-width-input"
+                                        class="settings-input settings-input-canvas-size"
+                                        min="1"
+                                        max="8192"
+                                        step="1"
+                                        inputmode="numeric"
+                                        placeholder="Width"
+                                    >
+                                    <span class="settings-dimension-sep" aria-hidden="true">×</span>
+                                    <input
+                                        type="number"
+                                        id="canvas-size-height-input"
+                                        class="settings-input settings-input-canvas-size"
+                                        min="1"
+                                        max="8192"
+                                        step="1"
+                                        inputmode="numeric"
+                                        placeholder="Height"
+                                    >
+                                    <button type="button" id="canvas-size-lock-btn" class="settings-toggle" aria-pressed="false">LOCK</button>
+                                </div>
+                            </div>
+                            <div class="settings-row settings-row-canvas-size-meta">
+                                <label class="settings-label" for="canvas-size-aspect-value">Aspect</label>
+                                <div class="settings-controls settings-controls-canvas-size-meta">
+                                    <span id="canvas-size-aspect-value" class="settings-note settings-note-value">16:9</span>
+                                    <span class="settings-note" id="canvas-size-mode-note">Canvas follows the viewer size.</span>
+                                </div>
+                            </div>
                             </div>
                         </div>
                         <button type="button" id="mcp-setup-btn" class="icon-btn icon-btn-toolbar" title="MCP Setup" aria-label="MCP Setup">

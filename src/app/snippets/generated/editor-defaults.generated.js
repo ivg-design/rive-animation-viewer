@@ -9,6 +9,7 @@ export const DEFAULT_EDITOR_CODE = `// Rive instantiation config — riveInst is
   // artboard: "MyArtboard",
   // stateMachines: "main-sm",
   // animations: "idle",
+  // canvasSize: { mode: "fixed", width: 1920, height: 1080, lockAspectRatio: true },
 
   // layout: { fit: "contain", alignment: "center" },
   //   fit options: contain, cover, fill, fitWidth, fitHeight, scaleDown, none, layout

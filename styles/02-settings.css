@@ -50,6 +50,21 @@
     gap: 8px;
 }
 
+.settings-controls-canvas-size {
+    justify-content: flex-end;
+    width: min(100%, 340px);
+    flex-wrap: nowrap;
+}
+
+.settings-controls-canvas-size-fields {
+    gap: 6px;
+}
+
+.settings-controls-canvas-size-meta {
+    justify-content: flex-end;
+    width: min(100%, 340px);
+}
+
 .settings-controls-runtime {
     justify-content: flex-end;
     width: min(100%, 340px);
@@ -78,6 +93,16 @@
     font-size: 12px;
     font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
     outline: none;
+}
+
+.settings-input-canvas-size {
+    width: 88px;
+    text-align: right;
+}
+
+.settings-input-canvas-size:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .settings-input:focus {
@@ -116,11 +141,25 @@
     cursor: not-allowed;
 }
 
+.settings-dimension-sep {
+    color: var(--text-muted);
+    font-size: 13px;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    user-select: none;
+}
+
 .settings-note {
     color: var(--text-muted);
     font-size: 10px;
     line-height: 1.35;
     font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.settings-note-value {
+    min-width: 48px;
+    text-align: right;
+    color: var(--text-dim);
+    font-weight: 600;
 }
 
 .color-input.is-transparent {
@@ -151,4 +190,3 @@
 .icon-14 { width: 14px; height: 14px; }
 .icon-16 { width: 16px; height: 16px; }
 .icon-18 { width: 18px; height: 18px; }
-

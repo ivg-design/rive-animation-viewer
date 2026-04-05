@@ -20,6 +20,8 @@ pub struct DemoBundlePayload {
     pub artboard_name: Option<String>,
     pub canvas_color: Option<String>,
     #[serde(default)]
+    pub canvas_sizing: Option<String>,
+    #[serde(default)]
     pub canvas_transparent: bool,
     #[serde(default)]
     pub control_snapshot: Option<String>,

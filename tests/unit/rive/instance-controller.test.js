@@ -211,6 +211,72 @@ describe('rive/instance-controller', () => {
         expect(controller.getRiveInstance()).toBeNull();
     });
 
+    it('honors explicit fixed canvas sizing from shared state', async () => {
+        const elements = createElements();
+        Object.defineProperty(elements.canvasContainer, 'clientWidth', { configurable: true, value: 640 });
+        Object.defineProperty(elements.canvasContainer, 'clientHeight', { configurable: true, value: 360 });
+
+        let capturedConfig = null;
+        const controller = createRiveInstanceController({
+            callbacks: {
+                cleanupTransparencyRuntime: vi.fn().mockResolvedValue(undefined),
+                detectDefaultStateMachineName: vi.fn().mockResolvedValue(null),
+                ensureRuntime: vi.fn().mockResolvedValue({
+                    EventType: { RiveEvent: 'rive-event' },
+                    Layout: class Layout {
+                        constructor(config) {
+                            Object.assign(this, config);
+                        }
+                    },
+                    Rive: vi.fn((config) => {
+                        capturedConfig = config;
+                        return {
+                            cleanup: vi.fn(),
+                            off: vi.fn(),
+                            on: vi.fn(),
+                            resizeDrawingSurfaceToCanvas: vi.fn(),
+                            stateMachineNames: [],
+                        };
+                    }),
+                }),
+                hideError: vi.fn(),
+                logEvent: vi.fn(),
+                populateArtboardSwitcher: vi.fn(),
+                refreshInfoStrip: vi.fn(),
+                renderVmInputControls: vi.fn(),
+                resetPlaybackChips: vi.fn(),
+                resetVmInputControls: vi.fn(),
+                showError: vi.fn(),
+                syncArtboardStateAfterLoad: vi.fn(),
+                syncArtboardStateFromConfig: vi.fn(),
+                updateInfo: vi.fn(),
+                updatePlaybackChips: vi.fn(),
+            },
+            elements,
+            getCurrentCanvasSizing: () => ({
+                mode: 'fixed',
+                width: 1920,
+                height: 1080,
+                lockAspectRatio: true,
+                aspectRatio: 16 / 9,
+            }),
+            getCurrentRuntime: () => 'webgl2',
+            getEditorConfig: () => ({}),
+            windowRef: window,
+        });
+
+        await controller.loadRiveAnimation('blob:demo', 'demo.riv');
+        capturedConfig.onLoad();
+
+        const canvas = document.getElementById('rive-canvas');
+        expect(canvas.width).toBe(1920);
+        expect(canvas.height).toBe(1080);
+        expect(canvas.style.width).toBe('1920px');
+        expect(canvas.style.height).toBe('1080px');
+        expect(elements.canvasContainer.classList.contains('canvas-container-fixed-size')).toBe(true);
+        expect(canvas.classList.contains('rive-canvas-fixed-size')).toBe(true);
+    });
+
     it('reports missing files, initialization failures, and load errors', async () => {
         const elements = createElements();
         const showError = vi.fn();

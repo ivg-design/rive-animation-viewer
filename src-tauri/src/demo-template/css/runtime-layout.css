@@ -115,6 +115,18 @@
 .panel-resizer-horizontal { grid-row: 3; }
 .event-log-panel { grid-row: 4; }
 
+#canvas-container.canvas-container-fixed-size {
+    overflow: auto;
+}
+
+#rive-canvas.rive-canvas-fixed-size {
+    width: auto;
+    height: auto;
+    flex: none;
+    max-width: none;
+    max-height: none;
+}
+
 /* ── Resizers ─────────────────────────────────────────────── */
 
 .panel-resizer {
@@ -181,4 +193,3 @@
 .workspace-edge-toggle-right {
     right: 8px;
 }
-

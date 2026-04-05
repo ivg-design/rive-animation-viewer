@@ -178,6 +178,20 @@ pub fn tools_list() -> Value {
             }
         },
         {
+            "name": "rav_set_canvas_size",
+            "description": "Set explicit canvas pixel sizing. Use mode \"fixed\" with width/height for a pinned canvas, or mode \"auto\" to follow the viewer size.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "mode": { "type": "string", "enum": ["auto", "fixed"], "description": "Canvas sizing mode. Defaults to \"fixed\"." },
+                    "width": { "type": "number", "description": "Explicit canvas width in pixels when mode is \"fixed\"." },
+                    "height": { "type": "number", "description": "Explicit canvas height in pixels when mode is \"fixed\"." },
+                    "lockAspectRatio": { "type": "boolean", "description": "Whether width/height updates should preserve aspect ratio." }
+                },
+                "additionalProperties": false
+            }
+        },
+        {
             "name": "rav_export_demo",
             "description": "Export the current animation as a self-contained standalone HTML demo file. Provide output_path to save directly (recommended for MCP). Without output_path, opens a native save dialog (will timeout in MCP).",
             "inputSchema": {

@@ -1,3 +1,4 @@
+import { buildResolvedCanvasPixelSize, normalizeCanvasSizingState } from '../core/canvas-sizing.js';
 import { buildPlaybackContext, buildPlaybackStatusLabel } from './playback-status.js';
 
 export function safelyInvokeUserCallback(callback, event, callbackName) {
@@ -14,6 +15,7 @@ export function safelyInvokeUserCallback(callback, event, callbackName) {
 export function createRiveInstanceController({
     callbacks = {},
     elements,
+    getCurrentCanvasSizing = () => normalizeCanvasSizingState(),
     getCurrentLayoutAlignment = () => 'center',
     getCurrentFileBuffer = () => null,
     getCurrentLayoutFit = () => 'contain',
@@ -87,14 +89,46 @@ export function createRiveInstanceController({
         });
     }
 
-    function resizeCanvas(canvas) {
+    function getEffectiveCanvasSizingState(editorConfig = {}) {
+        return normalizeCanvasSizingState(getCurrentCanvasSizing(), editorConfig?.canvasSize || getCurrentCanvasSizing());
+    }
+
+    function applyCanvasPresentation(canvas, sizingState) {
+        const container = elements.canvasContainer;
+        if (!container || !canvas) {
+            return;
+        }
+        const isFixed = sizingState.mode === 'fixed';
+        container.classList.toggle('canvas-container-fixed-size', isFixed);
+        canvas.classList.toggle('rive-canvas-fixed-size', isFixed);
+        if (isFixed) {
+            canvas.style.width = `${sizingState.width}px`;
+            canvas.style.height = `${sizingState.height}px`;
+            return;
+        }
+        canvas.style.width = '';
+        canvas.style.height = '';
+    }
+
+    function resizeCanvas(canvas, editorConfig = {}) {
         const container = elements.canvasContainer;
         if (!container || !canvas) {
             return;
         }
         const { clientWidth, clientHeight } = container;
-        canvas.width = clientWidth;
-        canvas.height = clientHeight;
+        const sizingState = getEffectiveCanvasSizingState(editorConfig);
+        const resolved = buildResolvedCanvasPixelSize(sizingState, {
+            width: clientWidth,
+            height: clientHeight,
+        });
+        canvas.width = resolved.width;
+        canvas.height = resolved.height;
+        applyCanvasPresentation(canvas, {
+            ...sizingState,
+            width: resolved.width,
+            height: resolved.height,
+            mode: resolved.fixed ? 'fixed' : 'auto',
+        });
     }
 
     function handleResize() {
@@ -102,7 +136,7 @@ export function createRiveInstanceController({
         if (!canvas) {
             return;
         }
-        resizeCanvas(canvas);
+        resizeCanvas(canvas, getEditorConfig());
         riveInstance?.resizeDrawingSurfaceToCanvas?.();
     }
 
@@ -184,10 +218,11 @@ export function createRiveInstanceController({
             const canvas = windowRef.document.createElement('canvas');
             canvas.id = 'rive-canvas';
             container.appendChild(canvas);
-            resizeCanvas(canvas);
-
             const userConfig = getEditorConfig();
-            const effectiveUserConfig = forceAutoplay ? { ...userConfig, autoplay: true } : { ...userConfig };
+            resizeCanvas(canvas, userConfig);
+
+            const { canvasSize: _ignoredCanvasSize, ...sanitizedUserConfig } = userConfig || {};
+            const effectiveUserConfig = forceAutoplay ? { ...sanitizedUserConfig, autoplay: true } : { ...sanitizedUserConfig };
             if (configOverrides && typeof configOverrides === 'object') {
                 Object.assign(effectiveUserConfig, configOverrides);
             }
@@ -242,7 +277,7 @@ export function createRiveInstanceController({
 
             config.onLoad = () => {
                 hideError();
-                resizeCanvas(config.canvas);
+                resizeCanvas(config.canvas, userConfig);
                 riveInstance?.resizeDrawingSurfaceToCanvas?.();
                 logEvent('native', 'load', `Loaded ${fileName} using ${getCurrentRuntime()}.`);
 
