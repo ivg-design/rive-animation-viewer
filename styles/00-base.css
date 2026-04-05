@@ -86,7 +86,7 @@ body.transparency-mode .app-shell {
 
 html.is-tauri-window,
 body.is-tauri-window {
-    background: #101116;
+    background: transparent;
 }
 
 body.transparency-mode .workspace,

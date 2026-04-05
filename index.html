@@ -12,7 +12,7 @@
 <body>
     <div class="app-shell">
         <header class="app-chrome">
-            <div class="titlebar-row" id="window-titlebar">
+            <div class="titlebar-row" id="window-titlebar" data-tauri-drag-region>
                 <div class="titlebar-left" id="window-titlebar-left" data-tauri-drag-region>
                     <div class="brand-block brand-block-titlebar">
                         <div class="brand-icon" aria-hidden="true">
@@ -27,24 +27,24 @@
                     <div id="header-file-meta" class="header-file-meta" hidden></div>
                 </div>
 
-                <div class="titlebar-right">
-                    <div id="window-controls" class="window-controls" hidden>
-                        <button type="button" id="window-maximize-btn" class="window-control-btn window-control-btn-maximize" data-window-control="maximize" aria-label="Maximize window" title="Maximize window">
-                            <svg class="window-control-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M7 15l5-5 5 5"></path>
-                                <path d="M6 6h12"></path>
+                <div class="titlebar-right" data-tauri-drag-region="false">
+                    <div id="window-controls" class="window-controls" hidden data-tauri-drag-region="false">
+                        <button type="button" id="window-maximize-btn" class="window-control-btn window-control-btn-maximize" data-window-control="maximize" data-tauri-drag-region="false" aria-label="Maximize window" title="Maximize window">
+                            <svg class="window-control-icon window-control-icon-chevron" viewBox="0 0 38 38" aria-hidden="true">
+                                <polyline points="1.5 36.5 19 15.22378 36.5 36.5"></polyline>
+                                <line x1="36.5" y1="1.5" x2="1.5" y2="1.5"></line>
                             </svg>
                         </button>
-                        <button type="button" id="window-minimize-btn" class="window-control-btn window-control-btn-minimize" data-window-control="minimize" aria-label="Minimize window" title="Minimize window">
-                            <svg class="window-control-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M7 9l5 5 5-5"></path>
-                                <path d="M6 18h12"></path>
+                        <button type="button" id="window-minimize-btn" class="window-control-btn window-control-btn-minimize" data-window-control="minimize" data-tauri-drag-region="false" aria-label="Minimize window" title="Minimize window">
+                            <svg class="window-control-icon window-control-icon-chevron" viewBox="0 0 38 38" aria-hidden="true">
+                                <polyline points="36.5 1.5 19 22.77622 1.5 1.5"></polyline>
+                                <line x1="1.5" y1="36.5" x2="36.5" y2="36.5"></line>
                             </svg>
                         </button>
-                        <button type="button" id="window-close-btn" class="window-control-btn window-control-btn-close" data-window-control="close" aria-label="Close window" title="Close window">
-                            <svg class="window-control-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M6 6l12 12"></path>
-                                <path d="M18 6l-12 12"></path>
+                        <button type="button" id="window-close-btn" class="window-control-btn window-control-btn-close" data-window-control="close" data-tauri-drag-region="false" aria-label="Close window" title="Close window">
+                            <svg class="window-control-icon window-control-icon-close" viewBox="0 0 37.99999 37.7937" aria-hidden="true">
+                                <line x1="36.49999" y1="1.5" x2="1.70629" y2="36.2937"></line>
+                                <line x1="36.2937" y1="36.2937" x2="1.5" y2="1.5"></line>
                             </svg>
                         </button>
                     </div>

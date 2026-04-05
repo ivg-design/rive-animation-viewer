@@ -7,6 +7,19 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 - Current release: `2.1.1` (2026-04-04)
 - Validation target: release from `main` so installed desktop builds can pick up the `2.1.1` updater payload directly.
 
+## Regression Gates
+
+The repo now has explicit prebuild guards for the surfaces that were regressing during the 2.1.x window-chrome and export hardening work:
+
+- `npm run check:architecture` enforces file-size and folder-shape budgets
+- `npm run check:deps` enforces dependency-cruiser import boundaries
+- `tests/smoke/ui-regressions.smoke.test.js` protects the shared scrollbar contract, custom window-chrome structure, Tauri window config, and exported demo chrome contract
+- `tests/unit/ui/window-chrome.test.js` protects desktop window-control wiring and Tauri/non-Tauri behavior split
+- `npm run test` runs the full Vitest suite before every package build
+- `cargo check --manifest-path src-tauri/Cargo.toml` validates the native Tauri layer
+
+These gates materially reduce regression risk, but they are still code- and DOM-contract tests, not full visual snapshot coverage. If we want pixel-level guarantees from this point forward, the next step is adding screenshot-based desktop smoke tests for the packaged app window.
+
 ## 2.1.1 Highlights
 
 - **Desktop chrome stabilization**: macOS now uses a supported overlay-titlebar path with the custom RAV header, rounded outer corners, corrected window controls, and centered file metadata that keeps the filename visible while truncating long directories.

@@ -13,18 +13,17 @@
 }
 
 body.is-tauri-window {
-    border: 1px solid rgba(93, 100, 120, 0.32);
-    border-radius: 18px;
     overflow: hidden;
-    background: #101116;
-    box-shadow:
-        0 22px 54px rgba(6, 8, 12, 0.46),
-        0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+    background: transparent;
 }
 
 body.is-tauri-window .app-shell {
     height: 100%;
     background: #101116;
+    border: 1px solid rgba(93, 100, 120, 0.32);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
 }
 
 .titlebar-row,
@@ -36,10 +35,10 @@ body.is-tauri-window .app-shell {
 }
 
 .titlebar-row {
+    align-items: stretch;
     min-height: 50px;
     padding: 6px 8px 0;
     grid-template-columns: max-content minmax(0, 1fr) max-content;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.018) 0%, rgba(255, 255, 255, 0) 100%);
     border-top-left-radius: 18px;
     border-top-right-radius: 18px;
@@ -65,15 +64,18 @@ body.is-tauri-window .app-shell {
 .titlebar-left {
     justify-content: flex-start;
     min-width: max-content;
+    align-self: stretch;
 }
 
 .titlebar-center {
     justify-content: center;
     padding: 0 12px;
+    align-self: stretch;
 }
 
 .titlebar-right {
     justify-content: flex-end;
+    align-self: stretch;
 }
 
 .toolbar-left {
@@ -120,11 +122,12 @@ body.is-tauri-window .app-shell {
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    height: 100%;
 }
 
 .window-control-btn {
-    width: 42px;
-    height: 42px;
+    width: 30px;
+    height: 30px;
     border: none;
     background: transparent;
     color: #8c92a1;
@@ -139,7 +142,7 @@ body.is-tauri-window .app-shell {
 }
 
 .window-control-btn:hover {
-    transform: translateY(-0.5px);
+    transform: translateY(-1.5px);
 }
 
 .window-control-btn:active {
@@ -147,21 +150,30 @@ body.is-tauri-window .app-shell {
 }
 
 .window-control-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
+    display: block;
+    width: 22px;
+    height: 22px;
     stroke: currentColor;
     stroke-width: 1.35;
     fill: none;
     stroke-linecap: round;
     stroke-linejoin: round;
     transition: stroke-width 120ms ease;
+    overflow: visible;
 }
 
 .window-control-btn:hover .window-control-icon {
-    stroke-width: 1.8;
+    stroke-width: 1.95;
+}
+
+.window-control-icon-chevron {
+    width: 22px;
+    height: 22px;
+}
+
+.window-control-icon-close {
+    width: 22px;
+    height: 22px;
 }
 
 .window-control-btn-maximize:hover {

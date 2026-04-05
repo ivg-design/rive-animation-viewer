@@ -58,12 +58,15 @@ describe('ui regression smoke', () => {
         expect(html).toContain('id="header-file-meta"');
         expect(html).toContain('id="window-controls"');
         expect(html).toContain('id="window-close-btn"');
+        expect(html).toContain('id="window-titlebar" data-tauri-drag-region');
         expect(html).toContain('id="window-titlebar-left" data-tauri-drag-region');
         expect(html).toContain('id="window-titlebar-center" data-tauri-drag-region');
+        expect(html).toContain('id="window-controls" class="window-controls" hidden data-tauri-drag-region="false"');
         expect(html).not.toContain('id="transparency-mode-toggle"');
         expect(html).not.toContain('id="click-through-toggle"');
         expect(windowChromeCss).toContain('.titlebar-row');
         expect(windowChromeCss).toContain('grid-template-columns: max-content minmax(0, 1fr) max-content;');
+        expect(windowChromeCss).toContain('body.is-tauri-window .app-shell');
         expect(windowChromeCss).toContain('border-radius: 18px;');
         expect(windowChromeCss).not.toContain('app-region: drag;');
         expect(headerMetaCss).toContain('grid-template-columns: minmax(0, 1fr) auto auto;');
@@ -73,14 +76,18 @@ describe('ui regression smoke', () => {
 
     it('keeps the Tauri window capability wired for drag, minimize, maximize, and close', () => {
         const tauriConfig = JSON.parse(readFileSync(path.join(repoRoot, 'src-tauri', 'tauri.conf.json'), 'utf8'));
+        const mainRs = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'main.rs'), 'utf8');
         const capability = JSON.parse(readFileSync(path.join(repoRoot, 'src-tauri', 'capabilities', 'default.json'), 'utf8'));
         const mainWindow = tauriConfig.app.windows[0];
 
         expect(tauriConfig.app.security.capabilities).toContain('main-capability');
-        expect(mainWindow.decorations).toBe(false);
-        expect(mainWindow.transparent).toBe(false);
-        expect(mainWindow).not.toHaveProperty('titleBarStyle');
-        expect(mainWindow).not.toHaveProperty('hiddenTitle');
+        expect(tauriConfig.app.macOSPrivateApi).toBe(true);
+        expect(mainWindow.decorations).toBe(true);
+        expect(mainWindow.transparent).toBe(true);
+        expect(mainWindow.titleBarStyle).toBe('Overlay');
+        expect(mainWindow.trafficLightPosition).toEqual({ x: -120, y: -120 });
+        expect(mainWindow.hiddenTitle).toBe(true);
+        expect(mainRs).toContain('let _ = _window.set_decorations(false);');
         expect(capability.identifier).toBe('main-capability');
         expect(capability.windows).toContain('main');
         expect(capability.permissions).toEqual(expect.arrayContaining([
