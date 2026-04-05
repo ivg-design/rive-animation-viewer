@@ -3,8 +3,8 @@ import {
     buildResolvedCanvasPixelSize,
     normalizeCanvasSizingState,
 } from '../core/canvas-sizing.js';
+import { resolveRiveAlignment, resolveRiveFit } from '../core/rive-layout.js';
 import { buildPlaybackContext, buildPlaybackStatusLabel } from './playback-status.js';
-
 export function safelyInvokeUserCallback(callback, event, callbackName) {
     if (typeof callback !== 'function') {
         return;
@@ -286,8 +286,8 @@ export function createRiveInstanceController({
             const layoutFromConfig = config.layout && typeof config.layout === 'object' ? config.layout : {};
             const { fit: _ignoredFit, ...otherLayoutProps } = layoutFromConfig;
             config.layout = new runtime.Layout({
-                fit: getCurrentLayoutFit(),
-                alignment: getCurrentLayoutAlignment(),
+                fit: resolveRiveFit(runtime, getCurrentLayoutFit()),
+                alignment: resolveRiveAlignment(runtime, getCurrentLayoutAlignment()),
                 ...otherLayoutProps,
             });
             if (isCanvasEffectivelyTransparent() && getCurrentRuntime() !== 'canvas' && typeof config.useOffscreenRenderer === 'undefined') {

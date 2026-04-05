@@ -69,9 +69,6 @@ fn main() {
             if let Some(_window) = app.get_webview_window("main") {
                 #[cfg(target_os = "windows")]
                 {
-                    let _ = _window.set_decorations(false);
-                    let _ = _window.set_background_color(Some(tauri::window::Color(10, 10, 10, 255)));
-                    let _ = _window.set_theme(Some(tauri::Theme::Dark));
                     if let Err(error) = apply_windows_corner_preference(&_window) {
                         eprintln!("[rav-app] failed to apply Windows rounded corners: {error}");
                     }

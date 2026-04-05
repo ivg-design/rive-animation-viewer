@@ -216,9 +216,9 @@ export default function DocsPage() {
             runtime strip, MCP activity indicator, and JavaScript console behavior are aligned with the shipped app.
           </p>
           <p>
-            In <strong>2.2.1</strong>, the desktop chrome hardening continues with a native Windows rounded-corner
-            hint for the custom window and restored shared scrollbar skinning on macOS after the latest WKWebView
-            regression.
+            In <strong>2.2.2</strong>, the desktop chrome hardening goes further: Windows now uses its own stable
+            window-mode contract for the custom RAV header, and the exported/demo layout path shares the same
+            fit/alignment runtime mapping as the live viewer.
           </p>
 
           <h3>Left Panel &mdash; Animation Canvas</h3>
@@ -598,8 +598,9 @@ export default function DocsPage() {
             and ViewModel controls into a single portable file.
           </p>
           <p>
-            When you pin the viewer to an explicit canvas size, <strong>2.2.1</strong> keeps that fixed-size canvas
-            centered in both the live app and the exported demo instead of anchoring it to the upper-left corner.
+            When you pin the viewer to an explicit canvas size, <strong>2.2.2</strong> keeps that fixed-size canvas
+            centered while still honoring the selected alignment in both the live app and the exported demo instead
+            of anchoring it to the upper-left corner.
           </p>
 
           <h3>What Gets Exported</h3>

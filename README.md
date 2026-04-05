@@ -4,8 +4,8 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.2.1` (2026-04-05)
-- Validation target: release from `main` so installed desktop builds can pick up the `2.2.1` updater payload directly.
+- Current release: `2.2.2` (2026-04-05)
+- Validation target: release from `main` so installed desktop builds can pick up the `2.2.2` updater payload directly.
 
 ## Regression Gates
 
@@ -19,6 +19,13 @@ The repo now has explicit prebuild guards for the surfaces that were regressing 
 - `cargo check --manifest-path src-tauri/Cargo.toml` validates the native Tauri layer
 
 These gates materially reduce regression risk, but they are still code- and DOM-contract tests, not full visual snapshot coverage. If we want pixel-level guarantees from this point forward, the next step is adding screenshot-based desktop smoke tests for the packaged app window.
+
+## 2.2.2 Highlights
+
+- **Windows window-mode cleanup**: Windows now uses a single window contract instead of mixing decorated config with a runtime undecorated override, so the custom header and native rounded-corner hint are no longer fighting each other.
+- **Shared layout mapping**: The live viewer, canonical snippet export, and standalone demo now all map fit/alignment through the runtime enums instead of passing raw strings into `new Layout(...)`.
+- **Fixed-size export centering hardening**: Explicit pixel-size canvases now keep the selected alignment behavior while staying centered in exported demos and snippets, including on macOS.
+- **Status-strip iconography**: Structured playback status now renders with dedicated artboard / animation / state-machine / instance / ViewModel icons instead of text abbreviations.
 
 ## 2.2.1 Highlights
 

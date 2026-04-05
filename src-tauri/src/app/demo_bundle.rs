@@ -21,6 +21,8 @@ const DEMO_TEMPLATE_STYLES: &str = concat!(
 const DEMO_TEMPLATE_APP_JS: &str = concat!(
     include_str!("../demo-template/js/core/preamble.js"),
     "\n",
+    include_str!("../demo-template/js/core/layout.js"),
+    "\n",
     include_str!("../demo-template/js/core/bootstrap.js"),
     "\n",
     include_str!("../demo-template/js/core/playback-layout.js"),

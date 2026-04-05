@@ -128,6 +128,8 @@ describe('platform/web-instantiation', () => {
         expect(code).toContain('const { canvasSize: _ignoredCanvasSize, ...userConfig } = rawUserConfig || {};');
         expect(code).toContain('...userConfig,');
         expect(code).toContain('ravRive.applySnapshot();');
+        expect(code).toContain('fit: rive.Fit.Cover');
+        expect(code).toContain('alignment: rive.Alignment.TopLeft');
         expect(code).toContain('onLoadError: (error, ...args) => {');
         expect(code).toContain('console.error("Rive load error:", error, ...args);');
         expect(code).toContain('userConfig.onLoadError?.(error, ...args);');
@@ -176,6 +178,8 @@ describe('platform/web-instantiation', () => {
         expect(result.code).toContain('<!-- Embeddable RAV snippet. Wrap it in a full HTML document if you want a standalone page. -->');
         expect(result.code).not.toContain('window.ravRive = ravRive;');
         expect(result.code).toContain('animations: "idle"');
+        expect(result.code).toContain('fit: rive.Fit.Contain');
+        expect(result.code).toContain('alignment: rive.Alignment.Center');
         expect(result.code).toContain('canvas.style.background = "transparent";');
         expect(result.helperApi).toBeNull();
         expect(result.notes[1]).toContain('internal wiring');

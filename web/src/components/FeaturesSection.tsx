@@ -30,7 +30,7 @@ const features = [
   {
     icon: FileCode,
     title: "Export + Snippets",
-    description: "One Export flow for standalone HTML plus canonical CDN/local instantiation snippets with control-selection, Copy Code, live-state serialization, fixed canvas sizing carry-through, and slim zero-control output.",
+    description: "One Export flow for standalone HTML plus canonical CDN/local instantiation snippets with control-selection, Copy Code, live-state serialization, fixed canvas sizing carry-through, and shared runtime layout mapping.",
   },
   {
     icon: Eye,
@@ -50,7 +50,7 @@ const features = [
   {
     icon: AppWindow,
     title: "Desktop Native",
-    description: "Tauri v2 desktop app with .riv association, open-with forwarding, drag/drop loading, a custom About window, single-instance file handoff, stabilized custom desktop header, and native rounded-window integration on supported platforms.",
+    description: "Tauri v2 desktop app with .riv association, open-with forwarding, drag/drop loading, custom window chrome, single-instance file handoff, and platform-native rounded-window treatment where supported.",
   },
   {
     icon: RotateCcw,
@@ -60,7 +60,7 @@ const features = [
   {
     icon: MonitorCog,
     title: "Renderer + Runtime",
-    description: "Switch between Canvas and WebGL2 on the fly, choose fit and alignment in the main toolbar, set an explicit canvas size with optional aspect lock, and pick Latest, the latest four versions, or Custom semver.",
+    description: "Switch between Canvas and WebGL2 on the fly, choose fit and alignment in the main toolbar, set explicit fixed canvas size with optional aspect lock, and pick Latest, the latest four versions, or Custom semver.",
   },
   {
     icon: Download,
@@ -80,12 +80,12 @@ const features = [
   {
     icon: ShieldCheck,
     title: "MCP + Script Access",
-    description: "Bundled native rav-mcp sidecar, stable launcher path, one-click add/reinstall/remove for supported clients, editable port, and a three-state MCP activity indicator.",
+    description: "Bundled native rav-mcp sidecar, one-click install with add/reinstall/remove states for supported clients, editable port, canvas sizing control, and a Script Access gate for JS tools.",
   },
   {
     icon: Cable,
     title: "MCP Integration",
-    description: "Control RAV from agents through 32 MCP tools: open files, inspect state, set explicit canvas size, configure the workspace, drive playback, edit scripts, generate snippets, and export demos with the live console behavior preserved.",
+    description: "Control RAV from agents through 32 MCP tools: open files, inspect state, set explicit canvas size, drive playback, edit scripts, generate snippets, and export demos with the live console behavior preserved.",
   },
 ];
 

@@ -8,9 +8,14 @@
         "minWidth": 1090,
         "minHeight": 850,
         "resizable": true,
+        "decorations": false,
+        "shadow": true,
         "backgroundColor": "#0A0A0AFF",
         "theme": "Dark",
         "transparent": false,
+        "titleBarStyle": "Visible",
+        "trafficLightPosition": null,
+        "hiddenTitle": false,
         "fullscreen": false
       }
     ]

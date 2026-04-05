@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.2.2] - 2026-04-05
+
+### Changed
+
+- **Windows window-mode cleanup** — The desktop build now uses a Windows-specific window configuration so the custom header and rounded-corner hint are no longer competing with a late runtime decorations override.
+- **Shared layout mapping** — The live viewer, standalone demo, and exported snippets now resolve fit/alignment through the Rive runtime enums instead of raw strings.
+
+### Fixed
+
+- **Windows rounded-corner regression** — Rounded corners on Windows are now driven from a single consistent window-mode path instead of the previous hybrid configuration.
+- **Fixed-size export alignment** — Fixed pixel-size exports now preserve the selected alignment while staying centered, instead of pinning the artboard into the upper-left.
+
 ## [2.2.1] - 2026-04-05
 
 ### Changed

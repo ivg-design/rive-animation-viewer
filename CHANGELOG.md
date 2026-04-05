@@ -8,6 +8,19 @@ All notable changes to this project are documented in this file.
 
 - **Regression guardrails** — Documented the current prebuild protection stack around architecture drift, dependency boundaries, custom window chrome, and exported demo chrome so the `2.1.x` stabilization work has explicit gates instead of relying on ad hoc manual checks.
 
+## [2.2.2] - 2026-04-05
+
+### Changed
+
+- **Windows window-mode contract** — Windows now uses its own explicit Tauri window config instead of inheriting the macOS overlay-titlebar settings and then mutating decorations at runtime, keeping the custom header and DWM rounded-corner hint on one consistent path.
+- **Shared runtime layout mapping** — The live app, generated web snippets, and standalone demo runtime now resolve fit/alignment through the Rive runtime enums rather than raw string tokens, so export behavior matches the viewer.
+- **Status-strip iconography** — Structured playback status now renders with dedicated artboard, animation, state machine, instance, and ViewModel icons instead of plain-text abbreviations.
+
+### Fixed
+
+- **Windows rounded-corner regression** — Removed the decorated/undecorated hybrid startup path that was blocking the Windows rounded-corner treatment even after the DWM corner hint was applied.
+- **Fixed-size export alignment** — Explicit pixel-size canvases now honor the selected alignment in the exported demo and snippet runtime while remaining centered instead of drifting to the upper-left on macOS or Windows.
+
 ## [2.2.1] - 2026-04-05
 
 ### Changed

@@ -4,6 +4,7 @@ import {
     normalizeAnimationSelection,
     resolveLivePlaybackSelection,
 } from './descriptor.js';
+import { buildRiveAlignmentExpression, buildRiveFitExpression } from '../../core/rive-layout.js';
 import {
     normalizeControlSnapshot,
     normalizeSnippetMode,
@@ -50,8 +51,8 @@ function buildConfigPropertyLines(descriptor, runtimeNamespace, useUserConfig = 
 
     lines.push('layout: new ' + runtimeNamespace + '.Layout({');
     if (useUserConfig) lines.push('  ...(userConfig.layout || {}),');
-    lines.push(`  fit: ${JSON.stringify(descriptor.layoutFit)},`);
-    lines.push(`  alignment: ${JSON.stringify(descriptor.layoutAlignment)},`);
+    lines.push(`  fit: ${buildRiveFitExpression(runtimeNamespace, descriptor.layoutFit)},`);
+    lines.push(`  alignment: ${buildRiveAlignmentExpression(runtimeNamespace, descriptor.layoutAlignment)},`);
     lines.push('}),');
 
     if (descriptor.useOffscreenRenderer !== undefined) {

@@ -37,30 +37,33 @@ describe('rive/instance-controller', () => {
         let capturedConfig = null;
         let instance = null;
         const userOnLoad = vi.fn();
+        const runtime = {
+            Alignment: { TopLeft: Symbol('TopLeft') },
+            EventType: { RiveEvent: 'rive-event' },
+            Fit: { Contain: Symbol('Contain') },
+            Layout: class Layout {
+                constructor(config) {
+                    Object.assign(this, config);
+                }
+            },
+            Rive: vi.fn((config) => {
+                capturedConfig = config;
+                instance = {
+                    cleanup: vi.fn(),
+                    off: vi.fn(),
+                    on: vi.fn(),
+                    playingStateMachineNames: [],
+                    resizeDrawingSurfaceToCanvas: vi.fn(),
+                    stateMachineNames: ['DetectedSM'],
+                    viewModelInstance: { name: 'VM' },
+                };
+                return instance;
+            }),
+        };
         const callbacks = {
             cleanupTransparencyRuntime: vi.fn().mockResolvedValue(undefined),
             detectDefaultStateMachineName: vi.fn().mockResolvedValue('DetectedSM'),
-            ensureRuntime: vi.fn().mockResolvedValue({
-                EventType: { RiveEvent: 'rive-event' },
-                Layout: class Layout {
-                    constructor(config) {
-                        Object.assign(this, config);
-                    }
-                },
-                Rive: vi.fn((config) => {
-                    capturedConfig = config;
-                    instance = {
-                        cleanup: vi.fn(),
-                        off: vi.fn(),
-                        on: vi.fn(),
-                        playingStateMachineNames: [],
-                        resizeDrawingSurfaceToCanvas: vi.fn(),
-                        stateMachineNames: ['DetectedSM'],
-                        viewModelInstance: { name: 'VM' },
-                    };
-                    return instance;
-                }),
-            }),
+            ensureRuntime: vi.fn().mockResolvedValue(runtime),
             hideError: vi.fn(),
             isCanvasEffectivelyTransparent: () => true,
             logEvent: vi.fn(),
@@ -100,8 +103,8 @@ describe('rive/instance-controller', () => {
             useOffscreenRenderer: true,
         }));
         expect(capturedConfig.layout).toEqual(expect.objectContaining({
-            alignment: 'topLeft',
-            fit: 'contain',
+            alignment: runtime.Alignment.TopLeft,
+            fit: runtime.Fit.Contain,
         }));
         expect(controller.getRiveInstance()).toBe(instance);
         expect(window.riveInst).toBe(instance);
