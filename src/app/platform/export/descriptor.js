@@ -1,6 +1,7 @@
 import { DEFAULT_CANVAS_COLOR } from '../../core/constants.js';
+import { normalizeCanvasSizingState } from '../../core/canvas-sizing.js';
 import { normalizeStateMachineSelection } from '../../rive/default-state-machine.js';
-import { getRuntimePackageName } from '../runtime-utils.js';
+import { getRuntimePackageName } from '../runtime/runtime-utils.js';
 
 export function normalizeAnimationSelection(value) {
     if (Array.isArray(value)) {
@@ -44,6 +45,7 @@ export function resolveLivePlaybackSelection({
 
 export function buildEffectiveInstantiationDescriptor({
     currentFileName = 'animation.riv',
+    currentCanvasSizing = null,
     currentLayoutAlignment = 'center',
     currentLayoutFit = 'contain',
     detectedStateMachines = [],
@@ -66,6 +68,7 @@ export function buildEffectiveInstantiationDescriptor({
     });
     const canvasTransparent = Boolean(transparencyState.canvasTransparent);
     const canvasColor = canvasTransparent ? null : (transparencyState.canvasColor || DEFAULT_CANVAS_COLOR);
+    const canvasSizing = normalizeCanvasSizingState(currentCanvasSizing || undefined);
     const packageName = getRuntimePackageName(runtimeName);
     const effectiveRuntimeVersion = String(runtimeVersion || '').trim() || 'latest';
 
@@ -75,6 +78,7 @@ export function buildEffectiveInstantiationDescriptor({
         autoBind: typeof effectiveEditorConfig.autoBind === 'boolean' ? effectiveEditorConfig.autoBind : true,
         autoplay: typeof effectiveEditorConfig.autoplay === 'boolean' ? effectiveEditorConfig.autoplay : true,
         canvasColor,
+        canvasSizing,
         canvasTransparent,
         editorCode: normalizedSourceMode === 'editor' ? String(editorCode || '').trim() : '',
         fileName: currentFileName || 'animation.riv',

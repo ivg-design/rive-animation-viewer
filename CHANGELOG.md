@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **Regression guardrails** — Documented the current prebuild protection stack around architecture drift, dependency boundaries, custom window chrome, and exported demo chrome so the `2.1.x` stabilization work has explicit gates instead of relying on ad hoc manual checks.
+
+## [2.2.0] - 2026-04-04
+
+### Added
+
+- **Explicit canvas sizing** — Added a shared canvas sizing model with Settings controls for `AUTO` vs `FIXED`, editable pixel width/height, aspect-ratio locking, editor `canvasSize` support, and a new `rav_set_canvas_size` MCP tool plus `rav_status` reporting for the active sizing mode.
+
+### Changed
+
+- **Snippet/export carry-through** — Generated snippets, exported demos, and descriptor payloads now preserve the active canvas sizing mode. Fixed-size outputs emit explicit canvas pixel dimensions instead of collapsing back to host-driven layout.
+- **Documentation and release notes** — README, website docs, MCP reference docs, and release notes now document the canvas sizing workflow, updated MCP tool count, and the end-to-end behavior of fixed-size exports.
+
+### Fixed
+
+- **Editor apply sizing propagation** — Applying editor code that contains `canvasSize` now updates the live app state correctly because the UI stack receives the shared canvas sizing setter through the controller bootstrap path.
+- **Windows updater handoff** — Desktop update install now waits for the app-owned MCP bridge to stop before installation begins, preventing `rive-mcp.exe` from keeping the old install locked during Windows updates.
+
 ## [2.1.1] - 2026-04-04
 
 ### Changed

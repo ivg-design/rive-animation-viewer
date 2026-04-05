@@ -12,8 +12,8 @@
 <body>
     <div class="app-shell">
         <header class="app-chrome">
-            <div class="titlebar-row" id="window-titlebar">
-                <div class="titlebar-left" data-tauri-drag-region>
+            <div class="titlebar-row" id="window-titlebar" data-tauri-drag-region>
+                <div class="titlebar-left" id="window-titlebar-left" data-tauri-drag-region>
                     <div class="brand-block brand-block-titlebar">
                         <div class="brand-icon" aria-hidden="true">
                             <img src="icons/app-icon.png" alt="" class="brand-app-icon">
@@ -27,25 +27,24 @@
                     <div id="header-file-meta" class="header-file-meta" hidden></div>
                 </div>
 
-                <div class="titlebar-right">
-                    <div id="window-controls" class="window-controls" hidden>
-                        <button type="button" id="window-maximize-btn" class="window-control-btn window-control-btn-maximize" aria-label="Maximize window" title="Maximize window">
-                            <svg class="window-control-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M8 4H4v4"></path>
-                                <path d="M16 4h4v4"></path>
-                                <path d="M20 16v4h-4"></path>
-                                <path d="M4 16v4h4"></path>
+                <div class="titlebar-right" data-tauri-drag-region="false">
+                    <div id="window-controls" class="window-controls" hidden data-tauri-drag-region="false">
+                        <button type="button" id="window-maximize-btn" class="window-control-btn window-control-btn-maximize" data-window-control="maximize" data-tauri-drag-region="false" aria-label="Maximize window" title="Maximize window">
+                            <svg class="window-control-icon window-control-icon-chevron" viewBox="0 0 38 38" aria-hidden="true">
+                                <polyline points="1.5 36.5 19 15.22378 36.5 36.5"></polyline>
+                                <line x1="36.5" y1="1.5" x2="1.5" y2="1.5"></line>
                             </svg>
                         </button>
-                        <button type="button" id="window-minimize-btn" class="window-control-btn window-control-btn-minimize" aria-label="Minimize window" title="Minimize window">
-                            <svg class="window-control-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="m6 10 6 6 6-6"></path>
+                        <button type="button" id="window-minimize-btn" class="window-control-btn window-control-btn-minimize" data-window-control="minimize" data-tauri-drag-region="false" aria-label="Minimize window" title="Minimize window">
+                            <svg class="window-control-icon window-control-icon-chevron" viewBox="0 0 38 38" aria-hidden="true">
+                                <polyline points="36.5 1.5 19 22.77622 1.5 1.5"></polyline>
+                                <line x1="1.5" y1="36.5" x2="36.5" y2="36.5"></line>
                             </svg>
                         </button>
-                        <button type="button" id="window-close-btn" class="window-control-btn window-control-btn-close" aria-label="Close window" title="Close window">
-                            <svg class="window-control-icon" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M6 6l12 12"></path>
-                                <path d="M18 6l-12 12"></path>
+                        <button type="button" id="window-close-btn" class="window-control-btn window-control-btn-close" data-window-control="close" data-tauri-drag-region="false" aria-label="Close window" title="Close window">
+                            <svg class="window-control-icon window-control-icon-close" viewBox="0 0 37.99999 37.7937" aria-hidden="true">
+                                <line x1="36.49999" y1="1.5" x2="1.70629" y2="36.2937"></line>
+                                <line x1="36.2937" y1="36.2937" x2="1.5" y2="1.5"></line>
                             </svg>
                         </button>
                     </div>
@@ -101,12 +100,8 @@
 
                 <div class="toolbar-right">
                     <div class="header-right-actions">
-                        <button type="button" id="demo-bundle-btn" class="btn btn-primary">
-                            <i data-lucide="download" class="lucide-16"></i>
-                            <span>EXPORT</span>
-                        </button>
                         <div class="settings-wrapper">
-                            <button type="button" id="settings-btn" class="icon-btn icon-btn-ghost" title="Settings" aria-label="Settings">
+                            <button type="button" id="settings-btn" class="icon-btn icon-btn-toolbar" title="Settings" aria-label="Settings">
                                 <i data-lucide="settings" class="lucide-18"></i>
                             </button>
                             <div class="settings-popover" id="settings-popover" hidden>
@@ -137,19 +132,55 @@
                                     <button type="button" id="canvas-color-reset-btn" class="settings-toggle">NO BG</button>
                                 </div>
                             </div>
-                            <div class="settings-row">
-                                <label class="settings-label" for="transparency-mode-toggle">Transparency</label>
-                                <button type="button" id="transparency-mode-toggle" class="settings-toggle" aria-pressed="false">OFF</button>
+                            <div class="settings-row settings-row-canvas-size">
+                                <label class="settings-label" for="canvas-size-width-input">Canvas Size</label>
+                                <div class="settings-controls settings-controls-canvas-size">
+                                    <button type="button" id="canvas-size-auto-btn" class="settings-toggle is-active" aria-pressed="true">AUTO</button>
+                                    <button type="button" id="canvas-size-fixed-btn" class="settings-toggle" aria-pressed="false">FIXED</button>
+                                </div>
                             </div>
-                            <div class="settings-row">
-                                <label class="settings-label" for="click-through-toggle">Click Through</label>
-                                <button type="button" id="click-through-toggle" class="settings-toggle" aria-pressed="false" disabled>OFF</button>
+                            <div class="settings-row settings-row-canvas-size-inputs">
+                                <label class="settings-label" for="canvas-size-width-input">Pixels</label>
+                                <div class="settings-controls settings-controls-canvas-size settings-controls-canvas-size-fields">
+                                    <input
+                                        type="number"
+                                        id="canvas-size-width-input"
+                                        class="settings-input settings-input-canvas-size"
+                                        min="1"
+                                        max="8192"
+                                        step="1"
+                                        inputmode="numeric"
+                                        placeholder="Width"
+                                    >
+                                    <span class="settings-dimension-sep" aria-hidden="true">×</span>
+                                    <input
+                                        type="number"
+                                        id="canvas-size-height-input"
+                                        class="settings-input settings-input-canvas-size"
+                                        min="1"
+                                        max="8192"
+                                        step="1"
+                                        inputmode="numeric"
+                                        placeholder="Height"
+                                    >
+                                    <button type="button" id="canvas-size-lock-btn" class="settings-toggle" aria-pressed="false">LOCK</button>
+                                </div>
                             </div>
-                            <p class="settings-note">Click-through works only in desktop mode and is sampled on transparent canvas pixels.</p>
+                            <div class="settings-row settings-row-canvas-size-meta">
+                                <label class="settings-label" for="canvas-size-aspect-value">Aspect</label>
+                                <div class="settings-controls settings-controls-canvas-size-meta">
+                                    <span id="canvas-size-aspect-value" class="settings-note settings-note-value">16:9</span>
+                                    <span class="settings-note" id="canvas-size-mode-note">Canvas follows the viewer size.</span>
+                                </div>
+                            </div>
                             </div>
                         </div>
-                        <button type="button" id="mcp-setup-btn" class="icon-btn icon-btn-ghost" title="MCP Setup" aria-label="MCP Setup">
+                        <button type="button" id="mcp-setup-btn" class="icon-btn icon-btn-toolbar" title="MCP Setup" aria-label="MCP Setup">
                             <i data-lucide="cable" class="lucide-18"></i>
+                        </button>
+                        <button type="button" id="demo-bundle-btn" class="btn btn-primary">
+                            <i data-lucide="download" class="lucide-16"></i>
+                            <span>EXPORT</span>
                         </button>
                     </div>
                 </div>
@@ -320,6 +351,7 @@
                                 <span class="vm-section-count" id="artboard-switcher-count">0</span>
                             </summary>
                             <div class="vm-section-body">
+                                <div class="artboard-selection-summary" id="artboard-selection-summary" hidden></div>
                                 <div class="vm-control-row">
                                     <label class="vm-control-label" for="artboard-select">Artboard</label>
                                     <div class="vm-control-input">

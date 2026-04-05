@@ -181,23 +181,27 @@ window._mcpBridge = {
         transport.connect();
     },
 
-    disable() {
+    async disable() {
         if (!state.enabled) {
-            return;
+            return true;
         }
         state.enabled = false;
         state.activeCommandCount = 0;
         state.mcpClientCount = 0;
         transport.disconnect();
         transport.syncState();
-        void invokeDesktop('stop_mcp_bridge', {}, window);
+        if (!getTauriInvoker(window)) {
+            return true;
+        }
+        return invokeDesktop('stop_mcp_bridge', {}, window);
     },
 
-    toggle() {
+    async toggle() {
         if (state.enabled) {
-            this.disable();
+            return this.disable();
         } else {
             this.enable();
+            return true;
         }
     },
 

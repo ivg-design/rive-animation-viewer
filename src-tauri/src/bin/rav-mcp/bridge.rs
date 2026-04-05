@@ -7,7 +7,7 @@ use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::timeout;
 use uuid::Uuid;
 
-use crate::constants::APP_CONNECTION_GRACE_MS;
+use crate::support::constants::APP_CONNECTION_GRACE_MS;
 use crate::websocket::BridgePeerRole;
 
 #[derive(Default)]

@@ -31,6 +31,7 @@ export function createCodeEditorController({
         loadRiveAnimation = async () => {},
         logEvent = () => {},
         refreshCurrentState = async () => {},
+        setCurrentCanvasSizing = () => {},
         showError = () => {},
         updateInfo = () => {},
     } = callbacks;
@@ -285,6 +286,9 @@ export function createCodeEditorController({
 
         const currentCode = getEditorDraftCode();
         const parsedConfig = evaluateEditorConfig(currentCode);
+        if (Object.prototype.hasOwnProperty.call(parsedConfig, 'canvasSize')) {
+            setCurrentCanvasSizing(parsedConfig.canvasSize);
+        }
         appliedEditorCode = currentCode;
         appliedEditorConfig = parsedConfig;
         liveConfigSource = 'editor';

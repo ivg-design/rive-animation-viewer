@@ -1,4 +1,4 @@
-import { writeTextToClipboard } from './console/clipboard.js';
+import { writeTextToClipboard } from './console/io/clipboard.js';
 import { createConsoleCaptureController } from './console/capture-controller.js';
 import { buildVisibleConsoleCopyText } from './console/copy-visible-rows.js';
 import { loadErudaConsole } from './console/eruda/loader.js';

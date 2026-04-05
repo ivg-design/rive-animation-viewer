@@ -13,7 +13,8 @@ export function safeVmMethodCall(target, methodName, ...args) {
     }
 
     try {
-        return target[methodName](...args) || null;
+        const result = target[methodName](...args);
+        return result === undefined ? null : result;
     } catch {
         return null;
     }
@@ -178,7 +179,7 @@ export function getStateMachineInputKind(input, runtime) {
     if (typeof input.value === 'number') {
         return 'number';
     }
-    if (typeof input.fire === 'function') {
+    if (typeof input.fire === 'function' && !('value' in input)) {
         return 'trigger';
     }
     return null;

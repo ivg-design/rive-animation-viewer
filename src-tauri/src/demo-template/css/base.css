@@ -57,6 +57,51 @@ body.transparency-mode .center-panel {
     background: transparent !important;
 }
 
+:is(
+    body,
+    .event-log-body,
+    .properties-panel-body
+) {
+    scrollbar-width: thin;
+    scrollbar-color: #313542 #0f1015;
+}
+
+:is(
+    body,
+    .event-log-body,
+    .properties-panel-body
+)::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+:is(
+    body,
+    .event-log-body,
+    .properties-panel-body
+)::-webkit-scrollbar-track {
+    background: #0f1015;
+    border-radius: 10px;
+}
+
+:is(
+    body,
+    .event-log-body,
+    .properties-panel-body
+)::-webkit-scrollbar-thumb {
+    background: #313542;
+    border: 1px solid #0f111a;
+    border-radius: 10px;
+}
+
+:is(
+    body,
+    .event-log-body,
+    .properties-panel-body
+)::-webkit-scrollbar-thumb:hover {
+    background: #444b5d;
+}
+
 /* ── Lucide icon sizing ──────────────────────────────────── */
 
 .lucide-10 { width: 10px; height: 10px; }
@@ -208,4 +253,3 @@ body.transparency-mode .center-panel {
     border-color: var(--border);
     color: var(--text-dim);
 }
-

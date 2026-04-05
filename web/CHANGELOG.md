@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-04-04
+
+### Added
+
+- **Explicit canvas sizing** — RAV now supports fixed pixel canvas sizing with width/height controls, aspect-ratio locking, editor `canvasSize` config support, and a new MCP tool for remote canvas sizing changes.
+
+### Changed
+
+- **Snippet/export carry-through** — Canonical snippets and exported demos now preserve the active fixed-size canvas dimensions instead of silently reverting to fluid host sizing.
+- **Docs refresh** — The docs and homepage feature cards now describe the canvas sizing workflow, updated MCP tool count, and the updater-sidecar shutdown safeguard used during desktop installs.
+
+### Fixed
+
+- **Windows updater handoff** — Desktop update installation now waits for the app-owned MCP bridge to stop before install starts, preventing Windows file-lock stalls from `rive-mcp.exe`.
+
 ## [2.1.1] - 2026-04-04
 
 ### Changed

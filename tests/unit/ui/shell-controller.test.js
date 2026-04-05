@@ -8,6 +8,13 @@ function createElements() {
     document.body.innerHTML = `
         <button id="settings-btn"></button>
         <div id="settings-popover" hidden></div>
+        <button id="canvas-size-auto-btn"></button>
+        <button id="canvas-size-fixed-btn"></button>
+        <input id="canvas-size-width-input" />
+        <input id="canvas-size-height-input" />
+        <button id="canvas-size-lock-btn"></button>
+        <span id="canvas-size-aspect-value"></span>
+        <span id="canvas-size-mode-note"></span>
         <select id="runtime-select">
             <option value="webgl2">WebGL</option>
             <option value="canvas">Canvas</option>
@@ -41,6 +48,14 @@ function createElements() {
     Object.defineProperty(rightPanel, 'offsetWidth', { configurable: true, value: 330 });
 
     return {
+        canvasContainer: document.getElementById('center-panel'),
+        canvasSizeAspectValue: document.getElementById('canvas-size-aspect-value'),
+        canvasSizeAutoButton: document.getElementById('canvas-size-auto-btn'),
+        canvasSizeFixedButton: document.getElementById('canvas-size-fixed-btn'),
+        canvasSizeHeightInput: document.getElementById('canvas-size-height-input'),
+        canvasSizeLockButton: document.getElementById('canvas-size-lock-btn'),
+        canvasSizeModeNote: document.getElementById('canvas-size-mode-note'),
+        canvasSizeWidthInput: document.getElementById('canvas-size-width-input'),
         centerPanel: document.getElementById('center-panel'),
         centerResizer: document.getElementById('center-resizer'),
         configPanel,
@@ -184,12 +199,28 @@ describe('ui/shell-controller', () => {
         const intervalCallbacks = [];
         const clearIntervalFn = vi.fn();
         const clearTimeoutFn = vi.fn();
+        let currentCanvasSizing = {
+            mode: 'auto',
+            width: 1280,
+            height: 720,
+            lockAspectRatio: false,
+            aspectRatio: 1280 / 720,
+        };
+        const setCurrentCanvasSizing = vi.fn((nextValue) => {
+            currentCanvasSizing = nextValue;
+        });
+        Object.defineProperty(elements.canvasContainer, 'clientWidth', { configurable: true, value: 960 });
+        Object.defineProperty(elements.canvasContainer, 'clientHeight', { configurable: true, value: 540 });
         const controller = createShellController({
             callbacks: {
+                getCurrentCanvasSizing: () => currentCanvasSizing,
                 getCurrentLayoutFit: () => 'contain',
                 getCurrentRuntime: () => 'webgl2',
                 getTauriInvoker: () => vi.fn(),
+                handleResize: vi.fn(),
                 logEvent: vi.fn(),
+                refreshInfoStrip: vi.fn(),
+                setCurrentCanvasSizing,
                 showError: vi.fn(),
                 syncTransparencyControls: vi.fn(),
                 updateInfo: vi.fn(),
@@ -209,12 +240,49 @@ describe('ui/shell-controller', () => {
         });
 
         controller.setupSettingsPopover();
+        controller.setupCanvasSizingControls();
         controller.setupDemoButton();
 
         elements.settingsButton.click();
         expect(elements.settingsPopover.hidden).toBe(false);
+        expect(elements.canvasSizeWidthInput.disabled).toBe(true);
+        expect(elements.canvasSizeHeightInput.disabled).toBe(true);
+        expect(elements.canvasSizeAspectValue.textContent).toBe('16:9');
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
         expect(elements.settingsPopover.hidden).toBe(true);
+
+        elements.canvasSizeFixedButton.click();
+        expect(setCurrentCanvasSizing).toHaveBeenCalledWith(expect.objectContaining({
+            mode: 'fixed',
+            width: 960,
+            height: 540,
+        }));
+
+        currentCanvasSizing = {
+            mode: 'fixed',
+            width: 960,
+            height: 540,
+            lockAspectRatio: false,
+            aspectRatio: 16 / 9,
+        };
+        elements.canvasSizeWidthInput.value = '1200';
+        elements.canvasSizeWidthInput.dispatchEvent(new Event('change'));
+        expect(setCurrentCanvasSizing).toHaveBeenCalledWith(expect.objectContaining({
+            width: 1200,
+            height: 540,
+        }));
+
+        currentCanvasSizing = {
+            mode: 'fixed',
+            width: 1200,
+            height: 540,
+            lockAspectRatio: false,
+            aspectRatio: 1200 / 540,
+        };
+        elements.canvasSizeLockButton.click();
+        expect(setCurrentCanvasSizing).toHaveBeenCalledWith(expect.objectContaining({
+            lockAspectRatio: true,
+        }));
 
         expect(elements.demoBundleButton.disabled).toBe(false);
         expect(intervalCallbacks).toHaveLength(1);

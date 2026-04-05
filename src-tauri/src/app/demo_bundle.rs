@@ -19,25 +19,25 @@ const DEMO_TEMPLATE_STYLES: &str = concat!(
     include_str!("../demo-template/css/overlays.css"),
 );
 const DEMO_TEMPLATE_APP_JS: &str = concat!(
-    include_str!("../demo-template/js/preamble.js"),
+    include_str!("../demo-template/js/core/preamble.js"),
     "\n",
-    include_str!("../demo-template/js/bootstrap.js"),
+    include_str!("../demo-template/js/core/bootstrap.js"),
     "\n",
-    include_str!("../demo-template/js/playback-layout.js"),
+    include_str!("../demo-template/js/core/playback-layout.js"),
     "\n",
-    include_str!("../demo-template/js/settings.js"),
+    include_str!("../demo-template/js/core/settings.js"),
     "\n",
-    include_str!("../demo-template/js/event-log.js"),
+    include_str!("../demo-template/js/core/event-log.js"),
     "\n",
-    include_str!("../demo-template/js/vm-accessors.js"),
+    include_str!("../demo-template/js/vm/accessors.js"),
     "\n",
-    include_str!("../demo-template/js/vm-hierarchy.js"),
+    include_str!("../demo-template/js/vm/hierarchy.js"),
     "\n",
-    include_str!("../demo-template/js/vm-controls-render.js"),
+    include_str!("../demo-template/js/vm/controls-render.js"),
     "\n",
-    include_str!("../demo-template/js/vm-sync.js"),
+    include_str!("../demo-template/js/vm/sync.js"),
     "\n",
-    include_str!("../demo-template/js/rive-loader.js"),
+    include_str!("../demo-template/js/core/rive-loader.js"),
 );
 
 #[tauri::command]
@@ -121,6 +121,17 @@ pub fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json
         .canvas_color
         .clone()
         .unwrap_or_else(|| "#0d1117".into()),
+      "canvasSizing": payload
+        .canvas_sizing
+        .as_deref()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+        .unwrap_or_else(|| json!({
+            "mode": "auto",
+            "width": 1280,
+            "height": 720,
+            "lockAspectRatio": false,
+            "aspectRatio": 1280.0 / 720.0
+        })),
       "canvasTransparent": payload.canvas_transparent,
       "layoutState": layout_state
     });
@@ -187,6 +198,7 @@ mod tests {
             artboard_name: Some("Main".into()),
             autoplay: true,
             canvas_color: Some("#0d1117".into()),
+            canvas_sizing: None,
             canvas_transparent: false,
             control_snapshot: Some(r#"[{"descriptor":{"path":"root/value","kind":"number"},"kind":"number","value":42}]"#.into()),
             default_instantiation_package_source: "cdn".into(),
@@ -222,6 +234,7 @@ mod tests {
             artboard_name: Some("Main".into()),
             autoplay: true,
             canvas_color: Some("#0d1117".into()),
+            canvas_sizing: None,
             canvas_transparent: false,
             control_snapshot: None,
             default_instantiation_package_source: "cdn".into(),
@@ -243,6 +256,10 @@ mod tests {
 
         assert!(html.contains("function updateCanvasBackground()"));
         assert!(html.contains("id=\"copy-instantiation-btn\""));
+        assert!(html.contains("id=\"fullscreen-toggle-btn\""));
+        assert!(html.contains("id=\"event-log-toggle-btn\""));
         assert!(html.contains("copy web instantiation code"));
+        assert!(!html.contains("id=\"show-event-log-btn\""));
+        assert!(!html.contains("fullscreen-exit-hint"));
     }
 }

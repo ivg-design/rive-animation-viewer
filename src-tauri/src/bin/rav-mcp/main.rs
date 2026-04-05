@@ -3,10 +3,9 @@ use std::time::Duration;
 
 mod bridge;
 mod cli;
-mod constants;
-mod instructions;
 mod rpc;
 mod stdio_transport;
+mod support;
 mod tool_registry;
 mod websocket;
 

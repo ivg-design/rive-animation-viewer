@@ -38,6 +38,8 @@ describe('platform/global-bindings', () => {
         const reset = vi.fn();
         const resetToDefaultArtboard = vi.fn();
         const setCurrentFile = vi.fn();
+        const setCurrentCanvasSizing = vi.fn();
+        const setCanvasSizingState = vi.fn((canvasSizing) => canvasSizing);
         const setEditorCode = vi.fn().mockReturnValue(true);
         const showMcpSetup = vi.fn();
         const switchArtboard = vi.fn();
@@ -58,6 +60,7 @@ describe('platform/global-bindings', () => {
                 ensureEditorReady,
                 exportDemoToPath,
                 getArtboardStateSnapshot: () => ({ currentArtboard: 'Main' }),
+                getCurrentCanvasSizing: () => ({ mode: 'fixed', width: 1280, height: 720, lockAspectRatio: true }),
                 getCurrentFileBuffer: () => Uint8Array.from([1]).buffer,
                 getCurrentFileMimeType: () => 'application/octet-stream',
                 getCurrentFileName: () => 'demo.riv',
@@ -83,6 +86,8 @@ describe('platform/global-bindings', () => {
                 reset,
                 resetToDefaultArtboard,
                 setCurrentFile,
+                setCurrentCanvasSizing,
+                setCanvasSizingState,
                 setEditorCode,
                 showMcpSetup,
                 switchArtboard,
@@ -133,6 +138,8 @@ describe('platform/global-bindings', () => {
         await windowRef._mcpSwitchArtboard('Main', 'sm:Main');
         windowRef._mcpResetArtboard();
         expect(windowRef._mcpGetArtboardState()).toEqual({ currentArtboard: 'Main' });
+        expect(windowRef._mcpGetCanvasSizing()).toEqual({ mode: 'fixed', width: 1280, height: 720, lockAspectRatio: true });
+        expect(windowRef._mcpSetCanvasSizing({ mode: 'auto' })).toEqual({ mode: 'auto' });
         windowRef.showMcpSetup();
         await expect(windowRef._mcpToggleInstantiationControlsDialog('open')).resolves.toEqual({ open: true });
 
@@ -145,6 +152,7 @@ describe('platform/global-bindings', () => {
         expect(pause).toHaveBeenCalled();
         expect(reset).toHaveBeenCalled();
         expect(setCurrentFile).toHaveBeenCalledWith('blob:demo', 'demo.riv');
+        expect(setCanvasSizingState).toHaveBeenCalledWith({ mode: 'auto' }, undefined);
         expect(loadRiveAnimation).toHaveBeenCalledWith('blob:demo', 'demo.riv');
         expect(logEvent).toHaveBeenCalledWith('mcp', 'reply', 'ok', { source: 'mcp' });
         expect(switchArtboard).toHaveBeenCalledWith('Main', 'sm:Main');
@@ -219,6 +227,8 @@ describe('platform/global-bindings', () => {
         expect(() => windowRef._mcpSwitchArtboard('Main', 'sm:Main')).not.toThrow();
         windowRef._mcpResetArtboard();
         expect(windowRef._mcpGetArtboardState()).toEqual({});
+        expect(windowRef._mcpGetCanvasSizing()).toBeNull();
+        expect(windowRef._mcpSetCanvasSizing({ mode: 'fixed' })).toEqual({ mode: 'fixed' });
         expect(windowRef._mcpGetLiveConfigState()).toEqual({ draftDirty: false, sourceMode: 'internal' });
         await expect(windowRef._mcpToggleInstantiationControlsDialog('toggle')).resolves.toEqual({ open: false });
         await expect(windowRef._mcpToggleLiveConfigSource()).resolves.toBeUndefined();

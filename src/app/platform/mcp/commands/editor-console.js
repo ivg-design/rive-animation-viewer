@@ -66,15 +66,42 @@ export function createEditorConsoleCommands({
             const input = documentRef.getElementById('canvas-color-input');
             if (!input) throw new Error('Canvas color input not found');
             if (color === 'transparent') {
-                const button = documentRef.getElementById('transparency-mode-toggle');
+                const button = documentRef.getElementById('canvas-color-reset-btn');
                 if (button) {
                     button.click();
+                    return { ok: true, color: 'transparent' };
                 }
-                return { ok: true, color: 'transparent' };
+                throw new Error('Canvas transparency toggle not found');
             }
             input.value = color;
             input.dispatchEvent(new Event('input', { bubbles: true }));
             return { ok: true, color };
+        },
+
+        async rav_set_canvas_size({
+            mode = 'fixed',
+            width,
+            height,
+            lockAspectRatio,
+        } = {}) {
+            if (typeof windowRef._mcpSetCanvasSizing !== 'function') {
+                throw new Error('Canvas sizing controls not available');
+            }
+
+            const normalizedMode = mode === 'auto' ? 'auto' : 'fixed';
+            const nextState = await windowRef._mcpSetCanvasSizing({
+                mode: normalizedMode,
+                width,
+                height,
+                lockAspectRatio,
+            }, normalizedMode === 'fixed'
+                ? 'Canvas size updated from MCP'
+                : 'Canvas sizing set to auto from MCP');
+
+            return {
+                ok: true,
+                canvasSize: nextState,
+            };
         },
 
         async rav_eval({ expression }) {

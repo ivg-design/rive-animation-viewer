@@ -42,6 +42,7 @@ export function createStatusPlaybackCommands({
                     fit: documentRef.getElementById('layout-select')?.value || 'contain',
                     alignment: documentRef.getElementById('alignment-select')?.value || 'center',
                     canvasColor: documentRef.getElementById('canvas-color-input')?.value || '#0d1117',
+                    canvasSize: windowRef._mcpGetCanvasSizing?.() || null,
                 },
                 viewModel: {
                     hasRoot: vmSnapshot.hasRoot,

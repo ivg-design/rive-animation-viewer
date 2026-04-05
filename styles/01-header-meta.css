@@ -3,7 +3,7 @@
 .header-right-actions {
     display: inline-flex;
     align-items: center;
-    gap: var(--gap-base);
+    gap: 8px;
     flex: 0 0 auto;
 }
 

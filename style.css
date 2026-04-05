@@ -1,5 +1,6 @@
 @import url("./styles/00-base.css");
 @import url("./styles/01-header.css");
+@import url("./styles/01-header-controls.css");
 @import url("./styles/01-header-meta.css");
 @import url("./styles/01-window-chrome.css");
 @import url("./styles/02-settings.css");

@@ -3,6 +3,11 @@ import {
     populatePlaybackSelectUi,
     populateVmInstanceSelectUi,
 } from './artboards/ui-population.js';
+import {
+    buildArtboardSelectionSummary,
+    buildPlaybackContext,
+    buildPlaybackStatusLabel,
+} from './playback-status.js';
 
 export function parsePlaybackTarget(target) {
     if (!target) {
@@ -38,6 +43,7 @@ export function createArtboardSwitcherController({
     let currentArtboardName = null;
     let currentPlaybackType = null;
     let currentPlaybackName = null;
+    let currentVmInstanceName = null;
     let defaultArtboardName = null;
     let defaultPlaybackKey = null;
     let fileContentsCache = null;
@@ -47,9 +53,11 @@ export function createArtboardSwitcherController({
         currentArtboardName = null;
         currentPlaybackType = null;
         currentPlaybackName = null;
+        currentVmInstanceName = null;
         defaultArtboardName = null;
         defaultPlaybackKey = null;
         fileContentsCache = null;
+        updateSelectionSummary();
     }
 
     function syncStateFromConfig({
@@ -72,6 +80,36 @@ export function createArtboardSwitcherController({
 
     function syncStateAfterLoad(riveInstance, config = {}) {
         currentArtboardName = riveInstance?.artboard?.name || currentArtboardName || config.artboard || null;
+        updateSelectionSummary();
+    }
+
+    function getStatusContext() {
+        return buildPlaybackContext({
+            playbackState: {
+                currentArtboard: currentArtboardName,
+                currentPlaybackName,
+                currentPlaybackType,
+                currentVmInstanceName,
+            },
+            riveInstance: getRiveInstance(),
+        });
+    }
+
+    function updateSelectionSummary() {
+        const summaryElement = elements.artboardSelectionSummary;
+        if (!summaryElement) {
+            return;
+        }
+
+        const riveInstance = getRiveInstance();
+        if (!riveInstance || !currentArtboardName) {
+            summaryElement.textContent = '';
+            summaryElement.hidden = true;
+            return;
+        }
+
+        summaryElement.textContent = buildArtboardSelectionSummary(getStatusContext());
+        summaryElement.hidden = false;
     }
 
     function scheduleSelectionChange(callback) {
@@ -107,6 +145,7 @@ export function createArtboardSwitcherController({
         fileContentsCache = nextState.fileContentsCache;
         populatePlaybackSelect();
         populateVmInstanceSelect();
+        updateSelectionSummary();
     }
 
     function populatePlaybackSelect() {
@@ -127,6 +166,8 @@ export function createArtboardSwitcherController({
             elements,
             getRiveInstance,
         });
+        currentVmInstanceName = elements.vmInstanceSelect?.value || null;
+        updateSelectionSummary();
     }
 
     async function switchArtboard(artboardName, playbackTarget) {
@@ -146,11 +187,13 @@ export function createArtboardSwitcherController({
             artboardName: currentArtboardName,
             playbackType: currentPlaybackType,
             playbackName: currentPlaybackName,
+            vmInstanceName: currentVmInstanceName,
         };
 
         currentArtboardName = artboardName;
         currentPlaybackType = playbackType;
         currentPlaybackName = playbackName;
+        currentVmInstanceName = null;
 
         const overrides = { artboard: artboardName, autoplay: true, autoBind: true };
         if (playbackType === 'stateMachine' && playbackName) {
@@ -184,11 +227,14 @@ export function createArtboardSwitcherController({
                     onLoadError: rejectOnce,
                 }).catch(rejectOnce);
             });
-            updateInfo(`Playing "${artboardName}"`);
+            updateSelectionSummary();
+            updateInfo(buildPlaybackStatusLabel(getStatusContext(), 'Loaded'));
         } catch (error) {
             currentArtboardName = previousState.artboardName;
             currentPlaybackType = previousState.playbackType;
             currentPlaybackName = previousState.playbackName;
+            currentVmInstanceName = previousState.vmInstanceName;
+            updateSelectionSummary();
             showError(`Failed to switch artboard: ${error?.message || error}`);
         }
     }
@@ -244,7 +290,10 @@ export function createArtboardSwitcherController({
 
             if (typeof riveInstance.bindViewModelInstance === 'function') {
                 riveInstance.bindViewModelInstance(newInstance);
+                currentVmInstanceName = instanceKey;
                 renderVmInputControls();
+                updateSelectionSummary();
+                updateInfo(buildPlaybackStatusLabel(getStatusContext(), 'Loaded'));
                 logEvent(
                     'ui',
                     'vm-instance-switch',
@@ -308,6 +357,7 @@ export function createArtboardSwitcherController({
             currentArtboard: currentArtboardName,
             currentPlaybackName,
             currentPlaybackType,
+            currentVmInstanceName,
             defaultArtboard: defaultArtboardName,
             defaultPlaybackKey,
         };

@@ -15,26 +15,6 @@
     scrollbar-gutter: stable;
 }
 
-.properties-panel-body::-webkit-scrollbar {
-    width: 10px;
-}
-
-.properties-panel-body::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.properties-panel-body::-webkit-scrollbar-thumb {
-    border-radius: 8px;
-    border: 2px solid transparent;
-    background: var(--border);
-    background-clip: padding-box;
-}
-
-.properties-panel-body::-webkit-scrollbar-thumb:hover {
-    background: var(--border-bright);
-    background-clip: padding-box;
-}
-
 /* ── Pills ────────────────────────────────────────────────── */
 
 .pill {
@@ -69,6 +49,19 @@
     display: flex;
     justify-content: flex-end;
     padding: 4px 2px 2px;
+}
+
+.artboard-selection-summary {
+    margin: 0 2px 6px;
+    color: #c5cddd;
+    font-size: 10px;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-weight: 600;
+    letter-spacing: 0.12px;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .artboard-switcher-actions .btn-compact {
@@ -360,4 +353,3 @@
     padding-left: 8px;
     border-left: 1px dashed var(--border-bright);
 }
-

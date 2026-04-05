@@ -4,8 +4,28 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.1.1` (2026-04-04)
-- Validation target: release from `main` so installed desktop builds can pick up the `2.1.1` updater payload directly.
+- Current release: `2.2.0` (2026-04-04)
+- Validation target: release from `main` so installed desktop builds can pick up the `2.2.0` updater payload directly.
+
+## Regression Gates
+
+The repo now has explicit prebuild guards for the surfaces that were regressing during the 2.1.x window-chrome and export hardening work:
+
+- `npm run check:architecture` enforces file-size and folder-shape budgets
+- `npm run check:deps` enforces dependency-cruiser import boundaries
+- `tests/smoke/ui-regressions.smoke.test.js` protects the shared scrollbar contract, custom window-chrome structure, Tauri window config, and exported demo chrome contract
+- `tests/unit/ui/window-chrome.test.js` protects desktop window-control wiring and Tauri/non-Tauri behavior split
+- `npm run test` runs the full Vitest suite before every package build
+- `cargo check --manifest-path src-tauri/Cargo.toml` validates the native Tauri layer
+
+These gates materially reduce regression risk, but they are still code- and DOM-contract tests, not full visual snapshot coverage. If we want pixel-level guarantees from this point forward, the next step is adding screenshot-based desktop smoke tests for the packaged app window.
+
+## 2.2.0 Highlights
+
+- **Explicit canvas sizing**: You can now pin the viewer to an exact pixel size from Settings, carry that same size through the editor via `canvasSize`, and keep width/height locked to a chosen aspect ratio while editing.
+- **Canvas sizing through MCP**: Agents can now call `rav_set_canvas_size`, and `rav_status` reports the active canvas sizing mode so remote workflows can inspect and control explicit pixel dimensions.
+- **Snippet/demo parity**: Generated snippets and exported demos now preserve the active canvas sizing mode. Fixed-size exports emit explicit `canvas.width`, `canvas.height`, and CSS dimensions instead of silently falling back to fluid layout.
+- **Updater reliability on Windows**: The app-owned MCP bridge is now shut down before updater installation begins, preventing `rive-mcp.exe` from holding the old install open during Windows update handoff.
 
 ## 2.1.1 Highlights
 
@@ -81,6 +101,7 @@ npm start  # Opens browser at http://localhost:1420
 - **Runtime Version Selection**: Pick runtime semver (`Latest (auto)`, the latest 4 concrete versions, or `Custom`) from Settings
 - **Layout Options**: Fit and alignment are surfaced directly in the main toolbar next to playback controls
 - **Background Color**: Color picker with `No BG` reset for transparent canvas backgrounds
+- **Explicit Canvas Size**: Settings can pin the canvas to a specific width/height in pixels and optionally lock the aspect ratio
 - **Transparency Mode**: Toggle transparent canvas/window mode for overlay-style playback
 - **Click-through (Desktop)**: Cursor-synced transparent-pixel click-through while keeping the viewer topmost in transparency mode
 - **Playback Controls**: Play, pause, and reset/restart (reset reloads animation with autoplay and restores control values)
@@ -97,6 +118,7 @@ npm start  # Opens browser at http://localhost:1420
 - **JavaScript Configuration**: Write JavaScript objects (NOT JSON) for Rive initialization
 - **Live Source Indicator**: The `EDITOR` title block itself indicates the current live source. Neutral gray means internal wiring is live. Green pulsing state means the applied editor config is live.
 - **Apply & Reload**: `APPLY` evaluates the current editor code, switches the live source to the editor, and refreshes the current view without throwing away the active artboard/playback state
+- **Editor Canvas Sizing**: Applied editor configs can include a `canvasSize` block so the live runtime, snippets, and exports all use the same explicit pixel size
 - **Internal Wiring Toggle**: You can switch back to internal RAV wiring without deleting editor content
 - **Tab Support**: Tab inserts 2 spaces, Shift+Tab removes indentation
 - **Error Display**: Shows errors in red banner when configuration fails
@@ -191,7 +213,7 @@ args = ["--stdio-only", "--port", "9274"]
 
 Open the RAV desktop app and enable the MCP bridge. The **MCP** chip in the runtime strip has three live states: disabled (red, struck through), idle (dim yellow), and active (bright yellow with glow while an agent command is actually running). From then on, your MCP client can control RAV whenever both are running.
 
-#### Available Tools (31)
+#### Available Tools (32)
 
 | Tool | Description |
 |------|-------------|
@@ -209,6 +231,7 @@ Open the RAV desktop app and enable the MCP bridge. The **MCP** chip in the runt
 | `rav_set_runtime` | Switch runtime (webgl2/canvas) |
 | `rav_set_layout` | Set layout fit mode |
 | `rav_set_canvas_color` | Set background color or transparent |
+| `rav_set_canvas_size` | Set canvas sizing mode (`auto` or explicit pixels) and optional aspect lock |
 | `rav_export_demo` | Export standalone HTML demo |
 | `generate_web_instantiation_code` | Generate the canonical live web-instantiation snippet (`local` npm package or `cdn`) with `window.ravRive` helpers and current control values |
 | `rav_toggle_instantiation_controls_dialog` | Open/close the in-app Snippet & Export Controls dialog so a human can choose which controls are serialized |
@@ -224,9 +247,11 @@ Open the RAV desktop app and enable the MCP bridge. The **MCP** chip in the runt
 - `rav_apply_code` switches the live runtime to the last applied editor config.
 - Unsaved editor draft changes do not change the running animation until applied.
 - `rav_status` reports the active instantiation source and whether the editor draft is dirty.
+- `rav_status` also reports the active canvas sizing mode and explicit pixel size when the canvas is fixed.
 - `generate_web_instantiation_code` always reflects what is actually running.
 - `generate_web_instantiation_code` defaults to the CDN form unless you explicitly request `package_source: "local"`.
 - Generated snippets restore only the checked ViewModel/state-machine values on load, round numbers to 2 decimals, annotate enum choices inline, and expose helper methods on `window.ravRive`.
+- Fixed-size snippets and exported demos preserve explicit `width × height` sizing instead of collapsing back to host-driven layout.
 - The **Snippet & Export Controls** dialog lets you choose exactly which controls are serialized. Branch checkboxes select nested controls; individual rows affect one value only and branch expansion stays open while you curate nested values.
 - If you never open the dialog, RAV defaults to serializing only the controls that differ from the load-time baseline.
 - Exported demos mirror the active live source, keep fit/alignment in the main toolbar, and include a **Copy Instantiation Code** button in the demo toolbar.
@@ -248,6 +273,7 @@ All MCP commands, responses, and connection events appear in the event console w
 - **Offline Support**: Caches runtime scripts for offline use
 - **Dev Tools Access**: Programmatic DevTools opening via inject button to access console
 - **Background App Updates**: Check, download, install, and relaunch signed updates from GitHub Releases
+- **Safe Updater Bridge Shutdown**: Desktop installs now stop the app-owned MCP bridge before updater installation starts, preventing Windows file-lock stalls
 - **Merged updater publishing**: Release automation now rebuilds a combined `latest.json` so macOS Apple Silicon, macOS Intel, and Windows updater payloads all stay present in the same feed
 
 ## Project Structure
@@ -313,6 +339,12 @@ The editor uses `eval()` to evaluate JavaScript code, allowing full JavaScript s
   artboard: "Main",
   stateMachines: ["State Machine 1"],
   autoplay: true,
+  canvasSize: {
+    mode: "fixed",
+    width: 1600,
+    height: 900,
+    lockAspectRatio: true,
+  },
   layout: {
     fit: "contain",
     alignment: "center"
@@ -338,7 +370,7 @@ The editor intercepts Tab key events when focused:
 - Manually inserts/removes spaces at cursor position
 
 ### VM Explorer Architecture
-- Loaded as external module from `src/app/snippets/vm-explorer-snippet.js` (contains only functional code)
+- Loaded from the source-backed snippet pipeline under `src/app/snippets/source/vm-explorer.js` and emitted into the generated snippet bundle at build time
 - Usage guide displayed when injecting, not in the snippet itself
 - Walks ViewModelInstance property trees recursively
 - Builds path references for direct access

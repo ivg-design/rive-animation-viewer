@@ -77,7 +77,7 @@ Once connected, Claude has access to all RAV tools. Try:
 - "Pause the animation"
 - "Generate the live web instantiation snippet for CDN usage"
 
-## Available Tools (31)
+## Available Tools (32)
 
 | Tool | Description |
 |------|-------------|
@@ -100,6 +100,7 @@ Once connected, Claude has access to all RAV tools. Try:
 | `rav_set_runtime` | Switch runtime (webgl2/canvas) |
 | `rav_set_layout` | Set layout fit mode |
 | `rav_set_canvas_color` | Set background color |
+| `rav_set_canvas_size` | Set canvas sizing mode plus explicit pixel width/height and optional aspect lock |
 | `rav_export_demo` | Export standalone HTML demo |
 | `generate_web_instantiation_code` | Generate the canonical live web snippet for `local` or `cdn` usage, with `window.ravRive` helpers and current control values |
 | `rav_toggle_instantiation_controls_dialog` | Open/close the in-app Snippet & Export Controls dialog so a human can curate which controls are serialized |
@@ -114,10 +115,12 @@ Once connected, Claude has access to all RAV tools. Try:
 
 - RAV can be running in `internal` mode or `editor` mode.
 - `rav_apply_code` switches the live instance to the last applied editor config.
+- `rav_status` reports the active canvas sizing state, and `rav_set_canvas_size` can switch between auto sizing and fixed explicit pixels.
 - Unsaved editor draft changes do not affect the running animation until applied.
 - `generate_web_instantiation_code` always reflects the currently running live mode.
 - `generate_web_instantiation_code` defaults to the CDN form unless you request `package_source: "local"`.
 - Generated snippets restore only the checked ViewModel/state-machine values on load, round numbers to 2 decimals, annotate enum choices inline, and expose helper methods on `window.ravRive`.
+- Fixed-size snippets and exported demos preserve explicit `width × height` canvas dimensions when the viewer is pinned to a pixel size.
 - The **Snippet & Export Controls** dialog lets a human user choose exactly which values are serialized. If untouched, RAV defaults to the changed-control set.
 - `rav_toggle_instantiation_controls_dialog` is the MCP hook for opening that dialog when a human needs to curate the export.
 - Exported demos now embed both snippet forms, default the copy button to CDN, and expose a **Copy Instantiation Code** button in the demo toolbar.

@@ -4,7 +4,7 @@ import {
     generateWebInstantiationCode,
     normalizeAnimationSelection,
     resolveLivePlaybackSelection,
-} from '../../../src/app/platform/web-instantiation.js';
+} from '../../../src/app/platform/export/web-instantiation.js';
 
 describe('platform/web-instantiation', () => {
     it('normalizes animation/state selections and resolves the live playback target', () => {
@@ -35,6 +35,12 @@ describe('platform/web-instantiation', () => {
                 currentArtboard: 'Portrait',
                 currentPlaybackName: 'main-sm',
                 currentPlaybackType: 'stateMachine',
+            },
+            currentCanvasSizing: {
+                mode: 'fixed',
+                width: 1920,
+                height: 1080,
+                lockAspectRatio: true,
             },
             currentFileName: 'demo.riv',
             currentLayoutAlignment: 'topLeft',
@@ -114,7 +120,12 @@ describe('platform/web-instantiation', () => {
         });
         expect(code).toContain('import * as rive from "@rive-app/webgl2";');
         expect(code).toContain('const ravRive = createRavWebController(() => riveInst);');
-        expect(code).toContain('const userConfig = (');
+        expect(code).toContain('canvas.width = 1920;');
+        expect(code).toContain('canvas.height = 1080;');
+        expect(code).toContain('canvas.style.width = "1920px";');
+        expect(code).toContain('canvas.style.height = "1080px";');
+        expect(code).toContain('const rawUserConfig = (');
+        expect(code).toContain('const { canvasSize: _ignoredCanvasSize, ...userConfig } = rawUserConfig || {};');
         expect(code).toContain('...userConfig,');
         expect(code).toContain('ravRive.applySnapshot();');
         expect(code).toContain('onLoadError: (error, ...args) => {');
@@ -131,6 +142,9 @@ describe('platform/web-instantiation', () => {
         expect(code).toContain('"progress": 0.33, // number');
         expect(code).toContain('// card-vm');
         expect(code).toContain('function fireRavConfiguredTriggers(');
+        expect(code).toContain('function getRavStateMachineInputKind(input) {');
+        expect(code).toContain('if (typeof input.fire === "function" && !(\"value\" in input)) return "trigger";');
+        expect(code).toContain('return getRavStateMachineInputKind(input) === "trigger";');
         expect(code).toContain('Snapshot restores value-like overrides only. Triggers remain manual.');
         expect(code).not.toContain('applied += fireRavStartupTriggers(instance);');
         expect(code).not.toContain('fireStartupTriggers()');
@@ -165,6 +179,7 @@ describe('platform/web-instantiation', () => {
         expect(result.code).toContain('canvas.style.background = "transparent";');
         expect(result.helperApi).toBeNull();
         expect(result.notes[1]).toContain('internal wiring');
+        expect(result.notes).toContain('The exported canvas follows the size of its host element.');
         expect(result.notes).toContain('No bound ViewModel or writable state-machine controls were detected, so the snippet stays minimal and autoplay-focused.');
         expect(result.notes).toContain('Canvas runtime is supported, but WebGL2 is recommended for feathering and other advanced visual effects.');
     });

@@ -3,7 +3,7 @@ import {
     extractOpenedFilePath,
     getFileNameFromPath,
     normalizeOpenedFilePath,
-} from '../../../src/app/platform/file-session.js';
+} from '../../../src/app/platform/session/file-session.js';
 
 function createElements() {
     document.body.innerHTML = `

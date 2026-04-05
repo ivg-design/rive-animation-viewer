@@ -155,6 +155,11 @@ export function createAppUpdaterController({
             logEvent('ui', 'update-download-started', `Downloading update ${update.version}`);
 
             try {
+                if (typeof windowRef._mcpBridge?.disable === 'function') {
+                    await windowRef._mcpBridge.disable();
+                } else {
+                    await invokeDesktop('stop_mcp_bridge');
+                }
                 const result = await invokeDesktop('install_app_update');
                 if (!result?.installed) {
                     state.pendingUpdate = null;

@@ -30,7 +30,7 @@ const features = [
   {
     icon: FileCode,
     title: "Export + Snippets",
-    description: "One Export flow for standalone HTML plus canonical CDN/local instantiation snippets with control-selection, Copy Code, live-state serialization, and slim zero-control output.",
+    description: "One Export flow for standalone HTML plus canonical CDN/local instantiation snippets with control-selection, Copy Code, live-state serialization, fixed canvas sizing carry-through, and slim zero-control output.",
   },
   {
     icon: Eye,
@@ -60,7 +60,7 @@ const features = [
   {
     icon: MonitorCog,
     title: "Renderer + Runtime",
-    description: "Switch between Canvas and WebGL2 on the fly, choose fit and alignment in the main toolbar, and pick Latest, the latest four versions, or Custom semver.",
+    description: "Switch between Canvas and WebGL2 on the fly, choose fit and alignment in the main toolbar, set an explicit canvas size with optional aspect lock, and pick Latest, the latest four versions, or Custom semver.",
   },
   {
     icon: Download,
@@ -85,7 +85,7 @@ const features = [
   {
     icon: Cable,
     title: "MCP Integration",
-    description: "Control RAV from agents through 31 MCP tools: open files, inspect state, configure the workspace, drive playback, edit scripts, generate snippets, and export demos with the live console behavior preserved.",
+    description: "Control RAV from agents through 32 MCP tools: open files, inspect state, set explicit canvas size, configure the workspace, drive playback, edit scripts, generate snippets, and export demos with the live console behavior preserved.",
   },
 ];
 

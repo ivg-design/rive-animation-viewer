@@ -50,7 +50,9 @@ describe('platform/app-updater', () => {
 
     it('shows an update chip and installs the update on click', async () => {
         const elements = createElements();
+        const callOrder = [];
         const invoke = vi.fn(async (command) => {
+            callOrder.push(command);
             if (command === 'check_for_app_update') {
                 return {
                     available: true,
@@ -67,6 +69,12 @@ describe('platform/app-updater', () => {
             }
             throw new Error(`Unexpected command: ${command}`);
         });
+        const disableBridge = vi.fn(async () => {
+            callOrder.push('bridge-disable-start');
+            await Promise.resolve();
+            callOrder.push('bridge-disable-done');
+            return true;
+        });
         const controller = createAppUpdaterController({
             callbacks: {
                 logEvent: vi.fn(),
@@ -75,6 +83,14 @@ describe('platform/app-updater', () => {
             elements,
             getTauriInvoker: () => invoke,
             isTauriEnvironment: () => true,
+            windowRef: {
+                _mcpBridge: {
+                    disable: disableBridge,
+                },
+                addEventListener: vi.fn(),
+                clearTimeout,
+                setTimeout,
+            },
         });
 
         controller.setup();
@@ -85,9 +101,17 @@ describe('platform/app-updater', () => {
 
         elements.updateChip.click();
         await vi.waitFor(() => {
+            expect(disableBridge).toHaveBeenCalledTimes(1);
             expect(invoke).toHaveBeenCalledWith('install_app_update', {});
             expect(invoke).toHaveBeenCalledWith('relaunch_app', {});
         });
+        expect(callOrder).toEqual([
+            'check_for_app_update',
+            'bridge-disable-start',
+            'bridge-disable-done',
+            'install_app_update',
+            'relaunch_app',
+        ]);
     });
 
     it('shows retry state when the update check fails', async () => {

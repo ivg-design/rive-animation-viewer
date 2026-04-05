@@ -38,11 +38,13 @@ describe('ui/code-editor', () => {
         document.body.innerHTML = '<button id="editor-live-mode-chip"></button><div id="code-editor"></div>';
 
         const refreshCurrentState = vi.fn().mockResolvedValue(true);
+        const setCurrentCanvasSizing = vi.fn();
         const controller = createCodeEditorController({
             callbacks: {
                 getTauriInvoker: () => vi.fn().mockResolvedValue(undefined),
                 refreshCurrentState,
                 logEvent: vi.fn(),
+                setCurrentCanvasSizing,
                 showError: vi.fn(),
                 updateInfo: vi.fn(),
             },
@@ -89,8 +91,23 @@ describe('ui/code-editor', () => {
         expect(controller.getEditorCode()).not.toContain('window.vmExplore = exploreVmLevel;');
         expect(controller.getVmExplorerSnippetState()).toEqual({ injected: false });
 
-        controller.setEditorCode('({ autoplay: false })');
-        expect(controller.getEditorConfig()).toEqual({ autoplay: false });
+        controller.setEditorCode('({ autoplay: false, canvasSize: { mode: "fixed", width: 1920, height: 1080, lockAspectRatio: true } })');
+        expect(controller.getEditorConfig()).toEqual({
+            autoplay: false,
+            canvasSize: {
+                mode: 'fixed',
+                width: 1920,
+                height: 1080,
+                lockAspectRatio: true,
+            },
+        });
+        await controller.applyCodeAndReload();
+        expect(setCurrentCanvasSizing).toHaveBeenCalledWith({
+            mode: 'fixed',
+            width: 1920,
+            height: 1080,
+            lockAspectRatio: true,
+        });
         await controller.toggleLiveConfigSource();
         expect(controller.getLiveConfigState().sourceMode).toBe('internal');
     });

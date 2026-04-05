@@ -10,6 +10,10 @@
     background: #0d0d0d;
 }
 
+.event-log-panel.collapsed {
+    display: none;
+}
+
 .event-log-header {
     min-height: 32px;
     height: 32px;
@@ -18,7 +22,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    cursor: pointer;
+    cursor: default;
     user-select: none;
     font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
     font-size: 11px;
@@ -32,19 +36,6 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-}
-
-.event-log-summary-left .event-log-chevron {
-    color: var(--neon);
-    transition: transform 0.2s ease;
-}
-
-.center-panel.event-log-collapsed .event-log-chevron {
-    transform: rotate(-90deg);
-}
-
-.event-log-panel.collapsed .event-log-chevron {
-    transform: rotate(-90deg);
 }
 
 .event-log-summary-right {
@@ -194,4 +185,3 @@
     font-size: 11px;
     font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
 }
-

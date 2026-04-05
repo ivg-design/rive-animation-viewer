@@ -220,6 +220,38 @@ describe('platform/mcp-bridge', () => {
         });
     });
 
+    it('sets explicit canvas sizing through the MCP bridge helper surface', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        vi.stubGlobal('setInterval', vi.fn(() => 1));
+        vi.stubGlobal('clearInterval', vi.fn());
+        window._mcpLogEvent = vi.fn();
+        window._mcpUpdateStatus = vi.fn();
+        window._mcpSetCanvasSizing = vi.fn((canvasSizing) => ({
+            mode: canvasSizing.mode || 'fixed',
+            width: canvasSizing.width ?? 1600,
+            height: canvasSizing.height ?? 900,
+            lockAspectRatio: Boolean(canvasSizing.lockAspectRatio),
+        }));
+
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-canvas-size');
+        await flushBridgeMicrotasks();
+
+        await expect(window._mcpBridge.commands.rav_set_canvas_size({
+            mode: 'fixed',
+            width: 1920,
+            height: 1080,
+            lockAspectRatio: true,
+        })).resolves.toEqual({
+            ok: true,
+            canvasSize: {
+                mode: 'fixed',
+                width: 1920,
+                height: 1080,
+                lockAspectRatio: true,
+            },
+        });
+    });
+
     it('decodes non-string websocket payloads and replies to bridge commands', async () => {
         vi.stubGlobal('WebSocket', FakeWebSocket);
         vi.stubGlobal('setInterval', vi.fn(() => 1));

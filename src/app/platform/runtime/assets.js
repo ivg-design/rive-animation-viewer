@@ -11,7 +11,7 @@ import {
     getRuntimeSourceUrl as buildRuntimeSourceUrl,
     normalizeRuntimeVersionToken,
     parseSemverParts,
-} from '../runtime-utils.js';
+} from './runtime-utils.js';
 
 export async function fetchRuntimeVersionOptions({
     fetchImpl = globalThis.fetch?.bind(globalThis),

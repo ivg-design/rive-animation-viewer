@@ -98,13 +98,38 @@ function getRavStateMachineInput(stateMachineName, inputName, instance = riveIns
   }
 }
 
+function getRavStateMachineInputKind(input) {
+  if (!input || typeof input !== "object") return null;
+  const runtimeInputTypes = typeof rive !== "undefined" ? rive?.StateMachineInputType : undefined;
+  const inputType = typeof input.type === "number" ? input.type : null;
+  if (runtimeInputTypes && inputType !== null) {
+    if (inputType === runtimeInputTypes.Boolean) return "boolean";
+    if (inputType === runtimeInputTypes.Number) return "number";
+    if (inputType === runtimeInputTypes.Trigger) return "trigger";
+  }
+
+  const rawInputTypes = typeof rive !== "undefined" ? rive?.SMIInput : undefined;
+  if (rawInputTypes && inputType !== null) {
+    if (inputType === rawInputTypes.bool) return "boolean";
+    if (inputType === rawInputTypes.number) return "number";
+    if (inputType === rawInputTypes.trigger) return "trigger";
+  }
+
+  const constructorName = typeof input.constructor?.name === "string"
+    ? input.constructor.name.toLowerCase()
+    : "";
+  if (constructorName.includes("bool")) return "boolean";
+  if (constructorName.includes("number")) return "number";
+  if (constructorName.includes("trigger")) return "trigger";
+
+  if (typeof input.value === "boolean") return "boolean";
+  if (typeof input.value === "number") return "number";
+  if (typeof input.fire === "function" && !("value" in input)) return "trigger";
+  return null;
+}
+
 function isRavStateMachineTriggerInput(input) {
-  if (!input) return false;
-  const triggerType = typeof rive !== "undefined"
-    ? rive?.StateMachineInputType?.Trigger
-    : undefined;
-  if (triggerType !== undefined && input.type === triggerType) return true;
-  return typeof input.fire === "function" && !("value" in input);
+  return getRavStateMachineInputKind(input) === "trigger";
 }
 
 function parseRavArgbHex(value) {
