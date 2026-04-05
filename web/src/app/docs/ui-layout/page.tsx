@@ -8,7 +8,15 @@ export default function UiLayout() {
     <>
       <h1>UI Layout</h1>
 
-      <Image src={asset("/docs/ui-overview.webp")} alt="RAV full application layout with numbered callouts" width={960} height={600} className="rounded-xl border border-[var(--border-dark)] mb-6" />
+      <Image src={asset("/docs/ui-overview.webp")} alt="RAV full application layout with numbered callouts" width={960} height={600} className="rounded-xl border border-[var(--border-dark)] mb-4" />
+
+      <ol className="text-sm text-[var(--text-dim)] mb-6 list-none pl-0 flex flex-wrap gap-x-6 gap-y-1">
+        <li><strong className="text-[var(--neon)]">1</strong> Top toolbar &mdash; playback, renderer, fit, alignment</li>
+        <li><strong className="text-[var(--neon)]">2</strong> Script editor with live-source indicator</li>
+        <li><strong className="text-[var(--neon)]">3</strong> Animation canvas (drop zone)</li>
+        <li><strong className="text-[var(--neon)]">4</strong> Event / JS console</li>
+        <li><strong className="text-[var(--neon)]">5</strong> Properties panel (VM controls, artboard switcher)</li>
+      </ol>
 
       <p>RAV uses a three-panel layout optimized for animation inspection:</p>
 
@@ -29,6 +37,11 @@ export default function UiLayout() {
       </p>
 
       <Image src={asset("/docs/editor-live-states.webp")} alt="Editor header in internal (1) and editor-active (2) states" width={400} height={60} className="rounded-lg border border-[var(--border-dark)] my-4" />
+
+      <ol className="text-sm text-[var(--text-dim)] mb-4 list-none pl-0 flex gap-x-6">
+        <li><strong className="text-[var(--neon)]">1</strong> Internal mode &mdash; neutral outline, RAV wiring active</li>
+        <li><strong className="text-[var(--neon)]">2</strong> Editor mode &mdash; green pulsing dot, applied config is live</li>
+      </ol>
 
       <h2>Center Panel &mdash; Canvas</h2>
       <p>

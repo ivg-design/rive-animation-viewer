@@ -28,7 +28,7 @@ const topics = [
 export default function DocsLanding() {
   return (
     <>
-      <section className="text-center mb-12">
+      <section className="text-center mb-12 pt-4">
         <h1 className="text-4xl font-bold text-[var(--text-white)] mb-4">RAV Documentation</h1>
         <p className="text-lg text-[var(--text-dim)] max-w-2xl mx-auto">
           Complete guide to Rive Animation Viewer — from installation to MCP remote control.

@@ -13,7 +13,12 @@ export default function ViewModelControls() {
         as native controls in the right panel.
       </p>
 
-      <Image src={asset("/docs/vm-controls-panel.webp")} alt="Properties panel showing ViewModel and state machine controls with numbered callouts" width={400} height={900} className="rounded-xl border border-[var(--border-dark)] my-6" />
+      <Image src={asset("/docs/vm-controls-panel.webp")} alt="Properties panel showing ViewModel and state machine controls with numbered callouts" width={400} height={900} className="rounded-xl border border-[var(--border-dark)] my-4" />
+
+      <ol className="text-sm text-[var(--text-dim)] mb-6 list-none pl-0 flex flex-col gap-1">
+        <li><strong className="text-[var(--neon)]">1</strong> ViewModel section &mdash; enum dropdowns, number inputs, boolean checkboxes, color picker with alpha, string inputs, collapsible nested instances</li>
+        <li><strong className="text-[var(--neon)]">2</strong> State Machine section &mdash; boolean inputs discovered from the active state machine</li>
+      </ol>
 
       <h2>Supported Input Types</h2>
       <table>
