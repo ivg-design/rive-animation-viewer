@@ -1,0 +1,3 @@
+# IndexNow endpoint reference
+endpoint=https://api.indexnow.org/indexnow
+host=forge.mograph.life/apps/rav

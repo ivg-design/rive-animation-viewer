@@ -1,0 +1,41 @@
+{
+  "version": "1.1",
+  "generatedAt": "2026-03-08",
+  "project": "RAV",
+  "canonical": "https://forge.mograph.life/apps/rav/",
+  "entities": [
+    {
+      "name": "RAV",
+      "type": "SoftwareApplication",
+      "url": "https://forge.mograph.life/apps/rav/",
+      "description": "Desktop Rive animation viewer with ViewModel controls and event inspection."
+    },
+    {
+      "name": "IVG Design",
+      "type": "Organization",
+      "url": "https://forge.mograph.life"
+    }
+  ],
+  "resources": [
+    {
+      "kind": "landing",
+      "url": "https://forge.mograph.life/apps/rav/"
+    },
+    {
+      "kind": "docs",
+      "url": "https://forge.mograph.life/apps/rav/docs"
+    },
+    {
+      "kind": "changelog",
+      "url": "https://forge.mograph.life/apps/rav/changelog"
+    },
+    {
+      "kind": "llms",
+      "url": "https://forge.mograph.life/apps/rav/llms.txt"
+    },
+    {
+      "kind": "llms-full",
+      "url": "https://forge.mograph.life/apps/rav/llms-full.txt"
+    }
+  ]
+}

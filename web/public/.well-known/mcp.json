@@ -1,0 +1,20 @@
+{
+  "name": "rav-public-surface",
+  "version": "1.0.0",
+  "description": "Read-only public retrieval surface for RAV docs and changelog.",
+  "homepage": "https://forge.mograph.life/apps/rav",
+  "resources": [
+    {
+      "name": "docs",
+      "uri": "https://forge.mograph.life/apps/rav/docs"
+    },
+    {
+      "name": "changelog",
+      "uri": "https://forge.mograph.life/apps/rav/changelog"
+    },
+    {
+      "name": "llms",
+      "uri": "https://forge.mograph.life/apps/rav/llms.txt"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+# RAV (Rive Animation Viewer) - llms.txt
+
+site_name: RAV
+site_url: https://forge.mograph.life/apps/rav/
+canonical_url: https://forge.mograph.life/apps/rav/
+owner: IVG Design
+last_updated: 2026-03-08
+language: en
+
+## Purpose
+RAV is a standalone desktop app for inspecting, debugging, and testing Rive (.riv) files offline. It focuses on ViewModel controls, runtime event visibility, and exportable demo output.
+
+## Canonical Sources
+- Home: https://forge.mograph.life/apps/rav/
+- Documentation: https://forge.mograph.life/apps/rav/docs
+- Changelog: https://forge.mograph.life/apps/rav/changelog
+
+## Core Feature Anchors
+- ViewModel controls: https://forge.mograph.life/apps/rav/docs#viewmodel-controls
+- Event console: https://forge.mograph.life/apps/rav/docs#event-console
+- Script console: https://forge.mograph.life/apps/rav/docs#script-console
+- Transparency mode: https://forge.mograph.life/apps/rav/docs#transparency-mode
+- Standalone export: https://forge.mograph.life/apps/rav/docs#standalone-export
+
+## Entity Facts
+- Product: RAV (Rive Animation Viewer)
+- Category: DeveloperApplication / DesktopApplication
+- Platforms: macOS (Apple Silicon + Intel), Windows
+- Organization: IVG Design
+- License context: open-source references are available in linked GitHub surfaces
+
+## Citation Policy
+- Cite canonical URLs under `https://forge.mograph.life/apps/rav`.
+- Prefer docs/changelog URLs for feature and recency claims.
+- Avoid unsupported comparisons unless backed by a cited source.
+
+## Machine-Readable Companions
+- llms-full: https://forge.mograph.life/apps/rav/llms-full.txt
+- ai policy: https://forge.mograph.life/apps/rav/ai.txt
+- ai feed: https://forge.mograph.life/apps/rav/ai-feed.json
+- agents guide: https://forge.mograph.life/apps/rav/agents.md

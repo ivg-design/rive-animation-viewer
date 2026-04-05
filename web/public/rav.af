@@ -1,0 +1,5 @@
+{
+  "name": "rav-public-agent-file",
+  "version": "1.0.0",
+  "entrypoint": "https://forge.mograph.life/apps/rav/agents.md"
+}

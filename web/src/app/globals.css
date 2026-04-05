@@ -1,0 +1,344 @@
+@import "tailwindcss";
+
+:root {
+  /* Primary accent */
+  --neon: #C4F82A;
+  --neon-glow: #C4F82A40;
+  --neon-dim: #C4F82A20;
+
+  /* Alert */
+  --alert: #FA541C;
+
+  /* Backgrounds */
+  --bg-void: #0A0A0A;
+  --bg-zinc: #18181B;
+  --bg-elevated: #27272A;
+
+  /* Text */
+  --text-white: #FFFFFF;
+  --text-dim: #A1A1AA;
+  --text-muted: #71717A;
+  --text-ghost: #52525B;
+
+  /* Borders */
+  --border-dark: #27272A;
+  --border-light: #3F3F46;
+}
+
+@layer base {
+  html {
+    height: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    height: 100%;
+  }
+
+  .font-sans {
+    font-family: "Space Grotesk", sans-serif;
+  }
+
+  .font-mono {
+    font-family: "Space Mono", monospace;
+  }
+}
+
+body {
+  background: var(--bg-void);
+  color: var(--text-white);
+}
+
+/* Neon accent button */
+.btn-neon {
+  background: var(--neon);
+  color: #0A0A0A;
+  font-weight: 600;
+}
+
+.btn-neon:hover {
+  box-shadow: 0 0 30px var(--neon-glow);
+}
+
+/* Hero gradient */
+.hero-gradient {
+  background: radial-gradient(ellipse 80% 60% at 50% 40%, #C4F82A08 0%, transparent 70%),
+              linear-gradient(180deg, var(--bg-void) 0%, #111111 50%, var(--bg-void) 100%);
+}
+
+/* Section gradient */
+.section-gradient {
+  background: linear-gradient(180deg, var(--bg-void) 0%, var(--bg-zinc) 50%, var(--bg-void) 100%);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-void);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-ghost);
+}
+
+/* Animations */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px var(--neon-glow);
+  }
+  50% {
+    box-shadow: 0 0 40px var(--neon-glow), 0 0 60px #C4F82A15;
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* Staggered delays */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+
+/* Global easing */
+* {
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Changelog content styling */
+.changelog-content {
+  color: var(--text-dim);
+  line-height: 1.75;
+}
+
+.changelog-content h1,
+.changelog-content h2,
+.changelog-content h3 {
+  color: var(--text-white);
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.changelog-content h2 {
+  font-size: 1.25rem;
+}
+
+.changelog-content h3 {
+  font-size: 1.125rem;
+}
+
+.changelog-content p {
+  margin-bottom: 0.75rem;
+}
+
+.changelog-content ul, .changelog-content ol {
+  margin-bottom: 0.75rem;
+  padding-left: 1.5rem;
+}
+
+.changelog-content li {
+  margin-bottom: 0.25rem;
+}
+
+.changelog-content ul li {
+  list-style-type: disc;
+}
+
+.changelog-content ol li {
+  list-style-type: decimal;
+}
+
+.changelog-content code {
+  background: var(--bg-elevated);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-family: "Space Mono", monospace;
+  color: var(--neon);
+}
+
+.changelog-content pre {
+  background: var(--bg-zinc);
+  border: 1px solid var(--border-light);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.changelog-content pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.changelog-content strong {
+  color: var(--text-white);
+  font-weight: 600;
+}
+
+.changelog-content a {
+  color: var(--neon);
+  text-decoration: none;
+}
+
+.changelog-content a:hover {
+  text-decoration: underline;
+}
+
+/* Docs content styling */
+.docs-content {
+  color: var(--text-dim);
+  line-height: 1.8;
+}
+
+.docs-content h1 {
+  display: none;
+}
+
+.docs-content h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-white);
+  margin-top: 3rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-light);
+  scroll-margin-top: 5rem;
+}
+
+.docs-content h2:first-of-type {
+  margin-top: 0;
+}
+
+.docs-content h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-white);
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.docs-content p {
+  margin-bottom: 1rem;
+}
+
+.docs-content a {
+  color: var(--neon);
+  text-decoration: none;
+}
+
+.docs-content a:hover {
+  text-decoration: underline;
+}
+
+.docs-content ul, .docs-content ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+.docs-content li {
+  margin-bottom: 0.5rem;
+}
+
+.docs-content ul li {
+  list-style-type: disc;
+}
+
+.docs-content ol li {
+  list-style-type: decimal;
+}
+
+.docs-content blockquote {
+  border-left: 3px solid var(--neon);
+  padding-left: 1rem;
+  margin: 1.5rem 0;
+  color: var(--text-muted);
+  background: var(--bg-zinc);
+  padding: 1rem 1rem 1rem 1.5rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.docs-content code {
+  background: var(--bg-elevated);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-family: "Space Mono", monospace;
+  color: var(--neon);
+}
+
+.docs-content pre {
+  background: var(--bg-zinc);
+  border: 1px solid var(--border-light);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.docs-content pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.docs-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  background: var(--bg-zinc);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.docs-content th, .docs-content td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.docs-content th {
+  background: var(--bg-elevated);
+  color: var(--text-white);
+  font-weight: 600;
+}
+
+.docs-content tr:last-child td {
+  border-bottom: none;
+}
+
+.docs-content strong {
+  color: var(--text-white);
+  font-weight: 600;
+}
+
+.docs-content hr {
+  border: none;
+  border-top: 1px solid var(--border-light);
+  margin: 2rem 0;
+}

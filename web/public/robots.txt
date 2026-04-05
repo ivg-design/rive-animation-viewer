@@ -1,0 +1,26 @@
+# RAV - Rive Animation Viewer
+# https://forge.mograph.life/apps/rav/
+
+User-agent: *
+Allow: /
+
+# AI crawlers welcome — RAV wants maximum AI search visibility
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+Sitemap: https://forge.mograph.life/apps/rav/sitemap.xml

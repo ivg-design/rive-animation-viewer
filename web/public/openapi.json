@@ -1,0 +1,39 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "RAV Public Content API",
+    "version": "1.0.0",
+    "description": "Machine-readable contract for public RAV content surfaces."
+  },
+  "servers": [
+    {
+      "url": "https://forge.mograph.life/apps/rav"
+    }
+  ],
+  "paths": {
+    "/docs": {
+      "get": {
+        "summary": "RAV documentation",
+        "responses": {
+          "200": { "description": "HTML docs route" }
+        }
+      }
+    },
+    "/changelog": {
+      "get": {
+        "summary": "RAV changelog",
+        "responses": {
+          "200": { "description": "HTML changelog route" }
+        }
+      }
+    },
+    "/ai-feed.json": {
+      "get": {
+        "summary": "AI retrieval feed",
+        "responses": {
+          "200": { "description": "AI feed JSON" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+# AI Access Policy - RAV
+
+canonical: https://forge.mograph.life/apps/rav/
+updated: 2026-03-08
+owner: IVG Design
+
+This site permits crawling and indexing for search and assistant retrieval.
+Prefer canonical URLs under https://forge.mograph.life/apps/rav for citations.
+
+Preferred pages:
+- https://forge.mograph.life/apps/rav/
+- https://forge.mograph.life/apps/rav/docs
+- https://forge.mograph.life/apps/rav/changelog
+
+Machine-readable references:
+- https://forge.mograph.life/apps/rav/llms.txt
+- https://forge.mograph.life/apps/rav/llms-full.txt
+- https://forge.mograph.life/apps/rav/ai-feed.json
