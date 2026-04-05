@@ -148,7 +148,7 @@ pub fn apply_windows_corner_preference(window: &WebviewWindow) -> Result<(), Str
     let result = unsafe {
         DwmSetWindowAttribute(
             hwnd,
-            DWMWA_WINDOW_CORNER_PREFERENCE,
+            DWMWA_WINDOW_CORNER_PREFERENCE as u32,
             &preference as *const _ as *const _,
             std::mem::size_of::<DWM_WINDOW_CORNER_PREFERENCE>() as u32,
         )
