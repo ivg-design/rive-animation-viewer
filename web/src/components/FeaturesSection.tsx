@@ -95,9 +95,10 @@ export default function FeaturesSection() {
         {features.map((feature, index) => (
           <div
             key={feature.title}
-            className="group flex flex-col gap-2 p-4 rounded-xl bg-[var(--bg-zinc)] border border-[var(--border-dark)] hover:border-[var(--neon-glow)] hover:bg-[var(--bg-elevated)] transition-all duration-300 opacity-0 animate-fade-in-up"
+            className="group relative p-4 rounded-xl bg-[var(--bg-zinc)] border border-[var(--border-dark)] hover:border-[var(--neon-glow)] hover:bg-[var(--bg-elevated)] transition-colors duration-300 opacity-0 animate-fade-in-up"
             style={{ animationDelay: `${index * 50}ms` }}
           >
+            {/* Static card content — never changes height */}
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--neon-dim)] group-hover:bg-[var(--neon-glow)] transition-colors duration-300 flex-shrink-0">
                 <feature.icon className="w-4 h-4 text-[var(--neon)]" />
@@ -106,9 +107,15 @@ export default function FeaturesSection() {
                 {feature.title}
               </h3>
             </div>
-            <p className="text-xs text-[var(--text-dim)] leading-relaxed max-h-0 overflow-hidden group-hover:max-h-24 transition-[max-height] duration-300 ease-in-out">
-              {feature.description}
-            </p>
+
+            {/* Floating tooltip — overlays below the card, outside grid flow */}
+            <div className="pointer-events-none absolute left-0 right-0 top-full z-20 pt-1 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 ease-out">
+              <div className="mx-1 p-3 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-bright)] shadow-lg shadow-black/40">
+                <p className="text-xs text-[var(--text-dim)] leading-relaxed">
+                  {feature.description}
+                </p>
+              </div>
+            </div>
           </div>
         ))}
       </div>
