@@ -1,16 +1,11 @@
-import type { Metadata } from "next";
+"use client";
+
+import type { ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronLeft, BookOpen } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { ChevronLeft, BookOpen, ChevronRight } from "lucide-react";
 import { asset } from "@/lib/config";
-
-export const metadata: Metadata = {
-  title: {
-    template: "%s | RAV Docs",
-    default: "RAV Documentation",
-  },
-  description: "Complete RAV documentation for Rive Animation Viewer.",
-};
 
 const sections = [
   { id: "getting-started", title: "Getting Started" },
@@ -27,56 +22,99 @@ const sections = [
   { id: "troubleshooting", title: "Troubleshooting" },
 ];
 
-export default function DocsLayout({ children }: { children: React.ReactNode }) {
+export default function DocsLayout({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const currentSection = sections.find((s) => pathname?.endsWith(`/docs/${s.id}`));
+  const isLanding = !currentSection;
+
   return (
     <div className="min-h-screen bg-[var(--bg-void)]">
-      {/* Sidebar nav */}
-      <nav className="hidden lg:block fixed left-8 top-1/2 -translate-y-1/2 z-30">
-        <div className="flex flex-col gap-1 p-3 rounded-xl bg-[var(--bg-zinc)]/80 backdrop-blur-sm border border-[var(--border-light)]">
-          <span className="text-[10px] font-medium text-[var(--text-ghost)] uppercase tracking-wider px-2 mb-1">
-            Docs
-          </span>
-          {sections.map((section) => (
-            <Link
-              key={section.id}
-              href={asset(`/docs/${section.id}`)}
-              className="px-3 py-1.5 rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--text-white)] hover:bg-[var(--bg-void)] transition-all duration-200"
-            >
-              {section.title}
-            </Link>
-          ))}
-        </div>
-      </nav>
-
-      {/* Header */}
+      {/* Sticky header with breadcrumb + inline TOC */}
       <header className="sticky top-0 z-40 bg-[var(--bg-void)]/90 backdrop-blur-sm border-b border-[var(--border-dark)]">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link
-            href={asset("/")}
-            className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-white)] transition-colors"
-          >
-            <ChevronLeft className="w-5 h-5" />
-            <span>Back to RAV</span>
-          </Link>
-          <div className="flex items-center gap-3">
+        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm">
+            <Link
+              href={asset("/")}
+              className="text-[var(--text-muted)] hover:text-[var(--text-white)] transition-colors"
+            >
+              RAV
+            </Link>
+            <ChevronRight className="w-3 h-3 text-[var(--text-ghost)]" />
+            <Link
+              href={asset("/docs")}
+              className={`transition-colors ${isLanding ? "text-[var(--text-white)] font-semibold" : "text-[var(--text-muted)] hover:text-[var(--text-white)]"}`}
+            >
+              Docs
+            </Link>
+            {currentSection && (
+              <>
+                <ChevronRight className="w-3 h-3 text-[var(--text-ghost)]" />
+                <span className="text-[var(--text-white)] font-semibold">{currentSection.title}</span>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
             <Image
               src={asset("/images/app-icon.png")}
               alt="RAV"
-              width={32}
-              height={32}
-              className="rounded-lg"
+              width={24}
+              height={24}
+              className="rounded-md"
             />
-            <BookOpen className="w-5 h-5 text-[var(--neon)]" />
-            <span className="font-semibold text-[var(--text-white)]">Documentation</span>
+            <BookOpen className="w-4 h-4 text-[var(--neon)]" />
           </div>
         </div>
+
+        {/* Inline scrollable TOC — only on sub-pages */}
+        {!isLanding && (
+          <div className="border-t border-[var(--border-dark)] overflow-x-auto scrollbar-none">
+            <div className="max-w-5xl mx-auto px-6 flex items-center gap-1 py-1.5">
+              {sections.map((section) => (
+                <Link
+                  key={section.id}
+                  href={asset(`/docs/${section.id}`)}
+                  className={`flex-shrink-0 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                    currentSection?.id === section.id
+                      ? "bg-[var(--neon-dim)] text-[var(--neon)]"
+                      : "text-[var(--text-muted)] hover:text-[var(--text-white)] hover:bg-[var(--bg-elevated)]"
+                  }`}
+                >
+                  {section.title}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Content */}
-      <main className="max-w-4xl mx-auto px-6 py-12">
+      <main className="max-w-3xl mx-auto px-6 py-16 md:py-20">
         <div className="docs-content">
           {children}
         </div>
+
+        {/* Prev / Next navigation */}
+        {currentSection && (() => {
+          const idx = sections.findIndex((s) => s.id === currentSection.id);
+          const prev = idx > 0 ? sections[idx - 1] : null;
+          const next = idx < sections.length - 1 ? sections[idx + 1] : null;
+          return (
+            <div className="flex items-center justify-between mt-16 pt-8 border-t border-[var(--border-dark)]">
+              {prev ? (
+                <Link href={asset(`/docs/${prev.id}`)} className="group flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-white)] transition-colors">
+                  <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+                  <span>{prev.title}</span>
+                </Link>
+              ) : <span />}
+              {next ? (
+                <Link href={asset(`/docs/${next.id}`)} className="group flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text-white)] transition-colors">
+                  <span>{next.title}</span>
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              ) : <span />}
+            </div>
+          );
+        })()}
       </main>
 
       {/* Footer */}

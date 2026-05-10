@@ -16,10 +16,9 @@ export function createConsoleUiStateController({
         if (!getErudaReady()) {
             return null;
         }
-        return elements.scriptConsoleOutput?.querySelector('.eruda-logs-container.luna-console')
-            || elements.scriptConsoleOutput?.querySelector('.rav-eruda .eruda-logs-container.luna-console')
+        return elements.scriptConsoleOutput?.querySelector('.rav-eruda .eruda-logs-container.luna-console')
+            || elements.scriptConsoleOutput?.querySelector('.eruda-logs-container.luna-console')
             || elements.scriptConsoleOutput?.querySelector('.luna-console')
-            || elements.scriptConsoleOutput?.querySelector('.luna-console-logs-space')
             || null;
     }
 
@@ -33,31 +32,10 @@ export function createConsoleUiStateController({
 
     function getLatestScrollTop() {
         const container = getScrollContainer();
-        const logList = getErudaLogList();
-        if (!container || !logList || container === logList) {
+        if (!container) {
             return 0;
         }
-        if (!logList.children.length) {
-            return 0;
-        }
-
-        const offsetTop = Number(logList.offsetTop);
-        if (Number.isFinite(offsetTop) && offsetTop > 0) {
-            return offsetTop;
-        }
-
-        const containerRect = typeof container.getBoundingClientRect === 'function'
-            ? container.getBoundingClientRect()
-            : null;
-        const logListRect = typeof logList.getBoundingClientRect === 'function'
-            ? logList.getBoundingClientRect()
-            : null;
-
-        if (!containerRect || !logListRect) {
-            return 0;
-        }
-
-        return Math.max(0, container.scrollTop + (logListRect.top - containerRect.top));
+        return Math.max(0, container.scrollHeight - container.clientHeight);
     }
 
     function syncLevelButtons() {
@@ -112,7 +90,7 @@ export function createConsoleUiStateController({
         if (!container) {
             return;
         }
-        const nextFollowLatest = Math.abs(container.scrollTop - getLatestScrollTop()) <= 6;
+        const nextFollowLatest = Math.abs(getLatestScrollTop() - container.scrollTop) <= 6;
         if (nextFollowLatest === state.followLatest) {
             return;
         }
@@ -178,6 +156,7 @@ export function createConsoleUiStateController({
 
     return {
         bindScrollContainer,
+        getErudaLogList,
         getListContainer,
         getScrollContainer,
         scrollConsoleToLatest,

@@ -8,15 +8,15 @@ import {
 
 describe('ui/code-editor', () => {
     it('replaces and extracts onLoad blocks', () => {
-        const baseCode = `({
+        const baseCode = `{
   autoplay: true,
   onLoad: () => {
     console.log("ready");
   }
-})`;
+}`;
 
         expect(replaceOnLoadBlock(baseCode, 'onLoad: () => { riveInst.play(); }')).toContain('riveInst.play();');
-        expect(replaceOnLoadBlock('({ autoplay: true })', 'onLoad: () => { riveInst.play(); }')).toContain('onLoad: () => { riveInst.play(); }');
+        expect(replaceOnLoadBlock('{ autoplay: true }', 'onLoad: () => { riveInst.play(); }')).toContain('onLoad: () => { riveInst.play(); }');
 
         const source = 'const snippet = `onLoad: () => { if (true) { riveInst.play(); } }`;';
         const start = source.indexOf('onLoad:');
@@ -24,14 +24,14 @@ describe('ui/code-editor', () => {
     });
 
     it('evaluates object configs and rejects invalid values', () => {
-        expect(evaluateEditorConfig('({ autoplay: true, stateMachines: "main" })')).toEqual({
+        expect(evaluateEditorConfig('{ autoplay: true, stateMachines: "main" }')).toEqual({
             autoplay: true,
             stateMachines: 'main',
         });
         expect(() => evaluateEditorConfig('[]')).toThrow('Initialization config must return an object');
         expect(() => evaluateEditorConfig('({')).toThrow('Invalid JavaScript config');
         expect(hasVmExplorerSnippet('onLoad: () => { vmExplore(); }')).toBe(true);
-        expect(hasVmExplorerSnippet('({ autoplay: true })')).toBe(false);
+        expect(hasVmExplorerSnippet('{ autoplay: true }')).toBe(false);
     });
 
     it('boots the fallback editor, reloads the animation, and toggles the VM explorer snippet', async () => {
@@ -91,7 +91,7 @@ describe('ui/code-editor', () => {
         expect(controller.getEditorCode()).not.toContain('window.vmExplore = exploreVmLevel;');
         expect(controller.getVmExplorerSnippetState()).toEqual({ injected: false });
 
-        controller.setEditorCode('({ autoplay: false, canvasSize: { mode: "fixed", width: 1920, height: 1080, lockAspectRatio: true } })');
+        controller.setEditorCode('{ autoplay: false, canvasSize: { mode: "fixed", width: 1920, height: 1080, lockAspectRatio: true } }');
         expect(controller.getEditorConfig()).toEqual({
             autoplay: false,
             canvasSize: {
@@ -129,7 +129,7 @@ describe('ui/code-editor', () => {
             loadCodeMirror: async () => false,
         });
 
-        expect(controller.setEditorCode('({ autoplay: false })')).toBe(false);
+        expect(controller.setEditorCode('{ autoplay: false }')).toBe(false);
         expect(controller.getEditorConfig()).toEqual({});
 
         await controller.applyCodeAndReload();
@@ -229,7 +229,7 @@ describe('ui/code-editor', () => {
         expect(editorInstance.dispatch).toHaveBeenCalled();
 
         controller.setEditorCode('({ autoplay: false, autoBind: true })');
-        expect(controller.getEditorCode()).toBe('({ autoplay: false, autoBind: true })');
+        expect(controller.getEditorCode()).toBe('{ autoplay: false, autoBind: true }');
     });
 
     it('supports explicit live-source and VM explorer state changes', async () => {

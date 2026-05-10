@@ -169,6 +169,7 @@ export function createControllerStack({
             cleanupInstance,
             consoleModeController: uiStack.consoleModeController,
             createDemoBundle,
+            eventLogController: uiStack.eventLogController,
             ensureEditorReady: uiStack.ensureEditorReady,
             ensureRuntime,
             ensureTauriBridge,

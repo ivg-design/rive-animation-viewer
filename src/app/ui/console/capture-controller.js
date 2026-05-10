@@ -1,3 +1,38 @@
+function mapErudaLogType(type) {
+    if (type === 'input') {
+        return 'command';
+    }
+    if (type === 'output') {
+        return 'result';
+    }
+    if (type === 'warning') {
+        return 'warn';
+    }
+    if (type === 'verbose') {
+        return 'debug';
+    }
+    if (type === 'dir') {
+        return 'dir';
+    }
+    if (type === 'error') {
+        return 'error';
+    }
+    if (type === 'info') {
+        return 'info';
+    }
+    return 'log';
+}
+
+function resolveErudaLogArgs(log) {
+    if (Array.isArray(log?.args) && log.args.length) {
+        return log.args;
+    }
+    if (log?.header !== undefined && log?.header !== null) {
+        return [log.header];
+    }
+    return [];
+}
+
 export function createConsoleCaptureController({
     formatEntryMessage,
     getConsoleTool,
@@ -7,6 +42,7 @@ export function createConsoleCaptureController({
     maxErudaLogs,
     mirrorEntryToEruda,
     normalizeSerializable,
+    onErudaInsert = () => {},
     renderConsoleEntries,
     scrollConsoleToLatest,
     setTimeoutFn = globalThis.setTimeout?.bind(globalThis),
@@ -26,6 +62,37 @@ export function createConsoleCaptureController({
         }
 
         renderConsoleEntries();
+    }
+
+    function attachErudaLogger(logger) {
+        if (!logger || typeof logger.on !== 'function' || state.erudaLogger === logger) {
+            return;
+        }
+        detachErudaLogger();
+        state.erudaLogger = logger;
+        state.erudaInsertHandler = (log) => {
+            if (state.erudaSyncingCapturedEntries) {
+                return;
+            }
+            appendCapturedEntry({
+                method: mapErudaLogType(log?.type),
+                args: resolveErudaLogArgs(log),
+                timestamp: Date.now(),
+            }, { mirrorToEruda: false });
+            onErudaInsert(log);
+        };
+        logger.on('insert', state.erudaInsertHandler);
+    }
+
+    function detachErudaLogger() {
+        if (!state.erudaLogger || !state.erudaInsertHandler) {
+            state.erudaLogger = null;
+            state.erudaInsertHandler = null;
+            return;
+        }
+        state.erudaLogger.off?.('insert', state.erudaInsertHandler);
+        state.erudaLogger = null;
+        state.erudaInsertHandler = null;
     }
 
     function installCapture() {
@@ -84,9 +151,7 @@ export function createConsoleCaptureController({
                 }
                 const haystack = `${entry.method} ${formatEntryMessage(entry)}`.toLowerCase();
                 return haystack.includes(searchNeedle);
-            })
-            .slice()
-            .reverse();
+            });
     }
 
     function clearConsole() {
@@ -104,7 +169,6 @@ export function createConsoleCaptureController({
     function readCaptured(limit = 50) {
         const entries = state.captured
             .slice(-limit)
-            .reverse()
             .map((entry) => ({
                 method: entry.method,
                 timestamp: entry.timestamp,
@@ -119,14 +183,19 @@ export function createConsoleCaptureController({
     }
 
     function flushToEruda() {
-        if (!getErudaReady() && !getConsoleTool()) {
+        if ((!getErudaReady() && !getConsoleTool()) || !state.captured.length) {
             return;
         }
         const start = Math.max(0, state.captured.length - maxErudaLogs, state.erudaFlushCursor);
-        for (let index = start; index < state.captured.length; index += 1) {
-            mirrorEntryToEruda(state.captured[index]);
+        state.erudaSyncingCapturedEntries = true;
+        try {
+            for (let index = start; index < state.captured.length; index += 1) {
+                mirrorEntryToEruda(state.captured[index]);
+            }
+            state.erudaFlushCursor = state.captured.length;
+        } finally {
+            state.erudaSyncingCapturedEntries = false;
         }
-        state.erudaFlushCursor = state.captured.length;
     }
 
     function handleMirroredEntry() {
@@ -138,7 +207,9 @@ export function createConsoleCaptureController({
 
     return {
         appendCapturedEntry,
+        attachErudaLogger,
         clearConsole,
+        detachErudaLogger,
         flushToEruda,
         getVisibleEntries,
         handleMirroredEntry,

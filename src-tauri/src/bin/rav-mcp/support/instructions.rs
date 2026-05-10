@@ -29,6 +29,8 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 - `editor` means the running animation is using the last applied editor code, not necessarily the current unsaved draft in the panel.
 - `autoBind: true` is required for ViewModel access.
 - `stateMachines: "Name"` must be set to activate a state machine.
+- If the user asks for a working instantiation snippet, prefer **generate_web_instantiation_code** first instead of hand-writing one from scratch.
+- If you do need to edit the live config, call **rav_get_editor_code** first and modify the returned object surgically. Do not invent placeholder globals like `FILE`, `FILE_PATH`, or custom file tokens.
 - Use **rav_set_editor_code** then **rav_apply_code** to change configuration and reload.
 - **rav_status** returns the live instantiation source and whether the editor has unapplied draft changes.
 - **generate_web_instantiation_code** returns the canonical copy-paste snippet for the live mode currently running in RAV.
@@ -43,11 +45,16 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 ## Tips
 - If rav_get_vm_tree returns empty but you suspect there's a ViewModel, ensure the editor config includes `autoBind: true` and `stateMachines` is set, then call rav_apply_code.
 - Use **rav_eval** for anything not covered by the dedicated tools — it runs JS in the browser context with access to `window.riveInst` and all globals.
+- The stable live instance is `window.riveInst`. Do not assume a local callback variable like `rive` will remain authoritative after reloads.
 - **rav_get_event_log** shows runtime events, user events, UI events, and MCP events — useful for debugging what happened.
-- **rav_console_open** / **rav_console_close** toggle the JS console panel.
-- **rav_console_read** returns captured console.* output (all calls since app start).
-- **rav_console_exec** evaluates code in the REPL with output shown in the console panel.
+- **rav_console_open** / **rav_console_close** toggle the JS console panel. `rav_console_open` accepts optional `mode` (events/js), `level`, `sources`, and `search` to apply a filter on open.
+- **rav_console_set_mode** flips the panel between Events and JS modes (or `closed`) without re-opening.
+- **rav_console_set_filter** mirrors the existing on-screen filter toggles: `level` (all/info/warning/error) for JS mode, `sources` subset of (native/riveUser/ui/mcp) for Events mode, plus optional `search` substring.
+- **rav_console_clear** clears the visible transcript of the active mode (or a specified mode) without closing the panel.
+- **rav_console_read** returns the JS console transcript, including REPL input/result rows and captured `console.*` output.
+- **rav_console_exec** evaluates code in the REPL with output shown in the console panel. Use `rav_console_read` to verify what actually happened instead of assuming execution succeeded.
 - **rav_export_demo** creates a self-contained HTML file with the current animation, runtime, and settings baked in.
+- **rav_export_demo_visual** orchestrates the Snippet & Export Controls dialog visibly (open → selection → package/mode → Export → save) for screen recordings or non-default selections.
 - **rav_configure_workspace** sets left/right sidebar visibility, live editor/internal mode, and VM Explorer snippet state in one idempotent call.
 - **generate_web_instantiation_code** is the preferred way to get a web snippet. It bakes in the current runtime package, artboard/playback selection, layout fit/alignment, background mode, the active instantiation source, and the currently selected bound control values.
 - **rav_toggle_instantiation_controls_dialog** opens the in-app control-selection dialog so a human can choose exactly which values will be serialized into snippets and exported demos."#;

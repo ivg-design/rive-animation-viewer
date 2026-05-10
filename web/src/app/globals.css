@@ -90,6 +90,11 @@ body {
 }
 
 /* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes fade-in-up {
   from {
     opacity: 0;
@@ -125,8 +130,8 @@ body {
 .delay-400 { animation-delay: 400ms; }
 .delay-500 { animation-delay: 500ms; }
 
-/* Global easing */
-* {
+/* Scoped easing — only on elements that actually transition */
+a, button, [class*="transition"], [class*="hover:"] {
   transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -211,25 +216,32 @@ body {
   text-decoration: underline;
 }
 
-/* Docs content styling */
+/* ── Docs content ────────────────────────────────────────── */
+
 .docs-content {
   color: var(--text-dim);
-  line-height: 1.8;
+  font-size: 0.9375rem;
+  line-height: 1.85;
+  max-width: 720px;
 }
 
 .docs-content h1 {
-  display: none;
+  font-size: clamp(1.75rem, 3vw, 2.25rem);
+  font-weight: 800;
+  color: var(--text-white);
+  letter-spacing: -0.02em;
+  margin-bottom: 2rem;
+  line-height: 1.2;
 }
 
 .docs-content h2 {
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   font-weight: 700;
   color: var(--text-white);
-  margin-top: 3rem;
-  margin-bottom: 1.5rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border-light);
-  scroll-margin-top: 5rem;
+  letter-spacing: -0.01em;
+  margin-top: 3.5rem;
+  margin-bottom: 1rem;
+  scroll-margin-top: 6rem;
 }
 
 .docs-content h2:first-of-type {
@@ -237,20 +249,21 @@ body {
 }
 
 .docs-content h3 {
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text-white);
-  margin-top: 2rem;
-  margin-bottom: 1rem;
+  margin-top: 2.5rem;
+  margin-bottom: 0.75rem;
 }
 
 .docs-content p {
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .docs-content a {
   color: var(--neon);
   text-decoration: none;
+  text-underline-offset: 3px;
 }
 
 .docs-content a:hover {
@@ -258,12 +271,12 @@ body {
 }
 
 .docs-content ul, .docs-content ol {
-  margin-bottom: 1rem;
-  padding-left: 1.5rem;
+  margin-bottom: 1.25rem;
+  padding-left: 1.25rem;
 }
 
 .docs-content li {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.6rem;
 }
 
 .docs-content ul li {
@@ -275,57 +288,68 @@ body {
 }
 
 .docs-content blockquote {
-  border-left: 3px solid var(--neon);
-  padding-left: 1rem;
-  margin: 1.5rem 0;
+  border-left: 2px solid var(--neon);
+  margin: 2rem 0;
   color: var(--text-muted);
   background: var(--bg-zinc);
-  padding: 1rem 1rem 1rem 1.5rem;
+  padding: 1rem 1.25rem;
   border-radius: 0 0.5rem 0.5rem 0;
+  font-size: 0.875rem;
 }
 
 .docs-content code {
   background: var(--bg-elevated);
-  padding: 0.125rem 0.375rem;
+  padding: 0.15rem 0.4rem;
   border-radius: 0.25rem;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-family: "Space Mono", monospace;
   color: var(--neon);
 }
 
 .docs-content pre {
   background: var(--bg-zinc);
-  border: 1px solid var(--border-light);
-  border-radius: 0.5rem;
-  padding: 1rem;
+  border: 1px solid var(--border-dark);
+  border-radius: 0.625rem;
+  padding: 1.25rem;
   overflow-x: auto;
-  margin-bottom: 1rem;
+  margin: 1.5rem 0;
+  font-size: 0.8125rem;
+  line-height: 1.7;
 }
 
 .docs-content pre code {
   background: transparent;
   padding: 0;
+  font-size: inherit;
 }
 
 .docs-content table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 1.5rem;
-  background: var(--bg-zinc);
-  border-radius: 0.5rem;
-  overflow: hidden;
+  margin: 1.5rem 0;
+  font-size: 0.875rem;
 }
 
 .docs-content th, .docs-content td {
-  padding: 0.75rem 1rem;
+  padding: 0.625rem 0.875rem;
   text-align: left;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-dark);
 }
 
 .docs-content th {
-  background: var(--bg-elevated);
-  color: var(--text-white);
+  color: var(--text-muted);
   font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.docs-content td {
+  color: var(--text-dim);
+}
+
+.docs-content td code {
+  font-size: 0.75rem;
 }
 
 .docs-content tr:last-child td {
@@ -339,6 +363,11 @@ body {
 
 .docs-content hr {
   border: none;
-  border-top: 1px solid var(--border-light);
-  margin: 2rem 0;
+  border-top: 1px solid var(--border-dark);
+  margin: 3rem 0;
+}
+
+.docs-content img {
+  border-radius: 0.625rem;
+  border: 1px solid var(--border-dark);
 }

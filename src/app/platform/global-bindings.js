@@ -50,6 +50,11 @@ export function createGlobalBindingsController({
         execScriptConsole = async () => ({ ok: false }),
         isScriptConsoleOpen = () => false,
         openScriptConsole = async () => ({ open: true }),
+        setConsoleMode = async () => {},
+        setScriptConsoleFilter = () => ({}),
+        setEventLogFilter = () => ({}),
+        clearScriptConsole = () => {},
+        clearEventLog = () => {},
         pause = () => {},
         play = () => {},
         refreshVmInputControls = () => {},
@@ -101,6 +106,34 @@ export function createGlobalBindingsController({
         windowRef._mcpConsoleIsOpen = () => isScriptConsoleOpen();
         windowRef._mcpConsoleRead = (limit) => getScriptConsoleEntries(limit);
         windowRef._mcpConsoleExec = async (code) => execScriptConsole(code);
+        windowRef._mcpSetConsoleMode = async (mode) => {
+            const normalized = mode === 'js' ? 'js' : mode === 'events' ? 'events' : mode === 'closed' ? 'closed' : null;
+            if (!normalized) throw new Error("mode must be 'events', 'js', or 'closed'");
+            await setConsoleMode(normalized);
+            return { ok: true, mode: normalized, jsOpen: isScriptConsoleOpen() };
+        };
+        windowRef._mcpSetConsoleFilter = ({ mode, level, sources, search } = {}) => {
+            const target = mode === 'events' || mode === 'js'
+                ? mode
+                : (isScriptConsoleOpen() ? 'js' : 'events');
+            if (target === 'js') {
+                const result = setScriptConsoleFilter({ level, search });
+                return { ok: true, mode: 'js', ...result };
+            }
+            const result = setEventLogFilter({ sources, search });
+            return { ok: true, mode: 'events', ...result };
+        };
+        windowRef._mcpConsoleClear = (mode) => {
+            const target = mode === 'events' || mode === 'js'
+                ? mode
+                : (isScriptConsoleOpen() ? 'js' : 'events');
+            if (target === 'js') {
+                clearScriptConsole();
+            } else {
+                clearEventLog();
+            }
+            return { ok: true, mode: target };
+        };
         windowRef._mcpGetEditorCode = async () => {
             await ensureEditorReady();
             return getEditorCode();

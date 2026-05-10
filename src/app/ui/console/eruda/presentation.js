@@ -42,20 +42,8 @@ export function createErudaPresentationController({
         return Array.from(container.querySelectorAll('.luna-console-log-container'));
     }
 
-    function getErudaRowGroups(container) {
-        const rows = getErudaRows(container);
-        const groups = new Map();
-        rows.forEach((row) => {
-            const parent = row.parentElement;
-            if (!parent) {
-                return;
-            }
-            if (!groups.has(parent)) {
-                groups.set(parent, []);
-            }
-            groups.get(parent).push(row);
-        });
-        return Array.from(groups.values());
+    function getDisplayedErudaRows(container) {
+        return getErudaRows(container);
     }
 
     function classifyErudaRow(row) {
@@ -195,21 +183,6 @@ export function createErudaPresentationController({
         }
     }
 
-    function reorderRowsNewestFirst(container) {
-        getErudaRowGroups(container).forEach((rows) => {
-            if (rows.length < 2) {
-                return;
-            }
-            const orderedRows = rows
-                .slice()
-                .sort((left, right) => Number(right.dataset.ravSeq || 0) - Number(left.dataset.ravSeq || 0));
-            if (!orderedRows.some((row, index) => row !== rows[index])) {
-                return;
-            }
-            orderedRows.forEach((row) => row.parentElement?.appendChild(row));
-        });
-    }
-
     function disconnectErudaObserver() {
         state.erudaObserver?.disconnect?.();
     }
@@ -235,7 +208,6 @@ export function createErudaPresentationController({
                 const rows = getErudaRows(container);
                 rows.forEach(ensureRowTimestamp);
                 rows.forEach(ensureRowBadge);
-                reorderRowsNewestFirst(container);
             });
             bindScrollContainer();
             applyErudaDomFilter();
@@ -259,14 +231,13 @@ export function createErudaPresentationController({
         state.erudaObserver = new MutationObserverCtor(() => {
             refreshErudaPresentation();
         });
-
         reconnectErudaObserver();
     }
 
     return {
         applyErudaDomFilter,
         classifyErudaRow,
-        getErudaLogContainers,
+        getDisplayedErudaRows,
         getErudaRows,
         observeErudaLogs,
         readErudaRowText,

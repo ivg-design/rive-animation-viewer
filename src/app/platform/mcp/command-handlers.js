@@ -13,6 +13,6 @@ export function createMcpCommandHandlers({
         ...createStatusPlaybackCommands({ buildViewModelSnapshot, documentRef, windowRef }),
         ...createViewModelCommands({ buildViewModelSnapshot, windowRef }),
         ...createEditorConsoleCommands({ assertMcpScriptAccess, documentRef, windowRef }),
-        ...createExportWorkspaceCommands({ windowRef }),
+        ...createExportWorkspaceCommands({ documentRef, windowRef }),
     };
 }

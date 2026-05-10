@@ -102,14 +102,14 @@ Once connected, Claude has access to all RAV tools. Try:
 | `rav_set_canvas_color` | Set background color |
 | `rav_set_canvas_size` | Set canvas sizing mode plus explicit pixel width/height and optional aspect lock |
 | `rav_export_demo` | Export standalone HTML demo |
-| `generate_web_instantiation_code` | Generate the canonical live web snippet for `local` or `cdn` usage, with `window.ravRive` helpers and current control values |
+| `generate_web_instantiation_code` | Generate the canonical live web snippet for `local` or `cdn` usage, with `window.ravRive` helpers and current control values. Preferred over hand-writing snippets from scratch. |
 | `rav_toggle_instantiation_controls_dialog` | Open/close the in-app Snippet & Export Controls dialog so a human can curate which controls are serialized |
 | `rav_configure_workspace` | Set left/right sidebar visibility, live source mode, and VM Explorer snippet presence in one idempotent call |
 | `rav_get_sm_inputs` | List state machine inputs with values |
 | `rav_set_sm_input` | Set state machine input value |
 | `rav_eval` | Evaluate JS in RAV's browser context (`Script Access` required) |
 | `rav_console_open` / `rav_console_close` | Toggle the JS console panel |
-| `rav_console_read` / `rav_console_exec` | Read captured console output or run REPL code (`rav_console_exec` requires `Script Access`) |
+| `rav_console_read` / `rav_console_exec` | Read the JS console transcript or run REPL code (`rav_console_exec` requires `Script Access`). Transcript includes REPL input/result rows plus captured `console.*` output. |
 
 ## Live Instantiation Semantics
 

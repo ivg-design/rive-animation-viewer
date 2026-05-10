@@ -4,8 +4,21 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-05-10
+
+### Added
+
+- **MCP `rav_console_set_mode`** — Flip the bottom console between Event Console, JS REPL, or closed without re-opening the panel.
+- **MCP `rav_console_set_filter`** — Drive the existing on-screen filter toggles from any MCP client. JS mode supports `level` (`all`/`info`/`warning`/`error`); Event mode supports `sources` (subset of `native`/`riveUser`/`ui`/`mcp`); both modes support `search`. Auto-targets the active mode when `mode` is omitted.
+- **MCP `rav_console_clear`** — Clear the visible transcript of the active mode (or a specified mode) without closing the panel.
+- **Extended MCP `rav_console_open`** — Optional `mode`, `level`, `sources`, and `search` apply pre-configured filter state in the same call. Backwards compatible with no-argument invocations.
+- **MCP `rav_export_demo_visual`** — Orchestrates the Snippet & Export Controls dialog visually (open → selection → package/mode → click Export → save) for screen recordings or non-default control selections.
+- **Docs** — MCP Integration page now lists 36 tools with the four new console-control rows and the visual export row.
+- **Landing** — Features section updated to advertise 36 MCP tools and console panel control.
+
 ### Changed
 
+- **Script console refactor** — Internal Eruda configuration extracted into dedicated modules; capture controller now owns logger attachment and type mapping. No user-visible behavior change.
 - **Regression guardrails** — Documented the current prebuild protection stack around architecture drift, dependency boundaries, custom window chrome, and exported demo chrome so the `2.1.x` stabilization work has explicit gates instead of relying on ad hoc manual checks.
 
 ## [2.2.3] - 2026-04-05

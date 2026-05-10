@@ -39,12 +39,19 @@ export function createEventLogController({
             : 'Pinned follow is off';
     }
 
+    function getLatestScrollTop(container) {
+        if (!container) {
+            return 0;
+        }
+        return Math.max(0, container.scrollHeight - container.clientHeight);
+    }
+
     function syncFollowStateFromScroll() {
         const container = getScrollContainer();
         if (!container) {
             return;
         }
-        const nextFollowLatest = container.scrollTop <= 6;
+        const nextFollowLatest = Math.abs(getLatestScrollTop(container) - container.scrollTop) <= 6;
         if (nextFollowLatest === followLatest) {
             return;
         }
@@ -57,7 +64,7 @@ export function createEventLogController({
         if (!container) {
             return;
         }
-        container.scrollTop = 0;
+        container.scrollTop = getLatestScrollTop(container);
     }
 
     function syncFilterToggle(element, active) {
@@ -115,7 +122,7 @@ export function createEventLogController({
         if (elements.eventLogCopyButton) {
             elements.eventLogCopyButton.addEventListener('click', async () => {
                 const text = getVisibleEntries()
-                    .slice(0, 120)
+                    .slice(-120)
                     .map((entry) => `[${formatEventTime(entry.timestamp)}] ${entry.source.toUpperCase()} ${formatEventRowMessage(entry)}`)
                     .join('\n');
                 if (text) {
@@ -170,7 +177,7 @@ export function createEventLogController({
     }
 
     function logEvent(source, type, message, payload) {
-        eventLogEntries.unshift({
+        eventLogEntries.push({
             id: ++eventLogSequence,
             source,
             type,
@@ -179,7 +186,7 @@ export function createEventLogController({
             timestamp: Date.now(),
         });
         if (eventLogEntries.length > EVENT_LOG_LIMIT) {
-            eventLogEntries.length = EVENT_LOG_LIMIT;
+            eventLogEntries.splice(0, eventLogEntries.length - EVENT_LOG_LIMIT);
         }
         renderEventLog();
     }
@@ -211,7 +218,6 @@ export function createEventLogController({
 
         count.textContent = String(filtered.length);
         const scrollContainer = getScrollContainer();
-        const previousHeight = scrollContainer?.scrollHeight || 0;
         const previousTop = scrollContainer?.scrollTop || 0;
         list.innerHTML = '';
         if (!filtered.length) {
@@ -255,8 +261,7 @@ export function createEventLogController({
             scrollLatestIntoView();
             return;
         }
-        const heightDelta = scrollContainer.scrollHeight - previousHeight;
-        scrollContainer.scrollTop = previousTop + Math.max(0, heightDelta);
+        scrollContainer.scrollTop = Math.min(previousTop, getLatestScrollTop(scrollContainer));
     }
 
     function formatEventRowMessage(entry) {
@@ -331,7 +336,29 @@ export function createEventLogController({
         return { ...eventFilterState };
     }
 
+    function setFilter({ sources, search } = {}) {
+        if (Array.isArray(sources)) {
+            const allowed = new Set(['native', 'riveUser', 'ui', 'mcp']);
+            const wanted = new Set(sources.filter((source) => allowed.has(source)));
+            eventFilterState.native = wanted.has('native');
+            eventFilterState.riveUser = wanted.has('riveUser');
+            eventFilterState.ui = wanted.has('ui');
+            eventFilterState.mcp = wanted.has('mcp');
+            if (elements.eventFilterNative) syncFilterToggle(elements.eventFilterNative, eventFilterState.native);
+            if (elements.eventFilterRiveUser) syncFilterToggle(elements.eventFilterRiveUser, eventFilterState.riveUser);
+            if (elements.eventFilterUi) syncFilterToggle(elements.eventFilterUi, eventFilterState.ui);
+            if (elements.eventFilterMcp) syncFilterToggle(elements.eventFilterMcp, eventFilterState.mcp);
+        }
+        if (typeof search === 'string') {
+            eventFilterState.search = search.trim().toLowerCase();
+            if (elements.eventFilterSearch) elements.eventFilterSearch.value = search;
+        }
+        renderEventLog();
+        return getFilterStateSnapshot();
+    }
+
     return {
+        clearLog: resetEventLog,
         getEntriesSnapshot,
         getFilterStateSnapshot,
         isFollowingLatest: () => followLatest,
@@ -341,6 +368,7 @@ export function createEventLogController({
         resetEventLog,
         renderEventLog,
         setCollapsed,
+        setFilter,
         setupEventLog,
     };
 }

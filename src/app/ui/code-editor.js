@@ -6,6 +6,7 @@ import {
     evaluateEditorConfig,
     extractBraceBlock,
     hasVmExplorerSnippet,
+    normalizeEditorDisplayCode,
     replaceOnLoadBlock,
 } from './editor/editor-code-utils.js';
 import { setVmExplorerSnippetEnabledOnEditor } from './editor/vm-explorer-toggle.js';
@@ -79,9 +80,10 @@ export function createCodeEditorController({
         if (!editorView) {
             return false;
         }
+        const normalizedCode = normalizeEditorDisplayCode(code);
         isAutoFilling = true;
         editorView.dispatch({
-            changes: { from: 0, to: editorView.state.doc.length, insert: code },
+            changes: { from: 0, to: editorView.state.doc.length, insert: normalizedCode },
         });
         isAutoFilling = false;
         updateLiveModeChip();

@@ -19,7 +19,7 @@ const topics = [
   { icon: Terminal, title: "Consoles", desc: "Event log and JavaScript REPL", href: "/docs/consoles" },
   { icon: FileCode, title: "Export + Snippets", desc: "Standalone HTML and instantiation code", href: "/docs/export" },
   { icon: Settings, title: "Configuration", desc: "Editor modes, renderer, runtime, canvas sizing", href: "/docs/configuration" },
-  { icon: Cable, title: "MCP Integration", desc: "32 tools, bundled sidecar, Script Access", href: "/docs/mcp" },
+  { icon: Cable, title: "MCP Integration", desc: "36 tools, bundled sidecar, Script Access", href: "/docs/mcp" },
   { icon: RefreshCw, title: "Auto Updates", desc: "Built-in updater flow", href: "/docs/updates" },
   { icon: Keyboard, title: "Keyboard Shortcuts", desc: "All implemented keybindings", href: "/docs/shortcuts" },
   { icon: HelpCircle, title: "Troubleshooting", desc: "Common issues and fixes", href: "/docs/troubleshooting" },
@@ -28,7 +28,7 @@ const topics = [
 export default function DocsLanding() {
   return (
     <>
-      <section className="text-center mb-12">
+      <section className="text-center mb-12 pt-4">
         <h1 className="text-4xl font-bold text-[var(--text-white)] mb-4">RAV Documentation</h1>
         <p className="text-lg text-[var(--text-dim)] max-w-2xl mx-auto">
           Complete guide to Rive Animation Viewer — from installation to MCP remote control.

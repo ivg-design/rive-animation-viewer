@@ -1,7 +1,7 @@
 // Rive instantiation config — riveInst is the global instance
 // Uncomment any property to override defaults
 
-({
+{
   autoplay: true,
   autoBind: true,
 
@@ -26,4 +26,4 @@
   // onPause: () => { console.log("pause"); },
   // onStop: () => { console.log("stop"); },
   // onLoop: (event) => { console.log("loop:", event); },
-})
+}

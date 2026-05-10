@@ -19,6 +19,7 @@ export function createPlatformStack({
         ensureEditorReady,
         ensureRuntime,
         ensureTauriBridge,
+        eventLogController,
         getArtboardStateSnapshot,
         getChangedVmControlSnapshot,
         getCurrentFileBuffer,
@@ -225,6 +226,11 @@ export function createPlatformStack({
                 await consoleModeController.setConsoleMode('js');
                 return { open: true };
             },
+            setConsoleMode: async (mode) => consoleModeController.setConsoleMode(mode),
+            setScriptConsoleFilter: (filter) => scriptConsoleController.setFilter(filter),
+            setEventLogFilter: (filter) => eventLogController.setFilter(filter),
+            clearScriptConsole: () => scriptConsoleController.clear(),
+            clearEventLog: () => eventLogController.clearLog(),
             pause,
             play,
             refreshVmInputControls,

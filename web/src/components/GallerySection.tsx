@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { asset } from "@/lib/config";
-import { X } from "lucide-react";
+import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import ScrollReveal from "./ScrollReveal";
 
 type GalleryItem = {
   src: string;
@@ -15,119 +16,114 @@ type GalleryItem = {
 
 const items: GalleryItem[] = [
   {
-    src: "/docs/ui-overview.webp",
-    alt: "Full RAV application layout with editor, canvas, properties panel, and console",
-    caption: "Application overview",
-    width: 1280,
-    height: 800,
-  },
-  {
-    src: "/docs/vm-controls-panel.webp",
-    alt: "Properties panel showing ViewModel controls, state machine inputs, and nested instances",
-    caption: "ViewModel controls",
-    width: 400,
-    height: 900,
-  },
-  {
     src: "/docs/event-console.webp",
-    alt: "Event console with multi-source filtering and timestamps",
-    caption: "Event console",
-    width: 800,
-    height: 200,
+    alt: "Event console with multi-source filtering",
+    caption: "Event console — filter by Native, Rive User, UI, and MCP sources",
+    width: 800, height: 200,
   },
   {
     src: "/docs/js-console.webp",
-    alt: "JavaScript console REPL with object introspection and level filters",
-    caption: "JavaScript console",
-    width: 800,
-    height: 200,
-  },
-  {
-    src: "/docs/export-controls.webp",
-    alt: "Snippet and Export Controls dialog with tree checkboxes and code preview",
-    caption: "Export controls",
-    width: 800,
-    height: 500,
+    alt: "JavaScript REPL with object introspection",
+    caption: "JavaScript console — REPL against the live runtime with object expansion",
+    width: 800, height: 200,
   },
   {
     src: "/docs/artboard-switcher.webp",
-    alt: "Artboard switcher with playback dropdown and VM instance selector",
-    caption: "Artboard switcher",
-    width: 400,
-    height: 250,
-  },
-  {
-    src: "/docs/mcp-setup.webp",
-    alt: "MCP Setup dialog with client detection and install actions",
-    caption: "MCP setup",
-    width: 500,
-    height: 700,
+    alt: "Artboard switcher with playback and instance dropdowns",
+    caption: "Artboard switcher — select artboards, playback targets, and VM instances",
+    width: 400, height: 250,
   },
   {
     src: "/docs/settings-popover.webp",
-    alt: "Settings panel with runtime version, canvas sizing, and background controls",
-    caption: "Settings panel",
-    width: 500,
-    height: 320,
+    alt: "Settings panel with runtime version and canvas sizing",
+    caption: "Settings — runtime version, canvas sizing, background controls",
+    width: 500, height: 320,
+  },
+  {
+    src: "/docs/mcp-indicators.webp",
+    alt: "MCP indicator in three states",
+    caption: "MCP status — connected, idle, and disabled states in the runtime strip",
+    width: 300, height: 100,
   },
   {
     src: "/docs/about-window.webp",
-    alt: "About window with build matrix, credits, and dependency inventory",
-    caption: "About window",
-    width: 600,
-    height: 400,
+    alt: "About window with build metadata",
+    caption: "About — build matrix, credits, dependencies, and product links",
+    width: 600, height: 400,
   },
 ];
 
 export default function GallerySection() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  return (
-    <section id="screenshots" className="flex flex-col items-center gap-12 py-24 px-8 section-gradient w-full">
-      <div className="flex flex-col items-center gap-4">
-        <span className="font-mono text-xs font-medium tracking-[3px] uppercase text-[var(--neon)]">
-          Screenshots
-        </span>
-        <h2 className="font-sans font-bold text-4xl text-[var(--text-white)]">
-          See it in action
-        </h2>
-      </div>
+  const goNext = useCallback(() => {
+    if (lightboxIndex !== null) setLightboxIndex((lightboxIndex + 1) % items.length);
+  }, [lightboxIndex]);
+  const goPrev = useCallback(() => {
+    if (lightboxIndex !== null) setLightboxIndex((lightboxIndex - 1 + items.length) % items.length);
+  }, [lightboxIndex]);
 
-      <div className="columns-1 sm:columns-2 lg:columns-3 gap-3 max-w-[1100px] w-full">
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxIndex(null);
+      if (e.key === "ArrowRight") goNext();
+      if (e.key === "ArrowLeft") goPrev();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [lightboxIndex, goNext, goPrev]);
+
+  return (
+    <section id="screenshots" className="flex flex-col items-center py-24 px-8 w-full">
+      <ScrollReveal className="text-center mb-16">
+        <p className="font-mono text-xs tracking-[0.2em] uppercase text-[var(--neon)] mb-4">
+          Interface
+        </p>
+        <h2 className="text-[clamp(1.75rem,3.5vw,2.75rem)] font-bold text-[var(--text-white)] leading-[1.15]">
+          More of the app
+        </h2>
+      </ScrollReveal>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-[1100px] w-full">
         {items.map((item, index) => (
-          <button
-            key={item.caption}
-            onClick={() => setLightboxIndex(index)}
-            className="group relative w-full mb-3 break-inside-avoid rounded-xl overflow-hidden bg-[var(--bg-zinc)] border border-[var(--border-dark)] hover:border-[var(--neon-glow)] transition-colors duration-300 cursor-pointer block"
-          >
-            <Image
-              src={asset(item.src)}
-              alt={item.alt}
-              width={item.width}
-              height={item.height}
-              className="w-full h-auto group-hover:scale-[1.02] transition-transform duration-500"
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
-            <div className="absolute bottom-2 left-2 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <span className="text-[10px] text-white/80">{item.caption}</span>
-            </div>
-          </button>
+          <ScrollReveal key={item.caption} delay={index * 0.05}>
+            <button
+              onClick={() => setLightboxIndex(index)}
+              className="group relative w-full rounded-xl overflow-hidden bg-[var(--bg-zinc)] border border-[var(--border-dark)] hover:border-[var(--neon-glow)] transition-colors duration-300 cursor-pointer text-left"
+            >
+              <Image
+                src={asset(item.src)}
+                alt={item.alt}
+                width={item.width}
+                height={item.height}
+                className="w-full h-auto"
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              />
+              <div className="p-3 border-t border-[var(--border-dark)]">
+                <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">{item.caption}</p>
+              </div>
+            </button>
+          </ScrollReveal>
         ))}
       </div>
 
+      {/* Lightbox */}
       {lightboxIndex !== null && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
           onClick={() => setLightboxIndex(null)}
         >
-          <button
-            onClick={() => setLightboxIndex(null)}
-            className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10"
-          >
-            <X className="w-6 h-6 text-white" />
+          <button onClick={() => setLightboxIndex(null)} className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10">
+            <X className="w-5 h-5 text-white" />
           </button>
-          <div className="relative w-[90vw] h-[85vh] flex items-center justify-center">
+          <button onClick={(e) => { e.stopPropagation(); goPrev(); }} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10">
+            <ChevronLeft className="w-5 h-5 text-white" />
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); goNext(); }} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10">
+            <ChevronRight className="w-5 h-5 text-white" />
+          </button>
+          <div className="relative w-[90vw] h-[85vh] flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
             <Image
               src={asset(items[lightboxIndex].src)}
               alt={items[lightboxIndex].alt}
@@ -137,8 +133,8 @@ export default function GallerySection() {
               sizes="90vw"
             />
           </div>
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-black/60 backdrop-blur-sm">
-            <span className="text-sm text-white/80">{items[lightboxIndex].caption}</span>
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-black/60 backdrop-blur-sm max-w-[600px] text-center">
+            <span className="text-xs text-white/80">{items[lightboxIndex].caption}</span>
           </div>
         </div>
       )}

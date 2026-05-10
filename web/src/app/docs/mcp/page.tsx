@@ -21,7 +21,26 @@ export default function McpIntegration() {
         brightens when a client is actively connected.
       </p>
 
-      <Image src={asset("/docs/mcp-indicators.webp")} alt="MCP indicator in three states: connected, idle, disabled" width={300} height={100} className="rounded-lg border border-[var(--border-dark)] my-4" />
+      {/* Editorial: indicators left, legend right */}
+      <div className="flex flex-col md:flex-row gap-6 my-6">
+        <div className="md:w-2/5 flex-shrink-0">
+          <Image src={asset("/docs/mcp-indicators.webp")} alt="MCP indicator in three states" width={300} height={100} className="rounded-lg border border-[var(--border-dark)] w-full" />
+        </div>
+        <div className="md:w-3/5 flex flex-col justify-center gap-2">
+          <div className="flex gap-2 items-start">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3b82f6] text-white text-[10px] font-bold flex items-center justify-center">1</span>
+            <p className="text-sm text-[var(--text-dim)]"><strong className="text-[var(--text-white)]">Connected</strong> &mdash; bright indigo, client actively communicating</p>
+          </div>
+          <div className="flex gap-2 items-start">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3b82f6] text-white text-[10px] font-bold flex items-center justify-center">2</span>
+            <p className="text-sm text-[var(--text-dim)]"><strong className="text-[var(--text-white)]">Idle</strong> &mdash; dim indigo, bridge ready but no active client</p>
+          </div>
+          <div className="flex gap-2 items-start">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3b82f6] text-white text-[10px] font-bold flex items-center justify-center">3</span>
+            <p className="text-sm text-[var(--text-dim)]"><strong className="text-[var(--text-white)]">Disabled</strong> &mdash; red with strikethrough, bridge stopped</p>
+          </div>
+        </div>
+      </div>
 
       <h2>Setup</h2>
 
@@ -39,7 +58,7 @@ export default function McpIntegration() {
         <li><strong>Manual snippets</strong> &mdash; copy-paste configurations for any MCP client</li>
       </ul>
 
-      <h2>Available Tools (32)</h2>
+      <h2>Available Tools (36)</h2>
       <table>
         <thead><tr><th>Tool</th><th>Description</th></tr></thead>
         <tbody>
@@ -58,13 +77,17 @@ export default function McpIntegration() {
           <tr><td><code>rav_set_layout</code></td><td>Set layout fit mode</td></tr>
           <tr><td><code>rav_set_canvas_color</code></td><td>Set background color</td></tr>
           <tr><td><code>rav_set_canvas_size</code></td><td>Set canvas sizing mode, dimensions, and aspect lock</td></tr>
-          <tr><td><code>rav_export_demo</code></td><td>Export standalone HTML demo</td></tr>
+          <tr><td><code>rav_export_demo</code></td><td>Export standalone HTML demo (programmatic, no dialog)</td></tr>
+          <tr><td><code>rav_export_demo_visual</code></td><td>Visibly orchestrate the export dialog (selection, package, snippet mode) and save &mdash; for screen recordings or non-default selections</td></tr>
           <tr><td><code>generate_web_instantiation_code</code></td><td>Generate canonical web snippet with helpers and control values</td></tr>
           <tr><td><code>rav_toggle_instantiation_controls_dialog</code></td><td>Open/close the export controls dialog</td></tr>
           <tr><td><code>rav_configure_workspace</code></td><td>Set sidebar visibility, live source mode, and VM Explorer state</td></tr>
           <tr><td><code>rav_get_sm_inputs</code> / <code>rav_set_sm_input</code></td><td>State machine input access</td></tr>
           <tr><td><code>rav_eval</code></td><td>Evaluate JS in browser context (Script Access required)</td></tr>
-          <tr><td><code>rav_console_open</code> / <code>rav_console_close</code></td><td>Toggle the JS console panel</td></tr>
+          <tr><td><code>rav_console_open</code> / <code>rav_console_close</code></td><td>Toggle the bottom console panel. <code>open</code> accepts optional <code>mode</code>, <code>level</code>, <code>sources</code>, and <code>search</code> to apply a filter on open</td></tr>
+          <tr><td><code>rav_console_set_mode</code></td><td>Flip between Event Console, JS REPL, or closed without re-opening</td></tr>
+          <tr><td><code>rav_console_set_filter</code></td><td>Drive the on-screen filter toggles: <code>level</code> for JS, <code>sources</code> for Events, plus <code>search</code> on either</td></tr>
+          <tr><td><code>rav_console_clear</code></td><td>Clear the visible transcript of the active mode (or a specified mode); panel stays open</td></tr>
           <tr><td><code>rav_console_read</code> / <code>rav_console_exec</code></td><td>Read console output or run REPL code (exec requires Script Access)</td></tr>
         </tbody>
       </table>
@@ -74,14 +97,6 @@ export default function McpIntegration() {
         By default, MCP can read state and drive safe control operations. Enable
         <strong> Script Access</strong> in the MCP Setup dialog to unlock <code>rav_eval</code>,
         <code>rav_console_exec</code>, and <code>rav_apply_code</code>.
-      </p>
-
-      <h2>About Window</h2>
-      <Image src={asset("/docs/about-window.webp")} alt="About window showing build matrix, credits, dependencies, and links" width={600} height={400} className="rounded-xl border border-[var(--border-dark)] my-4" />
-      <p>
-        Desktop builds include a custom About window accessible from the Settings popover
-        or the native Help menu. It shows build metadata, runtime version, credits, links,
-        and dependency inventory.
       </p>
     </>
   );

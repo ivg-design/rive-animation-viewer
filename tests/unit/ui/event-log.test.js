@@ -61,7 +61,7 @@ describe('ui/event-log', () => {
         });
     });
 
-    it('renders events and exposes snapshots', () => {
+    it('renders events in natural order and exposes snapshots', () => {
         const handleResize = vi.fn();
         const controller = createEventLogController({
             elements: buildElements(),
@@ -75,6 +75,10 @@ describe('ui/event-log', () => {
         expect(controller.getEntriesSnapshot()).toHaveLength(2);
         expect(document.getElementById('event-log-count').textContent).toBe('2');
         expect(document.getElementById('event-log-list').textContent).toContain('Bridge connected');
+        const rows = Array.from(document.querySelectorAll('#event-log-list .event-log-row'));
+        expect(rows).toHaveLength(2);
+        expect(rows[0].textContent).toContain('Viewer ready');
+        expect(rows[1].textContent).toContain('Bridge connected');
     });
 
     it('renders cyclic payloads without crashing the event log', () => {
@@ -128,20 +132,25 @@ describe('ui/event-log', () => {
         expect(navigator.clipboard.writeText).toHaveBeenCalled();
     });
 
-    it('turns follow off when scrolled away and back on when toggled', () => {
+    it('turns follow off when scrolled away from the bottom and back on when toggled', () => {
         const controller = createEventLogController({
             elements: buildElements(),
             handleResize: vi.fn(),
         });
 
         controller.setupEventLog();
-        controller.logEvent('ui', 'ready', 'Viewer ready');
         const body = document.getElementById('event-log-body');
+        Object.defineProperty(body, 'clientHeight', { configurable: true, value: 140 });
+        let scrollHeight = 440;
+        Object.defineProperty(body, 'scrollHeight', { configurable: true, get: () => scrollHeight });
+        controller.logEvent('ui', 'ready', 'Viewer ready');
+        controller.logEvent('ui', 'next', 'Another entry');
         body.scrollTop = 32;
         body.dispatchEvent(new Event('scroll'));
         expect(controller.isFollowingLatest()).toBe(false);
 
         document.getElementById('event-log-follow-btn').click();
         expect(controller.isFollowingLatest()).toBe(true);
+        expect(body.scrollTop).toBe(scrollHeight - body.clientHeight);
     });
 });

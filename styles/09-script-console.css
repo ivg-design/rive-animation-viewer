@@ -105,6 +105,7 @@ body.js-console-mode > .eruda-container:not(.rav-eruda) {
 .script-console-output .luna-console {
     background: #0a0d13 !important;
     font-family: "Space Mono", monospace !important;
+    overflow-y: auto !important;
 }
 
 .script-console-output .luna-console-fake-logs {
@@ -112,8 +113,11 @@ body.js-console-mode > .eruda-container:not(.rav-eruda) {
 }
 
 .script-console-output .luna-console-logs {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 100%;
     background: #0a0d13 !important;
-    overflow-y: auto !important;
+    overflow: visible !important;
 }
 
 .script-console-output .luna-console-log-container {

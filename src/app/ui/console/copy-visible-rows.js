@@ -2,10 +2,10 @@ export function buildVisibleConsoleCopyText({
     classifyRow,
     getRows,
     getText,
+    orderRows = (rows) => rows,
     root,
 } = {}) {
-    return getRows(root)
-        .filter((row) => !row.hidden)
+    return orderRows(getRows(root).filter((row) => !row.hidden))
         .map((row) => {
             const timestamp = row.querySelector('.rav-console-time')?.textContent || '';
             const rowLevel = classifyRow(row);

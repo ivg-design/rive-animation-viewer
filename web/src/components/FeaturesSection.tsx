@@ -1,124 +1,122 @@
+"use client";
+
+import Image from "next/image";
+import { asset } from "@/lib/config";
+import ScrollReveal, { ScrollRevealGroup, ScrollRevealItem } from "./ScrollReveal";
 import {
-  Gamepad2,
-  Terminal,
-  FileCode,
-  Code2,
-  MonitorCog,
-  RotateCcw,
-  Cable,
-  Layers,
-  Download,
-  Maximize,
-  MousePointerClick,
-  Search,
+  Gamepad2, Terminal, FileCode, Code2, MonitorCog, RotateCcw,
+  Cable, Layers, Download, Maximize, MousePointerClick, Search,
 } from "lucide-react";
 
-const features = [
+/* ── Primary features — editorial blocks with screenshots ── */
+
+const primaryFeatures = [
   {
-    icon: Gamepad2,
-    title: "ViewModel Controls",
-    description: "Auto-discovered booleans, numbers, strings, triggers, enums, colors, and nested hierarchies with live two-way runtime sync.",
+    label: "Controls",
+    title: "Every property, live",
+    description: "RAV reads the ViewModel hierarchy and state machine inputs from your .riv file and renders native controls — booleans, numbers, strings, enums, colors, and triggers — all synchronized with the running runtime in real time.",
+    image: "/docs/vm-controls-panel.webp",
+    imageAlt: "ViewModel controls panel showing enums, numbers, booleans, color picker, and nested instances",
+    imageWidth: 400,
+    imageHeight: 900,
+    reverse: false,
   },
   {
-    icon: Layers,
-    title: "Artboards + Playback",
-    description: "Switch artboards, animations, and state machines from exact authored names. VM controls and instances repopulate for each target.",
+    label: "Export",
+    title: "From viewer to codebase",
+    description: "Choose which controls to serialize, pick CDN or local package output, preview the generated snippet inline, and copy or export a self-contained HTML demo — all from one dialog. Fixed canvas sizes, layout modes, and artboard state carry through.",
+    image: "/docs/export-controls.webp",
+    imageAlt: "Snippet & Export Controls dialog with tree checkboxes and live code preview",
+    imageWidth: 800,
+    imageHeight: 500,
+    reverse: true,
   },
   {
-    icon: Terminal,
-    title: "Dual Consoles",
-    description: "Event Console and JavaScript REPL share newest-first transcripts, timestamps, follow mode, level filters, and copy/clear actions.",
+    label: "MCP",
+    title: "AI agents as co-pilots",
+    description: "A bundled native sidecar exposes 36 MCP tools. Claude, Codex, or any MCP client can open files, inspect ViewModels, drive playback, edit scripts, generate snippets, control the console panel, and export demos — without touching the UI. One-click install from the app.",
+    image: "/docs/mcp-setup.webp",
+    imageAlt: "MCP Setup dialog with client detection, one-click install, and snippet copy",
+    imageWidth: 500,
+    imageHeight: 700,
+    reverse: false,
   },
-  {
-    icon: FileCode,
-    title: "Export + Snippets",
-    description: "Standalone HTML export and canonical CDN/local instantiation snippets with per-control selection, inline preview, and live-state serialization.",
-  },
-  {
-    icon: Code2,
-    title: "Script Editor",
-    description: "CodeMirror 6 with internal-vs-editor live indication, APPLY action, and runtime re-instantiation that preserves artboard and control state.",
-  },
-  {
-    icon: MonitorCog,
-    title: "Renderer + Runtime",
-    description: "Canvas and WebGL2 on the fly. Fit, alignment, and explicit fixed canvas sizing in the toolbar. Latest, pinned, or custom runtime semver.",
-  },
-  {
-    icon: Maximize,
-    title: "Canvas Sizing",
-    description: "Pin to explicit pixel dimensions with aspect-ratio locking, or let the canvas auto-fill. Fixed sizes carry through to exports and snippets.",
-  },
-  {
-    icon: Cable,
-    title: "MCP Integration",
-    description: "Bundled native sidecar with 32 tools. One-click installs for Claude Code, Claude Desktop, and Codex. Script Access gate. Editable port.",
-  },
-  {
-    icon: RotateCcw,
-    title: "State Preservation",
-    description: "Refresh and reload flows preserve artboard, playback target, and bound control values. Reset restores captured state after re-instantiation.",
-  },
-  {
-    icon: MousePointerClick,
-    title: "State Machine Inputs",
-    description: "Auto-discovers boolean, number, and trigger inputs for state machines and keeps them synchronized with the running runtime.",
-  },
-  {
-    icon: Download,
-    title: "Auto Updates",
-    description: "Signed releases detected, downloaded, installed, and relaunched from the in-app update chip. Merged feed across all platforms.",
-  },
-  {
-    icon: Search,
-    title: "VM Explorer",
-    description: "Inject the helper snippet for vmExplore, vmGet, vmSet, vmTree, and vmPaths runtime debugging via the JavaScript console.",
-  },
+];
+
+/* ── Secondary features — compact grid ── */
+
+const secondaryFeatures = [
+  { icon: Layers, title: "Artboard switching", desc: "Switch artboards and playback targets from dropdowns. VM controls repopulate per target." },
+  { icon: Terminal, title: "Dual consoles", desc: "Event log and JavaScript REPL with timestamps, follow mode, level filters, and copy." },
+  { icon: Code2, title: "Script editor", desc: "CodeMirror 6 with live source indication. Apply config without losing artboard state." },
+  { icon: MonitorCog, title: "Renderer + runtime", desc: "Canvas or WebGL2. Latest, pinned, or custom runtime semver. Fit and alignment in the toolbar." },
+  { icon: Maximize, title: "Canvas sizing", desc: "Auto or fixed pixel dimensions with aspect lock. Carries through to exports and snippets." },
+  { icon: RotateCcw, title: "State preservation", desc: "Reset and reload preserve artboard, playback, and control values across re-instantiation." },
+  { icon: Download, title: "Auto updates", desc: "Signed releases detected, downloaded, and installed from the in-app update chip." },
+  { icon: Search, title: "VM Explorer", desc: "Inject the helper snippet for vmExplore, vmGet, vmSet, vmTree, and vmPaths debugging." },
 ];
 
 export default function FeaturesSection() {
   return (
-    <section id="features" className="flex flex-col items-center gap-12 py-24 px-8 w-full">
-      <div className="flex flex-col items-center gap-4">
-        <span className="font-mono text-xs font-medium tracking-[3px] uppercase text-[var(--neon)]">
-          Features
-        </span>
-        <h2 className="font-sans font-bold text-4xl text-[var(--text-white)]">
-          Everything you need to inspect Rive files
-        </h2>
-        <p className="text-base text-[var(--text-muted)] max-w-[600px] text-center">
-          A purpose-built desktop player for the Rive animation workflow.
+    <section id="features" className="flex flex-col items-center py-24 px-8 w-full">
+      {/* Section header */}
+      <ScrollReveal className="text-center mb-20 max-w-[600px]">
+        <p className="font-mono text-xs tracking-[0.2em] uppercase text-[var(--neon)] mb-4">
+          Capabilities
         </p>
-      </div>
+        <h2 className="text-[clamp(1.75rem,3.5vw,2.75rem)] font-bold text-[var(--text-white)] leading-[1.15]">
+          What RAV does
+        </h2>
+      </ScrollReveal>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-[1000px] w-full">
-        {features.map((feature, index) => (
-          <div
-            key={feature.title}
-            className="group relative p-4 rounded-xl bg-[var(--bg-zinc)] border border-[var(--border-dark)] hover:border-[var(--neon-glow)] hover:bg-[var(--bg-elevated)] transition-colors duration-300 opacity-0 animate-fade-in-up"
-            style={{ animationDelay: `${index * 50}ms` }}
-          >
-            {/* Static card content — never changes height */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--neon-dim)] group-hover:bg-[var(--neon-glow)] transition-colors duration-300 flex-shrink-0">
-                <feature.icon className="w-4 h-4 text-[var(--neon)]" />
+      {/* Primary features — editorial alternating layout */}
+      <div className="flex flex-col gap-32 max-w-[1100px] w-full mb-32">
+        {primaryFeatures.map((feature) => (
+          <ScrollReveal key={feature.title}>
+            <div className={`flex flex-col ${feature.reverse ? "md:flex-row-reverse" : "md:flex-row"} items-center gap-12`}>
+              {/* Image */}
+              <div className="md:w-1/2 flex-shrink-0">
+                <div className="relative rounded-xl overflow-hidden border border-[var(--border-dark)] bg-[var(--bg-zinc)]">
+                  <Image
+                    src={asset(feature.image)}
+                    alt={feature.imageAlt}
+                    width={feature.imageWidth}
+                    height={feature.imageHeight}
+                    className="w-full h-auto"
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                  />
+                </div>
               </div>
-              <h3 className="text-sm font-semibold text-[var(--text-white)] leading-tight">
-                {feature.title}
-              </h3>
-            </div>
 
-            {/* Floating tooltip — overlays below the card, outside grid flow */}
-            <div className="pointer-events-none absolute left-0 right-0 top-full z-20 pt-1 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 ease-out">
-              <div className="mx-1 p-3 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-bright)] shadow-lg shadow-black/40">
-                <p className="text-xs text-[var(--text-dim)] leading-relaxed">
+              {/* Text */}
+              <div className="md:w-1/2">
+                <p className="font-mono text-[11px] tracking-[0.2em] uppercase text-[var(--neon)] mb-3">
+                  {feature.label}
+                </p>
+                <h3 className="text-2xl md:text-3xl font-bold text-[var(--text-white)] mb-4 leading-tight">
+                  {feature.title}
+                </h3>
+                <p className="text-[15px] text-[var(--text-dim)] leading-relaxed">
                   {feature.description}
                 </p>
               </div>
             </div>
-          </div>
+          </ScrollReveal>
         ))}
       </div>
+
+      {/* Secondary features — compact grid */}
+      <ScrollRevealGroup className="grid grid-cols-2 md:grid-cols-4 gap-px max-w-[1100px] w-full bg-[var(--border-dark)] rounded-xl overflow-hidden">
+        {secondaryFeatures.map((feature) => (
+          <ScrollRevealItem key={feature.title}>
+            <div className="bg-[var(--bg-void)] p-6 flex flex-col gap-3 h-full hover:bg-[var(--bg-zinc)] transition-colors duration-300">
+              <feature.icon className="w-5 h-5 text-[var(--neon)]" />
+              <h4 className="text-sm font-semibold text-[var(--text-white)]">{feature.title}</h4>
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed">{feature.desc}</p>
+            </div>
+          </ScrollRevealItem>
+        ))}
+      </ScrollRevealGroup>
     </section>
   );
 }

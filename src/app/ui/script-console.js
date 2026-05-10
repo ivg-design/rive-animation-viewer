@@ -1,19 +1,19 @@
 import { writeTextToClipboard } from './console/io/clipboard.js';
 import { createConsoleCaptureController } from './console/capture-controller.js';
 import { buildVisibleConsoleCopyText } from './console/copy-visible-rows.js';
+import { summarizeConsoleExecution, waitForConsoleTranscript } from './console/exec-outcome.js';
 import { loadErudaConsole } from './console/eruda/loader.js';
+import { configureErudaConsoleTool } from './console/eruda/configure-tool.js';
 import { createErudaPresentationController } from './console/eruda/presentation.js';
 import { formatEntryMessage, formatTimestamp, normalizeSerializable, resolveEntryBadge, resolveEntryLevel } from './console/formatting.js';
 import { createReplHistoryController } from './console/repl-history-controller.js';
 import { registerConsoleBindings } from './console/setup-bindings.js';
 import { createConsoleUiStateController } from './console/ui-state-controller.js';
-
 const ERUDA_VENDOR_PATH = '/vendor/eruda.js';
 const MAX_CAPTURED = 1200;
 const MAX_ERUDA_LOGS = 500;
 const COMMAND_HISTORY_LIMIT = 100;
 const SUPPRESSED_WARNINGS = ['Measure loop'];
-
 export function createScriptConsoleController({
     elements,
     callbacks = {},
@@ -23,7 +23,6 @@ export function createScriptConsoleController({
     windowRef = globalThis.window,
 } = {}) {
     const { logEvent = () => {}, onOpenChange = () => {}, onToggleRequested = null, renderEventLog = () => {} } = callbacks;
-
     const state = {
         captureInstalled: false,
         captured: [],
@@ -33,10 +32,13 @@ export function createScriptConsoleController({
         currentLevel: 'all',
         erudaFlushCursor: 0,
         erudaLoadPromise: null,
+        erudaInsertHandler: null,
+        erudaLogger: null,
         erudaObserver: null,
         erudaPresentationSyncing: false,
         erudaReady: false,
         erudaRowSequence: 0,
+        erudaSyncingCapturedEntries: false,
         followLatest: true,
         historyIndex: -1,
         historyPending: '',
@@ -50,7 +52,6 @@ export function createScriptConsoleController({
 
     const isSuppressed = (args) =>
         typeof args?.[0] === 'string' && SUPPRESSED_WARNINGS.some((needle) => args[0].includes(needle));
-
     function getConsoleTool() {
         if (state.consoleTool) return state.consoleTool;
         if (windowRef?.eruda && typeof windowRef.eruda.get === 'function') {
@@ -69,7 +70,6 @@ export function createScriptConsoleController({
         getErudaReady: () => state.erudaReady,
         state,
     });
-
     const erudaPresentation = createErudaPresentationController({
         bindScrollContainer: uiStateController.bindScrollContainer,
         documentRef,
@@ -91,7 +91,6 @@ export function createScriptConsoleController({
         const scrollContainer = uiStateController.getScrollContainer();
         if (!list) return;
 
-        const previousHeight = scrollContainer?.scrollHeight || 0;
         const previousTop = scrollContainer?.scrollTop || 0;
         const visibleEntries = captureController.getVisibleEntries({
             currentLevel: state.currentLevel,
@@ -132,7 +131,8 @@ export function createScriptConsoleController({
             uiStateController.scrollConsoleToLatest();
             return;
         }
-        scrollContainer.scrollTop = previousTop + Math.max(0, scrollContainer.scrollHeight - previousHeight);
+        const latestScrollTop = Math.max(0, scrollContainer.scrollHeight - scrollContainer.clientHeight);
+        scrollContainer.scrollTop = Math.min(previousTop, latestScrollTop);
     }
 
     function mirrorEntryToEruda(entry) {
@@ -163,6 +163,13 @@ export function createScriptConsoleController({
         maxErudaLogs: MAX_ERUDA_LOGS,
         mirrorEntryToEruda,
         normalizeSerializable: (value) => normalizeSerializable(value, windowRef),
+        onErudaInsert: () => {
+            erudaPresentation.refreshErudaPresentation();
+            uiStateController.bindScrollContainer();
+            if (state.followLatest) {
+                setTimeoutFn?.(() => uiStateController.scrollConsoleToLatest(), 0);
+            }
+        },
         renderConsoleEntries,
         scrollConsoleToLatest: uiStateController.scrollConsoleToLatest,
         setTimeoutFn,
@@ -184,30 +191,13 @@ export function createScriptConsoleController({
         state.erudaLoadPromise = loadErudaConsole({
             captureController,
             configureConsoleTool: (consoleTool) => {
-                const config = consoleTool.config;
-                if (config?.set) {
-                    config.set('overrideConsole', true);
-                    config.set('jsExecution', true);
-                    config.set('catchGlobalErr', true);
-                    config.set('asyncRender', true);
-                    config.set('lazyEvaluation', true);
-                }
-                if (consoleTool._logger?.options) {
-                    consoleTool._logger.options.maxNum = MAX_ERUDA_LOGS;
-                }
-                const lunaElement = elements.scriptConsoleOutput?.querySelector('.luna-console');
-                if (lunaElement) {
-                    lunaElement.classList.remove('luna-console-theme-light');
-                    lunaElement.classList.add('luna-console-theme-dark');
-                }
-                if (consoleTool._logger?.warn) {
-                    const originalWarn = consoleTool._logger.warn.bind(consoleTool._logger);
-                    consoleTool._logger.warn = (...args) => {
-                        if (!isSuppressed(args)) {
-                            originalWarn(...args);
-                        }
-                    };
-                }
+                configureErudaConsoleTool({
+                    captureController,
+                    consoleTool,
+                    elements,
+                    isSuppressed,
+                    maxErudaLogs: MAX_ERUDA_LOGS,
+                });
             },
             documentRef,
             elements,
@@ -216,7 +206,10 @@ export function createScriptConsoleController({
             erudaVendorPath: ERUDA_VENDOR_PATH,
             getFollowLatest: () => state.followLatest,
             getWindowEruda: () => windowRef?.eruda,
-            onConsoleReady: () => { state.erudaReady = true; },
+            onConsoleReady: () => {
+                state.erudaReady = true;
+                captureController.attachErudaLogger(state.consoleTool?._logger || null);
+            },
             onScrollContainerReady: uiStateController.bindScrollContainer,
             scrollConsoleToLatest: uiStateController.scrollConsoleToLatest,
             setTimeoutFn,
@@ -235,11 +228,8 @@ export function createScriptConsoleController({
 
     function applyErudaFilter() {
         erudaPresentation.applyErudaDomFilter();
-        if (state.followLatest) {
-            setTimeoutFn?.(() => uiStateController.scrollConsoleToLatest(), 30);
-        }
+        if (state.followLatest) setTimeoutFn?.(() => uiStateController.scrollConsoleToLatest(), 30);
     }
-
     function syncUi() { uiStateController.syncUi(); uiStateController.syncLevelButtons(); uiStateController.syncFollowButton(); }
 
     async function openConsole() {
@@ -255,7 +245,6 @@ export function createScriptConsoleController({
         if (!state.erudaReady) renderConsoleEntries();
         return { open: true };
     }
-
     function closeConsole() {
         state.isOpen = false;
         syncUi();
@@ -263,7 +252,6 @@ export function createScriptConsoleController({
         onOpenChange(false);
         return { open: false };
     }
-
     async function evaluateConsoleSource(source) {
         try {
             return await windowRef.eval(`(async () => (${source}))()`);
@@ -278,6 +266,8 @@ export function createScriptConsoleController({
             return { ok: false, error: 'code is required' };
         }
 
+        const capturedCountBeforeExec = state.captured.length;
+
         try {
             if (!state.isOpen) {
                 await openConsole();
@@ -285,15 +275,19 @@ export function createScriptConsoleController({
 
             const consoleTool = getConsoleTool();
             if (consoleTool?._logger?.evaluate) {
-                captureController.appendCapturedEntry({ method: 'command', args: [source], timestamp: Date.now() }, { mirrorToEruda: false });
                 const evaluation = consoleTool._logger.evaluate(source);
                 if (typeof evaluation?.then === 'function') await evaluation;
+                await waitForConsoleTranscript(setTimeoutFn);
                 erudaPresentation.refreshErudaPresentation();
                 uiStateController.bindScrollContainer();
                 if (state.followLatest) {
                     setTimeoutFn?.(() => uiStateController.scrollConsoleToLatest(), 50);
                 }
-                return { ok: true, code: source };
+                return summarizeConsoleExecution({
+                    code: source,
+                    entries: state.captured.slice(capturedCountBeforeExec),
+                    normalizeSerializable: (value) => normalizeSerializable(value, windowRef),
+                });
             }
 
             captureController.appendCapturedEntry({ method: 'command', args: [source], timestamp: Date.now() });
@@ -301,11 +295,19 @@ export function createScriptConsoleController({
             if (result !== undefined) {
                 captureController.appendCapturedEntry({ method: 'result', args: [normalizeSerializable(result, windowRef)], timestamp: Date.now() });
             }
-            return { ok: true, code: source, result: normalizeSerializable(result, windowRef) };
+            return summarizeConsoleExecution({
+                code: source,
+                entries: state.captured.slice(capturedCountBeforeExec),
+                normalizeSerializable: (value) => normalizeSerializable(value, windowRef),
+            });
         } catch (error) {
             captureController.appendCapturedEntry({ method: 'error', args: [error.message], timestamp: Date.now() });
             logEvent('ui', 'console-exec-failed', error.message);
-            return { ok: false, code: source, error: error.message };
+            return summarizeConsoleExecution({
+                code: source,
+                entries: state.captured.slice(capturedCountBeforeExec),
+                normalizeSerializable: (value) => normalizeSerializable(value, windowRef),
+            });
         }
     }
 
@@ -322,6 +324,7 @@ export function createScriptConsoleController({
                     classifyRow: erudaPresentation.classifyErudaRow,
                     getRows: erudaPresentation.getErudaRows,
                     getText: erudaPresentation.readErudaRowText,
+                    orderRows: (rows) => rows,
                     root: elements.scriptConsoleOutput?.querySelector('.luna-console-logs'),
                 });
                 if (text) {
@@ -366,6 +369,7 @@ export function createScriptConsoleController({
         syncUi();
         onOpenChange(false);
         replHistoryController.destroy();
+        captureController.detachErudaLogger();
         try {
             windowRef?.eruda?.destroy?.();
         } catch {
@@ -379,7 +383,18 @@ export function createScriptConsoleController({
         captureController.restoreConsoleMethods();
     }
 
+    function setFilter({ level, search } = {}) {
+        if (level === 'all' || level === 'info' || level === 'warning' || level === 'error') {
+            state.currentLevel = level;
+            uiStateController.syncLevelButtons();
+        }
+        if (typeof search === 'string' && elements.scriptConsoleFilterSearch) elements.scriptConsoleFilterSearch.value = search;
+        if (state.erudaReady) applyErudaFilter(); else renderConsoleEntries();
+        return { level: state.currentLevel, search: String(elements.scriptConsoleFilterSearch?.value || '') };
+    }
+
     return {
+        clear: () => captureController.clearConsole(),
         close: closeConsole,
         destroy,
         exec,
@@ -388,6 +403,7 @@ export function createScriptConsoleController({
         isOpen: () => state.isOpen,
         open: openConsole,
         readCaptured: captureController.readCaptured,
+        setFilter,
         setup,
     };
 }
