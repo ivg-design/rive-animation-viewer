@@ -19,7 +19,7 @@ const topics = [
   { icon: Terminal, title: "Consoles", desc: "Event log and JavaScript REPL", href: "/docs/consoles" },
   { icon: FileCode, title: "Export + Snippets", desc: "Standalone HTML and instantiation code", href: "/docs/export" },
   { icon: Settings, title: "Configuration", desc: "Editor modes, renderer, runtime, canvas sizing", href: "/docs/configuration" },
-  { icon: Cable, title: "MCP Integration", desc: "32 tools, bundled sidecar, Script Access", href: "/docs/mcp" },
+  { icon: Cable, title: "MCP Integration", desc: "36 tools, bundled sidecar, Script Access", href: "/docs/mcp" },
   { icon: RefreshCw, title: "Auto Updates", desc: "Built-in updater flow", href: "/docs/updates" },
   { icon: Keyboard, title: "Keyboard Shortcuts", desc: "All implemented keybindings", href: "/docs/shortcuts" },
   { icon: HelpCircle, title: "Troubleshooting", desc: "Common issues and fixes", href: "/docs/troubleshooting" },

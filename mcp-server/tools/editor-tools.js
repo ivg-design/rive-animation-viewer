@@ -9,7 +9,7 @@ export const EDITOR_TOOLS = [
     name: 'rav_set_editor_code',
     description:
       'Replace the code in the RAV script editor. This does NOT reload the ' +
-      'animation — call rav_apply_code afterwards to apply changes.',
+      'animation — call rav_get_editor_code first, preserve the current structure, avoid fake FILE placeholders, then call rav_apply_code.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -50,12 +50,51 @@ export const EDITOR_TOOLS = [
     },
   },
   {
+    name: 'rav_export_demo_visual',
+    description:
+      'Orchestrate the Snippet & Export Controls dialog visually: open the dialog, apply the control selection, set package source and snippet mode, click Export, and write the demo to output_path. ' +
+      'Use this when the export needs to be visible (screen recordings) or when a non-default control selection is required. For pure programmatic export, use rav_export_demo.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        output_path: {
+          type: 'string',
+          description: 'Absolute path where the exported HTML demo will be saved.',
+        },
+        selection: {
+          oneOf: [
+            { type: 'string', enum: ['all', 'changed', 'none'] },
+            { type: 'array', items: { type: 'string' }, description: 'Explicit list of control snapshot keys to enable.' },
+          ],
+          description:
+            "How to populate the dialog's control selection. 'all' clicks SELECT ALL, 'changed' clicks CHANGED ONLY, 'none' clicks CLEAR, or pass an explicit array of control keys.",
+        },
+        package_source: {
+          type: 'string',
+          enum: ['cdn', 'local'],
+          description: 'Optional. Sets the package source select. Default: leave as-is.',
+        },
+        snippet_mode: {
+          type: 'string',
+          enum: ['compact', 'scaffold'],
+          description: 'Optional. Sets the snippet mode select. Default: leave as-is.',
+        },
+        step_delay_ms: {
+          type: 'number',
+          description: 'Milliseconds between visible steps so a recording captures each. Default: 250.',
+        },
+      },
+      required: ['output_path'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'generate_web_instantiation_code',
     description:
       'Generate a copy-paste-ready web instantiation snippet for the animation currently loaded in RAV. ' +
       'The snippet mirrors the live source mode that is actually running in RAV: either internal wiring ' +
       'or the last applied editor code. Supports either CDN or local npm package usage, restores the current ' +
-      'ViewModel/state-machine values on load, and exposes helper controls on window.ravRive.',
+      'ViewModel/state-machine values on load, and exposes helper controls on window.ravRive. This is the preferred way to provide a working runtime-control snippet.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -146,8 +185,22 @@ export const EDITOR_TOOLS = [
   },
   {
     name: 'rav_console_open',
-    description: 'Open the JavaScript console panel (switches from Event Console to JS Console mode).',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    description:
+      'Open the bottom console panel. Defaults to JS mode. Optional `mode`, `level`, `sources`, and `search` apply pre-configured filter state on open.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        mode: { type: 'string', enum: ['events', 'js'], description: 'Mode to activate on open. Default: js.' },
+        level: { type: 'string', enum: ['all', 'info', 'warning', 'error'], description: 'JS console level filter (only applies when mode is js).' },
+        sources: {
+          type: 'array',
+          items: { type: 'string', enum: ['native', 'riveUser', 'ui', 'mcp'] },
+          description: 'Event console source toggles to enable (only applies when mode is events). Sources omitted are hidden.',
+        },
+        search: { type: 'string', description: 'Substring filter applied to console entries.' },
+      },
+      additionalProperties: false,
+    },
   },
   {
     name: 'rav_console_close',
@@ -155,10 +208,55 @@ export const EDITOR_TOOLS = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
+    name: 'rav_console_set_mode',
+    description: "Set the bottom console panel mode to Event Console ('events'), JS REPL ('js'), or close it ('closed'). Opens the panel first if needed.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        mode: { type: 'string', enum: ['events', 'js', 'closed'], description: 'Console mode to activate.' },
+      },
+      required: ['mode'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'rav_console_set_filter',
+    description:
+      'Apply filters to the rendered console transcript. Mirrors the existing on-screen filter toggles. ' +
+      'JS mode supports `level` (all/info/warning/error). Events mode supports `sources` (subset of native/riveUser/ui/mcp — sources omitted from the array are hidden). ' +
+      'Both modes support `search`. Targets the currently active mode if `mode` is omitted.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        mode: { type: 'string', enum: ['events', 'js'], description: 'Optional — apply to a specific mode. Defaults to the currently active mode.' },
+        level: { type: 'string', enum: ['all', 'info', 'warning', 'error'], description: 'JS console level filter.' },
+        sources: {
+          type: 'array',
+          items: { type: 'string', enum: ['native', 'riveUser', 'ui', 'mcp'] },
+          description: 'Event console source toggles to enable. Sources omitted from the array are hidden.',
+        },
+        search: { type: 'string', description: 'Substring filter applied to entry text. Empty string clears the search filter.' },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'rav_console_clear',
+    description: 'Clear the visible transcript of the bottom console panel (Events or JS mode). Does not close the panel.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        mode: { type: 'string', enum: ['events', 'js'], description: "Optional — clear a specific mode's transcript. Defaults to the currently active mode." },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'rav_console_read',
     description:
-      'Read captured console output (console.log/warn/error/info/debug). ' +
-      'Returns the most recent entries with method, timestamp, and args.',
+      'Read the JS console transcript, including REPL input/result rows and ' +
+      'captured console.log/warn/error/info/debug output. Returns the most ' +
+      'recent entries with method, timestamp, and args.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -174,8 +272,9 @@ export const EDITOR_TOOLS = [
     name: 'rav_console_exec',
     description:
       'Execute JavaScript in the REPL console. The code is evaluated in the ' +
-      'browser context with output displayed in the console panel. ' +
-      'Opens the console automatically if not already open.',
+      'browser context with output displayed in the console panel. Use ' +
+      'rav_console_read to inspect the resulting transcript, including REPL ' +
+      'input/result rows. Opens the console automatically if not already open.',
     inputSchema: {
       type: 'object',
       properties: {

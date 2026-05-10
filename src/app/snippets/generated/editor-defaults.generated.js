@@ -2,7 +2,7 @@
 export const DEFAULT_EDITOR_CODE = `// Rive instantiation config — riveInst is the global instance
 // Uncomment any property to override defaults
 
-({
+{
   autoplay: true,
   autoBind: true,
 
@@ -27,7 +27,7 @@ export const DEFAULT_EDITOR_CODE = `// Rive instantiation config — riveInst is
   // onPause: () => { console.log("pause"); },
   // onStop: () => { console.log("stop"); },
   // onLoop: (event) => { console.log("loop:", event); },
-})`;
+}`;
 export const DEFAULT_EDITOR_ONLOAD_BLOCK = `onLoad: () => {
     riveInst.resizeDrawingSurfaceToCanvas();
     window.refreshVmInputControls?.();

@@ -44,6 +44,7 @@ function createInputRow({ depth, documentRef, input, onSelectionChange, selected
     const checkbox = documentRef.createElement('input');
     checkbox.type = 'checkbox';
     const key = controlSnapshotKeyForDescriptor(input?.descriptor);
+    if (key) checkbox.setAttribute('data-control-key', key);
     checkbox.checked = Boolean(key && selectedKeys?.has(key));
     checkbox.disabled = !key;
     checkbox.addEventListener('change', () => {

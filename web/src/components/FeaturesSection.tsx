@@ -34,7 +34,7 @@ const primaryFeatures = [
   {
     label: "MCP",
     title: "AI agents as co-pilots",
-    description: "A bundled native sidecar exposes 32 MCP tools. Claude, Codex, or any MCP client can open files, inspect ViewModels, drive playback, edit scripts, generate snippets, and export demos — without touching the UI. One-click install from the app.",
+    description: "A bundled native sidecar exposes 36 MCP tools. Claude, Codex, or any MCP client can open files, inspect ViewModels, drive playback, edit scripts, generate snippets, control the console panel, and export demos — without touching the UI. One-click install from the app.",
     image: "/docs/mcp-setup.webp",
     imageAlt: "MCP Setup dialog with client detection, one-click install, and snippet copy",
     imageWidth: 500,

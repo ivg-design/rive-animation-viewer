@@ -118,14 +118,48 @@ export function createEditorConsoleCommands({
             }
         },
 
-        async rav_console_open() {
+        async rav_console_open({ mode = 'js', level, sources, search } = {}) {
             if (typeof windowRef._mcpConsoleOpen !== 'function') throw new Error('Console not available');
-            return windowRef._mcpConsoleOpen();
+            const normalizedMode = mode === 'events' ? 'events' : 'js';
+            if (typeof windowRef._mcpSetConsoleMode === 'function') {
+                await windowRef._mcpSetConsoleMode(normalizedMode);
+            } else {
+                await windowRef._mcpConsoleOpen();
+            }
+            if ((level !== undefined || sources !== undefined || search !== undefined)
+                && typeof windowRef._mcpSetConsoleFilter === 'function') {
+                windowRef._mcpSetConsoleFilter({ mode: normalizedMode, level, sources, search });
+            }
+            return { ok: true, open: true, mode: normalizedMode };
         },
 
         async rav_console_close() {
             if (typeof windowRef._mcpConsoleClose !== 'function') throw new Error('Console not available');
             return windowRef._mcpConsoleClose();
+        },
+
+        async rav_console_set_mode({ mode } = {}) {
+            if (mode !== 'events' && mode !== 'js' && mode !== 'closed') {
+                throw new Error("mode must be 'events', 'js', or 'closed'");
+            }
+            if (typeof windowRef._mcpSetConsoleMode !== 'function') {
+                throw new Error('Console mode binding not available');
+            }
+            return windowRef._mcpSetConsoleMode(mode);
+        },
+
+        async rav_console_set_filter({ mode, level, sources, search } = {}) {
+            if (typeof windowRef._mcpSetConsoleFilter !== 'function') {
+                throw new Error('Console filter binding not available');
+            }
+            return windowRef._mcpSetConsoleFilter({ mode, level, sources, search });
+        },
+
+        async rav_console_clear({ mode } = {}) {
+            if (typeof windowRef._mcpConsoleClear !== 'function') {
+                throw new Error('Console clear binding not available');
+            }
+            return windowRef._mcpConsoleClear(mode);
         },
 
         async rav_console_read({ limit = 50 } = {}) {

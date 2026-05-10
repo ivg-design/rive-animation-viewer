@@ -1,6 +1,9 @@
 export function createExportWorkspaceCommands({
+    documentRef = globalThis.document,
     windowRef = globalThis.window,
 } = {}) {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, ms || 0)));
+
     return {
         async rav_export_demo({ output_path } = {}) {
             if (output_path && typeof windowRef._mcpExportDemoToPath === 'function') {
@@ -25,6 +28,74 @@ export function createExportWorkspaceCommands({
                 throw new Error('Instantiation controls dialog not available');
             }
             return windowRef._mcpToggleInstantiationControlsDialog(action);
+        },
+
+        async rav_export_demo_visual({
+            output_path,
+            selection,
+            package_source,
+            snippet_mode,
+            step_delay_ms = 250,
+        } = {}) {
+            if (!output_path) throw new Error('output_path is required');
+            if (typeof windowRef._mcpToggleInstantiationControlsDialog !== 'function') {
+                throw new Error('Instantiation controls dialog binding not available');
+            }
+            if (typeof windowRef._mcpExportDemoToPath !== 'function') {
+                throw new Error('Export-to-path binding not available');
+            }
+
+            await windowRef._mcpToggleInstantiationControlsDialog('open');
+            await sleep(step_delay_ms);
+
+            if (selection === 'all') {
+                documentRef.getElementById('instantiation-preset-all-btn')?.click();
+            } else if (selection === 'changed') {
+                documentRef.getElementById('instantiation-preset-changed-btn')?.click();
+            } else if (selection === 'none') {
+                documentRef.getElementById('instantiation-preset-none-btn')?.click();
+            } else if (Array.isArray(selection)) {
+                const tree = documentRef.getElementById('instantiation-controls-tree');
+                if (!tree) throw new Error('Controls tree not in DOM');
+                const wanted = new Set(selection);
+                const checkboxes = tree.querySelectorAll('input[type="checkbox"][data-control-key]');
+                checkboxes.forEach((checkbox) => {
+                    const key = checkbox.getAttribute('data-control-key');
+                    const shouldBeChecked = wanted.has(key);
+                    if (checkbox.checked !== shouldBeChecked) checkbox.click();
+                });
+            }
+            if (selection !== undefined) await sleep(step_delay_ms);
+
+            if (package_source) {
+                const select = documentRef.getElementById('instantiation-package-source-select');
+                if (select) {
+                    select.value = package_source;
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    await sleep(step_delay_ms);
+                }
+            }
+
+            if (snippet_mode) {
+                const select = documentRef.getElementById('instantiation-snippet-mode-select');
+                if (select) {
+                    select.value = snippet_mode;
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    await sleep(step_delay_ms);
+                }
+            }
+
+            const exportBtn = documentRef.getElementById('instantiation-dialog-export-btn');
+            if (exportBtn) {
+                exportBtn.classList.add('is-pressing');
+                await sleep(150);
+                exportBtn.classList.remove('is-pressing');
+            }
+
+            const savedPath = await windowRef._mcpExportDemoToPath(output_path);
+            await windowRef._mcpToggleInstantiationControlsDialog('close');
+
+            return { ok: true, path: savedPath };
         },
 
         async rav_configure_workspace({

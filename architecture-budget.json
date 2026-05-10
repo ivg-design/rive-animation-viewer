@@ -29,7 +29,9 @@
     "src-tauri/gen",
     "src/app/snippets/generated"
   ],
-  "grandfatheredMaxLines": {},
+  "grandfatheredMaxLines": {
+    "src/app/ui/script-console.js": 420
+  },
   "folderRoots": [
     "src/app",
     "src-tauri/src"

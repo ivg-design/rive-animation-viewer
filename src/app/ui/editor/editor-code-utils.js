@@ -16,6 +16,24 @@ export function createTextareaEditorAdapter(textarea) {
     };
 }
 
+export function normalizeEditorDisplayCode(code) {
+    const text = String(code || '');
+    const trimmed = text.trim();
+    if (!trimmed.startsWith('({') || !trimmed.endsWith('})')) {
+        return text;
+    }
+
+    let start = text.indexOf(trimmed);
+    if (start === -1) {
+        start = 0;
+    }
+    const end = start + trimmed.length;
+    const leading = text.slice(0, start);
+    const trailing = text.slice(end);
+
+    return `${leading}${trimmed.slice(1, -1)}${trailing}`;
+}
+
 export function replaceOnLoadBlock(code, replacement) {
     const onLoadIdx = code.indexOf('onLoad:');
     if (onLoadIdx === -1) {
