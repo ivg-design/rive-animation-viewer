@@ -191,7 +191,7 @@ export function createPlatformStack({
             applyCodeAndReload,
             createDemoBundle,
             ensureEditorReady,
-            exportDemoToPath: (outputPath) => demoExportController.exportDemoToPath(outputPath),
+            exportDemoToPath: (outputPath, options) => demoExportController.exportDemoToPath(outputPath, options),
             getArtboardStateSnapshot,
             getCurrentFileBuffer,
             getCurrentFileMimeType,

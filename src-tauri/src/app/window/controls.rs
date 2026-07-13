@@ -13,9 +13,7 @@ use std::os::windows::process::CommandExt;
 use windows_sys::Win32::Foundation::HWND;
 #[cfg(target_os = "windows")]
 use windows_sys::Win32::Graphics::Dwm::{
-    DwmSetWindowAttribute,
-    DWMWA_WINDOW_CORNER_PREFERENCE,
-    DWMWCP_ROUND,
+    DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
     DWM_WINDOW_CORNER_PREFERENCE,
 };
 
@@ -104,10 +102,7 @@ pub fn set_window_click_through(window: WebviewWindow, enabled: bool) -> Result<
 }
 
 #[tauri::command]
-pub fn set_window_click_through_mode(
-    window: WebviewWindow,
-    enabled: bool,
-) -> Result<(), String> {
+pub fn set_window_click_through_mode(window: WebviewWindow, enabled: bool) -> Result<(), String> {
     window
         .set_always_on_top(enabled)
         .map_err(|error| error.to_string())?;
@@ -157,7 +152,9 @@ pub fn apply_windows_corner_preference(window: &WebviewWindow) -> Result<(), Str
     if result == 0 {
         Ok(())
     } else {
-        Err(format!("DwmSetWindowAttribute(DWMWA_WINDOW_CORNER_PREFERENCE) failed: 0x{result:08x}"))
+        Err(format!(
+            "DwmSetWindowAttribute(DWMWA_WINDOW_CORNER_PREFERENCE) failed: 0x{result:08x}"
+        ))
     }
 }
 

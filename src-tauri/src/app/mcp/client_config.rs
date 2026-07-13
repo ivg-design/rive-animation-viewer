@@ -23,12 +23,12 @@ pub fn codex_config_path() -> Option<PathBuf> {
 pub fn claude_desktop_config_path() -> Option<PathBuf> {
     #[cfg(target_os = "macos")]
     {
-        return home_dir().map(|path| {
+        home_dir().map(|path| {
             path.join("Library")
                 .join("Application Support")
                 .join("Claude")
                 .join("claude_desktop_config.json")
-        });
+        })
     }
 
     #[cfg(target_os = "windows")]
@@ -76,7 +76,12 @@ fn command_candidates(command: &str) -> Vec<PathBuf> {
     #[cfg(target_os = "windows")]
     {
         if let Some(local_app_data) = env::var_os("LOCALAPPDATA").map(PathBuf::from) {
-            candidates.push(local_app_data.join("Programs").join(command).join(&binary_name));
+            candidates.push(
+                local_app_data
+                    .join("Programs")
+                    .join(command)
+                    .join(&binary_name),
+            );
         }
     }
 
@@ -128,7 +133,11 @@ fn command_and_args_match(
     expected_args: &[String],
 ) -> bool {
     command
-        .map(|value| server_paths.iter().any(|path| value == path.to_string_lossy()))
+        .map(|value| {
+            server_paths
+                .iter()
+                .any(|path| value == path.to_string_lossy())
+        })
         .unwrap_or(false)
         && args == expected_args
 }
@@ -155,7 +164,11 @@ fn claude_desktop_server_status(
     let command_matches = server
         .get("command")
         .and_then(serde_json::Value::as_str)
-        .map(|value| server_paths.iter().any(|path| value == path.to_string_lossy()))
+        .map(|value| {
+            server_paths
+                .iter()
+                .any(|path| value == path.to_string_lossy())
+        })
         .unwrap_or(false);
     let args_matches = server
         .get("args")
@@ -181,28 +194,29 @@ fn claude_code_server_entries(path: &Path) -> Vec<JsonMcpServerEntry> {
     };
     let mut entries = Vec::new();
 
-    let push_entry = |entries: &mut Vec<JsonMcpServerEntry>, scope_label: String, server: &serde_json::Value| {
-        let command = server
-            .get("command")
-            .and_then(serde_json::Value::as_str)
-            .map(ToOwned::to_owned);
-        let args = server
-            .get("args")
-            .and_then(serde_json::Value::as_array)
-            .map(|items| {
-                items
-                    .iter()
-                    .filter_map(serde_json::Value::as_str)
-                    .map(ToOwned::to_owned)
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        entries.push(JsonMcpServerEntry {
-            scope_label,
-            command,
-            args,
-        });
-    };
+    let push_entry =
+        |entries: &mut Vec<JsonMcpServerEntry>, scope_label: String, server: &serde_json::Value| {
+            let command = server
+                .get("command")
+                .and_then(serde_json::Value::as_str)
+                .map(ToOwned::to_owned);
+            let args = server
+                .get("args")
+                .and_then(serde_json::Value::as_array)
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(serde_json::Value::as_str)
+                        .map(ToOwned::to_owned)
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+            entries.push(JsonMcpServerEntry {
+                scope_label,
+                command,
+                args,
+            });
+        };
 
     if let Some(server) = value
         .get("mcpServers")
@@ -244,7 +258,12 @@ fn claude_code_server_status(
     let mut matching_scopes = Vec::new();
     let mut conflicting_scopes = Vec::new();
     for entry in &entries {
-        if command_and_args_match(entry.command.as_deref(), &entry.args, server_paths, expected_args) {
+        if command_and_args_match(
+            entry.command.as_deref(),
+            &entry.args,
+            server_paths,
+            expected_args,
+        ) {
             matching_scopes.push(entry.scope_label.clone());
         } else {
             conflicting_scopes.push(entry.scope_label.clone());
@@ -256,7 +275,10 @@ fn claude_code_server_status(
         detail_parts.push(format!("Configured in {}", matching_scopes.join(", ")));
     }
     if !conflicting_scopes.is_empty() {
-        detail_parts.push(format!("Different rav-mcp config in {}", conflicting_scopes.join(", ")));
+        detail_parts.push(format!(
+            "Different rav-mcp config in {}",
+            conflicting_scopes.join(", ")
+        ));
     }
 
     (
@@ -350,7 +372,8 @@ pub fn build_mcp_targets(server_paths: &[PathBuf], port: u16) -> Vec<McpClientSt
             method: "config-file".into(),
             cli_path: claude_code_cli.map(|path| path.to_string_lossy().to_string()),
             config_path: claude_code_config.map(|path| path.to_string_lossy().to_string()),
-            detail: claude_code_detail.or_else(|| Some("Claude Code user and project config".into())),
+            detail: claude_code_detail
+                .or_else(|| Some("Claude Code user and project config".into())),
         },
         McpClientStatus {
             id: "claude-desktop".into(),

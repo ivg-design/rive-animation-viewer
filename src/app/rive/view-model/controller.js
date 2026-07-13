@@ -11,6 +11,7 @@ import {
 import {
     buildStateMachineHierarchy,
     buildVmHierarchy,
+    buildVmListTopologySignature,
     stripNestedRootVmInputs,
 } from './hierarchy.js';
 import {
@@ -47,6 +48,8 @@ export function createVmControlsController({
 
     let vmControlBindings = [];
     let vmControlSyncTimer = null;
+    let vmListTopologySignature = null;
+    let isRenderingVmControls = false;
 
     function getDepthColor(depth) {
         return VM_DEPTH_COLORS[depth % VM_DEPTH_COLORS.length];
@@ -168,6 +171,10 @@ export function createVmControlsController({
         syncVmBindings(vmControlBindings, resolveControlAccessor, documentRef, force);
     }
 
+    function currentVmListTopologySignature() {
+        return buildVmListTopologySignature(resolveVmRootInstance(getRiveInstance()));
+    }
+
     function stopVmControlSync() {
         if (vmControlSyncTimer) {
             clearIntervalFn(vmControlSyncTimer);
@@ -176,11 +183,13 @@ export function createVmControlsController({
     }
 
     function startVmControlSync() {
-        if (vmControlSyncTimer || !vmControlBindings.length) {
+        if (vmControlSyncTimer || (!vmControlBindings.length && vmListTopologySignature === null)) {
             return;
         }
         vmControlSyncTimer = setIntervalFn(() => {
-            syncVmControlBindings(false);
+            if (!syncVmControlTopology()) {
+                syncVmControlBindings(false);
+            }
         }, VM_CONTROL_SYNC_INTERVAL_MS);
     }
 
@@ -215,10 +224,16 @@ export function createVmControlsController({
         resetVmInputControls(elements, message);
         clearVmControlBindings();
         stopVmControlSync();
+        vmListTopologySignature = null;
+        snapshotController.clearPendingVmControlSnapshot();
         snapshotController.setVmControlBaselineSnapshot([]);
     }
 
     function renderVmInputControls() {
+        if (isRenderingVmControls) {
+            return;
+        }
+
         const count = elements.vmControlsCount;
         const empty = elements.vmControlsEmpty;
         const tree = elements.vmControlsTree;
@@ -226,40 +241,65 @@ export function createVmControlsController({
             return;
         }
 
-        tree.innerHTML = '';
-        clearVmControlBindings();
+        isRenderingVmControls = true;
+        try {
+            tree.innerHTML = '';
+            clearVmControlBindings();
 
-        const rootVm = resolveVmRootInstance(getRiveInstance());
-        const vmHierarchy = rootVm ? buildVmHierarchy(rootVm) : null;
-        const stateMachineHierarchy = currentStateMachineHierarchy();
+            const rootVm = resolveVmRootInstance(getRiveInstance());
+            vmListTopologySignature = buildVmListTopologySignature(rootVm);
+            const vmHierarchy = rootVm ? buildVmHierarchy(rootVm) : null;
+            const stateMachineHierarchy = currentStateMachineHierarchy();
 
-        const vmTotal = vmHierarchy?.totalInputs || 0;
-        const stateMachineTotal = stateMachineHierarchy?.totalInputs || 0;
-        const totalControls = vmTotal + stateMachineTotal;
-        count.textContent = String(totalControls);
+            const vmTotal = vmHierarchy?.totalInputs || 0;
+            const stateMachineTotal = stateMachineHierarchy?.totalInputs || 0;
+            const totalControls = vmTotal + stateMachineTotal;
+            count.textContent = String(totalControls);
 
-        if (!totalControls) {
-            empty.hidden = false;
-            empty.textContent = 'No writable ViewModel or state machine inputs were found.';
-            stopVmControlSync();
-            return;
+            if (!totalControls) {
+                empty.hidden = false;
+                empty.textContent = 'No writable ViewModel or state machine inputs were found.';
+                if (vmListTopologySignature === null) {
+                    stopVmControlSync();
+                } else {
+                    startVmControlSync();
+                }
+                return;
+            }
+
+            empty.hidden = true;
+
+            if (vmHierarchy) {
+                tree.appendChild(createVmSectionElement(stripNestedRootVmInputs(vmHierarchy), true));
+            }
+
+            if (stateMachineHierarchy?.totalInputs) {
+                stateMachineHierarchy.children.forEach((stateMachineNode) => {
+                    tree.appendChild(createVmSectionElement(stateMachineNode, false));
+                });
+            }
+
+            startVmControlSync();
+            syncVmControlBindings(true);
+            initLucideIcons();
+        } finally {
+            isRenderingVmControls = false;
         }
+    }
 
-        empty.hidden = true;
-
-        if (vmHierarchy) {
-            tree.appendChild(createVmSectionElement(stripNestedRootVmInputs(vmHierarchy), true));
+    function syncVmControlTopology() {
+        const nextSignature = currentVmListTopologySignature();
+        if (nextSignature === vmListTopologySignature) {
+            return false;
         }
-
-        if (stateMachineHierarchy?.totalInputs) {
-            stateMachineHierarchy.children.forEach((stateMachineNode) => {
-                tree.appendChild(createVmSectionElement(stateMachineNode, false));
-            });
+        renderVmInputControls();
+        snapshotController.retryPendingVmControlSnapshot();
+        snapshotController.reconcileVmControlBaselineSnapshot();
+        const EventConstructor = documentRef?.defaultView?.CustomEvent;
+        if (EventConstructor) {
+            documentRef.dispatchEvent(new EventConstructor('rav:vm-topology-changed'));
         }
-
-        startVmControlSync();
-        syncVmControlBindings(true);
-        initLucideIcons();
+        return true;
     }
 
     return {
@@ -274,5 +314,6 @@ export function createVmControlsController({
         setVmControlBaselineSnapshot: snapshotController.setVmControlBaselineSnapshot,
         stopVmControlSync,
         syncVmControlBindings,
+        syncVmControlTopology,
     };
 }

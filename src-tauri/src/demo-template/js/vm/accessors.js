@@ -49,6 +49,35 @@
             return null;
         }
 
+        function bindViewModelInstanceByKey(instance, instanceKey) {
+            if (!instance || instanceKey === null || typeof instanceKey === 'undefined') return false;
+            var definition = null;
+            try {
+                definition = typeof instance.defaultViewModel === 'function'
+                    ? instance.defaultViewModel()
+                    : null;
+            } catch (error) {
+                return false;
+            }
+            if (!definition || typeof instance.bindViewModelInstance !== 'function') return false;
+
+            var selectedInstance = null;
+            if (typeof definition.instanceByName === 'function') {
+                try { selectedInstance = definition.instanceByName(String(instanceKey)); } catch (error) { /* noop */ }
+            }
+            if (!selectedInstance && /^(0|[1-9]\d*)$/.test(String(instanceKey)) && typeof definition.instanceByIndex === 'function') {
+                try { selectedInstance = definition.instanceByIndex(Number(instanceKey)); } catch (error) { /* noop */ }
+            }
+            if (!selectedInstance) return false;
+
+            try {
+                instance.bindViewModelInstance(selectedInstance);
+                return true;
+            } catch (error) {
+                return false;
+            }
+        }
+
         function navigateToVmInstance(rootVm, path) {
             if (!path) return null;
             if (!path.includes('/')) {
@@ -92,7 +121,6 @@
                     }
                 }
 
-                console.warn('VM navigation failed at segment "' + segment + '" in path "' + path + '"');
                 return null;
             }
 

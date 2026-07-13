@@ -2,7 +2,7 @@
 
 canonical_url: https://forge.mograph.life/apps/rav/
 owner: IVG Design
-last_updated: 2026-03-08
+last_updated: 2026-07-13
 language: en
 site_type: product-marketing + technical documentation
 
@@ -22,19 +22,20 @@ RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.
 
 ## 4) Feature Facts with Evidence
 - Auto-generated ViewModel controls: https://forge.mograph.life/apps/rav/docs#viewmodel-controls
+- Dynamic ViewModel lists, one-based labels, and zero-based MCP paths: https://forge.mograph.life/apps/rav/docs/viewmodel-controls
 - Event log with source filtering: https://forge.mograph.life/apps/rav/docs#event-console
 - Script REPL and runtime inspection commands: https://forge.mograph.life/apps/rav/docs#script-console
 - Transparency overlay mode: https://forge.mograph.life/apps/rav/docs#transparency-mode
 - Standalone self-contained export: https://forge.mograph.life/apps/rav/docs#standalone-export
 - Configuration, renderer, and layout controls: https://forge.mograph.life/apps/rav/docs#configuration
+- MCP bridge health and recent-command activity states: https://forge.mograph.life/apps/rav/docs/mcp
 - Keyboard shortcut reference: https://forge.mograph.life/apps/rav/docs#keyboard-shortcuts
 
 ## 5) Platform and Distribution Signals
 - Product + downloads context: https://forge.mograph.life/apps/rav/
-- Release downloads endpoint: https://github.com/nicholasivg/rive-animation-viewer/releases/latest
+- Release downloads endpoint: https://github.com/ivg-design/rive-animation-viewer/releases/latest
 - Source repository references:
   - https://github.com/ivg-design/rive-animation-viewer
-  - https://github.com/nicholasivg/rive-animation-viewer
 
 ## 6) Retrieval and Citation Instructions
 - Use canonical `/apps/rav` URLs for citations.

@@ -1,3 +1,5 @@
+import { AUTO_BOUND_VM_INSTANCE_KEY } from '../view-model/instances.js';
+
 export function populateArtboardSwitcherUi({
     currentArtboardName,
     defaultArtboardName,
@@ -105,6 +107,7 @@ export function populateVmInstanceSelectUi({
     elements,
     getRiveInstance = () => null,
     documentRef = globalThis.document,
+    selectedInstanceKey = null,
 } = {}) {
     const row = elements.vmInstanceRow;
     const select = elements.vmInstanceSelect;
@@ -128,7 +131,7 @@ export function populateVmInstanceSelectUi({
         const instanceCount = typeof viewModelDefinition.instanceCount === 'number'
             ? viewModelDefinition.instanceCount
             : 0;
-        if (instanceCount <= 1) {
+        if (instanceCount < 1) {
             row.hidden = true;
             return;
         }
@@ -136,6 +139,13 @@ export function populateVmInstanceSelectUi({
         const instanceNames = Array.isArray(viewModelDefinition.instanceNames)
             ? viewModelDefinition.instanceNames
             : [];
+
+        const autoBoundOption = documentRef.createElement('option');
+        autoBoundOption.value = AUTO_BOUND_VM_INSTANCE_KEY;
+        autoBoundOption.textContent = instanceCount === 1
+            ? `${instanceNames[0] || 'Instance 1'} (auto)`
+            : 'Default instance (auto)';
+        select.appendChild(autoBoundOption);
 
         if (instanceNames.length > 0) {
             instanceNames.forEach((name) => {
@@ -148,17 +158,19 @@ export function populateVmInstanceSelectUi({
             for (let index = 0; index < instanceCount; index += 1) {
                 const option = documentRef.createElement('option');
                 option.value = String(index);
-                option.textContent = `Instance ${index}`;
+                option.textContent = `Instance ${index + 1}`;
                 select.appendChild(option);
             }
         }
 
-        const currentViewModelInstance = riveInstance.viewModelInstance;
-        if (currentViewModelInstance?.name) {
-            const match = Array.from(select.options).find((option) => option.value === currentViewModelInstance.name);
-            if (match) {
-                select.value = currentViewModelInstance.name;
-            }
+        const normalizedSelection = selectedInstanceKey === null || typeof selectedInstanceKey === 'undefined'
+            ? AUTO_BOUND_VM_INSTANCE_KEY
+            : String(selectedInstanceKey);
+        const match = Array.from(select.options).find((option) => option.value === normalizedSelection);
+        if (match) {
+            select.value = normalizedSelection;
+        } else {
+            select.value = AUTO_BOUND_VM_INSTANCE_KEY;
         }
 
         row.hidden = false;

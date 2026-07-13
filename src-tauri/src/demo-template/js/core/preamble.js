@@ -6,6 +6,9 @@
         const CONFIG = JSON.parse('__CONFIG_JSON__');
         const VM_HIERARCHY = JSON.parse('__VM_HIERARCHY_JSON__');
         const CONTROL_SNAPSHOT = Array.isArray(CONFIG.controlSnapshot) ? CONFIG.controlSnapshot : [];
+        const CONTROL_SELECTION_KEYS = Array.isArray(CONFIG.controlSelectionKeys)
+            ? CONFIG.controlSelectionKeys
+            : null;
         const INSTANTIATION_SNIPPETS = (CONFIG.instantiationSnippets && typeof CONFIG.instantiationSnippets === 'object')
             ? CONFIG.instantiationSnippets
             : {};
@@ -30,11 +33,13 @@
         const VM_CONTROL_SYNC_INTERVAL_MS = 120;
         const VM_DEPTH_COLORS = ['#C4F82A', '#38BDF8', '#A78BFA', '#FB923C', '#F472B6', '#34D399'];
         const ALLOWED_CONTROL_KEYS = new Set(
-            CONTROL_SNAPSHOT
-                .map(function (entry) { return controlSnapshotKeyForDescriptor(entry && entry.descriptor ? entry.descriptor : entry); })
+            (CONTROL_SELECTION_KEYS || CONTROL_SNAPSHOT.map(function (entry) {
+                return controlSelectionKeyForDescriptor(entry && entry.descriptor ? entry.descriptor : entry);
+            }))
+                .filter(function (key) { return typeof key === 'string'; })
+                .map(function (key) { return normalizeControlSelectionKey(key); })
                 .filter(Boolean)
         );
-
         let riveInstance = null;
         let currentControlSnapshot = JSON.parse(JSON.stringify(CONTROL_SNAPSHOT));
         let currentInstantiationPackageSource = CONFIG.defaultInstantiationPackageSource === 'local' ? 'local' : 'cdn';
@@ -60,6 +65,9 @@
         let riveEventUnsubscribers = [];
         let vmControlSyncTimer = null;
         let vmControlBindings = [];
+        let vmListTopologySignature = null;
+        let isRenderingVmControls = false;
+        let pendingControlSnapshot = new Map();
         let lastFpsUpdate = 0;
         let frameCount = 0;
         let isFallbackFullscreenMode = false;
@@ -72,16 +80,23 @@
             return 'vm:' + (descriptor.path || '') + ':' + (descriptor.kind || '');
         }
 
-        function normalizeControlDescriptor(input) {
-            var source = input && input.descriptor ? input.descriptor : input;
-            if (!source || typeof source !== 'object') return null;
-            return {
-                kind: source.kind || null,
-                name: source.name || null,
-                path: source.path || null,
-                source: source.source || 'view-model',
-                stateMachineName: source.stateMachineName || null,
-            };
+        function controlSelectionKeyForDescriptor(descriptor) {
+            if (!descriptor) return null;
+            if (descriptor.source === 'state-machine') return controlSnapshotKeyForDescriptor(descriptor);
+            return normalizeControlSelectionKey(controlSnapshotKeyForDescriptor(descriptor));
+        }
+
+        function normalizeControlSelectionKey(key) {
+            if (typeof key !== 'string') return null;
+            var trimmed = key.trim();
+            if (trimmed.indexOf('vm:') !== 0) return trimmed || null;
+            var kindSeparator = trimmed.lastIndexOf(':');
+            if (kindSeparator <= 3) return trimmed || null;
+            var path = trimmed.slice(3, kindSeparator)
+                .split('/')
+                .map(function (segment) { return /^(0|[1-9]\d*)$/.test(segment) ? '*' : segment; })
+                .join('/');
+            return 'vm:' + path + ':' + trimmed.slice(kindSeparator + 1);
         }
 
         function clampCanvasDimension(value, fallback) {
@@ -109,14 +124,6 @@
             };
         }
 
-        function isControlDescriptorAllowed(descriptor) {
-            if (!ALLOWED_CONTROL_KEYS.size) return false;
-            var normalized = normalizeControlDescriptor(descriptor);
-            if (!normalized) return false;
-            var key = controlSnapshotKeyForDescriptor(normalized);
-            return Boolean(key) && ALLOWED_CONTROL_KEYS.has(key);
-        }
-
         function countHierarchyInputs(node) {
             if (!node) return 0;
             var total = Array.isArray(node.inputs) ? node.inputs.length : 0;
@@ -126,33 +133,6 @@
                 });
             }
             return total;
-        }
-
-        function filterHierarchyNode(node) {
-            if (!node || typeof node !== 'object') return null;
-
-            var inputs = Array.isArray(node.inputs)
-                ? node.inputs.filter(function (input) {
-                    return isControlDescriptorAllowed(normalizeControlDescriptor(input));
-                })
-                : [];
-
-            var children = Array.isArray(node.children)
-                ? node.children
-                    .map(function (child) { return filterHierarchyNode(child); })
-                    .filter(Boolean)
-                : [];
-
-            if (!inputs.length && !children.length) {
-                return null;
-            }
-
-            var nextNode = Object.assign({}, node, {
-                children: children,
-                inputs: inputs,
-            });
-            nextNode.totalInputs = countHierarchyInputs(nextNode);
-            return nextNode;
         }
 
         /* ── DOM references ──────────────────────────────────── */

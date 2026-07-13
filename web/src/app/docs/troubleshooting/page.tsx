@@ -23,7 +23,8 @@ export default function Troubleshooting() {
       <h2>ViewModel controls missing</h2>
       <ul>
         <li>The animation must have ViewModelInstances defined in the Rive Editor</li>
-        <li>Check that <code>autoBind: true</code> is set (default behavior)</li>
+        <li>Use <code>autoBind: true</code> to bind the default instance automatically, or choose an explicit instance from the VM Instance selector</li>
+        <li>The selector stays populated for a single default or unnamed instance; if it is empty, reload the file and inspect the event console</li>
         <li>Try reloading the animation</li>
       </ul>
 
@@ -37,7 +38,7 @@ export default function Troubleshooting() {
       <h2>MCP not connecting</h2>
       <ul>
         <li>Open the MCP Setup dialog to verify the sidecar path and port</li>
-        <li>Check that RAV is running and the MCP indicator shows connected (bright indigo)</li>
+        <li>Check the MCP indicator: green means ready, blue means a command arrived recently, yellow means connecting, red means an error, and muted means disabled</li>
         <li>Verify the server is registered: <code>claude mcp list</code> or <code>codex mcp list</code></li>
         <li>The bridge auto-reconnects &mdash; if the client started after RAV, wait a few seconds</li>
         <li>Change the bridge port in the MCP Setup dialog if 9274 is occupied</li>

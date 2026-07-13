@@ -15,15 +15,12 @@ use crate::app::constants::{ABOUT_MENU_ID, DEFAULT_MCP_PORT, ONLINE_DOCS_MENU_ID
 use crate::app::mcp::bridge::{initialize_mcp_bridge, kill_spawned_mcp_bridge};
 use crate::app::state::{McpBridgeManager, OpenedFiles, PendingAppUpdate};
 use crate::app::support::{
-    extract_opened_riv_file_args,
-    extract_opened_riv_file_args_from_iter,
-    looks_like_riv_file,
-    queue_pending_opened_file,
-    try_emit_open_file,
+    extract_opened_riv_file_args, extract_opened_riv_file_args_from_iter, looks_like_riv_file,
+    queue_pending_opened_file, try_emit_open_file,
 };
-use crate::app::window::controls::open_external_url;
 #[cfg(target_os = "windows")]
 use crate::app::window::controls::apply_windows_corner_preference;
+use crate::app::window::controls::open_external_url;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 fn main() {
@@ -163,10 +160,10 @@ fn build_desktop_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Re
     #[cfg(target_os = "macos")]
     {
         let pkg_info = app.package_info();
-        let about_item = MenuItemBuilder::with_id(ABOUT_MENU_ID, "About Rive Animation Viewer")
-            .build(app)?;
-        let docs_item = MenuItemBuilder::with_id(ONLINE_DOCS_MENU_ID, "RAV Documentation")
-            .build(app)?;
+        let about_item =
+            MenuItemBuilder::with_id(ABOUT_MENU_ID, "About Rive Animation Viewer").build(app)?;
+        let docs_item =
+            MenuItemBuilder::with_id(ONLINE_DOCS_MENU_ID, "RAV Documentation").build(app)?;
 
         let app_menu = Submenu::with_items(
             app,
@@ -226,15 +223,10 @@ fn build_desktop_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Re
             ],
         )?;
 
-        let help_menu = Submenu::with_id_and_items(
-            app,
-            HELP_SUBMENU_ID,
-            "Help",
-            true,
-            &[&docs_item],
-        )?;
+        let help_menu =
+            Submenu::with_id_and_items(app, HELP_SUBMENU_ID, "Help", true, &[&docs_item])?;
 
-        return Menu::with_items(
+        Menu::with_items(
             app,
             &[
                 &app_menu,
@@ -244,14 +236,14 @@ fn build_desktop_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Re
                 &window_menu,
                 &help_menu,
             ],
-        );
+        )
     }
 
     #[cfg(not(target_os = "macos"))]
     {
         let menu = Menu::default(app)?;
-        let docs_item = MenuItemBuilder::with_id(ONLINE_DOCS_MENU_ID, "RAV Documentation")
-            .build(app)?;
+        let docs_item =
+            MenuItemBuilder::with_id(ONLINE_DOCS_MENU_ID, "RAV Documentation").build(app)?;
         if let Some(tauri::menu::MenuItemKind::Submenu(help_menu)) = menu.get(HELP_SUBMENU_ID) {
             help_menu.append(&docs_item)?;
         }

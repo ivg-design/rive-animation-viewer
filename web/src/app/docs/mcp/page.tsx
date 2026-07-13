@@ -18,27 +18,29 @@ export default function McpIntegration() {
       <pre><code>MCP Client &lt;-(stdio)-&gt; rav-mcp sidecar &lt;-(WebSocket)-&gt; RAV App</code></pre>
       <p>
         The sidecar starts automatically with the app. The runtime strip MCP indicator
-        brightens when a client is actively connected.
+        reports bridge health and turns blue for 30 seconds after an agent command arrives.
       </p>
 
-      {/* Editorial: indicators left, legend right */}
-      <div className="flex flex-col md:flex-row gap-6 my-6">
-        <div className="md:w-2/5 flex-shrink-0">
-          <Image src={asset("/docs/mcp-indicators.webp")} alt="MCP indicator in three states" width={300} height={100} className="rounded-lg border border-[var(--border-dark)] w-full" />
+      <div className="grid sm:grid-cols-2 gap-3 my-6">
+        <div className="rounded-lg border border-[var(--border-dark)] bg-[var(--bg-zinc)] p-3 flex gap-3 items-start">
+          <span className="mt-1 flex-shrink-0 w-3 h-3 rounded-full bg-[#34d399] shadow-[0_0_9px_#34d39966]" />
+          <p className="text-sm text-[var(--text-dim)]"><strong className="text-[var(--text-white)]">Ready</strong> &mdash; green, the bridge is healthy and available</p>
         </div>
-        <div className="md:w-3/5 flex flex-col justify-center gap-2">
-          <div className="flex gap-2 items-start">
-            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3b82f6] text-white text-[10px] font-bold flex items-center justify-center">1</span>
-            <p className="text-sm text-[var(--text-dim)]"><strong className="text-[var(--text-white)]">Connected</strong> &mdash; bright indigo, client actively communicating</p>
-          </div>
-          <div className="flex gap-2 items-start">
-            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3b82f6] text-white text-[10px] font-bold flex items-center justify-center">2</span>
-            <p className="text-sm text-[var(--text-dim)]"><strong className="text-[var(--text-white)]">Idle</strong> &mdash; dim indigo, bridge ready but no active client</p>
-          </div>
-          <div className="flex gap-2 items-start">
-            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3b82f6] text-white text-[10px] font-bold flex items-center justify-center">3</span>
-            <p className="text-sm text-[var(--text-dim)]"><strong className="text-[var(--text-white)]">Disabled</strong> &mdash; red with strikethrough, bridge stopped</p>
-          </div>
+        <div className="rounded-lg border border-[var(--border-dark)] bg-[var(--bg-zinc)] p-3 flex gap-3 items-start">
+          <span className="mt-1 flex-shrink-0 w-3 h-3 rounded-full bg-[#60a5fa] shadow-[0_0_10px_#3b82f699]" />
+          <p className="text-sm text-[var(--text-dim)]"><strong className="text-[var(--text-white)]">Recent command</strong> &mdash; blue for 30 seconds after MCP activity</p>
+        </div>
+        <div className="rounded-lg border border-[var(--border-dark)] bg-[var(--bg-zinc)] p-3 flex gap-3 items-start">
+          <span className="mt-1 flex-shrink-0 w-3 h-3 rounded-full bg-[#fbbf24] shadow-[0_0_8px_#fbbf2455]" />
+          <p className="text-sm text-[var(--text-dim)]"><strong className="text-[var(--text-white)]">Connecting</strong> &mdash; yellow while the bridge starts or reconnects</p>
+        </div>
+        <div className="rounded-lg border border-[var(--border-dark)] bg-[var(--bg-zinc)] p-3 flex gap-3 items-start">
+          <span className="mt-1 flex-shrink-0 w-3 h-3 rounded-full bg-[#ff5d73] shadow-[0_0_8px_#ff5d7355]" />
+          <p className="text-sm text-[var(--text-dim)]"><strong className="text-[var(--text-white)]">Error</strong> &mdash; red after a bridge failure while retrying</p>
+        </div>
+        <div className="rounded-lg border border-[var(--border-dark)] bg-[var(--bg-zinc)] p-3 flex gap-3 items-start sm:col-span-2">
+          <span className="mt-1 flex-shrink-0 w-3 h-3 rounded-full bg-[#7d8799]" />
+          <p className="text-sm text-[var(--text-dim)]"><strong className="text-[var(--text-white)]">Off</strong> &mdash; muted and crossed out when MCP is disabled</p>
         </div>
       </div>
 
@@ -68,8 +70,8 @@ export default function McpIntegration() {
           <tr><td><code>rav_get_artboards</code></td><td>List artboard names</td></tr>
           <tr><td><code>rav_get_state_machines</code></td><td>List state machine names</td></tr>
           <tr><td><code>rav_switch_artboard</code> / <code>rav_reset_artboard</code></td><td>Switch artboard/playback or reset to default</td></tr>
-          <tr><td><code>rav_get_vm_tree</code></td><td>Full ViewModel hierarchy with paths, types, and values</td></tr>
-          <tr><td><code>rav_vm_get</code> / <code>rav_vm_set</code> / <code>rav_vm_fire</code></td><td>Read, write, and fire ViewModel properties</td></tr>
+          <tr><td><code>rav_get_vm_tree</code></td><td>Current live ViewModel hierarchy with paths, types, values, and dynamic list bounds</td></tr>
+          <tr><td><code>rav_vm_get</code> / <code>rav_vm_set</code> / <code>rav_vm_fire</code></td><td>Read, write, and fire ViewModel properties, including zero-based list paths such as <code>rows/0/name</code></td></tr>
           <tr><td><code>rav_get_event_log</code></td><td>Recent event log entries (filterable by source)</td></tr>
           <tr><td><code>rav_get_editor_code</code> / <code>rav_set_editor_code</code></td><td>Read and write the script editor</td></tr>
           <tr><td><code>rav_apply_code</code></td><td>Apply editor code and reload (Script Access required)</td></tr>

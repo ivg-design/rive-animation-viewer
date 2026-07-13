@@ -40,10 +40,10 @@ const items: GalleryItem[] = [
     width: 500, height: 320,
   },
   {
-    src: "/docs/mcp-indicators.webp",
-    alt: "MCP indicator in three states",
-    caption: "MCP status — connected, idle, and disabled states in the runtime strip",
-    width: 300, height: 100,
+    src: "/docs/mcp-setup.webp",
+    alt: "MCP setup dialog with bundled sidecar controls and client detection",
+    caption: "MCP setup — bridge health, Script Access, port, client detection, and install actions",
+    width: 500, height: 700,
   },
   {
     src: "/docs/about-window.webp",

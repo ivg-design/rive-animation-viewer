@@ -8,6 +8,12 @@ import {
     buildPlaybackContext,
     buildPlaybackStatusLabel,
 } from './playback-status.js';
+import { normalizeStateMachineSelection } from './default-state-machine.js';
+import {
+    AUTO_BOUND_VM_INSTANCE_KEY,
+    buildViewModelInstanceLoadOverrides,
+    loadAndBindViewModelInstance,
+} from './view-model/instances.js';
 
 export function parsePlaybackTarget(target) {
     if (!target) {
@@ -35,7 +41,6 @@ export function createArtboardSwitcherController({
         initLucideIcons = () => {},
         loadRiveAnimation = async () => {},
         logEvent = () => {},
-        renderVmInputControls = () => {},
         showError = () => {},
         updateInfo = () => {},
     } = callbacks;
@@ -80,6 +85,26 @@ export function createArtboardSwitcherController({
 
     function syncStateAfterLoad(riveInstance, config = {}) {
         currentArtboardName = riveInstance?.artboard?.name || currentArtboardName || config.artboard || null;
+        const configuredStateMachines = normalizeStateMachineSelection(config.stateMachines);
+        const configuredAnimations = normalizeStateMachineSelection(config.animations);
+        const playingStateMachines = normalizeStateMachineSelection(riveInstance?.playingStateMachineNames);
+        const playingAnimations = normalizeStateMachineSelection(riveInstance?.playingAnimationNames);
+        if (playingStateMachines.length) {
+            currentPlaybackType = 'stateMachine';
+            currentPlaybackName = playingStateMachines[0];
+        } else if (playingAnimations.length) {
+            currentPlaybackType = 'animation';
+            currentPlaybackName = playingAnimations[0];
+        } else if (configuredStateMachines.length) {
+            currentPlaybackType = 'stateMachine';
+            currentPlaybackName = configuredStateMachines[0];
+        } else if (configuredAnimations.length) {
+            currentPlaybackType = 'animation';
+            currentPlaybackName = configuredAnimations[0];
+        } else {
+            currentPlaybackType = null;
+            currentPlaybackName = null;
+        }
         updateSelectionSummary();
     }
 
@@ -165,8 +190,8 @@ export function createArtboardSwitcherController({
             documentRef,
             elements,
             getRiveInstance,
+            selectedInstanceKey: currentVmInstanceName,
         });
-        currentVmInstanceName = elements.vmInstanceSelect?.value || null;
         updateSelectionSummary();
     }
 
@@ -253,58 +278,52 @@ export function createArtboardSwitcherController({
         switchArtboard(defaultArtboardName, playbackTarget);
     }
 
-    function switchVmInstance(instanceKey) {
-        const riveInstance = getRiveInstance();
-        if (!riveInstance || !instanceKey) {
+    async function switchVmInstance(instanceKey) {
+        if (!getCurrentFileUrl() || !getCurrentFileName() || !instanceKey) {
             return;
         }
 
-        try {
-            const viewModelDefinition = typeof riveInstance.defaultViewModel === 'function'
-                ? riveInstance.defaultViewModel()
+        if (instanceKey === AUTO_BOUND_VM_INSTANCE_KEY) {
+            const playbackTarget = currentPlaybackName
+                ? `${currentPlaybackType === 'animation' ? 'anim' : 'sm'}:${currentPlaybackName}`
                 : null;
-            if (!viewModelDefinition) {
-                console.warn('[rive-viewer] No ViewModel definition for current artboard');
-                return;
-            }
+            await switchArtboard(currentArtboardName, playbackTarget);
+            return;
+        }
 
-            let newInstance = null;
-            if (typeof viewModelDefinition.instanceByName === 'function') {
-                try {
-                    newInstance = viewModelDefinition.instanceByName(instanceKey);
-                } catch {
-                    /* not found */
-                }
-            }
-            if (!newInstance) {
-                const index = Number.parseInt(instanceKey, 10);
-                if (!Number.isNaN(index) && typeof viewModelDefinition.instanceByIndex === 'function') {
-                    newInstance = viewModelDefinition.instanceByIndex(index);
-                }
-            }
+        const previousVmInstanceName = currentVmInstanceName;
 
-            if (!newInstance) {
-                console.warn('[rive-viewer] VM instance not found:', instanceKey);
-                return;
-            }
+        const overrides = buildViewModelInstanceLoadOverrides({
+            artboardName: currentArtboardName,
+            playbackName: currentPlaybackName,
+            playbackType: currentPlaybackType,
+        });
 
-            if (typeof riveInstance.bindViewModelInstance === 'function') {
-                riveInstance.bindViewModelInstance(newInstance);
-                currentVmInstanceName = instanceKey;
-                renderVmInputControls();
-                updateSelectionSummary();
-                updateInfo(buildPlaybackStatusLabel(getStatusContext(), 'Loaded'));
-                logEvent(
-                    'ui',
-                    'vm-instance-switch',
-                    `Bound instance "${instanceKey}" from ${viewModelDefinition.name || 'ViewModel'}`,
-                );
-                return;
-            }
+        updateInfo(`Switching to ViewModel instance "${instanceKey}"...`);
 
-            console.warn('[rive-viewer] bindViewModelInstance not available on this runtime version');
+        try {
+            await loadAndBindViewModelInstance({
+                configOverrides: overrides,
+                fileName: getCurrentFileName(),
+                fileUrl: getCurrentFileUrl(),
+                getRiveInstance,
+                instanceKey,
+                loadRiveAnimation,
+                onBound: (definition) => {
+                    currentVmInstanceName = instanceKey;
+                    logEvent(
+                        'ui',
+                        'vm-instance-switch',
+                        `Bound instance "${instanceKey}" from ${definition?.name || 'ViewModel'}`,
+                    );
+                },
+            });
+            updateSelectionSummary();
+            updateInfo(buildPlaybackStatusLabel(getStatusContext(), 'Loaded'));
         } catch (error) {
-            console.warn('[rive-viewer] VM instance switch failed:', error);
+            currentVmInstanceName = previousVmInstanceName;
+            populateVmInstanceSelect();
+            showError(`Failed to switch ViewModel instance: ${error?.message || error}`);
         }
     }
 

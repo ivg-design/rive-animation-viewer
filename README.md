@@ -4,8 +4,8 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.2.3` (2026-04-05)
-- Validation target: release from `main` so installed desktop builds can pick up the `2.2.3` updater payload directly.
+- Current release: `2.4.0` (2026-07-13)
+- Validation target: release from `main` with tag `v2.4.0` so installed desktop builds can receive the signed Apple Silicon, Intel macOS, and Windows updater payloads.
 
 ## Regression Gates
 
@@ -19,6 +19,16 @@ The repo now has explicit prebuild guards for the surfaces that were regressing 
 - `cargo check --manifest-path src-tauri/Cargo.toml` validates the native Tauri layer
 
 These gates materially reduce regression risk, but they are still code- and DOM-contract tests, not full visual snapshot coverage. If we want pixel-level guarantees from this point forward, the next step is adding screenshot-based desktop smoke tests for the packaged app window.
+
+## 2.4.0 Highlights
+
+- **Dynamic ViewModel lists**: List instances populate as soon as a file opens and rebuild when their controlling count changes, with readable `Row 1`, `Row 2`, … labels instead of an arbitrary ten-item ceiling.
+- **Export parity**: Standalone HTML exports and generated snippets preserve the live player's list count and reactive behavior, while controls excluded from export remain absent from the Properties panel and serialized snapshot.
+- **Reliable VM instance selection**: The VM Instance selector stays populated even when the file exposes only one default or unnamed instance.
+- **Playback and trigger parity**: Loaded state machines remain active, triggers continue to fire, and explicit ViewModel instance choices reload with the binding mode required by the runtime.
+- **Selected-instance export parity**: CDN/local snippets and standalone demos bind the selected ViewModel instance before applying the exported control snapshot.
+- **Truthful MCP activity state**: The MCP indicator is green while healthy and ready, blue for 30 seconds after an agent command, yellow while connecting, red after a failure, and muted when disabled.
+- **Release toolchain alignment**: Tauri, its plugins, the Rust graph, Vite, and Vitest are aligned on compatible security-patched versions, and dirty local builds are identified in their build stamp.
 
 ## 2.2.3 Highlights
 
@@ -229,9 +239,9 @@ command = "/Users/you/.local/bin/rav-mcp-rav"
 args = ["--stdio-only", "--port", "9274"]
 ```
 
-Open the RAV desktop app and enable the MCP bridge. The **MCP** chip in the runtime strip has three live states: disabled (red, struck through), idle (dim yellow), and active (bright yellow with glow while an agent command is actually running). From then on, your MCP client can control RAV whenever both are running.
+Open the RAV desktop app and enable the MCP bridge. The **MCP** chip is muted and crossed out when disabled, yellow while connecting, red after a bridge failure, green when healthy and ready, and blue for 30 seconds after an agent command arrives. From then on, your MCP client can control RAV whenever both are running.
 
-#### Available Tools (32)
+#### Available Tools (36)
 
 | Tool | Description |
 |------|-------------|
@@ -251,12 +261,14 @@ Open the RAV desktop app and enable the MCP bridge. The **MCP** chip in the runt
 | `rav_set_canvas_color` | Set background color or transparent |
 | `rav_set_canvas_size` | Set canvas sizing mode (`auto` or explicit pixels) and optional aspect lock |
 | `rav_export_demo` | Export standalone HTML demo |
+| `rav_export_demo_visual` | Drive the visible export dialog with exact control selection, package source, snippet mode, and output path |
 | `generate_web_instantiation_code` | Generate the canonical live web-instantiation snippet (`local` npm package or `cdn`) with `window.ravRive` helpers and current control values. Preferred over hand-writing snippets from scratch. |
 | `rav_toggle_instantiation_controls_dialog` | Open/close the in-app Snippet & Export Controls dialog so a human can choose which controls are serialized |
 | `rav_configure_workspace` | Open/close sidebars, switch live source mode (`internal` / `editor`), and inject/remove the VM Explorer snippet idempotently |
 | `rav_get_sm_inputs` / `rav_set_sm_input` | State machine input access |
 | `rav_eval` | Evaluate JS in RAV's browser context (`Script Access` required) |
 | `rav_console_open` / `rav_console_close` | Toggle the JS console remotely |
+| `rav_console_set_mode` / `rav_console_set_filter` / `rav_console_clear` | Switch console mode, mirror visible filters, and clear the active transcript |
 | `rav_console_read` / `rav_console_exec` | Read the JS console transcript or run REPL code (`rav_console_exec` requires `Script Access`). Transcript includes REPL input/result rows plus captured `console.*` output. |
 
 #### Editor and Export Semantics
@@ -266,6 +278,7 @@ Open the RAV desktop app and enable the MCP bridge. The **MCP** chip in the runt
 - Unsaved editor draft changes do not change the running animation until applied.
 - `rav_status` reports the active instantiation source and whether the editor draft is dirty.
 - `rav_status` also reports the active canvas sizing mode and explicit pixel size when the canvas is fixed.
+- ViewModel paths are slash-separated. Dynamic list items use a zero-based live index such as `rows/0/playerName`; call `rav_get_vm_tree` again after the controlling count changes before addressing newly added or removed rows.
 - `generate_web_instantiation_code` always reflects what is actually running.
 - `generate_web_instantiation_code` defaults to the CDN form unless you explicitly request `package_source: "local"`.
 - Generated snippets restore only the checked ViewModel/state-machine values on load, round numbers to 2 decimals, annotate enum choices inline, and expose helper methods on `window.ravRive`.

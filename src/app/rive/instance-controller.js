@@ -4,6 +4,7 @@ import {
     normalizeCanvasSizingState,
 } from '../core/canvas-sizing.js';
 import { resolveRiveAlignment, resolveRiveFit } from '../core/rive-layout.js';
+import { runUserOnLoadWithVmRestore } from './instance/load-hooks.js';
 import { buildPlaybackContext, buildPlaybackStatusLabel } from './playback-status.js';
 export function safelyInvokeUserCallback(callback, event, callbackName) {
     if (typeof callback !== 'function') {
@@ -193,6 +194,7 @@ export function createRiveInstanceController({
 
     async function loadRiveAnimation(fileUrl, fileName, options = {}) {
         const {
+            beforeUserOnLoad = null,
             forceAutoplay = false,
             configOverrides = null,
             onLoaded = null,
@@ -302,6 +304,12 @@ export function createRiveInstanceController({
                 });
                 if (detectedStateMachine) {
                     config.stateMachines = detectedStateMachine;
+                    syncArtboardStateFromConfig({
+                        animations: null,
+                        artboard: config.artboard,
+                        configuredStateMachines: [detectedStateMachine],
+                        hasConfiguredAnimation: false,
+                    });
                 }
             }
 
@@ -311,15 +319,6 @@ export function createRiveInstanceController({
                 riveInstance?.resizeDrawingSurfaceToCanvas?.();
                 logEvent('native', 'load', `Loaded ${fileName} using ${getCurrentRuntime()}.`);
 
-                const names = Array.isArray(riveInstance?.stateMachineNames) ? riveInstance.stateMachineNames : [];
-                let activeStateMachine = 'none';
-                if (config.stateMachines) {
-                    activeStateMachine = Array.isArray(config.stateMachines)
-                        ? config.stateMachines[0]
-                        : config.stateMachines;
-                } else if (names.length > 0) {
-                    activeStateMachine = names[0];
-                }
                 syncArtboardStateAfterLoad(riveInstance, config);
                 updateInfo(buildPlaybackStatusLabel(buildPlaybackContext({
                     playbackState: getPlaybackState(),
@@ -327,13 +326,7 @@ export function createRiveInstanceController({
                 })));
                 refreshInfoStrip();
 
-                if (typeof userOnLoad === 'function') {
-                    try {
-                        userOnLoad();
-                    } catch (error) {
-                        console.warn('Error in user onLoad:', error);
-                    }
-                }
+                runUserOnLoadWithVmRestore({ beforeUserOnLoad, riveInstance, userOnLoad });
 
                 renderVmInputControls();
                 setVmControlBaselineSnapshot();

@@ -14,10 +14,11 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 ### Rive Runtime API
 - `contents`, `stateMachineNames`, `animationNames` are **properties** (not functions) on the Rive instance.
 - `stateMachineInputs(smName)` IS a function that takes the state machine name.
-- `viewModelInstance` is a **property** that returns the bound ViewModel instance (requires `autoBind: true`).
+- `viewModelInstance` is a **property** that returns the currently bound ViewModel instance. `autoBind: true` binds the default instance automatically; RAV uses `autoBind: false` when it explicitly binds a named instance.
 
 ### ViewModel Paths
 - Properties use slash-separated paths: `"parentVM/childVM/property"`
+- List items use a zero-based index segment, for example `"rows/0/playerName"`. Always call `rav_get_vm_tree` again after a list resizes so the path is inside the current live bounds.
 - Supported kinds: `number`, `boolean`, `string`, `enum`, `color`, `trigger`
 - Access pattern: `vm.number("propName").value` to read, `vm.number("propName").value = 42` to write
 - Triggers use `vm.trigger("propName").trigger()` (note: the method is .trigger(), not .fire())
@@ -27,7 +28,7 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 - RAV has two live instantiation modes: `internal` and `editor`.
 - `internal` means the running animation is using RAV's built-in wiring and the current toolbar/artboard state.
 - `editor` means the running animation is using the last applied editor code, not necessarily the current unsaved draft in the panel.
-- `autoBind: true` is required for ViewModel access.
+- `autoBind: true` automatically binds the default ViewModel instance. An explicit instance selection deliberately loads with `autoBind: false` and binds that selected instance before controls and snapshots are restored.
 - `stateMachines: "Name"` must be set to activate a state machine.
 - If the user asks for a working instantiation snippet, prefer **generate_web_instantiation_code** first instead of hand-writing one from scratch.
 - If you do need to edit the live config, call **rav_get_editor_code** first and modify the returned object surgically. Do not invent placeholder globals like `FILE`, `FILE_PATH`, or custom file tokens.
@@ -43,7 +44,7 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 - Many animations have both — check rav_get_sm_inputs AND rav_get_vm_tree.
 
 ## Tips
-- If rav_get_vm_tree returns empty but you suspect there's a ViewModel, ensure the editor config includes `autoBind: true` and `stateMachines` is set, then call rav_apply_code.
+- If rav_get_vm_tree returns empty but you suspect there is a ViewModel, verify that a default or explicit VM instance is selected and bound. Use `autoBind: true` for the default instance, or select an explicit instance in RAV; configure the state machine separately when playback requires one.
 - Use **rav_eval** for anything not covered by the dedicated tools — it runs JS in the browser context with access to `window.riveInst` and all globals.
 - The stable live instance is `window.riveInst`. Do not assume a local callback variable like `rive` will remain authoritative after reloads.
 - **rav_get_event_log** shows runtime events, user events, UI events, and MCP events — useful for debugging what happened.

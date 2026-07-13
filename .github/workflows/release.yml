@@ -5,6 +5,8 @@ env:
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
   workflow_dispatch:
@@ -26,11 +28,16 @@ on:
 
 jobs:
   prepare-release:
+    if: >-
+      github.event_name != 'push' ||
+      github.ref_type == 'tag' ||
+      startsWith(github.event.head_commit.message, 'chore(release): v')
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.meta.outputs.version }}
       tag: ${{ steps.meta.outputs.tag }}
       matrix: ${{ steps.meta.outputs.matrix }}
+      release_body: ${{ steps.notes.outputs.body }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -84,6 +91,41 @@ jobs:
 
           echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
 
+      - name: Extract release notes from changelog
+        id: notes
+        shell: bash
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const version = process.env.VERSION;
+          const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+          const escapedVersion = version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const heading = new RegExp(`^## \\[${escapedVersion}\\](?: - .+)?$`, 'm');
+          const match = changelog.match(heading);
+
+          if (!match || match.index === undefined) {
+            throw new Error(`CHANGELOG.md has no release section for ${version}`);
+          }
+
+          const sectionStart = match.index + match[0].length;
+          const nextSection = changelog.indexOf('\n## ', sectionStart);
+          const body = changelog
+            .slice(sectionStart, nextSection === -1 ? undefined : nextSection)
+            .trim();
+
+          if (!body) {
+            throw new Error(`CHANGELOG.md release section for ${version} is empty`);
+          }
+
+          fs.appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `body<<RAV_RELEASE_NOTES_EOF\n${body}\nRAV_RELEASE_NOTES_EOF\n`,
+          );
+          NODE
+
   release:
     needs: prepare-release
     permissions:
@@ -124,8 +166,9 @@ jobs:
           tauriScript: npm run tauri
           tagName: ${{ needs.prepare-release.outputs.tag }}
           releaseName: Rive Animation Viewer v${{ needs.prepare-release.outputs.version }}
-          releaseBody: See CHANGELOG.md for full release details and platform coverage.
-          releaseDraft: false
+          releaseBody: |
+            ${{ needs.prepare-release.outputs.release_body }}
+          releaseDraft: true
           prerelease: false
           includeUpdaterJson: false
           args: ${{ matrix.args }}
@@ -166,3 +209,10 @@ jobs:
           REPO: ${{ github.repository }}
           TAG: ${{ needs.prepare-release.outputs.tag }}
         run: gh release upload "$TAG" /tmp/latest.json#latest.json --repo "$REPO" --clobber
+
+      - name: Publish completed release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+        run: gh release edit "$TAG" --repo "$REPO" --draft=false

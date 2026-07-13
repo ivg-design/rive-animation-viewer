@@ -37,18 +37,35 @@
         }
 
         function applyControlSnapshot(snapshot) {
+            pendingControlSnapshot = new Map();
             if (!Array.isArray(snapshot) || !snapshot.length) return 0;
 
-            var applied = 0;
             snapshot.forEach(function (entry) {
                 var descriptor = (entry && entry.descriptor) || {};
                 var kind = entry && (entry.kind || descriptor.kind);
-                if (!descriptor || !kind || kind === 'trigger') return;
+                var key = controlSnapshotKeyForDescriptor(Object.assign({}, descriptor, { kind: kind }));
+                if (key && kind !== 'trigger') pendingControlSnapshot.set(key, entry);
+            });
+            return retryPendingControlSnapshot();
+        }
+
+        function retryPendingControlSnapshot() {
+            if (!pendingControlSnapshot.size) return 0;
+
+            var applied = 0;
+            pendingControlSnapshot.forEach(function (entry, key) {
+                var descriptor = (entry && entry.descriptor) || {};
+                var kind = entry && (entry.kind || descriptor.kind);
+                if (!descriptor || !kind || kind === 'trigger') {
+                    pendingControlSnapshot.delete(key);
+                    return;
+                }
 
                 if (descriptor.source === 'state-machine') {
                     var stateMachineInput = resolveStateMachineInputAccessor(descriptor.stateMachineName, descriptor.name, kind);
                     if (stateMachineInput && 'value' in stateMachineInput) {
                         stateMachineInput.value = entry.value;
+                        pendingControlSnapshot.delete(key);
                         applied += 1;
                     }
                     return;
@@ -57,9 +74,11 @@
                 var accessor = resolveLiveAccessor(descriptor.path, kind);
                 if (!accessor || !('value' in accessor)) return;
                 accessor.value = entry.value;
+                pendingControlSnapshot.delete(key);
                 applied += 1;
             });
 
+            if (applied > 0) syncVmControlBindings(true);
             return applied;
         }
 
@@ -81,9 +100,9 @@
         }
 
         function startVmControlSync() {
-            if (vmControlSyncTimer || !vmControlBindings.length) return;
+            if (vmControlSyncTimer || (!vmControlBindings.length && vmListTopologySignature === null)) return;
             vmControlSyncTimer = setInterval(function () {
-                syncVmControlBindings(false);
+                if (!syncVmControlTopology()) syncVmControlBindings(false);
             }, VM_CONTROL_SYNC_INTERVAL_MS);
         }
 
@@ -149,5 +168,14 @@
             });
         }
 
-        /* ── Color utilities ─────────────────────────────────── */
+        function syncVmControlTopology() {
+            var nextSignature = buildVmListTopologySignature(resolveVmRootInstance());
+            if (nextSignature === vmListTopologySignature) {
+                return false;
+            }
+            renderVmControls();
+            retryPendingControlSnapshot();
+            return true;
+        }
 
+        /* ── Color utilities ─────────────────────────────────── */

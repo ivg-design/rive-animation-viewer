@@ -16,6 +16,82 @@ export function countAllInputs(node) {
     return total;
 }
 
+export function formatVmListItemLabel(listName, index) {
+    const words = String(listName || 'Item')
+        .trim()
+        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+        .replace(/[_-]+/g, ' ')
+        .split(/\s+/)
+        .filter(Boolean);
+    const lastIndex = words.length - 1;
+    if (lastIndex >= 0) {
+        const word = words[lastIndex];
+        if (/ies$/i.test(word) && word.length > 3) {
+            words[lastIndex] = `${word.slice(0, -3)}y`;
+        } else if (/(ches|shes|xes|zes)$/i.test(word)) {
+            words[lastIndex] = word.slice(0, -2);
+        } else if (/s$/i.test(word) && !/ss$/i.test(word)) {
+            words[lastIndex] = word.slice(0, -1);
+        }
+    }
+    const label = words
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ') || 'Item';
+    return `${label} ${index + 1}`;
+}
+
+export function buildVmListTopologySignature(rootVm) {
+    if (!rootVm || typeof rootVm !== 'object') {
+        return null;
+    }
+
+    const activeInstances = new WeakSet();
+    const topology = [];
+
+    const walk = (instance, basePath) => {
+        if (!instance || typeof instance !== 'object' || activeInstances.has(instance)) {
+            return;
+        }
+        activeInstances.add(instance);
+
+        const properties = Array.isArray(instance.properties) ? instance.properties : [];
+        properties.forEach((property) => {
+            const name = property?.name;
+            if (typeof name !== 'string' || !name) {
+                return;
+            }
+
+            const fullPath = basePath ? `${basePath}/${name}` : name;
+            const nestedVm = safeVmMethodCall(instance, 'viewModelInstance', name)
+                || safeVmMethodCall(instance, 'viewModel', name);
+            if (nestedVm && nestedVm !== instance) {
+                walk(nestedVm, fullPath);
+            }
+
+            const listAccessor = safeVmMethodCall(instance, 'list', name);
+            if (!listAccessor) {
+                return;
+            }
+
+            const listLength = getVmListLength(listAccessor);
+            topology.push(['list', fullPath, listLength]);
+            for (let index = 0; index < listLength; index += 1) {
+                const itemInstance = getVmListItemAt(listAccessor, index);
+                const itemPath = `${fullPath}/${index}`;
+                topology.push(['item', itemPath, Boolean(itemInstance)]);
+                if (itemInstance) {
+                    walk(itemInstance, itemPath);
+                }
+            }
+        });
+
+        activeInstances.delete(instance);
+    };
+
+    walk(rootVm, '');
+    return topology.length ? JSON.stringify(topology) : null;
+}
+
 export function buildVmHierarchy(rootVm) {
     const seenInputPaths = new Set();
     const activeInstances = new WeakSet();
@@ -79,7 +155,7 @@ export function buildVmHierarchy(rootVm) {
                         continue;
                     }
                     const itemPath = `${fullPath}/${index}`;
-                    listNode.children.push(walk(itemInstance, `Instance ${index}`, itemPath, 'instance'));
+                    listNode.children.push(walk(itemInstance, formatVmListItemLabel(name, index), itemPath, 'instance'));
                 }
                 node.children.push(listNode);
             }

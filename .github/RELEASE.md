@@ -1,136 +1,88 @@
 # Release Process
 
-## Automated Releases via GitHub Actions
+RAV releases are created by `.github/workflows/release.yml`. The default path is a guarded release commit on `main`; tag pushes and manual dispatch remain available for recovery. The release version must already be synchronized everywhere before publication begins.
 
-This repository uses GitHub Actions to automatically build and release the Tauri desktop app for Windows and macOS.
+## Prepare a release
 
-### How to Trigger a Release
+1. Update the version in `package.json`, `package-lock.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, and `src-tauri/Cargo.lock`.
+2. Add the dated release notes to both `CHANGELOG.md` and `web/CHANGELOG.md`.
+3. Update the README release summary and any affected product documentation.
+4. Run the required validation:
 
-**Simply commit with a release flag** - the pre-push hook will automatically bump the version locally:
+   ```bash
+   npm ci
+   npm test
+   npm run build
+   cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+   cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+   cargo test --manifest-path src-tauri/Cargo.toml
+   ```
+
+5. Commit the complete release changes on `main` with the exact subject `chore(release): vX.Y.Z`, then push `main`.
+
+## Publish the release
+
+Pushing the guarded `chore(release): vX.Y.Z` commit starts the release matrix. The Tauri release action creates `vX.Y.Z` at that commit when it creates the draft release, so no separate tag command is required for the normal path.
+
+For recovery, or when the validated commit does not use the guarded release subject, create and push the version tag explicitly:
 
 ```bash
-# Patch version bump (1.1.2 → 1.1.3)
-git commit -m "Fix animation playback bug release:patch"
-git push origin main  # Version bumped automatically before push!
-
-# Minor version bump (1.1.2 → 1.2.0)
-git commit -m "Add new export feature release:minor"
-git push origin main  # Version bumped automatically before push!
-
-# Major version bump (1.1.2 → 2.0.0)
-git commit -m "Complete UI redesign release:major"
-git push origin main  # Version bumped automatically before push!
+git tag -a v2.4.0 -m "Rive Animation Viewer v2.4.0"
+git push origin v2.4.0
 ```
 
-The pre-push hook will automatically:
-1. **Detect** the release flag (`release:major`, `release:minor`, or `release:patch`)
-2. **Bump** version in all files (package.json, tauri.conf.json, Cargo.toml)
-3. **Amend** your commit to include the version changes
-4. **Push** the updated commit to GitHub
+The release version must match `package.json`; the workflow stops immediately on a mismatch. Ordinary pushes to `main` are skipped unless the head commit subject starts with `chore(release): v`. A manual `workflow_dispatch` run is also available for recovery or a single-platform rebuild.
 
-Then GitHub Actions will:
-1. **Build** for macOS Apple Silicon (ARM64)
-2. **Build** for macOS Intel (x86_64)
-3. **Build** for Windows (.msi installer)
-4. **Create** a GitHub Release with version tag
-5. **Upload** the built binaries to the release
+## Build matrix
 
-### Semantic Versioning
+| Platform | Rust target | Primary artifacts |
+| --- | --- | --- |
+| macOS Apple Silicon | `aarch64-apple-darwin` | `.dmg`, updater archive, `.sig` |
+| macOS Intel | `x86_64-apple-darwin` | `.dmg`, updater archive, `.sig` |
+| Windows x64 | `x86_64-pc-windows-msvc` | installer, updater archive, `.sig` |
 
-Use the appropriate flag based on your changes:
+Each runner installs Node.js 20, the Rust stable toolchain, repository dependencies, and the requested Rust target. Tauri's release action creates or updates one draft GitHub Release and uploads that platform's artifacts.
 
-- **`release:patch`** - Bug fixes, small tweaks (1.1.2 → 1.1.3)
-- **`release:minor`** - New features, backwards-compatible (1.1.2 → 1.2.0)
-- **`release:major`** - Breaking changes, major updates (1.1.2 → 2.0.0)
+The workflow extracts the matching version section from `CHANGELOG.md` and uses it as the GitHub Release body. A missing or empty release section fails the prepare job before any platform build begins.
 
-Current version: **1.1.2** (testing CI/CD pipeline)
+After all three platform jobs succeed, the final job downloads the updater signatures, generates a merged `latest.json`, uploads it to the same release, and then publishes the release. A failed or incomplete platform matrix therefore cannot expose a partial public release. Do not consider a release complete until the public release contains this manifest and entries for every supported target.
 
-### No Manual Version Updates Needed!
+## Required repository secrets
 
-The workflow automatically updates versions in:
-- `package.json` → `version`
-- `src-tauri/tauri.conf.json` → `package.version`
-- `src-tauri/Cargo.toml` → `version`
+- `TAURI_SIGNING_PRIVATE_KEY`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
 
-You don't need to manually edit these files anymore.
+`GITHUB_TOKEN` is supplied by GitHub Actions. The Tauri keys sign updater payloads; native macOS code signing is currently ad hoc unless separate Apple signing/notarization credentials are configured.
 
-### Version Synchronization
-
-**Good news:** With the pre-push hook, your local workspace is always synchronized! The version bump happens locally before pushing, so you never need to pull version changes from GitHub.
-
-If you ever need to verify or manually sync:
+## Local packaging
 
 ```bash
-npm run sync
-```
-
-This will:
-- Pull any remote changes
-- Verify all version files match
-- Update Cargo.lock automatically
-- Report any version mismatches
-
-### Manual Release (Local Build)
-
-To build locally without the CI/CD pipeline:
-
-```bash
-# Manually bump version first
-node scripts/bump-version.mjs patch  # or minor/major
-git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
-git commit -m "Bump version"
-
-# Build the frontend
+npm ci
 npm run build
-
-# Build the Tauri app
 npm run tauri build
 ```
 
-Outputs will be in:
-- macOS: `src-tauri/target/release/bundle/dmg/`
-- Windows: `src-tauri/target/release/bundle/msi/`
+Local artifacts are written under `src-tauri/target/release/bundle/`. Without the Tauri updater private key, the packaging command can still produce a usable ad-hoc-signed macOS app and DMG, but updater signature generation will fail; public releases should always be built by CI.
 
-### Workflow Details
+## Website deployment
 
-The workflow (`release.yml`) only runs when:
-- A commit is pushed to `main` branch
-- The commit message contains `release:major`, `release:minor`, or `release:patch`
-- Or manually triggered via GitHub Actions UI (uses current version, no bump)
+The Next.js site in `web/` is linked to the Vercel project `ivgs-projects/rav`. It is not deployed by the desktop release workflow. Publish and verify the GitHub release first so the site resolves the new release assets, then run:
 
-### Build Matrix
+```bash
+cd web
+npm ci
+npm run lint
+vercel pull --yes --environment=production --scope ivgs-projects
+vercel build --prod --scope ivgs-projects
+vercel deploy --prebuilt --prod --yes --scope ivgs-projects
+```
 
-| Platform | Target | Output |
-|----------|--------|--------|
-| macOS | universal-apple-darwin | `.dmg` (Universal) |
-| Windows | x86_64-pc-windows-msvc | `.msi` installer |
+The production `NEXT_PUBLIC_SITE_URL` must remain `https://forge.mograph.life/apps/rav/` so Next.js emits the `/apps/rav` asset prefix used by the Forge proxy. Verify the direct Vercel deployment and the public Forge URL after deployment.
 
-### Requirements
+## Post-release verification
 
-No special setup needed. GitHub Actions will:
-- Install Node.js 20
-- Install Rust toolchain
-- Install platform dependencies
-- Build and release automatically
-
-### Troubleshooting
-
-**Build fails on macOS:**
-- Check that Xcode Command Line Tools are available in the runner
-
-**Build fails on Windows:**
-- Check that WebView2 is available (usually pre-installed)
-
-**Release not created:**
-- Ensure commit message contains `release:major`, `release:minor`, or `release:patch`
-- Check GitHub Actions logs for errors
-- Verify `GITHUB_TOKEN` has release permissions
-
-**Version not bumped:**
-- Check that `scripts/bump-version.mjs` exists
-- Verify the bump-version job succeeded in Actions logs
-- Check for merge conflicts if multiple releases happen simultaneously
-
-**Infinite loop detected:**
-- The version bump commit includes `[skip ci]` to prevent re-triggering
-- If loops occur, check git config in the workflow
+1. Confirm all three platform jobs and the updater-manifest job are green.
+2. Confirm the GitHub Release is public, not a draft or prerelease.
+3. Confirm both macOS architectures, Windows artifacts, updater signatures, and `latest.json` are attached.
+4. Confirm the release notes match the versioned section in `CHANGELOG.md`.
+5. Build and deploy the `web/` site, then verify its download buttons resolve to the new GitHub Release.

@@ -71,11 +71,18 @@ export function buildEffectiveInstantiationDescriptor({
     const canvasSizing = normalizeCanvasSizingState(currentCanvasSizing || undefined);
     const packageName = getRuntimePackageName(runtimeName);
     const effectiveRuntimeVersion = String(runtimeVersion || '').trim() || 'latest';
+    const rawViewModelInstanceName = artboardState.currentVmInstanceName;
+    const viewModelInstanceName = rawViewModelInstanceName === null || typeof rawViewModelInstanceName === 'undefined'
+        ? null
+        : (String(rawViewModelInstanceName).trim() || null);
+    const autoBind = viewModelInstanceName === null
+        ? (typeof effectiveEditorConfig.autoBind === 'boolean' ? effectiveEditorConfig.autoBind : true)
+        : false;
 
     return {
         animations: playbackSelection.animations,
         artboard: playbackSelection.artboard,
-        autoBind: typeof effectiveEditorConfig.autoBind === 'boolean' ? effectiveEditorConfig.autoBind : true,
+        autoBind,
         autoplay: typeof effectiveEditorConfig.autoplay === 'boolean' ? effectiveEditorConfig.autoplay : true,
         canvasColor,
         canvasSizing,
@@ -93,5 +100,6 @@ export function buildEffectiveInstantiationDescriptor({
         useOffscreenRenderer: runtimeName !== 'canvas' && canvasTransparent
             ? (typeof effectiveEditorConfig.useOffscreenRenderer === 'boolean' ? effectiveEditorConfig.useOffscreenRenderer : true)
             : effectiveEditorConfig.useOffscreenRenderer,
+        viewModelInstanceName,
     };
 }

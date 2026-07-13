@@ -44,6 +44,8 @@ export function createMcpBridgeTransport({
     getState,
     getWatchdogIntervalMs = () => 1500,
     onConnected = () => {},
+    onConnecting = () => {},
+    onConnectionError = () => {},
     onClientPresenceChange = () => {},
     onCommandEnd = () => {},
     onCommandStart = () => {},
@@ -94,7 +96,15 @@ export function createMcpBridgeTransport({
         }
 
         const promise = (async () => {
-            await beforeConnect();
+            try {
+                await beforeConnect();
+            } catch {
+                onConnectionError();
+                syncState();
+                scheduleReconnect();
+                return;
+            }
+            onConnecting();
             syncState();
 
             let nextSocket;
@@ -104,6 +114,8 @@ export function createMcpBridgeTransport({
                 connectStartedAt = Date.now();
                 armConnectTimeout(nextSocket);
             } catch {
+                onConnectionError();
+                syncState();
                 scheduleReconnect();
                 return;
             }
@@ -177,7 +189,7 @@ export function createMcpBridgeTransport({
                 clearConnectTimeout();
                 setSocket(null);
                 const wasConnected = getState().connected;
-                onDisconnected();
+                onDisconnected({ unexpected: getEnabled(), wasConnected });
                 syncState();
                 if (wasConnected) {
                     mcpLog('disconnected', 'Bridge disconnected from MCP server', undefined, windowRef);
@@ -187,7 +199,9 @@ export function createMcpBridgeTransport({
             };
 
             nextSocket.onerror = () => {
-                /* onclose handles reconnect */
+                if (getSocket() !== nextSocket) return;
+                onConnectionError();
+                syncState();
             };
         })();
 
@@ -224,7 +238,7 @@ export function createMcpBridgeTransport({
             socket.close(1000, 'Bridge disabled');
             setSocket(null);
         }
-        onDisconnected();
+        onDisconnected({ unexpected: false, wasConnected: getState().connected });
     }
 
     function reconnectNow() {

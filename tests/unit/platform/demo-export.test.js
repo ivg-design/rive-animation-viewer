@@ -19,6 +19,7 @@ describe('platform/demo-export', () => {
                 currentArtboard: 'Main',
                 currentPlaybackName: 'idle',
                 currentPlaybackType: 'animation',
+                currentVmInstanceName: 'Preview',
             },
             currentCanvasSizing: {
                 mode: 'fixed',
@@ -47,6 +48,7 @@ describe('platform/demo-export', () => {
             autoplay: false,
             canvas_color: '#112233',
             canvas_sizing: '{"mode":"fixed","width":1600,"height":900,"lockAspectRatio":true}',
+            control_selection_keys: '[]',
             control_snapshot: null,
             default_instantiation_package_source: 'cdn',
             file_name: 'demo.riv',
@@ -57,6 +59,7 @@ describe('platform/demo-export', () => {
             runtime_script: 'runtime();',
             runtime_version: '2.0.0',
             state_machines: ['main-sm'],
+            view_model_instance_name: 'Preview',
             vm_hierarchy: '{"root":"vm"}',
         }));
     });
@@ -86,11 +89,17 @@ describe('platform/demo-export', () => {
         const invoke = vi.fn(async (command, payload) => {
             if (command === 'make_demo_bundle') {
                 expect(payload.payload.file_name).toBe('demo.riv');
+                expect(payload.payload.view_model_instance_name).toBe('Board');
                 expect(JSON.parse(payload.payload.control_snapshot)).toEqual([fullSnapshot[0]]);
                 return '/tmp/demo-app';
             }
             if (command === 'make_demo_bundle_to_path') {
                 expect(payload.outputPath).toBe('/tmp/out');
+                const snippets = JSON.parse(payload.payload.instantiation_snippets);
+                expect(payload.payload.default_instantiation_package_source).toBe('local');
+                expect(payload.payload.instantiation_code).toBe(snippets.local);
+                expect(snippets.local).toContain('import * as rive from "@rive-app/webgl2";');
+                expect(snippets.local).toContain('bindRavViewModelInstance(riveInst, "Board");');
                 return '/tmp/out';
             }
             return null;
@@ -107,6 +116,7 @@ describe('platform/demo-export', () => {
                 currentArtboard: 'Main',
                 currentPlaybackName: 'idle',
                 currentPlaybackType: 'animation',
+                currentVmInstanceName: 'Board',
             }),
             captureVmControlSnapshot: () => fullSnapshot,
             getCurrentFileBuffer: () => buffer,
@@ -140,7 +150,10 @@ describe('platform/demo-export', () => {
         });
 
         await expect(controller.createDemoBundle()).resolves.toBe('/tmp/demo-app');
-        await expect(controller.exportDemoToPath('/tmp/out')).resolves.toBe('/tmp/out');
+        await expect(controller.exportDemoToPath('/tmp/out', {
+            packageSource: 'local',
+            snippetMode: 'scaffold',
+        })).resolves.toBe('/tmp/out');
         const instantiationResult = await controller.generateWebInstantiationCode({ packageSource: 'cdn' });
         expect(instantiationResult).toEqual(expect.objectContaining({
             helperApi: expect.objectContaining({
@@ -155,6 +168,48 @@ describe('platform/demo-export', () => {
         expect(instantiationResult.code).toContain('fit: rive.Fit.Contain');
         expect(instantiationResult.code).toContain('alignment: rive.Alignment.Center');
         expect(invoke).toHaveBeenCalledTimes(2);
+    });
+
+    it('expands a selected list field across every current row and serializes its family key', async () => {
+        const entry = (path, kind, value) => ({
+            descriptor: { kind, name: path.split('/').pop(), path },
+            kind,
+            value,
+        });
+        const fullSnapshot = [
+            entry('playerCount', 'number', 150),
+            entry('focusIndex', 'number', 0),
+            ...Array.from({ length: 150 }, (_, index) => entry(`rows/${index}/introY`, 'number', index)),
+        ];
+        const controller = createDemoExportController({
+            callbacks: {
+                ensureRuntime: vi.fn().mockResolvedValue(undefined),
+            },
+            captureVmControlSnapshot: () => fullSnapshot,
+            getCurrentFileBuffer: () => Uint8Array.from([1, 2]).buffer,
+            getCurrentFileName: () => 'leaderboard.riv',
+            getRuntimeAsset: () => ({ text: 'runtime();', version: '2.38.5' }),
+        });
+
+        const context = await controller.buildExportContext({
+            selectedControlKeys: [
+                'vm:playerCount:number',
+                'vm:rows/0/introY:number',
+            ],
+        });
+        const exportedSnapshot = JSON.parse(context.payload.control_snapshot);
+        const exportedPaths = exportedSnapshot.map((snapshotEntry) => snapshotEntry.descriptor.path);
+
+        expect(JSON.parse(context.payload.control_selection_keys)).toEqual([
+            'vm:playerCount:number',
+            'vm:rows/*/introY:number',
+        ]);
+        expect(exportedSnapshot).toHaveLength(151);
+        expect(exportedPaths).toContain('rows/0/introY');
+        expect(exportedPaths).toContain('rows/149/introY');
+        expect(exportedPaths).not.toContain('focusIndex');
+        expect(context.instantiationSnippets.cdn.code).toContain('"rows/149/introY": 149');
+        expect(context.instantiationSnippets.cdn.code).not.toContain('"focusIndex"');
     });
 
     it('reports validation and runtime preparation failures without invoking Tauri', async () => {

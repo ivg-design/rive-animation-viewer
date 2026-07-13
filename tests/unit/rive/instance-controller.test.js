@@ -36,7 +36,10 @@ describe('rive/instance-controller', () => {
 
         let capturedConfig = null;
         let instance = null;
-        const userOnLoad = vi.fn();
+        const loadOrder = [];
+        const userOnLoad = vi.fn(() => {
+            loadOrder.push('userOnLoad');
+        });
         const runtime = {
             Alignment: { TopLeft: Symbol('TopLeft') },
             EventType: { RiveEvent: 'rive-event' },
@@ -69,9 +72,14 @@ describe('rive/instance-controller', () => {
             logEvent: vi.fn(),
             populateArtboardSwitcher: vi.fn(),
             refreshInfoStrip: vi.fn(),
-            renderVmInputControls: vi.fn(),
+            renderVmInputControls: vi.fn(() => {
+                loadOrder.push('renderVmInputControls');
+            }),
             resetPlaybackChips: vi.fn(),
             resetVmInputControls: vi.fn(),
+            setVmControlBaselineSnapshot: vi.fn(() => {
+                loadOrder.push('setVmControlBaselineSnapshot');
+            }),
             showError: vi.fn(),
             syncArtboardStateAfterLoad: vi.fn(),
             syncArtboardStateFromConfig: vi.fn(),
@@ -92,7 +100,14 @@ describe('rive/instance-controller', () => {
             windowRef: window,
         });
 
-        await controller.loadRiveAnimation('blob:demo', 'demo.riv');
+        await controller.loadRiveAnimation('blob:demo', 'demo.riv', {
+            beforeUserOnLoad: () => {
+                loadOrder.push('beforeUserOnLoad');
+            },
+            onLoaded: () => {
+                loadOrder.push('onLoaded');
+            },
+        });
 
         expect(callbacks.ensureRuntime).toHaveBeenCalledWith('webgl2');
         expect(capturedConfig).toEqual(expect.objectContaining({
@@ -106,6 +121,12 @@ describe('rive/instance-controller', () => {
             alignment: runtime.Alignment.TopLeft,
             fit: runtime.Fit.Contain,
         }));
+        expect(callbacks.syncArtboardStateFromConfig).toHaveBeenLastCalledWith({
+            animations: null,
+            artboard: undefined,
+            configuredStateMachines: ['DetectedSM'],
+            hasConfiguredAnimation: false,
+        });
         expect(controller.getRiveInstance()).toBe(instance);
         expect(window.riveInst).toBe(instance);
 
@@ -120,6 +141,13 @@ describe('rive/instance-controller', () => {
         expect(callbacks.updateInfo).toHaveBeenNthCalledWith(1, 'Loading demo.riv...');
         expect(callbacks.updateInfo).toHaveBeenNthCalledWith(2, 'Loaded: [SM] DetectedSM · [VM] VM');
         expect(userOnLoad).toHaveBeenCalled();
+        expect(loadOrder).toEqual([
+            'beforeUserOnLoad',
+            'userOnLoad',
+            'renderVmInputControls',
+            'setVmControlBaselineSnapshot',
+            'onLoaded',
+        ]);
 
         const riveEventListener = instance.on.mock.calls[0][1];
         riveEventListener({ data: { name: 'ButtonPressed' } });

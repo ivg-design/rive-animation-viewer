@@ -74,8 +74,15 @@ describe('rive/playback-controls', () => {
     });
 
     it('resets the animation with autoplay and restores VM controls', async () => {
+        const loadOrder = [];
         const callbacks = {
+            applyVmControlSnapshot: vi.fn(() => {
+                loadOrder.push('restoreVmControls');
+                return 2;
+            }),
             loadRiveAnimation: vi.fn(async (_url, _name, options) => {
+                options?.beforeUserOnLoad?.();
+                loadOrder.push('onLoaded');
                 options?.onLoaded?.();
             }),
         };
@@ -88,6 +95,7 @@ describe('rive/playback-controls', () => {
         }));
         expect(harness.callbacks.captureVmControlSnapshot).toHaveBeenCalled();
         expect(harness.callbacks.applyVmControlSnapshot).toHaveBeenCalledWith([{ id: 'speed' }]);
+        expect(loadOrder).toEqual(['restoreVmControls', 'onLoaded']);
         expect(harness.callbacks.logEvent).toHaveBeenCalledWith('ui', 'reset-complete', 'Animation restarted with autoplay (2 controls restored).');
     });
 

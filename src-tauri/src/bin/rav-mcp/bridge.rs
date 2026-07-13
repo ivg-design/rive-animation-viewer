@@ -37,6 +37,16 @@ impl Bridge {
     }
 
     pub async fn send_command(&self, command: &str, params: Value) -> Result<Value> {
+        self.send_command_with_timeout(command, params, self.command_timeout)
+            .await
+    }
+
+    pub async fn send_command_with_timeout(
+        &self,
+        command: &str,
+        params: Value,
+        command_timeout: Duration,
+    ) -> Result<Value> {
         let request_id = Uuid::new_v4().to_string();
         let (tx, rx) = oneshot::channel();
         let payload = json!({
@@ -58,7 +68,9 @@ impl Bridge {
                     let mut state = self.inner.lock().await;
                     state.pending.insert(
                         request_id.clone(),
-                        pending_tx.take().expect("pending sender should exist until dispatch"),
+                        pending_tx
+                            .take()
+                            .expect("pending sender should exist until dispatch"),
                     );
                     let send_result = sender.send(payload.to_string());
                     if send_result.is_err() {
@@ -81,7 +93,7 @@ impl Bridge {
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
 
-        match timeout(self.command_timeout, rx).await {
+        match timeout(command_timeout, rx).await {
             Ok(Ok(Ok(result))) => Ok(result),
             Ok(Ok(Err(message))) => Err(anyhow!(message)),
             Ok(Err(_)) => Err(anyhow!("RAV request channel closed unexpectedly")),
@@ -91,7 +103,7 @@ impl Bridge {
                 Err(anyhow!(
                     "Command \"{}\" timed out after {}ms",
                     command,
-                    self.command_timeout.as_millis()
+                    command_timeout.as_millis()
                 ))
             }
         }
@@ -204,7 +216,9 @@ impl Bridge {
                 let mut state = self.inner.lock().await;
                 let sender = state.app_sender.clone();
                 if sender.is_some() {
-                    state.pending_client_requests.insert(request_id.clone(), client_id);
+                    state
+                        .pending_client_requests
+                        .insert(request_id.clone(), client_id);
                 }
                 sender
             };
@@ -337,7 +351,10 @@ mod tests {
             }))
             .await;
 
-        let result = command_task.await.expect("task result").expect("command result");
+        let result = command_task
+            .await
+            .expect("task result")
+            .expect("command result");
         assert_eq!(result.get("ok"), Some(&Value::Bool(true)));
     }
 }

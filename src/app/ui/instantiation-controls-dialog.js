@@ -1,4 +1,4 @@
-import { controlSnapshotKeyForDescriptor } from '../rive/vm-controls.js';
+import { controlSelectionKeyForDescriptor } from '../rive/vm-controls.js';
 import {
     collectNodeInputKeys,
     renderControlHierarchyTree,
@@ -43,7 +43,7 @@ export function createInstantiationControlsDialogController({
     function getChangedControlKeySet() {
         return new Set(
             getChangedVmControlSnapshot()
-                .map((entry) => controlSnapshotKeyForDescriptor(entry?.descriptor))
+                .map((entry) => controlSelectionKeyForDescriptor(entry?.descriptor))
                 .filter(Boolean),
         );
     }
@@ -187,6 +187,7 @@ export function createInstantiationControlsDialogController({
         }
 
         const outputPath = await createDemoBundle({
+            packageSource: elements.instantiationPackageSourceSelect?.value === 'local' ? 'local' : 'cdn',
             snippetMode: getSnippetMode(),
             selectedControlKeys: getSelectedControlKeys() || [],
         });
@@ -231,6 +232,13 @@ export function createInstantiationControlsDialogController({
     }
 
     function setup() {
+        documentRef.addEventListener('rav:vm-topology-changed', () => {
+            if (!getDialog()?.open || !ensureDialogState()) {
+                return;
+            }
+            renderTree();
+            initLucideIcons();
+        });
         elements.instantiationControlsCloseButton?.addEventListener('click', () => {
             closeDialog();
         });

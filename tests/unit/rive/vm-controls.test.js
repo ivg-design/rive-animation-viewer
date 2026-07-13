@@ -1,12 +1,15 @@
 import {
     argbToColorMeta,
+    controlSelectionKeyForDescriptor,
     createVmControlsController,
+    formatVmListItemLabel,
     getVmAccessor,
     getVmListItemAt,
     getVmListLength,
     getStateMachineInputKind,
     hexToRgb,
     navigateToVmInstance,
+    normalizeControlSelectionKey,
     resolveVmRootInstance,
     safeVmMethodCall,
     rgbAlphaToArgb,
@@ -41,11 +44,20 @@ function createVmHarness() {
     const smBoolean = { name: 'armed', type: 1, value: true };
     const smTrigger = { name: 'Launch', type: 3, fire: vi.fn() };
 
-    const listItem = {
+    const createListItem = (numberAccessor) => ({
         number(name) {
-            return name === 'speed' ? listNumber : null;
+            return name === 'speed' ? numberAccessor : null;
         },
         properties: [{ name: 'speed' }],
+    });
+    const listItems = [createListItem(listNumber)];
+    const listAccessor = {
+        instanceAt(index) {
+            return listItems[index] || null;
+        },
+        get length() {
+            return listItems.length;
+        },
     };
 
     const rootVm = {
@@ -56,12 +68,7 @@ function createVmHarness() {
             return name === 'mode' ? rootEnum : null;
         },
         list(name) {
-            return name === 'items' ? {
-                instanceAt(index) {
-                    return index === 0 ? listItem : null;
-                },
-                length: 1,
-            } : null;
+            return name === 'items' ? listAccessor : null;
         },
         name: 'Root VM',
         number(name) {
@@ -150,6 +157,12 @@ function createVmHarness() {
         controller,
         elements,
         intervals,
+        list: {
+            createItem(value) {
+                return createListItem({ value });
+            },
+            items: listItems,
+        },
         riveInstance,
         triggers: {
             smTrigger,
@@ -159,6 +172,17 @@ function createVmHarness() {
 }
 
 describe('rive/vm-controls', () => {
+    it('normalizes repeated list controls into one family key and one-based label', () => {
+        expect(controlSelectionKeyForDescriptor({
+            kind: 'number',
+            path: 'rows/149/introY',
+        })).toBe('vm:rows/*/introY:number');
+        expect(normalizeControlSelectionKey('vm:rows/0/introY:number')).toBe('vm:rows/*/introY:number');
+        expect(normalizeControlSelectionKey('sm:Main:armed:boolean')).toBe('sm:Main:armed:boolean');
+        expect(formatVmListItemLabel('rows', 0)).toBe('Row 1');
+        expect(formatVmListItemLabel('playerEntries', 149)).toBe('Player Entry 150');
+    });
+
     it('resolves the VM root from the live instance or default view model', () => {
         const directInstance = { id: 'direct' };
         expect(resolveVmRootInstance({ viewModelInstance: directInstance })).toBe(directInstance);
@@ -411,6 +435,191 @@ describe('rive/vm-controls', () => {
         expect(harness.elements.vmControlsCount.textContent).toBe('0');
         expect(harness.elements.vmControlsEmpty.textContent).toBe('No animation loaded.');
         expect(harness.clearIntervalFn).toHaveBeenCalledWith('timer-1');
+    });
+
+    it('rerenders only when mutable list topology changes and keeps scalar sync active', () => {
+        const harness = createVmHarness();
+        harness.controller.renderVmInputControls();
+
+        const findNumberInput = (path) => Array.from(harness.elements.vmControlsTree.querySelectorAll('.vm-control-row'))
+            .find((row) => row.querySelector('.vm-control-label')?.title === path)
+            ?.querySelector('input[type="number"]');
+
+        const originalCountInput = findNumberInput('count');
+        expect(originalCountInput).toBeTruthy();
+        expect(harness.callbacks.initLucideIcons).toHaveBeenCalledTimes(1);
+
+        harness.accessors.rootNumber.value = 42;
+        harness.intervals[0].callback();
+
+        expect(findNumberInput('count')).toBe(originalCountInput);
+        expect(originalCountInput.value).toBe('42');
+        expect(harness.callbacks.initLucideIcons).toHaveBeenCalledTimes(1);
+        expect(harness.controller.syncVmControlTopology()).toBe(false);
+
+        harness.list.items.push(harness.list.createItem(24));
+        expect(harness.controller.syncVmControlTopology()).toBe(true);
+
+        expect(harness.elements.vmControlsCount.textContent).toBe('10');
+        expect(harness.elements.vmControlsTree.textContent).toContain('items [2]');
+        expect(harness.elements.vmControlsTree.textContent).toContain('Item 1');
+        expect(harness.elements.vmControlsTree.textContent).toContain('Item 2');
+        expect(findNumberInput('items/1/speed').value).toBe('24');
+        expect(harness.callbacks.initLucideIcons).toHaveBeenCalledTimes(2);
+        expect(harness.intervals).toHaveLength(1);
+
+        harness.list.items.splice(0, harness.list.items.length);
+        harness.intervals[0].callback();
+
+        expect(harness.elements.vmControlsCount.textContent).toBe('8');
+        expect(harness.elements.vmControlsTree.textContent).not.toContain('items [');
+        expect(harness.intervals).toHaveLength(1);
+
+        harness.list.items.push(harness.list.createItem(7));
+        harness.intervals[0].callback();
+
+        expect(harness.elements.vmControlsCount.textContent).toBe('9');
+        expect(harness.elements.vmControlsTree.textContent).toContain('items [1]');
+        expect(findNumberInput('items/0/speed').value).toBe('7');
+    });
+
+    it('polls an empty list with no scalar bindings and discovers items as they become available', () => {
+        const elements = createVmElements();
+        const intervals = [];
+        const clearIntervalFn = vi.fn();
+        const listItems = [];
+        let listLength = 0;
+        const listAccessor = {
+            instanceAt(index) {
+                return listItems[index] || null;
+            },
+            get length() {
+                return listLength;
+            },
+        };
+        const rootVm = {
+            list(name) {
+                return name === 'items' ? listAccessor : null;
+            },
+            properties: [{ name: 'items' }],
+        };
+        const callbacks = {
+            initLucideIcons: vi.fn(),
+            logEvent: vi.fn(),
+        };
+        const controller = createVmControlsController({
+            callbacks,
+            clearIntervalFn,
+            elements,
+            getRiveInstance: () => ({
+                stateMachineNames: [],
+                viewModelInstance: rootVm,
+            }),
+            setIntervalFn: vi.fn((callback, delay) => {
+                intervals.push({ callback, delay });
+                return `empty-list-timer-${intervals.length}`;
+            }),
+        });
+
+        controller.renderVmInputControls();
+
+        expect(elements.vmControlsCount.textContent).toBe('0');
+        expect(elements.vmControlsEmpty.hidden).toBe(false);
+        expect(intervals).toHaveLength(1);
+        expect(clearIntervalFn).not.toHaveBeenCalled();
+
+        listLength = 1;
+        intervals[0].callback();
+        expect(elements.vmControlsCount.textContent).toBe('0');
+        expect(intervals).toHaveLength(1);
+
+        listItems.push({
+            number(name) {
+                return name === 'value' ? { value: 15 } : null;
+            },
+            properties: [{ name: 'value' }],
+        });
+        intervals[0].callback();
+
+        expect(elements.vmControlsCount.textContent).toBe('1');
+        expect(elements.vmControlsEmpty.hidden).toBe(true);
+        expect(elements.vmControlsTree.textContent).toContain('items [1]');
+        expect(elements.vmControlsTree.textContent).toContain('value (number)');
+        expect(callbacks.initLucideIcons).toHaveBeenCalledTimes(1);
+
+        listItems.length = 0;
+        listLength = 0;
+        intervals[0].callback();
+
+        expect(elements.vmControlsCount.textContent).toBe('0');
+        expect(elements.vmControlsEmpty.hidden).toBe(false);
+        expect(clearIntervalFn).not.toHaveBeenCalled();
+
+        listItems.push({
+            string(name) {
+                return name === 'label' ? { value: 'restored' } : null;
+            },
+            properties: [{ name: 'label' }],
+        });
+        listLength = 1;
+        intervals[0].callback();
+
+        expect(elements.vmControlsCount.textContent).toBe('1');
+        expect(elements.vmControlsTree.textContent).toContain('label (string)');
+    });
+
+    it('retries unresolved snapshot rows once list instances appear', () => {
+        const harness = createVmHarness();
+        harness.controller.renderVmInputControls();
+        harness.controller.setVmControlBaselineSnapshot();
+
+        const restored = harness.controller.applyVmControlSnapshot([
+            {
+                descriptor: { kind: 'number', name: 'count', path: 'count' },
+                kind: 'number',
+                value: 9,
+            },
+            {
+                descriptor: { kind: 'number', name: 'speed', path: 'items/1/speed' },
+                kind: 'number',
+                value: 88,
+            },
+        ]);
+
+        expect(restored).toBe(1);
+        expect(harness.accessors.rootNumber.value).toBe(9);
+
+        const delayedItem = harness.list.createItem(0);
+        harness.list.items.push(delayedItem);
+        harness.intervals[0].callback();
+
+        expect(delayedItem.number('speed').value).toBe(88);
+        expect(harness.controller.getChangedVmControlSnapshot()).toEqual([
+            expect.objectContaining({
+                descriptor: expect.objectContaining({ path: 'count' }),
+                value: 9,
+            }),
+        ]);
+    });
+
+    it('does not report snapshot writes against an unbound default ViewModel instance', () => {
+        const harness = createVmHarness();
+        const boundRoot = harness.riveInstance.viewModelInstance;
+        harness.riveInstance.defaultViewModel = () => ({ defaultInstance: () => boundRoot });
+        harness.riveInstance.viewModelInstance = null;
+
+        const snapshot = [{
+            descriptor: { kind: 'number', name: 'count', path: 'count' },
+            kind: 'number',
+            value: 77,
+        }];
+
+        expect(harness.controller.applyVmControlSnapshot(snapshot)).toBe(0);
+        expect(harness.accessors.rootNumber.value).not.toBe(77);
+
+        harness.riveInstance.viewModelInstance = boundRoot;
+        expect(harness.controller.applyVmControlSnapshot(snapshot)).toBe(1);
+        expect(harness.accessors.rootNumber.value).toBe(77);
     });
 
     it('shows the empty state when no writable controls are available', () => {

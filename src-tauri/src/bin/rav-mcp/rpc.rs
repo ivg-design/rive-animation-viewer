@@ -1,7 +1,10 @@
 use serde_json::{json, Value};
+use std::time::Duration;
 
 use crate::bridge::Bridge;
-use crate::support::constants::{DEFAULT_PROTOCOL_VERSION, SERVER_NAME, SERVER_VERSION};
+use crate::support::constants::{
+    DEFAULT_PROTOCOL_VERSION, FILE_OPEN_COMMAND_TIMEOUT_MS, SERVER_NAME, SERVER_VERSION,
+};
 use crate::support::instructions::SERVER_INSTRUCTIONS;
 use crate::tool_registry::tools_list;
 
@@ -76,9 +79,24 @@ pub async fn handle_request(bridge: &Bridge, request: Value) -> Value {
             let Some(name) = params.get("name").and_then(Value::as_str) else {
                 return jsonrpc_error(id, -32602, "Missing tool name");
             };
-            let arguments = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
+            let arguments = params
+                .get("arguments")
+                .cloned()
+                .unwrap_or_else(|| json!({}));
 
-            match bridge.send_command(name, arguments).await {
+            let command_result = if name == "rav_open_file" {
+                bridge
+                    .send_command_with_timeout(
+                        name,
+                        arguments,
+                        Duration::from_millis(FILE_OPEN_COMMAND_TIMEOUT_MS),
+                    )
+                    .await
+            } else {
+                bridge.send_command(name, arguments).await
+            };
+
+            match command_result {
                 Ok(result) => {
                     let text = if let Some(text) = result.as_str() {
                         text.to_string()

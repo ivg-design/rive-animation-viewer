@@ -6,10 +6,11 @@ export function updateMcpStatusChip(chip, state) {
     const normalizedState = state === 'connected' ? 'idle' : state;
     chip.dataset.mcpState = normalizedState;
     const labels = {
-        active: 'MCP: connected and actively handling agent commands (click to disable)',
-        idle: 'MCP: connected and idle (click to disable)',
+        active: 'MCP: agent commands received within the last 30 seconds (click to disable)',
+        error: 'MCP: bridge connection failed; retrying (click to disable)',
+        idle: 'MCP: ready for agent connections (click to disable)',
         off: 'MCP: disabled (click to enable)',
-        waiting: 'MCP: waiting for bridge connection (click to disable)',
+        waiting: 'MCP: connecting to the bridge (click to disable)',
     };
     chip.title = labels[normalizedState] || labels.off;
 }
@@ -150,7 +151,7 @@ export function createGlobalBindingsController({
             elements.mcpStatusChip,
             windowRef._mcpBridge?.indicatorState || windowRef._mcpBridge?.state || 'off',
         );
-        windowRef._mcpExportDemoToPath = async (outputPath) => exportDemoToPath(outputPath);
+        windowRef._mcpExportDemoToPath = async (outputPath, options) => exportDemoToPath(outputPath, options);
         windowRef._mcpGenerateWebInstantiationCode = async (packageSource, snippetMode) => getGenerateWebInstantiationCode(packageSource, snippetMode);
         windowRef._mcpSwitchArtboard = switchArtboard;
         windowRef._mcpResetArtboard = resetToDefaultArtboard;
@@ -180,7 +181,7 @@ export function createGlobalBindingsController({
                 return;
             }
 
-            if ((bridgeState === 'waiting' || bridgeState === 'connected' || bridgeState === 'idle' || bridgeState === 'active') && typeof bridge?.disable === 'function') {
+            if ((bridgeState === 'waiting' || bridgeState === 'error' || bridgeState === 'connected' || bridgeState === 'idle' || bridgeState === 'active') && typeof bridge?.disable === 'function') {
                 void bridge.disable();
                 return;
             }

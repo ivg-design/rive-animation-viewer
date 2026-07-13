@@ -77,7 +77,7 @@ Once connected, Claude has access to all RAV tools. Try:
 - "Pause the animation"
 - "Generate the live web instantiation snippet for CDN usage"
 
-## Available Tools (32)
+## Available Tools (36)
 
 | Tool | Description |
 |------|-------------|
@@ -102,6 +102,7 @@ Once connected, Claude has access to all RAV tools. Try:
 | `rav_set_canvas_color` | Set background color |
 | `rav_set_canvas_size` | Set canvas sizing mode plus explicit pixel width/height and optional aspect lock |
 | `rav_export_demo` | Export standalone HTML demo |
+| `rav_export_demo_visual` | Drive the visible export dialog with exact control selection, package source, snippet mode, and output path |
 | `generate_web_instantiation_code` | Generate the canonical live web snippet for `local` or `cdn` usage, with `window.ravRive` helpers and current control values. Preferred over hand-writing snippets from scratch. |
 | `rav_toggle_instantiation_controls_dialog` | Open/close the in-app Snippet & Export Controls dialog so a human can curate which controls are serialized |
 | `rav_configure_workspace` | Set left/right sidebar visibility, live source mode, and VM Explorer snippet presence in one idempotent call |
@@ -109,6 +110,7 @@ Once connected, Claude has access to all RAV tools. Try:
 | `rav_set_sm_input` | Set state machine input value |
 | `rav_eval` | Evaluate JS in RAV's browser context (`Script Access` required) |
 | `rav_console_open` / `rav_console_close` | Toggle the JS console panel |
+| `rav_console_set_mode` / `rav_console_set_filter` / `rav_console_clear` | Switch console mode, mirror visible filters, and clear the active transcript |
 | `rav_console_read` / `rav_console_exec` | Read the JS console transcript or run REPL code (`rav_console_exec` requires `Script Access`). Transcript includes REPL input/result rows plus captured `console.*` output. |
 
 ## Live Instantiation Semantics
@@ -116,6 +118,7 @@ Once connected, Claude has access to all RAV tools. Try:
 - RAV can be running in `internal` mode or `editor` mode.
 - `rav_apply_code` switches the live instance to the last applied editor config.
 - `rav_status` reports the active canvas sizing state, and `rav_set_canvas_size` can switch between auto sizing and fixed explicit pixels.
+- ViewModel paths are slash-separated. Dynamic list items use a zero-based live index such as `rows/0/playerName`; call `rav_get_vm_tree` again after the controlling count changes before addressing newly added or removed rows.
 - Unsaved editor draft changes do not affect the running animation until applied.
 - `generate_web_instantiation_code` always reflects the currently running live mode.
 - `generate_web_instantiation_code` defaults to the CDN form unless you request `package_source: "local"`.

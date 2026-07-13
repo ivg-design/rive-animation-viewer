@@ -133,9 +133,11 @@ export function createAppLifecycle({
                 };
 
                 loadRiveAnimation(currentFileUrl, currentFileName, {
+                    beforeUserOnLoad: () => {
+                        restoredControls = applyVmControlSnapshot(viewModelSnapshot);
+                    },
                     configOverrides,
                     onLoaded: () => {
-                        restoredControls = applyVmControlSnapshot(viewModelSnapshot);
                         if (!wasPlaying) {
                             getRiveInstance()?.pause?.();
                         }

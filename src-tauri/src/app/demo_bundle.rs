@@ -75,8 +75,9 @@ pub async fn make_demo_bundle_to_path(
     }
     let path = std::path::PathBuf::from(&output_path);
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)
-            .map_err(|error| format!("Failed to create directory {}: {}", parent.display(), error))?;
+        fs::create_dir_all(parent).map_err(|error| {
+            format!("Failed to create directory {}: {}", parent.display(), error)
+        })?;
     }
     let html = build_demo_html(&payload).map_err(|error| error.to_string())?;
     fs::write(&path, html).map_err(|error| error.to_string())?;
@@ -97,6 +98,11 @@ pub fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json
       "runtimeVersion": payload.runtime_version,
       "animationBase64": payload.animation_base64,
       "autoplay": payload.autoplay,
+      "controlSelectionKeys": payload
+        .control_selection_keys
+        .as_deref()
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+        .unwrap_or(serde_json::Value::Null),
       "controlSnapshot": payload
         .control_snapshot
         .as_deref()
@@ -135,7 +141,8 @@ pub fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json
             "aspectRatio": 1280.0 / 720.0
         })),
       "canvasTransparent": payload.canvas_transparent,
-      "layoutState": layout_state
+      "layoutState": layout_state,
+      "viewModelInstanceName": payload.view_model_instance_name
     });
     let config_json = serde_json::to_string(&config)?;
     let escaped_config = escape_embedded_script_json(&config_json);
@@ -151,7 +158,11 @@ pub fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json
         "data:image/png;base64,{}",
         STANDARD.encode(include_bytes!("../../icons/128x128.png"))
     );
-    let vm_hierarchy_json = payload.vm_hierarchy.as_deref().unwrap_or("null").to_string();
+    let vm_hierarchy_json = payload
+        .vm_hierarchy
+        .as_deref()
+        .unwrap_or("null")
+        .to_string();
     let escaped_vm_hierarchy = escape_embedded_script_json(&vm_hierarchy_json);
     let title = format!("{} – Rive Demo", payload.file_name);
 
@@ -202,6 +213,7 @@ mod tests {
             canvas_color: Some("#0d1117".into()),
             canvas_sizing: None,
             canvas_transparent: false,
+            control_selection_keys: Some(r#"["vm:root/value:number"]"#.into()),
             control_snapshot: Some(r#"[{"descriptor":{"path":"root/value","kind":"number"},"kind":"number","value":42}]"#.into()),
             default_instantiation_package_source: "cdn".into(),
             file_name: "demo.riv".into(),
@@ -215,6 +227,7 @@ mod tests {
             runtime_script: "console.log('runtime');".into(),
             runtime_version: Some("2.36.0".into()),
             state_machines: vec!["main-sm".into()],
+            view_model_instance_name: Some("Preview".into()),
             vm_hierarchy: Some(r#"{"label":"root","text":"</script>"}"#.into()),
         };
 
@@ -225,7 +238,13 @@ mod tests {
         assert!(html.contains("const VM_HIERARCHY = JSON.parse('"));
         assert!(html.contains("defaultInstantiationPackageSource"));
         assert!(html.contains("instantiationSnippets"));
+        assert!(html.contains("controlSelectionKeys"));
         assert!(html.contains("controlSnapshot"));
+        assert!(html.contains("\"viewModelInstanceName\":\"Preview\""));
+        assert!(
+            html.contains("bindViewModelInstanceByKey(riveInstance, CONFIG.viewModelInstanceName)")
+        );
+        assert!(html.contains("autoBind: !CONFIG.viewModelInstanceName"));
     }
 
     #[test]
@@ -238,11 +257,14 @@ mod tests {
             canvas_color: Some("#0d1117".into()),
             canvas_sizing: None,
             canvas_transparent: false,
+            control_selection_keys: None,
             control_snapshot: None,
             default_instantiation_package_source: "cdn".into(),
             file_name: "demo.riv".into(),
             instantiation_code: "console.log('snippet');".into(),
-            instantiation_snippets: Some(r#"{"cdn":"console.log('cdn');","local":"console.log('local');"}"#.into()),
+            instantiation_snippets: Some(
+                r#"{"cdn":"console.log('cdn');","local":"console.log('local');"}"#.into(),
+            ),
             instantiation_source_mode: "internal".into(),
             layout_alignment: "center".into(),
             layout_fit: "contain".into(),
@@ -251,12 +273,14 @@ mod tests {
             runtime_script: "console.log('runtime');".into(),
             runtime_version: Some("2.37.0".into()),
             state_machines: vec!["main-sm".into()],
+            view_model_instance_name: None,
             vm_hierarchy: None,
         };
 
         let html = build_demo_html(&payload).expect("demo html");
 
         assert!(html.contains("function updateCanvasBackground()"));
+        assert!(html.contains("\"controlSelectionKeys\":null"));
         assert!(html.contains("id=\"copy-instantiation-btn\""));
         assert!(html.contains("id=\"fullscreen-toggle-btn\""));
         assert!(html.contains("id=\"event-log-toggle-btn\""));

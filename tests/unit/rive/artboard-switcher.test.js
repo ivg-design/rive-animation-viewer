@@ -2,6 +2,7 @@ import {
     createArtboardSwitcherController,
     parsePlaybackTarget,
 } from '../../../src/app/rive/artboard-switcher.js';
+import { AUTO_BOUND_VM_INSTANCE_KEY } from '../../../src/app/rive/view-model/instances.js';
 
 function createElements() {
     const artboardSwitcher = document.createElement('div');
@@ -40,7 +41,10 @@ function createHarness(overrides = {}) {
 
     const callbacks = {
         initLucideIcons: vi.fn(),
-        loadRiveAnimation: vi.fn().mockResolvedValue(undefined),
+        loadRiveAnimation: vi.fn(async (_url, _name, options) => {
+            options?.beforeUserOnLoad?.();
+            options?.onLoaded?.();
+        }),
         logEvent: vi.fn(),
         renderVmInputControls: vi.fn(),
         showError: vi.fn(),
@@ -167,7 +171,53 @@ describe('rive/artboard-switcher', () => {
         });
     });
 
-    it('can reset and switch view model instances', () => {
+    it('reconciles active playback without replacing the runtime auto-bound ViewModel instance', () => {
+        const elements = createElements();
+        const harness = createHarness({ elements });
+        const board = { name: 'Board' };
+        const bindViewModelInstance = vi.fn();
+        const instance = {
+            artboard: { name: 'Leaderboard' },
+            bindViewModelInstance,
+            defaultViewModel: () => ({
+                instanceByName: (name) => (name === 'Board' ? board : null),
+                instanceCount: 1,
+                instanceNames: ['Board'],
+                name: 'LeaderboardVM',
+            }),
+            playingAnimationNames: [],
+            playingStateMachineNames: ['State Machine 1'],
+            viewModelInstance: { name: null },
+        };
+        harness.setRiveInstance(instance);
+
+        harness.controller.syncStateAfterLoad(instance, { stateMachines: ['Configured but inactive'] });
+
+        expect(bindViewModelInstance).not.toHaveBeenCalled();
+        expect(harness.controller.getStateSnapshot()).toMatchObject({
+            currentArtboard: 'Leaderboard',
+            currentPlaybackName: 'State Machine 1',
+            currentPlaybackType: 'stateMachine',
+            currentVmInstanceName: null,
+        });
+
+        instance.playingStateMachineNames = [];
+        instance.playingAnimationNames = ['Actually playing'];
+        harness.controller.syncStateAfterLoad(instance, { stateMachines: ['Configured but inactive'] });
+        expect(harness.controller.getStateSnapshot()).toMatchObject({
+            currentPlaybackName: 'Actually playing',
+            currentPlaybackType: 'animation',
+        });
+
+        instance.playingAnimationNames = [];
+        harness.controller.syncStateAfterLoad(instance, {});
+        expect(harness.controller.getStateSnapshot()).toMatchObject({
+            currentPlaybackName: null,
+            currentPlaybackType: null,
+        });
+    });
+
+    it('reloads with autoBind disabled before switching ViewModel instances', async () => {
         const elements = createElements();
         const harness = createHarness({ elements });
         const bindViewModelInstance = vi.fn();
@@ -187,13 +237,27 @@ describe('rive/artboard-switcher', () => {
         harness.controller.populateVmInstanceSelect();
         expect(elements.vmInstanceRow.hidden).toBe(false);
         expect(Array.from(elements.vmInstanceSelect.options).map((option) => option.value)).toEqual([
+            AUTO_BOUND_VM_INSTANCE_KEY,
             'Inspector',
             'Preview',
         ]);
+        expect(elements.vmInstanceSelect.value).toBe(AUTO_BOUND_VM_INSTANCE_KEY);
 
-        harness.controller.switchVmInstance('Inspector');
+        await harness.controller.switchVmInstance('Inspector');
+        expect(harness.callbacks.loadRiveAnimation).toHaveBeenCalledWith(
+            'blob:demo',
+            'demo.riv',
+            expect.objectContaining({
+                beforeUserOnLoad: expect.any(Function),
+                configOverrides: expect.objectContaining({
+                    autoBind: false,
+                    autoplay: true,
+                }),
+                forceAutoplay: true,
+            }),
+        );
         expect(bindViewModelInstance).toHaveBeenCalledWith({ name: 'Inspector' });
-        expect(harness.callbacks.renderVmInputControls).toHaveBeenCalled();
+        expect(harness.controller.getStateSnapshot().currentVmInstanceName).toBe('Inspector');
 
         harness.controller.resetForNewFile();
         expect(harness.controller.getStateSnapshot()).toMatchObject({
@@ -204,6 +268,56 @@ describe('rive/artboard-switcher', () => {
             defaultArtboard: null,
             defaultPlaybackKey: null,
         });
+    });
+
+    it('keeps a single default view model instance populated and visible', () => {
+        const elements = createElements();
+        const harness = createHarness({ elements });
+        harness.setRiveInstance({
+            defaultViewModel: () => ({
+                instanceCount: 1,
+                instanceNames: ['Board'],
+                name: 'LeaderboardVM',
+            }),
+            viewModelInstance: { name: 'Board' },
+        });
+
+        harness.controller.populateVmInstanceSelect();
+
+        expect(elements.vmInstanceRow.hidden).toBe(false);
+        expect(Array.from(elements.vmInstanceSelect.options).map((option) => ({
+            label: option.textContent,
+            value: option.value,
+        }))).toEqual([
+            { label: 'Board (auto)', value: AUTO_BOUND_VM_INSTANCE_KEY },
+            { label: 'Board', value: 'Board' },
+        ]);
+        expect(elements.vmInstanceSelect.value).toBe(AUTO_BOUND_VM_INSTANCE_KEY);
+        expect(harness.controller.getStateSnapshot().currentVmInstanceName).toBeNull();
+    });
+
+    it('shows a one-based label for a single unnamed view model instance', () => {
+        const elements = createElements();
+        const harness = createHarness({ elements });
+        harness.setRiveInstance({
+            defaultViewModel: () => ({
+                instanceCount: 1,
+                instanceNames: [],
+                name: 'AnonymousVM',
+            }),
+            viewModelInstance: { name: null },
+        });
+
+        harness.controller.populateVmInstanceSelect();
+
+        expect(elements.vmInstanceRow.hidden).toBe(false);
+        expect(Array.from(elements.vmInstanceSelect.options).map((option) => ({
+            label: option.textContent,
+            value: option.value,
+        }))).toEqual([
+            { label: 'Instance 1 (auto)', value: AUTO_BOUND_VM_INSTANCE_KEY },
+            { label: 'Instance 1', value: '0' },
+        ]);
     });
 
     it('hides the switcher when instance data is unavailable and resets with an error when no default exists', () => {
@@ -218,11 +332,16 @@ describe('rive/artboard-switcher', () => {
     });
 
     it('reverts switch state on load failure and supports numeric VM instance fallback', async () => {
-        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const showError = vi.fn();
+        const loadRiveAnimation = vi.fn(async (_url, _name, options) => {
+            options?.beforeUserOnLoad?.();
+            options?.onLoaded?.();
+        });
+        loadRiveAnimation.mockImplementationOnce(async (_url, _name, options) => {
+            options?.onLoadError?.(new Error('switch failed'));
+        });
         const callbacks = {
-            loadRiveAnimation: vi.fn(async (_url, _name, options) => {
-                options?.onLoadError?.(new Error('switch failed'));
-            }),
+            loadRiveAnimation,
         };
         const elements = createElements();
         const controller = createArtboardSwitcherController({
@@ -231,7 +350,7 @@ describe('rive/artboard-switcher', () => {
                 initLucideIcons: vi.fn(),
                 logEvent: vi.fn(),
                 renderVmInputControls: vi.fn(),
-                showError: vi.fn(),
+                showError,
                 updateInfo: vi.fn(),
             },
             elements,
@@ -277,10 +396,15 @@ describe('rive/artboard-switcher', () => {
         );
 
         controller.populateVmInstanceSelect();
-        expect(Array.from(elements.vmInstanceSelect.options).map((option) => option.value)).toEqual(['0', '1']);
-        controller.switchVmInstance('missing');
-        expect(warnSpy).toHaveBeenCalled();
-        warnSpy.mockRestore();
+        expect(Array.from(elements.vmInstanceSelect.options).map((option) => option.value)).toEqual([
+            AUTO_BOUND_VM_INSTANCE_KEY,
+            '0',
+            '1',
+        ]);
+        await controller.switchVmInstance('missing');
+        expect(showError).toHaveBeenCalledWith(
+            'Failed to switch ViewModel instance: ViewModel instance "missing" is unavailable.',
+        );
     });
 
     it('wires DOM events through setup and updates playback options on artboard changes', async () => {
@@ -332,7 +456,6 @@ describe('rive/artboard-switcher', () => {
 
         expect(harness.callbacks.loadRiveAnimation).toHaveBeenCalled();
         expect(bindViewModelInstance).toHaveBeenCalledWith({ name: 'Inspector' });
-        expect(harness.callbacks.renderVmInputControls).toHaveBeenCalled();
         expect(harness.callbacks.logEvent).toHaveBeenCalledWith(
             'ui',
             'artboard-reset',
@@ -422,7 +545,7 @@ describe('rive/artboard-switcher', () => {
         controller.populateArtboardSwitcher();
         controller.setupArtboardSwitcher();
         await expect(controller.switchArtboard('Only', 'sm:Main')).resolves.toBeUndefined();
-        controller.switchVmInstance('Inspector');
+        await controller.switchVmInstance('Inspector');
         controller.resetForNewFile();
         controller.resetToDefaultArtboard();
 

@@ -1,76 +1,115 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
+import { asset } from "@/lib/config";
 
+// Coordinates measured against the 1690 × 1260 hero image. Window itself sits inside
+// 80pt margins; layout segments documented at the source measurement pass.
 const hotspots = [
   {
-    id: "toolbar",
-    label: "Toolbar",
-    description: "Playback controls, renderer, fit mode, alignment, and FPS — all in one row.",
-    // Positioned over the toolbar area (percentages of iframe)
-    top: "5.5%", left: "25%", width: "50%", height: "5%",
-  },
-  {
-    id: "editor",
-    label: "Script Editor",
-    description: "Write JavaScript config objects to control artboard, state machines, callbacks, and canvas sizing. Apply to re-instantiate the runtime.",
-    top: "12%", left: "0%", width: "24%", height: "68%",
-  },
-  {
-    id: "canvas",
-    label: "Canvas",
-    description: "The animation viewport. Drop a .riv file here or use the OPEN button. Supports WebGL2 and Canvas renderers.",
-    top: "12%", left: "24%", width: "52%", height: "60%",
-  },
-  {
-    id: "properties",
-    label: "Properties",
-    description: "Auto-discovered ViewModel controls and state machine inputs. Switch artboards, select VM instances, and reset to defaults.",
-    top: "12%", left: "76%", width: "24%", height: "68%",
-  },
-  {
-    id: "console",
-    label: "Console",
-    description: "Event log or JavaScript REPL. Filter by source, search, follow latest entries, and copy the visible transcript.",
-    top: "73%", left: "0%", width: "76%", height: "20%",
-  },
-  {
-    id: "runtime-strip",
-    label: "Runtime Strip",
-    description: "MCP status, console toggle, runtime version, loaded file, and auto-update indicator.",
-    top: "93%", left: "0%", width: "100%", height: "4%",
+    id: "title-bar",
+    label: "Title Bar",
+    description: "Custom window chrome with the RAV brand. Minimize, maximize, and close controls on the right.",
+    top: "6.349%", left: "4.734%", width: "90.178%", height: "3.968%",
   },
   {
     id: "open-btn",
     label: "Open",
-    description: "Load any .riv file from disk. Also supports drag-and-drop onto the canvas.",
-    top: "5.5%", left: "5%", width: "8%", height: "5%",
+    description: "Load any .riv file from disk. Drag-and-drop onto the canvas works too.",
+    top: "10.317%", left: "4.734%", width: "16.450%", height: "4.762%",
+  },
+  {
+    id: "toolbar",
+    label: "Toolbar",
+    description: "Reset, play, pause, renderer (WebGL2 / Canvas), layout fit (contain / cover / fill / scaleDown / fitWidth / fitHeight / none / layout), alignment, and live FPS — all in one row.",
+    top: "10.317%", left: "23.817%", width: "52.012%", height: "4.603%",
   },
   {
     id: "export-btn",
-    label: "Export",
-    description: "Generate standalone HTML demos and copy-paste instantiation snippets with per-control selection.",
-    top: "5.5%", left: "80%", width: "9%", height: "5%",
+    label: "Export & Settings",
+    description: "EXPORT generates self-contained HTML demos and copy-paste instantiation snippets with per-control selection. The neighbouring icons cover settings and MCP setup.",
+    top: "10.317%", left: "78.698%", width: "16.213%", height: "4.127%",
+  },
+  {
+    id: "editor",
+    label: "Script Editor",
+    description: "CodeMirror panel for the Rive instantiation config — autoplay, autoBind, artboard, stateMachines, layout, canvasSize, and lifecycle callbacks. Press APPLY to re-instantiate the runtime. Live build / runtime info anchored at the bottom.",
+    top: "15.079%", left: "4.734%", width: "18.817%", height: "77.619%",
+  },
+  {
+    id: "canvas",
+    label: "Canvas",
+    description: "The animation viewport. Drop a .riv file here or hit OPEN. Renders via WebGL2 by default; switch to Canvas in the toolbar.",
+    top: "15.079%", left: "23.817%", width: "51.893%", height: "55.873%",
+  },
+  {
+    id: "runtime-info",
+    label: "Runtime Strip",
+    description: "MCP bridge health and recent-command activity, console toggle, runtime version label, and a structured status that restores after transient notices like canvas-size or runtime changes.",
+    top: "70.952%", left: "23.817%", width: "51.893%", height: "3.175%",
+  },
+  {
+    id: "console",
+    label: "Console Panel",
+    description: "Two modes — Events log and JS REPL — sharing the bottom panel. Filter Events by source (NATIVE / RIVE USER / UI / MCP), filter JS by level, search either, follow latest, copy visible rows. All four filter toggles are also drivable from MCP.",
+    top: "74.127%", left: "23.817%", width: "51.893%", height: "17.937%",
+  },
+  {
+    id: "properties",
+    label: "Properties",
+    description: "Auto-discovered ViewModel controls and state machine inputs for the loaded animation. Switch artboards, select VM instances, and reset to file defaults.",
+    top: "15.079%", left: "75.976%", width: "18.935%", height: "77.619%",
   },
 ];
 
+// When a hotspot's bottom is past 60% of the image, anchor the tooltip ABOVE
+// the hotspot (so it doesn't fall off the bottom of the page). Otherwise anchor
+// below (default). When a hotspot's right edge is past 65%, right-align the
+// tooltip so it doesn't overflow horizontally.
+function tooltipPosition(spot: typeof hotspots[number]) {
+  const top = parseFloat(spot.top);
+  const height = parseFloat(spot.height);
+  const left = parseFloat(spot.left);
+  const width = parseFloat(spot.width);
+
+  const bottom = top + height;
+  const right = left + width;
+
+  const placeAbove = bottom > 78;
+  const alignRight = right > 65;
+
+  return {
+    style: placeAbove
+      ? { bottom: `calc(100% - ${spot.top} + 8px)`, ...(alignRight ? { right: `${100 - right}%` } : { left: spot.left }) }
+      : { top: `calc(${spot.top} + ${spot.height} + 8px)`, ...(alignRight ? { right: `${100 - right}%` } : { left: spot.left }) },
+    alignRight,
+  };
+}
+
 export default function InteractiveDemo() {
   const [activeHotspot, setActiveHotspot] = useState<string | null>(null);
-  const active = hotspots.find(h => h.id === activeHotspot);
+  const active = hotspots.find((h) => h.id === activeHotspot);
 
   return (
     <div className="relative w-full max-w-[1100px] mx-auto">
-      {/* Iframe container */}
-      <div className="relative rounded-xl overflow-hidden border border-[var(--border-light)] shadow-2xl shadow-black/60 aspect-[1280/800]">
-        <iframe
-          src="http://localhost:1420"
-          className="absolute inset-0 w-full h-full border-0"
-          title="RAV Interactive Demo"
-          loading="lazy"
-          sandbox="allow-scripts allow-same-origin"
-        />
+      {/* Aspect-matched outer frame; overlays live here so tooltips can escape image clipping */}
+      <div className="relative aspect-[169/126]">
+        {/* Image clip container — only the image is clipped, NOT the overlays */}
+        <div className="absolute inset-0 rounded-xl overflow-hidden border border-[var(--border-light)] shadow-2xl shadow-black/60">
+          <Image
+            src={asset("/media/screenshots/hero-rav-window.webp")}
+            alt="Rive Animation Viewer — script editor on the left, canvas centre, properties on the right, console panel along the bottom"
+            fill
+            priority
+            sizes="(max-width: 1100px) 100vw, 1100px"
+            className="object-cover"
+          />
+          {/* Bottom fade — clipped with the image */}
+          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[var(--bg-void)] to-transparent pointer-events-none" />
+        </div>
 
-        {/* Hotspot overlay */}
+        {/* Hotspot layer — outside the clip, so highlights and tooltips can extend past the rounded corners if needed */}
         <div className="absolute inset-0 z-10">
           {hotspots.map((spot) => (
             <div
@@ -92,32 +131,27 @@ export default function InteractiveDemo() {
           ))}
         </div>
 
-        {/* Callout */}
-        {active && (
-          <div
-            className="absolute z-20 pointer-events-none animate-[fadeIn_150ms_ease-out]"
-            style={{
-              top: `calc(${active.top} + ${active.height})`,
-              left: active.left,
-              maxWidth: "320px",
-            }}
-          >
-            <div className="mt-2 p-3 rounded-lg bg-[var(--bg-zinc)]/95 backdrop-blur-sm border border-[var(--neon)]/30 shadow-xl shadow-black/50">
-              <p className="text-xs font-semibold text-[var(--neon)] mb-1 font-mono tracking-wider uppercase">
-                {active.label}
-              </p>
-              <p className="text-[13px] text-[var(--text-dim)] leading-relaxed">
-                {active.description}
-              </p>
+        {/* Tooltip — outside the clip, anchored above/below + left/right depending on hotspot position */}
+        {active && (() => {
+          const { style } = tooltipPosition(active);
+          return (
+            <div
+              className="absolute z-20 pointer-events-none animate-[fadeIn_150ms_ease-out]"
+              style={{ ...style, maxWidth: "320px" }}
+            >
+              <div className="p-3 rounded-lg bg-[var(--bg-zinc)]/95 backdrop-blur-sm border border-[var(--neon)]/30 shadow-xl shadow-black/50">
+                <p className="text-xs font-semibold text-[var(--neon)] mb-1 font-mono tracking-wider uppercase">
+                  {active.label}
+                </p>
+                <p className="text-[13px] text-[var(--text-dim)] leading-relaxed">
+                  {active.description}
+                </p>
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* Bottom fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[var(--bg-void)] to-transparent z-[5] pointer-events-none" />
+          );
+        })()}
       </div>
 
-      {/* Hint text */}
       <p className="text-center text-[11px] text-[var(--text-ghost)] mt-3 font-mono">
         Hover over any region to explore the interface
       </p>

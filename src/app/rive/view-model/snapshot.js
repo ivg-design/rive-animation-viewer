@@ -78,6 +78,92 @@ export function createVmSnapshotController({
     syncVmControlBindings,
 }) {
     let baselineVmControlSnapshot = [];
+    let pendingVmControlSnapshot = new Map();
+
+    function snapshotEntryKey(entry) {
+        return controlSnapshotKeyForDescriptor(entry?.descriptor);
+    }
+
+    function queueVmControlSnapshot(snapshot) {
+        pendingVmControlSnapshot = new Map();
+        if (!Array.isArray(snapshot)) {
+            return;
+        }
+        snapshot.forEach((entry) => {
+            const clonedEntry = cloneSnapshotEntry(entry);
+            const key = snapshotEntryKey(clonedEntry);
+            if (key && clonedEntry?.kind !== 'trigger') {
+                pendingVmControlSnapshot.set(key, clonedEntry);
+            }
+        });
+    }
+
+    function applySnapshotEntry(entry) {
+        const descriptor = entry?.descriptor;
+        const kind = entry?.kind || descriptor?.kind;
+        if (!descriptor || kind === 'trigger') {
+            return 'discarded';
+        }
+
+        if (descriptor.source !== 'state-machine' && !getRiveInstance()?.viewModelInstance) {
+            return 'pending';
+        }
+
+        const accessor = resolveControlAccessor(descriptor);
+        if (!accessor || !('value' in accessor)) {
+            return 'pending';
+        }
+
+        try {
+            if (kind === 'number') {
+                const nextValue = Number(entry.value);
+                if (!Number.isFinite(nextValue)) {
+                    return 'discarded';
+                }
+                accessor.value = nextValue;
+                return 'applied';
+            }
+            if (kind === 'boolean') {
+                accessor.value = Boolean(entry.value);
+                return 'applied';
+            }
+            if (kind === 'string' || kind === 'enum') {
+                accessor.value = typeof entry.value === 'string' ? entry.value : String(entry.value ?? '');
+                return 'applied';
+            }
+            if (kind === 'color') {
+                const numericColor = Number(entry.value);
+                if (!Number.isFinite(numericColor)) {
+                    return 'discarded';
+                }
+                accessor.value = numericColor >>> 0;
+                return 'applied';
+            }
+            return 'discarded';
+        } catch {
+            return 'pending';
+        }
+    }
+
+    function retryPendingVmControlSnapshot() {
+        if (!pendingVmControlSnapshot.size) {
+            return 0;
+        }
+        let applied = 0;
+        pendingVmControlSnapshot.forEach((entry, key) => {
+            const outcome = applySnapshotEntry(entry);
+            if (outcome !== 'pending') {
+                pendingVmControlSnapshot.delete(key);
+            }
+            if (outcome === 'applied') {
+                applied += 1;
+            }
+        });
+        if (applied > 0) {
+            syncVmControlBindings(true);
+        }
+        return applied;
+    }
 
     function captureVmControlSnapshot() {
         const bindings = getBindings();
@@ -153,6 +239,23 @@ export function createVmSnapshotController({
         return baselineVmControlSnapshot.length;
     }
 
+    function reconcileVmControlBaselineSnapshot(snapshot = captureVmControlSnapshot()) {
+        const baselineByKey = new Map();
+        baselineVmControlSnapshot.forEach((entry) => {
+            const key = snapshotEntryKey(entry);
+            if (key) {
+                baselineByKey.set(key, entry);
+            }
+        });
+        baselineVmControlSnapshot = Array.isArray(snapshot)
+            ? snapshot.map((entry) => {
+                const key = snapshotEntryKey(entry);
+                return cloneSnapshotEntry(baselineByKey.get(key) || entry);
+            }).filter(Boolean)
+            : [];
+        return baselineVmControlSnapshot.length;
+    }
+
     function getChangedVmControlSnapshot(snapshot = captureVmControlSnapshot()) {
         const currentSnapshot = Array.isArray(snapshot)
             ? snapshot.map(cloneSnapshotEntry).filter(Boolean)
@@ -184,55 +287,11 @@ export function createVmSnapshotController({
 
     function applyVmControlSnapshot(snapshot) {
         if (!Array.isArray(snapshot) || !snapshot.length) {
+            pendingVmControlSnapshot.clear();
             return 0;
         }
-
-        let applied = 0;
-        snapshot.forEach((entry) => {
-            const descriptor = entry?.descriptor;
-            const kind = entry?.kind || descriptor?.kind;
-            if (!descriptor || kind === 'trigger') {
-                return;
-            }
-
-            const accessor = resolveControlAccessor(descriptor);
-            if (!accessor || !('value' in accessor)) {
-                return;
-            }
-
-            try {
-                if (kind === 'number') {
-                    const nextValue = Number(entry.value);
-                    if (Number.isFinite(nextValue)) {
-                        accessor.value = nextValue;
-                        applied += 1;
-                    }
-                    return;
-                }
-                if (kind === 'boolean') {
-                    accessor.value = Boolean(entry.value);
-                    applied += 1;
-                    return;
-                }
-                if (kind === 'string' || kind === 'enum') {
-                    accessor.value = typeof entry.value === 'string' ? entry.value : String(entry.value ?? '');
-                    applied += 1;
-                    return;
-                }
-                if (kind === 'color') {
-                    const numericColor = Number(entry.value);
-                    if (Number.isFinite(numericColor)) {
-                        accessor.value = numericColor >>> 0;
-                        applied += 1;
-                    }
-                }
-            } catch {
-                /* noop */
-            }
-        });
-
-        syncVmControlBindings(true);
-        return applied;
+        queueVmControlSnapshot(snapshot);
+        return retryPendingVmControlSnapshot();
     }
 
     function serializeVmHierarchy() {
@@ -281,7 +340,12 @@ export function createVmSnapshotController({
     return {
         applyVmControlSnapshot,
         captureVmControlSnapshot,
+        clearPendingVmControlSnapshot: () => {
+            pendingVmControlSnapshot.clear();
+        },
         getChangedVmControlSnapshot,
+        reconcileVmControlBaselineSnapshot,
+        retryPendingVmControlSnapshot,
         serializeControlHierarchy,
         serializeVmHierarchy,
         setVmControlBaselineSnapshot,

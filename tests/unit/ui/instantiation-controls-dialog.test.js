@@ -53,10 +53,11 @@ function buildElements() {
 describe('ui/instantiation-controls-dialog', () => {
     it('defaults to changed controls, keeps select-all safe for values, and forwards the selected keys into snippet generation', async () => {
         const elements = buildElements();
+        const createDemoBundle = vi.fn().mockResolvedValue('/tmp/demo.html');
         const generateWebInstantiationCode = vi.fn().mockResolvedValue({ code: '<script>demo</script>' });
         const controller = createInstantiationControlsDialogController({
             callbacks: {
-                createDemoBundle: vi.fn(),
+                createDemoBundle,
                 generateWebInstantiationCode,
                 getCurrentFileName: () => 'demo.riv',
                 getTauriInvoker: () => vi.fn(),
@@ -153,6 +154,72 @@ describe('ui/instantiation-controls-dialog', () => {
             'vm:card/reset:trigger',
         ]);
         expect(elements.instantiationPreviewOutput.textContent).toContain('<script>demo</script>');
+
+        elements.instantiationPackageSourceSelect.value = 'local';
+        elements.instantiationDialogExportButton.click();
+        await vi.waitFor(() => {
+            expect(createDemoBundle).toHaveBeenCalled();
+        });
+        expect(createDemoBundle).toHaveBeenCalledWith({
+            packageSource: 'local',
+            selectedControlKeys: [
+                'vm:card/progress:number',
+                'sm:Main:armed:boolean',
+                'vm:card/reset:trigger',
+            ],
+            snippetMode: 'scaffold',
+        });
+    });
+
+    it('treats repeated list-item controls as one dynamic field selection', async () => {
+        const elements = buildElements();
+        const listInput = (index) => ({
+            descriptor: {
+                kind: 'number',
+                name: 'introY',
+                path: `rows/${index}/introY`,
+            },
+            kind: 'number',
+            name: 'introY',
+            path: `rows/${index}/introY`,
+        });
+        const controller = createInstantiationControlsDialogController({
+            callbacks: {
+                getCurrentFileName: () => 'leaderboard.riv',
+                getTauriInvoker: () => vi.fn(),
+                initLucideIcons: vi.fn(),
+            },
+            elements,
+            getChangedVmControlSnapshot: () => [{
+                ...listInput(0),
+                value: 0,
+            }],
+            serializeControlHierarchy: () => ({
+                children: [{
+                    children: [
+                        { children: [], inputs: [listInput(0)], kind: 'instance', label: 'Row 1', path: 'rows/0' },
+                        { children: [], inputs: [listInput(1)], kind: 'instance', label: 'Row 2', path: 'rows/1' },
+                    ],
+                    inputs: [],
+                    kind: 'list',
+                    label: 'rows [2]',
+                    path: 'rows',
+                }],
+                inputs: [],
+                kind: 'controls',
+                label: 'Controls',
+                path: '__controls__',
+            }),
+        });
+
+        controller.setup();
+        await controller.openDialog();
+
+        expect(controller.getSelectedControlKeys()).toEqual(['vm:rows/*/introY:number']);
+        expect(elements.instantiationSelectionSummary.textContent).toContain('1 of 1');
+        const itemCheckboxes = Array.from(elements.instantiationControlsTree.querySelectorAll('[data-control-key]'));
+        expect(itemCheckboxes).toHaveLength(2);
+        expect(itemCheckboxes.every((checkbox) => checkbox.checked)).toBe(true);
     });
 
     it('keeps nested branches open when toggling child checkboxes', async () => {
@@ -219,5 +286,45 @@ describe('ui/instantiation-controls-dialog', () => {
 
         const [, childDetailsAfterToggle] = detailsNodes();
         expect(childDetailsAfterToggle.open).toBe(true);
+    });
+
+    it('refreshes an open selection tree when the live ViewModel list topology changes', async () => {
+        const elements = buildElements();
+        const inputs = [{
+            descriptor: { kind: 'number', name: 'count', path: 'count' },
+            kind: 'number',
+            name: 'count',
+            path: 'count',
+        }];
+        const controller = createInstantiationControlsDialogController({
+            callbacks: {
+                getCurrentFileName: () => 'dynamic.riv',
+                getTauriInvoker: () => vi.fn(),
+                initLucideIcons: vi.fn(),
+            },
+            elements,
+            serializeControlHierarchy: () => ({
+                children: [{ children: [], inputs: [...inputs], kind: 'vm', label: 'Root', path: '' }],
+                inputs: [],
+                kind: 'controls',
+                label: 'Controls',
+                path: '__controls__',
+            }),
+        });
+
+        controller.setup();
+        await controller.openDialog();
+        expect(elements.instantiationControlsTree.textContent).toContain('count (number)');
+
+        inputs.push({
+            descriptor: { kind: 'string', name: 'playerName', path: 'rows/0/playerName' },
+            kind: 'string',
+            name: 'playerName',
+            path: 'rows/0/playerName',
+        });
+        document.dispatchEvent(new CustomEvent('rav:vm-topology-changed'));
+
+        expect(elements.instantiationControlsTree.textContent).toContain('playerName (string)');
+        expect(elements.instantiationSelectionSummary.textContent).toContain('0 of 2');
     });
 });

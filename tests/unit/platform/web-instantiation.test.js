@@ -16,6 +16,7 @@ describe('platform/web-instantiation', () => {
                 currentArtboard: 'Portrait',
                 currentPlaybackName: 'main-sm',
                 currentPlaybackType: 'stateMachine',
+                currentVmInstanceName: 'Preview',
             },
             editorConfig: {
                 animations: 'idle',
@@ -35,6 +36,7 @@ describe('platform/web-instantiation', () => {
                 currentArtboard: 'Portrait',
                 currentPlaybackName: 'main-sm',
                 currentPlaybackType: 'stateMachine',
+                currentVmInstanceName: 'Preview',
             },
             currentCanvasSizing: {
                 mode: 'fixed',
@@ -64,12 +66,14 @@ describe('platform/web-instantiation', () => {
 
         expect(descriptor).toEqual(expect.objectContaining({
             artboard: 'Portrait',
+            autoBind: false,
             autoplay: false,
             layoutAlignment: 'topLeft',
             layoutFit: 'cover',
             runtimePackageName: '@rive-app/webgl2',
             sourceMode: 'editor',
             stateMachines: ['main-sm'],
+            viewModelInstanceName: 'Preview',
         }));
 
         const code = generateWebInstantiationCode(descriptor, {
@@ -127,13 +131,23 @@ describe('platform/web-instantiation', () => {
         expect(code).toContain('const rawUserConfig = (');
         expect(code).toContain('const { canvasSize: _ignoredCanvasSize, ...userConfig } = rawUserConfig || {};');
         expect(code).toContain('...userConfig,');
-        expect(code).toContain('ravRive.applySnapshot();');
+        expect(code).toContain('ravRive.runOnLoad(() => userConfig.onLoad?.(...args));');
+        expect(code).toContain('retryPendingSnapshot()');
+        expect(code).toContain('ravRive.retryPendingSnapshotOnAdvance();');
+        expect(code).toContain('return instance?.viewModelInstance || null;');
+        expect(code).not.toContain('defaultViewModel.defaultInstance');
         expect(code).toContain('fit: rive.Fit.Cover');
         expect(code).toContain('alignment: rive.Alignment.TopLeft');
         expect(code).toContain('onLoadError: (error, ...args) => {');
         expect(code).toContain('console.error("Rive load error:", error, ...args);');
         expect(code).toContain('userConfig.onLoadError?.(error, ...args);');
         expect(code).toContain('stateMachines: "main-sm"');
+        expect(code).toContain('autoBind: false,');
+        expect(code).not.toContain('autoBind: userConfig.autoBind');
+        expect(code).toContain('function bindRavViewModelInstance(instance, instanceKey)');
+        expect(code).toContain('bindRavViewModelInstance(riveInst, "Preview");');
+        expect(code.indexOf('bindRavViewModelInstance(riveInst, "Preview");'))
+            .toBeLessThan(code.indexOf('ravRive.runOnLoad(() => userConfig.onLoad?.(...args));'));
         expect(code).toContain('canvas.style.background = "#112233";');
         expect(code).toContain('const VM_OVERRIDES = {');
         expect(code).toContain('"card-vm/chart-picker": "bar", // enum: bar | line | area');
@@ -147,7 +161,7 @@ describe('platform/web-instantiation', () => {
         expect(code).toContain('function getRavStateMachineInputKind(input) {');
         expect(code).toContain('if (typeof input.fire === "function" && !(\"value\" in input)) return "trigger";');
         expect(code).toContain('return getRavStateMachineInputKind(input) === "trigger";');
-        expect(code).toContain('Snapshot restores value-like overrides only. Triggers remain manual.');
+        expect(code).toContain('let pendingVmOverrides = new Map();');
         expect(code).not.toContain('applied += fireRavStartupTriggers(instance);');
         expect(code).not.toContain('fireStartupTriggers()');
     });
@@ -158,6 +172,7 @@ describe('platform/web-instantiation', () => {
                 currentArtboard: 'Main',
                 currentPlaybackName: 'idle',
                 currentPlaybackType: 'animation',
+                currentVmInstanceName: 'Board',
             },
             currentFileName: 'monthly_reports.riv',
             currentLayoutAlignment: 'center',
@@ -177,6 +192,9 @@ describe('platform/web-instantiation', () => {
         expect(result.code).toContain('<script src="https://unpkg.com/@rive-app/canvas@2.35.0"></script>');
         expect(result.code).toContain('<!-- Embeddable RAV snippet. Wrap it in a full HTML document if you want a standalone page. -->');
         expect(result.code).not.toContain('window.ravRive = ravRive;');
+        expect(result.code).toContain('bindRavViewModelInstance(riveInst, "Board");');
+        expect(descriptor.autoBind).toBe(false);
+        expect(result.code).toContain('autoBind: false,');
         expect(result.code).toContain('animations: "idle"');
         expect(result.code).toContain('fit: rive.Fit.Contain');
         expect(result.code).toContain('alignment: rive.Alignment.Center');
@@ -186,6 +204,27 @@ describe('platform/web-instantiation', () => {
         expect(result.notes).toContain('The exported canvas follows the size of its host element.');
         expect(result.notes).toContain('No bound ViewModel or writable state-machine controls were detected, so the snippet stays minimal and autoplay-focused.');
         expect(result.notes).toContain('Canvas runtime is supported, but WebGL2 is recommended for feathering and other advanced visual effects.');
+    });
+
+    it('preserves an indexed ViewModel instance without requiring selected controls', () => {
+        const descriptor = buildEffectiveInstantiationDescriptor({
+            artboardState: {
+                currentArtboard: 'Main',
+                currentVmInstanceName: '0',
+            },
+            currentFileName: 'indexed.riv',
+            runtimeName: 'webgl2',
+            runtimeVersion: '2.38.5',
+        });
+
+        const code = generateWebInstantiationCode(descriptor, { packageSource: 'cdn' });
+
+        expect(descriptor.viewModelInstanceName).toBe('0');
+        expect(descriptor.autoBind).toBe(false);
+        expect(code).toContain('definition.instanceByIndex?.(Number(instanceKey))');
+        expect(code).toContain('bindRavViewModelInstance(riveInst, "0");');
+        expect(code).toContain('autoBind: false,');
+        expect(code).not.toContain('window.ravRive = ravRive;');
     });
 
     it('supports scaffold snippets with commented unselected controls', () => {

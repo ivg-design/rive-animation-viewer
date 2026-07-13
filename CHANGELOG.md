@@ -4,6 +4,28 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-07-13
+
+### Changed
+
+- **MCP status clarity** — The runtime-strip MCP indicator is green when the bridge is healthy and ready, blue for 30 seconds after agent commands are received, yellow while connecting, red after a bridge failure, and muted when MCP is disabled.
+- **Build and test toolchain maintenance** — Refreshed Vite and Vitest to security-patched releases within their existing major versions, and made local build stamps explicitly identify uncommitted worktrees as `dirty`.
+- **Atomic cross-platform releases** — GitHub releases remain drafts while Apple Silicon, Intel macOS, Windows, updater signatures, and the merged `latest.json` are built; the workflow publishes only after the complete matrix succeeds.
+- **Visual export command parity** — `rav_export_demo_visual` now validates exact selection keys and forwards the dialog's selected controls, CDN/local package source, and compact/scaffold snippet mode to the saved demo instead of exporting with hidden defaults.
+- **Website and reference refresh** — Added the static annotated app overview and Script Editor guide, synchronized the MCP reference and machine-readable discovery copies, and documented the reproducible Vercel deployment path.
+
+### Fixed
+
+- **Desktop build dependency alignment** — Updated and aligned the Tauri core, build tooling, JavaScript API/CLI, desktop plugins, Rust dependency graph, and declared Rust minimum so local and release builds use one compatible, security-audited toolchain.
+- **Dynamic ViewModel list population** — List instances now populate on file load and rebuild whenever their controlling count changes, instead of remaining empty or stopping at the first 10 rows. Authored list entries use readable one-based labels such as `Row 1`, `Row 2`, and so on.
+- **Export and snippet list parity** — Standalone HTML demos and generated instantiation snippets now preserve the live player's dynamic list behavior and current row count. List-family selections expand across every current item, while excluded controls such as `focusIndex` stay out of the exported Properties panel and serialized control snapshot.
+- **Single ViewModel instance visibility** — The VM Instance selector now remains visible and populated when a file has one default instance, including a one-based fallback label for unnamed instances.
+- **Playback and ViewModel load synchronization** — RAV now records the actually playing or detected state machine after load, always populates the VM Instance selector, preserves the runtime's working auto-bound default, and uses a clean `autoBind: false` reload for explicit instance choices.
+- **ViewModel instance export parity** — Generated CDN/local snippets and standalone HTML demos now serialize and bind the selected ViewModel instance before applying exported control values, so their playback and triggers match RAV.
+- **Live MCP ViewModel traversal** — `rav_get_vm_tree`, `rav_vm_get`, `rav_vm_set`, and `rav_vm_fire` now traverse the currently bound nested ViewModels and dynamically sized lists, expose zero-based paths such as `rows/0/playerName`, reject stale out-of-range indices, and label list nodes consistently with the Properties panel.
+- **Delayed snapshot restoration** — Generated snippets and standalone demos retain unresolved ViewModel and state-machine values and retry them across binding callbacks and animation frames, allowing dynamic list items to receive their exported values after they materialize.
+- **RAV MCP load reliability** — File-open commands receive a longer load window for cloud-backed files, and event-log replies safely serialize cyclic runtime payloads instead of failing the MCP request.
+
 ## [2.3.0] - 2026-05-10
 
 ### Added

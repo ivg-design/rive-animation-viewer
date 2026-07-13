@@ -72,11 +72,11 @@ pub fn tools_list() -> Value {
         },
         {
             "name": "rav_vm_get",
-            "description": "Get the current value of a ViewModel property by path. Use rav_get_vm_tree first to discover available paths.",
+            "description": "Get the current value of a ViewModel property by path. Use rav_get_vm_tree first to discover live paths, including zero-based list paths such as rows/0/name.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "path": { "type": "string", "description": "Dot-separated or slash-separated property path, e.g. \"root/nested/prop\"" }
+                    "path": { "type": "string", "description": "Dot-separated or slash-separated property path, e.g. \"root/nested/prop\" or \"rows/0/name\"" }
                 },
                 "required": ["path"],
                 "additionalProperties": false
@@ -88,7 +88,7 @@ pub fn tools_list() -> Value {
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "path": { "type": "string", "description": "Property path (slash-separated)" },
+                    "path": { "type": "string", "description": "Property path (slash-separated; list items use a zero-based index such as rows/0/name)" },
                     "value": { "description": "New value. Type must match the property kind: number for number, true/false for boolean, string for string/enum, ARGB integer for color." }
                 },
                 "required": ["path", "value"],
@@ -101,7 +101,7 @@ pub fn tools_list() -> Value {
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "path": { "type": "string", "description": "Path to the trigger property" }
+                    "path": { "type": "string", "description": "Path to the trigger property; list items use a zero-based index such as rows/0/launch" }
                 },
                 "required": ["path"],
                 "additionalProperties": false

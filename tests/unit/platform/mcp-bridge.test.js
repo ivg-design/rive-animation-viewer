@@ -258,7 +258,14 @@ describe('platform/mcp-bridge', () => {
         vi.stubGlobal('clearInterval', vi.fn());
         window._mcpLogEvent = vi.fn();
         window._mcpUpdateStatus = vi.fn();
-        window._mcpGetEventLog = vi.fn(() => [{ source: 'ui', type: 'info', message: 'hello' }]);
+        const cyclicPayload = {};
+        cyclicPayload.self = cyclicPayload;
+        window._mcpGetEventLog = vi.fn(() => [{
+            source: 'ui',
+            type: 'info',
+            message: 'hello',
+            payload: cyclicPayload,
+        }]);
 
         await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-non-string-payload');
         await flushBridgeMicrotasks();
@@ -287,19 +294,25 @@ describe('platform/mcp-bridge', () => {
         expect(replyPayload).toEqual({
             id: 'req-1',
             result: {
-                entries: [{ source: 'ui', type: 'info', message: 'hello' }],
+                entries: [{
+                    source: 'ui',
+                    type: 'info',
+                    message: 'hello',
+                    payload: { self: '[Circular]' },
+                }],
                 returned: 1,
                 total: 1,
             },
         });
     });
 
-    it('stays active while an MCP client is attached and returns to idle on detach', async () => {
+    it('stays green while ready, turns active only for recent commands, and resets the 30-second window', async () => {
         vi.stubGlobal('WebSocket', FakeWebSocket);
         vi.stubGlobal('setInterval', vi.fn(() => 1));
         vi.stubGlobal('clearInterval', vi.fn());
         window._mcpLogEvent = vi.fn();
         window._mcpUpdateStatus = vi.fn();
+        window._mcpGetEventLog = vi.fn(() => []);
 
         await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-indicator-state');
         await flushBridgeMicrotasks();
@@ -319,26 +332,99 @@ describe('platform/mcp-bridge', () => {
             },
         });
         await flushBridgeMicrotasks();
-        expect(window._mcpUpdateStatus).toHaveBeenLastCalledWith('active');
+        expect(window._mcpUpdateStatus).toHaveBeenLastCalledWith('idle');
 
         await socket.onmessage?.({
             data: {
-                bridgeEvent: 'mcp-client-state',
-                clientCount: 1,
-                connected: true,
+                id: 'status-1',
+                command: 'rav_get_event_log',
+                params: {},
             },
         });
         await flushBridgeMicrotasks();
         expect(window._mcpUpdateStatus).toHaveBeenLastCalledWith('active');
 
+        await vi.advanceTimersByTimeAsync(20_000);
+        expect(window._mcpBridge.indicatorState).toBe('active');
+
         await socket.onmessage?.({
             data: {
-                bridgeEvent: 'mcp-client-state',
-                clientCount: 0,
-                connected: false,
+                id: 'status-2',
+                command: 'rav_get_event_log',
+                params: {},
             },
         });
         await flushBridgeMicrotasks();
+        expect(window._mcpUpdateStatus).toHaveBeenLastCalledWith('active');
+
+        await vi.advanceTimersByTimeAsync(29_999);
+        expect(window._mcpBridge.indicatorState).toBe('active');
+
+        await vi.advanceTimersByTimeAsync(1);
+        expect(window._mcpUpdateStatus).toHaveBeenLastCalledWith('idle');
+        expect(window._mcpBridge.indicatorState).toBe('idle');
+    });
+
+    it('reports an unexpected bridge failure as an error until reconnection succeeds', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        vi.stubGlobal('setInterval', vi.fn(() => 1));
+        vi.stubGlobal('clearInterval', vi.fn());
+        window._mcpLogEvent = vi.fn();
+        window._mcpUpdateStatus = vi.fn();
+
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-indicator-error');
+        await flushBridgeMicrotasks();
+
+        const socket = FakeWebSocket.instances[0];
+        socket.accept();
+        await flushBridgeMicrotasks();
+        expect(window._mcpBridge.indicatorState).toBe('idle');
+
+        socket.fail();
+        await flushBridgeMicrotasks();
+        expect(window._mcpUpdateStatus).toHaveBeenLastCalledWith('error');
+        expect(window._mcpBridge.state).toBe('error');
+
+        await vi.advanceTimersByTimeAsync(1_000);
+        await flushBridgeMicrotasks();
+        expect(FakeWebSocket.instances).toHaveLength(2);
+        expect(window._mcpUpdateStatus).toHaveBeenLastCalledWith('waiting');
+
+        FakeWebSocket.instances[1].accept();
+        await flushBridgeMicrotasks();
+        expect(window._mcpUpdateStatus).toHaveBeenLastCalledWith('idle');
+        expect(window._mcpBridge.state).toBe('connected');
+    });
+
+    it('ignores a delayed error from a socket that has already been replaced', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        vi.stubGlobal('setInterval', vi.fn(() => 1));
+        vi.stubGlobal('clearInterval', vi.fn());
+        window._mcpLogEvent = vi.fn();
+        window._mcpUpdateStatus = vi.fn();
+
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-stale-error');
+        await flushBridgeMicrotasks();
+
+        const staleSocket = FakeWebSocket.instances[0];
+        staleSocket.accept();
+        await flushBridgeMicrotasks();
+        expect(window._mcpBridge.indicatorState).toBe('idle');
+
+        await window._mcpBridge.reconnect();
+        await flushBridgeMicrotasks();
+        const liveSocket = FakeWebSocket.instances[1];
+        liveSocket.accept();
+        await flushBridgeMicrotasks();
+        expect(window._mcpBridge.connected).toBe(true);
+        expect(window._mcpBridge.indicatorState).toBe('idle');
+
+        staleSocket.onerror?.(new Event('error'));
+        await flushBridgeMicrotasks();
+
+        expect(window._mcpBridge.connected).toBe(true);
+        expect(window._mcpBridge.state).toBe('connected');
+        expect(window._mcpBridge.indicatorState).toBe('idle');
         expect(window._mcpUpdateStatus).toHaveBeenLastCalledWith('idle');
     });
 });

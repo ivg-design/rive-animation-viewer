@@ -31,9 +31,10 @@ export default function ArtboardSwitcher() {
 
       <h2>VM Instance Selector</h2>
       <p>
-        When the selected artboard&apos;s ViewModel definition has multiple named instances,
-        an additional dropdown appears. Selecting a different instance binds it to the runtime
-        and re-renders the controls with that instance&apos;s values.
+        Whenever the selected artboard has a ViewModel instance, the dropdown is populated—even
+        when there is only one. The default entry preserves Rive&apos;s automatic binding. Choosing a
+        named or numbered instance reloads it with manual binding and re-renders the controls with
+        that instance&apos;s values.
       </p>
 
       <h2>Reset to Default</h2>

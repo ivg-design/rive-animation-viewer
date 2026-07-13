@@ -93,14 +93,14 @@ export const CORE_TOOLS = [
     name: 'rav_vm_get',
     description:
       'Get the current value of a ViewModel property by path. Use rav_get_vm_tree ' +
-      'first to discover available paths.',
+      'first to discover live paths, including zero-based list paths such as rows/0/name.',
     inputSchema: {
       type: 'object',
       properties: {
         path: {
           type: 'string',
           description:
-            'Dot-separated or slash-separated property path, e.g. "root/nested/prop"',
+            'Dot-separated or slash-separated property path, e.g. "root/nested/prop" or "rows/0/name"',
         },
       },
       required: ['path'],
@@ -117,7 +117,7 @@ export const CORE_TOOLS = [
       properties: {
         path: {
           type: 'string',
-          description: 'Property path (slash-separated)',
+          description: 'Property path (slash-separated; list items use a zero-based index such as rows/0/name)',
         },
         value: {
           description:
@@ -137,7 +137,7 @@ export const CORE_TOOLS = [
       properties: {
         path: {
           type: 'string',
-          description: 'Path to the trigger property',
+          description: 'Path to the trigger property; list items use a zero-based index such as rows/0/launch',
         },
       },
       required: ['path'],

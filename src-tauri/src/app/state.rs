@@ -24,6 +24,8 @@ pub struct DemoBundlePayload {
     #[serde(default)]
     pub canvas_transparent: bool,
     #[serde(default)]
+    pub control_selection_keys: Option<String>,
+    #[serde(default)]
     pub control_snapshot: Option<String>,
     #[serde(default)]
     pub default_instantiation_package_source: String,
@@ -34,6 +36,8 @@ pub struct DemoBundlePayload {
     #[serde(default)]
     pub instantiation_source_mode: String,
     pub layout_state: Option<String>,
+    #[serde(default)]
+    pub view_model_instance_name: Option<String>,
     pub vm_hierarchy: Option<String>,
 }
 

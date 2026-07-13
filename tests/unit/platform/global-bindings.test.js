@@ -12,7 +12,23 @@ describe('platform/global-bindings', () => {
         updateMcpStatusChip(chip, 'connected');
 
         expect(chip.dataset.mcpState).toBe('idle');
-        expect(chip.title).toContain('connected');
+        expect(chip.title).toContain('ready');
+
+        updateMcpStatusChip(chip, 'active');
+        expect(chip.dataset.mcpState).toBe('active');
+        expect(chip.title).toContain('last 30 seconds');
+
+        updateMcpStatusChip(chip, 'error');
+        expect(chip.dataset.mcpState).toBe('error');
+        expect(chip.title).toContain('failed');
+
+        updateMcpStatusChip(chip, 'waiting');
+        expect(chip.dataset.mcpState).toBe('waiting');
+        expect(chip.title).toContain('connecting');
+
+        updateMcpStatusChip(chip, 'off');
+        expect(chip.dataset.mcpState).toBe('off');
+        expect(chip.title).toContain('disabled');
     });
 
     it('binds window globals and MCP bridge hooks', async () => {
@@ -123,6 +139,10 @@ describe('platform/global-bindings', () => {
         chip.click();
         expect(disable).toHaveBeenCalledTimes(1);
 
+        windowRef._mcpBridge.indicatorState = 'error';
+        chip.click();
+        expect(disable).toHaveBeenCalledTimes(2);
+
         await windowRef.applyCodeAndReload();
         await windowRef.createDemoBundle();
         await windowRef.injectCodeSnippet();
@@ -168,8 +188,9 @@ describe('platform/global-bindings', () => {
         chip.click();
         expect(enable).toHaveBeenCalledTimes(1);
 
-        await expect(windowRef._mcpExportDemoToPath('/tmp/out')).resolves.toBe('/tmp/out');
-        expect(exportDemoToPath).toHaveBeenCalledWith('/tmp/out');
+        const exportOptions = { packageSource: 'local', snippetMode: 'scaffold' };
+        await expect(windowRef._mcpExportDemoToPath('/tmp/out', exportOptions)).resolves.toBe('/tmp/out');
+        expect(exportDemoToPath).toHaveBeenCalledWith('/tmp/out', exportOptions);
         await expect(windowRef._mcpGenerateWebInstantiationCode('cdn')).resolves.toEqual({ code: '<script></script>' });
         expect(generateWebInstantiationCode).toHaveBeenCalledWith('cdn', undefined);
         expect(windowRef._mcpGetLiveConfigState()).toEqual({ draftDirty: true, sourceMode: 'editor' });

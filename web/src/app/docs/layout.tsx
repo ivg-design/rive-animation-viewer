@@ -13,6 +13,7 @@ const sections = [
   { id: "ui-layout", title: "UI Layout" },
   { id: "viewmodel-controls", title: "ViewModel Controls" },
   { id: "artboard-switcher", title: "Artboard Switcher" },
+  { id: "script-editor", title: "Script Editor" },
   { id: "consoles", title: "Consoles" },
   { id: "export", title: "Export + Snippets" },
   { id: "configuration", title: "Configuration" },

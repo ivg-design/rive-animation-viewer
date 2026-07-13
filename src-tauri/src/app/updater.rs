@@ -2,7 +2,9 @@ use tauri_plugin_updater::UpdaterExt;
 
 use crate::app::constants::APP_UPDATE_TIMEOUT_SECS;
 use crate::app::mcp::bridge::kill_spawned_mcp_bridge;
-use crate::app::state::{AppUpdateInstallResult, AppUpdateStatus, McpBridgeManager, PendingAppUpdate};
+use crate::app::state::{
+    AppUpdateInstallResult, AppUpdateStatus, McpBridgeManager, PendingAppUpdate,
+};
 
 #[tauri::command]
 pub async fn check_for_app_update(

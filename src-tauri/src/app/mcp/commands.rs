@@ -1,16 +1,10 @@
 use crate::app::mcp::bridge::{
-    current_mcp_port,
-    ensure_mcp_client_launcher,
-    mcp_server_path_candidates,
-    normalize_mcp_port,
+    current_mcp_port, ensure_mcp_client_launcher, mcp_server_path_candidates, normalize_mcp_port,
 };
 use crate::app::mcp::client_config::build_mcp_targets;
 use crate::app::mcp::client_install::{
-    install_claude_code_mcp_with_port,
-    install_claude_desktop_mcp_with_port,
-    install_codex_mcp_with_port,
-    remove_claude_code_mcp,
-    remove_claude_desktop_mcp,
+    install_claude_code_mcp_with_port, install_claude_desktop_mcp_with_port,
+    install_codex_mcp_with_port, remove_claude_code_mcp, remove_claude_desktop_mcp,
     remove_codex_mcp,
 };
 use crate::app::state::{McpBridgeManager, McpInstallResult, McpSetupStatus};

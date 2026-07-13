@@ -14,7 +14,14 @@ export function createEditorConsoleCommands({
             return {
                 total: entries.length,
                 returned: Math.min(limit, filtered.length),
-                entries: filtered.slice(0, limit),
+                entries: filtered
+                    .slice(0, limit)
+                    .map((entry) => createSafeInspectPreview(entry, {
+                        maxArrayItems: 24,
+                        maxDepth: 4,
+                        maxObjectKeys: 32,
+                        windowRef,
+                    })),
             };
         },
 

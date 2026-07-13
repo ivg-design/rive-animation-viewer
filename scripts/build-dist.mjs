@@ -20,6 +20,19 @@ function getGitShortSha() {
   }
 }
 
+function getGitWorktreeSuffix() {
+  try {
+    const status = execSync('git status --porcelain --untracked-files=all', {
+      cwd: root,
+      stdio: ['ignore', 'pipe', 'ignore'],
+      encoding: 'utf8',
+    }).trim();
+    return status ? '-dirty' : '';
+  } catch {
+    return '';
+  }
+}
+
 function getGitCommitCount() {
   try {
     return execSync('git rev-list --count HEAD', {
@@ -114,7 +127,8 @@ async function build() {
       ? 'env'
       : 'auto-counter';
   const numberedPrefix = `b${buildNumber.padStart(4, '0')}`;
-  const buildId = process.env.APP_BUILD_ID || `${numberedPrefix}-${getBuildTimestamp()}-${getGitShortSha()}`;
+  const buildId = process.env.APP_BUILD_ID
+    || `${numberedPrefix}-${getBuildTimestamp()}-${getGitShortSha()}${getGitWorktreeSuffix()}`;
 
   const filesToCopy = ['index.html', 'style.css', 'README.md', 'package.json'];
 

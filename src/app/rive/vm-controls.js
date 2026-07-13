@@ -8,11 +8,14 @@ export {
 
 export {
     controlSnapshotKeyForDescriptor,
+    controlSelectionKeyForDescriptor,
     getStateMachineInputKind,
     getVmAccessor,
     getVmListItemAt,
     getVmListLength,
     navigateToVmInstance,
+    isControlDescriptorSelected,
+    normalizeControlSelectionKey,
     resolveVmRootInstance,
     safeVmMethodCall,
     shouldResumePlaybackForTrigger,
@@ -22,6 +25,7 @@ export {
     buildStateMachineHierarchy,
     buildVmHierarchy,
     countAllInputs,
+    formatVmListItemLabel,
     stripNestedRootVmInputs,
 } from './view-model/hierarchy.js';
 

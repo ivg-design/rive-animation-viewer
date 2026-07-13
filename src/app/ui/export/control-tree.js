@@ -1,11 +1,11 @@
-import { controlSnapshotKeyForDescriptor } from '../../rive/vm-controls.js';
+import { controlSelectionKeyForDescriptor } from '../../rive/vm-controls.js';
 
 export function collectNodeInputKeys(node, keys = new Set()) {
     if (!node) {
         return keys;
     }
     (node.inputs || []).forEach((input) => {
-        const key = controlSnapshotKeyForDescriptor(input?.descriptor);
+        const key = controlSelectionKeyForDescriptor(input?.descriptor);
         if (key) keys.add(key);
     });
     (node.children || []).forEach((child) => collectNodeInputKeys(child, keys));
@@ -43,7 +43,7 @@ function createInputRow({ depth, documentRef, input, onSelectionChange, selected
     row.style.setProperty('--tree-depth', String(depth));
     const checkbox = documentRef.createElement('input');
     checkbox.type = 'checkbox';
-    const key = controlSnapshotKeyForDescriptor(input?.descriptor);
+    const key = controlSelectionKeyForDescriptor(input?.descriptor);
     if (key) checkbox.setAttribute('data-control-key', key);
     checkbox.checked = Boolean(key && selectedKeys?.has(key));
     checkbox.disabled = !key;

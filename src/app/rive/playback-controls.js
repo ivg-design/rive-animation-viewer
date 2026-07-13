@@ -90,6 +90,7 @@ export function createPlaybackController({
         }
 
         const viewModelSnapshot = captureVmControlSnapshot();
+        let restoredControls = 0;
         updateInfo(`Restarting ${currentFileName}...`);
         logEvent('ui', 'reset', `Restarting animation with autoplay (${viewModelSnapshot.length} controls captured).`);
 
@@ -110,13 +111,15 @@ export function createPlaybackController({
                 };
 
                 loadRiveAnimation(currentFileUrl, currentFileName, {
+                    beforeUserOnLoad: () => {
+                        restoredControls = applyVmControlSnapshot(viewModelSnapshot);
+                    },
                     forceAutoplay: true,
                     onLoaded: resolveOnce,
                     onLoadError: rejectOnce,
                 }).catch(rejectOnce);
             });
 
-            const restoredControls = applyVmControlSnapshot(viewModelSnapshot);
             updateInfo(`Restarted ${currentFileName}`);
             logEvent('ui', 'reset-complete', `Animation restarted with autoplay (${restoredControls} controls restored).`);
         } catch (error) {

@@ -90,9 +90,11 @@ pub async fn run_websocket_bridge(bridge: Bridge, ws_port: u16) -> Result<()> {
                             match role {
                                 BridgePeerRole::App => bridge_clone.relay_app_response(value).await,
                                 BridgePeerRole::Client => {
-                                    let request_id = value.get("id").cloned().unwrap_or(Value::Null);
-                                    if let Err(error) =
-                                        bridge_clone.relay_client_request(connection_id, value).await
+                                    let request_id =
+                                        value.get("id").cloned().unwrap_or(Value::Null);
+                                    if let Err(error) = bridge_clone
+                                        .relay_client_request(connection_id, value)
+                                        .await
                                     {
                                         let _ = tx.send(
                                             json!({ "id": request_id, "error": error.to_string() })
@@ -112,9 +114,11 @@ pub async fn run_websocket_bridge(bridge: Bridge, ws_port: u16) -> Result<()> {
                             match role {
                                 BridgePeerRole::App => bridge_clone.relay_app_response(value).await,
                                 BridgePeerRole::Client => {
-                                    let request_id = value.get("id").cloned().unwrap_or(Value::Null);
-                                    if let Err(error) =
-                                        bridge_clone.relay_client_request(connection_id, value).await
+                                    let request_id =
+                                        value.get("id").cloned().unwrap_or(Value::Null);
+                                    if let Err(error) = bridge_clone
+                                        .relay_client_request(connection_id, value)
+                                        .await
                                     {
                                         let _ = tx.send(
                                             json!({ "id": request_id, "error": error.to_string() })

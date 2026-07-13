@@ -7,10 +7,10 @@ use std::time::Duration;
 use tauri::Manager;
 use toml_edit::Array;
 
-#[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
 #[cfg(not(target_os = "windows"))]
 use crate::app::support::home_dir;
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 
 use crate::app::constants::{DEFAULT_MCP_PORT, MCP_CLIENT_LAUNCHER_NAME};
 use crate::app::state::McpBridgeManager;
@@ -38,7 +38,12 @@ pub fn resolve_mcp_server_path(app: &tauri::AppHandle) -> Result<PathBuf, String
     candidates
         .into_iter()
         .find(|path| path.exists())
-        .ok_or_else(|| format!("MCP server not found in bundled sidecar locations for {}", binary_name))
+        .ok_or_else(|| {
+            format!(
+                "MCP server not found in bundled sidecar locations for {}",
+                binary_name
+            )
+        })
 }
 
 pub fn mcp_client_launcher_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -47,16 +52,23 @@ pub fn mcp_client_launcher_path(app: &tauri::AppHandle) -> Result<PathBuf, Strin
         return app
             .path()
             .app_data_dir()
-            .map(|path| path.join("bin").join(format!("{MCP_CLIENT_LAUNCHER_NAME}.exe")))
+            .map(|path| {
+                path.join("bin")
+                    .join(format!("{MCP_CLIENT_LAUNCHER_NAME}.exe"))
+            })
             .map_err(|error| format!("Failed to resolve MCP launcher path: {}", error));
     }
 
     #[cfg(not(target_os = "windows"))]
     {
         let _ = app;
-        return home_dir()
-            .map(|path| path.join(".local").join("bin").join(MCP_CLIENT_LAUNCHER_NAME))
-            .ok_or_else(|| "Failed to resolve home directory for MCP launcher".to_string());
+        home_dir()
+            .map(|path| {
+                path.join(".local")
+                    .join("bin")
+                    .join(MCP_CLIENT_LAUNCHER_NAME)
+            })
+            .ok_or_else(|| "Failed to resolve home directory for MCP launcher".to_string())
     }
 }
 
@@ -189,7 +201,10 @@ fn terminate_mcp_bridge_pid(pid: u32) {
     {
         let mut command = Command::new("taskkill");
         command.args(["/PID", &pid.to_string(), "/T", "/F"]);
-        command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+        command
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
         command.creation_flags(CREATE_NO_WINDOW);
         let _ = command.status();
     }
@@ -256,7 +271,10 @@ fn spawn_mcp_bridge_sidecar(app: &tauri::AppHandle, port: u16) -> Result<Child, 
     Ok(child)
 }
 
-pub fn ensure_mcp_bridge_running(app: &tauri::AppHandle, manager: &McpBridgeManager) -> Result<u16, String> {
+pub fn ensure_mcp_bridge_running(
+    app: &tauri::AppHandle,
+    manager: &McpBridgeManager,
+) -> Result<u16, String> {
     let port = current_mcp_port(manager)?;
     let mut child_guard = manager
         .child
@@ -285,7 +303,11 @@ pub fn ensure_mcp_bridge_running(app: &tauri::AppHandle, manager: &McpBridgeMana
     Ok(port)
 }
 
-pub fn restart_mcp_bridge(app: &tauri::AppHandle, manager: &McpBridgeManager, port: u16) -> Result<u16, String> {
+pub fn restart_mcp_bridge(
+    app: &tauri::AppHandle,
+    manager: &McpBridgeManager,
+    port: u16,
+) -> Result<u16, String> {
     let normalized = normalize_mcp_port(Some(port));
     {
         let mut port_guard = manager
@@ -298,7 +320,10 @@ pub fn restart_mcp_bridge(app: &tauri::AppHandle, manager: &McpBridgeManager, po
     ensure_mcp_bridge_running(app, manager)
 }
 
-pub fn initialize_mcp_bridge(app: &tauri::AppHandle, manager: &McpBridgeManager) -> Result<(), String> {
+pub fn initialize_mcp_bridge(
+    app: &tauri::AppHandle,
+    manager: &McpBridgeManager,
+) -> Result<(), String> {
     let saved_port = load_saved_mcp_port(app);
     if let Ok(mut port_guard) = manager.port.lock() {
         *port_guard = saved_port;

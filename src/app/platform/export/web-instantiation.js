@@ -25,13 +25,38 @@ function indentBlock(value, prefix = '  ') {
     return String(value || '').split('\n').map((line) => `${prefix}${line}`).join('\n');
 }
 
+function buildViewModelInstanceHelperLines(descriptor) {
+    if (!descriptor.viewModelInstanceName) {
+        return [];
+    }
+    return [
+        '  function bindRavViewModelInstance(instance, instanceKey) {',
+        '    if (!instance || instanceKey === null || typeof instanceKey === "undefined") return false;',
+        '    let definition = null;',
+        '    try { definition = instance.defaultViewModel?.() || null; } catch { return false; }',
+        '    if (!definition || typeof instance.bindViewModelInstance !== "function") return false;',
+        '    let selectedInstance = null;',
+        '    try { selectedInstance = definition.instanceByName?.(String(instanceKey)) || null; } catch { /* not named */ }',
+        '    if (!selectedInstance && /^(0|[1-9]\\d*)$/.test(String(instanceKey))) {',
+        '      try { selectedInstance = definition.instanceByIndex?.(Number(instanceKey)) || null; } catch { /* not indexed */ }',
+        '    }',
+        '    if (!selectedInstance) return false;',
+        '    try { instance.bindViewModelInstance(selectedInstance); } catch { return false; }',
+        '    return true;',
+        '  }',
+        '',
+    ];
+}
+
 function buildConfigPropertyLines(descriptor, runtimeNamespace, useUserConfig = false) {
     const useControlHelpers = descriptor.hasControlBindings !== false;
     const lines = [
         `src: "./${descriptor.fileName}",`,
         'canvas,',
         useUserConfig ? `autoplay: userConfig.autoplay ?? ${descriptor.autoplay},` : `autoplay: ${descriptor.autoplay},`,
-        useUserConfig ? `autoBind: userConfig.autoBind ?? ${descriptor.autoBind},` : `autoBind: ${descriptor.autoBind},`,
+        descriptor.viewModelInstanceName
+            ? 'autoBind: false,'
+            : (useUserConfig ? `autoBind: userConfig.autoBind ?? ${descriptor.autoBind},` : `autoBind: ${descriptor.autoBind},`),
     ];
 
     if (descriptor.artboard) {
@@ -65,10 +90,16 @@ function buildConfigPropertyLines(descriptor, runtimeNamespace, useUserConfig = 
 
     lines.push('onLoad: (...args) => {');
     lines.push('  riveInst.resizeDrawingSurfaceToCanvas();');
-    if (useControlHelpers) {
-        lines.push('  ravRive.applySnapshot();');
+    if (descriptor.viewModelInstanceName) {
+        lines.push(`  bindRavViewModelInstance(riveInst, ${JSON.stringify(descriptor.viewModelInstanceName)});`);
     }
-    if (useUserConfig) lines.push('  userConfig.onLoad?.(...args);');
+    if (useControlHelpers) {
+        lines.push(useUserConfig
+            ? '  ravRive.runOnLoad(() => userConfig.onLoad?.(...args));'
+            : '  ravRive.applySnapshot();');
+    } else if (useUserConfig) {
+        lines.push('  userConfig.onLoad?.(...args);');
+    }
     lines.push('},');
     lines.push('onLoadError: (error, ...args) => {');
     lines.push('  console.error("Rive load error:", error, ...args);');
@@ -76,9 +107,15 @@ function buildConfigPropertyLines(descriptor, runtimeNamespace, useUserConfig = 
     lines.push('},');
 
     if (useUserConfig) {
-        CALLBACK_NAMES.filter((name) => name !== 'onLoad' && name !== 'onLoadError').forEach((name) => {
+        CALLBACK_NAMES.filter((name) => name !== 'onLoad' && name !== 'onLoadError' && (!useControlHelpers || name !== 'onAdvance')).forEach((name) => {
             lines.push(`${name}: (...args) => userConfig.${name}?.(...args),`);
         });
+    }
+    if (useControlHelpers) {
+        lines.push('onAdvance: (...args) => {');
+        lines.push('  ravRive.retryPendingSnapshotOnAdvance();');
+        if (useUserConfig) lines.push('  userConfig.onAdvance?.(...args);');
+        lines.push('},');
     }
 
     return lines;
@@ -132,6 +169,7 @@ export function generateWebInstantiationCode(descriptor, {
         ...(effectivePackageSource === 'local' ? ['<script type="module">'] : []),
         ...runtimeBlock,
         ...buildCanvasSizingLines(descriptor),
+        ...buildViewModelInstanceHelperLines(descriptor),
         ...buildControlHelperLines(normalizedSnapshot, { selectedControlKeys, snippetMode }),
     ];
 
@@ -205,6 +243,9 @@ export function buildWebInstantiationResult(descriptor, {
                     'window.ravRive.fireConfiguredTriggers()',
                     'window.ravRive.getVmRoot()',
                     'window.ravRive.resolveVmAccessor(path, expectedKind?)',
+                    'window.ravRive.retryPendingSnapshot()',
+                    'window.ravRive.retryPendingSnapshotOnAdvance()',
+                    'window.ravRive.runOnLoad(callback, args?)',
                     'window.ravRive.setVmValue(path, value, expectedKind?)',
                     'window.ravRive.fireVmTrigger(path)',
                     'window.ravRive.getStateMachineInput(stateMachineName, inputName)',
@@ -234,7 +275,7 @@ export function buildWebInstantiationResult(descriptor, {
                 ? `The exported canvas is pinned to ${descriptor.canvasSizing.width} × ${descriptor.canvasSizing.height}px.`
                 : 'The exported canvas follows the size of its host element.',
             hasControlBindings
-                ? 'The snippet organizes the selected controls into readable VM/state-machine override blocks, including enum option comments and explicit trigger helper sections.'
+                ? 'The snippet organizes selected controls into readable override blocks and retries only unresolved values whose accessors appear after load.'
                 : 'No bound ViewModel or writable state-machine controls were detected, so the snippet stays minimal and autoplay-focused.',
             descriptor.runtimeName === 'canvas'
                 ? 'Canvas runtime is supported, but WebGL2 is recommended for feathering and other advanced visual effects.'

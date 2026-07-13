@@ -85,7 +85,7 @@
                     src: animationUrl,
                     canvas: els.canvas,
                     autoplay: CONFIG.autoplay !== false,
-                    autoBind: true,
+                    autoBind: !CONFIG.viewModelInstanceName,
                 };
 
                 if (CONFIG.artboardName) {
@@ -171,6 +171,7 @@
                     updateInfo(statusMsg);
                     logEvent('native', 'load', 'Animation loaded successfully.');
 
+                    bindViewModelInstanceByKey(riveInstance, CONFIG.viewModelInstanceName);
                     applyControlSnapshot(currentControlSnapshot);
                     // Render VM controls
                     renderVmControls();
@@ -233,6 +234,8 @@
             resetPlaybackChips();
             stopVmControlSync();
             clearVmControlBindings();
+            vmListTopologySignature = null;
+            pendingControlSnapshot.clear();
             if (riveInstance && riveInstance.cleanup) {
                 try { riveInstance.cleanup(); } catch (e) { /* noop */ }
             }
@@ -273,60 +276,66 @@
         /* ── VM controls rendering orchestration ─────────────── */
 
         function renderVmControls() {
+            if (isRenderingVmControls) return;
             var countEl = els.vmControlsCount;
             var emptyEl = els.vmControlsEmpty;
             var treeEl = els.vmControlsTree;
             if (!countEl || !emptyEl || !treeEl) return;
 
-            treeEl.innerHTML = '';
-            clearVmControlBindings();
+            isRenderingVmControls = true;
+            try {
+                treeEl.innerHTML = '';
+                clearVmControlBindings();
 
-            // Use embedded hierarchy if available, otherwise fall back to dynamic discovery.
-            var vmHierarchy = null;
-            if (VM_HIERARCHY && VM_HIERARCHY.label) {
-                vmHierarchy = filterHierarchyNode(JSON.parse(JSON.stringify(VM_HIERARCHY)));
-            } else {
+                // Prefer the current runtime tree so converter-driven lists cannot go stale.
                 var rootVm = resolveVmRootInstance();
-                vmHierarchy = rootVm ? buildVmHierarchy(rootVm) : null;
+                vmListTopologySignature = buildVmListTopologySignature(rootVm);
+                var liveVmHierarchy = rootVm
+                    ? buildVmHierarchy(rootVm)
+                    : (VM_HIERARCHY && VM_HIERARCHY.label
+                        ? JSON.parse(JSON.stringify(VM_HIERARCHY))
+                        : null);
+                var vmHierarchy = filterHierarchyNode(liveVmHierarchy);
+
+                var stateMachineHierarchy = filterHierarchyNode(buildStateMachineHierarchy());
+                var vmTotal = vmHierarchy ? countHierarchyInputs(vmHierarchy) : 0;
+                var smTotal = stateMachineHierarchy ? countHierarchyInputs(stateMachineHierarchy) : 0;
+                var totalControls = vmTotal + smTotal;
+
+                countEl.textContent = String(totalControls);
+
+                if (!totalControls) {
+                    emptyEl.hidden = false;
+                    emptyEl.textContent = 'No writable ViewModel or state machine inputs were found.';
+                    if (vmListTopologySignature === null && !pendingControlSnapshot.size) stopVmControlSync();
+                    else startVmControlSync();
+                    return;
+                }
+
+                emptyEl.hidden = true;
+
+                // Filter out root-level VM inputs duplicated in child VMs.
+                if (vmHierarchy && vmHierarchy.children && vmHierarchy.children.length && vmHierarchy.inputs) {
+                    var childPaths = new Set();
+                    var collectChildPaths = function (node) {
+                        if (node.inputs) node.inputs.forEach(function (inp) { childPaths.add(inp.path); });
+                        if (node.children) node.children.forEach(collectChildPaths);
+                    };
+                    vmHierarchy.children.forEach(collectChildPaths);
+                    vmHierarchy.inputs = vmHierarchy.inputs.filter(function (inp) { return !childPaths.has(inp.path); });
+                }
+
+                if (vmHierarchy) treeEl.appendChild(createVmSectionElement(vmHierarchy, true, 0));
+                if (stateMachineHierarchy && stateMachineHierarchy.totalInputs) {
+                    treeEl.appendChild(createVmSectionElement(stateMachineHierarchy, false, 0));
+                }
+
+                startVmControlSync();
+                syncVmControlBindings(true);
+                initLucideIcons();
+            } finally {
+                isRenderingVmControls = false;
             }
-
-            var stateMachineHierarchy = buildStateMachineHierarchy();
-            var vmTotal = vmHierarchy ? countHierarchyInputs(vmHierarchy) : 0;
-            var smTotal = stateMachineHierarchy ? countHierarchyInputs(stateMachineHierarchy) : 0;
-            var totalControls = vmTotal + smTotal;
-
-            countEl.textContent = String(totalControls);
-
-            if (!totalControls) {
-                emptyEl.hidden = false;
-                emptyEl.textContent = 'No writable ViewModel or state machine inputs were found.';
-                stopVmControlSync();
-                return;
-            }
-
-            emptyEl.hidden = true;
-
-            // Filter out root-level VM inputs duplicated in child VMs.
-            if (vmHierarchy && vmHierarchy.children && vmHierarchy.children.length && vmHierarchy.inputs) {
-                var childPaths = new Set();
-                var collectChildPaths = function (node) {
-                    if (node.inputs) node.inputs.forEach(function (inp) { childPaths.add(inp.path); });
-                    if (node.children) node.children.forEach(collectChildPaths);
-                };
-                vmHierarchy.children.forEach(collectChildPaths);
-                vmHierarchy.inputs = vmHierarchy.inputs.filter(function (inp) { return !childPaths.has(inp.path); });
-            }
-
-            if (vmHierarchy) {
-                treeEl.appendChild(createVmSectionElement(vmHierarchy, true, 0));
-            }
-            if (stateMachineHierarchy && stateMachineHierarchy.totalInputs) {
-                treeEl.appendChild(createVmSectionElement(stateMachineHierarchy, false, 0));
-            }
-
-            startVmControlSync();
-            syncVmControlBindings(true);
-            initLucideIcons();
         }
 
     })();

@@ -16,16 +16,20 @@ const MAX_RECONNECT_DELAY_MS = 4000;
 const CONNECT_TIMEOUT_MS = 2000;
 const WATCHDOG_INTERVAL_MS = 1500;
 const PORT_SYNC_TIMEOUT_MS = 800;
+const COMMAND_ACTIVITY_WINDOW_MS = 30_000;
 
 const state = {
     activeCommandCount: 0,
+    activityTimer: null,
     baseReconnectDelay: RECONNECT_DELAY_MS,
     bridgePortSyncPromise: null,
     connected: false,
+    connectionPhase: 'waiting',
     connectPromise: null,
     connectionAttempts: 0,
     enabled: true,
     maxReconnectDelay: MAX_RECONNECT_DELAY_MS,
+    lastCommandAt: null,
     mcpClientCount: 0,
     port: readInitialBridgePort(window),
     reconnectDelay: RECONNECT_DELAY_MS,
@@ -38,14 +42,38 @@ function getIndicatorState() {
     if (!state.enabled) {
         return 'off';
     }
+    if (state.connectionPhase === 'error') {
+        return 'error';
+    }
     if (!state.connected) {
         return 'waiting';
     }
-    return state.mcpClientCount > 0 || state.activeCommandCount > 0 ? 'active' : 'idle';
+    const hasRecentCommand = Number.isFinite(state.lastCommandAt)
+        && (Date.now() - state.lastCommandAt) < COMMAND_ACTIVITY_WINDOW_MS;
+    return state.activeCommandCount > 0 || hasRecentCommand ? 'active' : 'idle';
 }
 
 function syncIndicator() {
     transport.syncState();
+}
+
+function clearCommandActivity() {
+    if (state.activityTimer) {
+        window.clearTimeout(state.activityTimer);
+        state.activityTimer = null;
+    }
+    state.activeCommandCount = 0;
+    state.lastCommandAt = null;
+}
+
+function armCommandActivityExpiry() {
+    if (state.activityTimer) {
+        window.clearTimeout(state.activityTimer);
+    }
+    state.activityTimer = window.setTimeout(() => {
+        state.activityTimer = null;
+        syncIndicator();
+    }, COMMAND_ACTIVITY_WINDOW_MS);
 }
 
 function markCommandStart() {
@@ -53,6 +81,8 @@ function markCommandStart() {
         return;
     }
     state.activeCommandCount += 1;
+    state.lastCommandAt = Date.now();
+    armCommandActivityExpiry();
     syncIndicator();
 }
 
@@ -124,9 +154,18 @@ const transport = createMcpBridgeTransport({
     getState: () => ({ ...state, indicatorState: getIndicatorState() }),
     getWatchdogIntervalMs: () => WATCHDOG_INTERVAL_MS,
     onConnected: () => {
-        state.activeCommandCount = 0;
+        clearCommandActivity();
         state.connected = true;
+        state.connectionPhase = 'connected';
         state.reconnectDelay = state.baseReconnectDelay;
+    },
+    onConnecting: () => {
+        state.connected = false;
+        state.connectionPhase = 'waiting';
+    },
+    onConnectionError: () => {
+        state.connected = false;
+        state.connectionPhase = 'error';
     },
     onClientPresenceChange: ({ clientCount, connected }) => {
         updateClientPresence({ clientCount, connected });
@@ -137,10 +176,11 @@ const transport = createMcpBridgeTransport({
     onCommandStart: () => {
         markCommandStart();
     },
-    onDisconnected: () => {
-        state.activeCommandCount = 0;
+    onDisconnected: ({ unexpected = false } = {}) => {
+        clearCommandActivity();
         state.mcpClientCount = 0;
         state.connected = false;
+        state.connectionPhase = unexpected && state.enabled ? 'error' : 'waiting';
     },
     onReconnectDelayChange: (delay) => {
         state.reconnectDelay = delay;
@@ -167,14 +207,23 @@ window._mcpBridge = {
     get enabled() { return state.enabled; },
     get indicatorState() { return getIndicatorState(); },
     get port() { return state.port; },
-    get state() { return !state.enabled ? 'off' : state.connected ? 'connected' : 'waiting'; },
+    get state() {
+        return !state.enabled
+            ? 'off'
+            : state.connectionPhase === 'error'
+                ? 'error'
+                : state.connected
+                    ? 'connected'
+                    : 'waiting';
+    },
 
     enable() {
         if (state.enabled) {
             return;
         }
         state.enabled = true;
-        state.activeCommandCount = 0;
+        clearCommandActivity();
+        state.connectionPhase = 'waiting';
         state.mcpClientCount = 0;
         state.reconnectDelay = state.baseReconnectDelay;
         transport.syncState();
@@ -186,7 +235,8 @@ window._mcpBridge = {
             return true;
         }
         state.enabled = false;
-        state.activeCommandCount = 0;
+        clearCommandActivity();
+        state.connectionPhase = 'waiting';
         state.mcpClientCount = 0;
         transport.disconnect();
         transport.syncState();
@@ -206,6 +256,7 @@ window._mcpBridge = {
     },
 
     reconnect() {
+        state.connectionPhase = 'waiting';
         transport.disconnect();
         state.reconnectDelay = state.baseReconnectDelay;
         return transport.connect();
@@ -224,6 +275,7 @@ window._mcpBridge = {
                 transport.syncState();
                 return state.port;
             }
+            state.connectionPhase = 'waiting';
             transport.disconnect();
             state.reconnectDelay = state.baseReconnectDelay;
             void transport.connect();

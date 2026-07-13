@@ -93,7 +93,6 @@ export function navigateToVmInstance(rootVm, path) {
             }
         }
 
-        console.warn(`[rive-viewer] VM navigation failed at segment "${segment}" in path "${path}"`);
         return null;
     }
 
@@ -193,6 +192,48 @@ export function controlSnapshotKeyForDescriptor(descriptor) {
         return `sm:${descriptor.stateMachineName || ''}:${descriptor.name || ''}:${descriptor.kind || ''}`;
     }
     return `vm:${descriptor.path || ''}:${descriptor.kind || ''}`;
+}
+
+export function controlSelectionKeyForDescriptor(descriptor) {
+    if (!descriptor) {
+        return null;
+    }
+    if (descriptor.source === 'state-machine') {
+        return controlSnapshotKeyForDescriptor(descriptor);
+    }
+
+    return normalizeControlSelectionKey(controlSnapshotKeyForDescriptor(descriptor));
+}
+
+export function normalizeControlSelectionKey(key) {
+    if (typeof key !== 'string') {
+        return null;
+    }
+    const trimmed = key.trim();
+    if (!trimmed.startsWith('vm:')) {
+        return trimmed || null;
+    }
+    const kindSeparator = trimmed.lastIndexOf(':');
+    if (kindSeparator <= 3) {
+        return trimmed || null;
+    }
+    const path = trimmed.slice(3, kindSeparator)
+        .split('/')
+        .map((segment) => (/^(0|[1-9]\d*)$/.test(segment) ? '*' : segment))
+        .join('/');
+    return `vm:${path}:${trimmed.slice(kindSeparator + 1)}`;
+}
+
+export function isControlDescriptorSelected(descriptor, selectedKeys) {
+    if (!descriptor || !(selectedKeys instanceof Set)) {
+        return false;
+    }
+    const exactKey = controlSnapshotKeyForDescriptor(descriptor);
+    const selectionKey = controlSelectionKeyForDescriptor(descriptor);
+    return Boolean(
+        (exactKey && selectedKeys.has(exactKey))
+        || (selectionKey && selectedKeys.has(selectionKey)),
+    );
 }
 
 export function shouldResumePlaybackForTrigger(riveInstance) {

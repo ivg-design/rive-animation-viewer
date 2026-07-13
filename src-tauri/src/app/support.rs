@@ -83,7 +83,7 @@ mod tests {
 
     #[test]
     fn detects_riv_files_for_double_click_and_open_with_args() {
-        let args = vec![
+        let args = [
             "--flag",
             "\"/Users/test/Documents/demo.riv\"",
             "file:///Users/test/Desktop/another.riv",

@@ -1,4 +1,7 @@
-import { controlSnapshotKeyForDescriptor } from '../../rive/vm-controls.js';
+import {
+    isControlDescriptorSelected,
+    normalizeControlSelectionKey,
+} from '../../rive/vm-controls.js';
 
 export function normalizeControlSnapshot(controlSnapshot = []) {
     if (!Array.isArray(controlSnapshot)) {
@@ -63,7 +66,8 @@ export function normalizeSelectedControlKeySet(selectedControlKeys = []) {
     return new Set(
         selectedControlKeys
             .filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
-            .map((entry) => entry.trim()),
+            .map((entry) => normalizeControlSelectionKey(entry))
+            .filter(Boolean),
     );
 }
 
@@ -71,6 +75,5 @@ export function isSelectedEntry(entry, activeKeys) {
     if (!(activeKeys instanceof Set)) {
         return true;
     }
-    const key = controlSnapshotKeyForDescriptor(entry?.descriptor);
-    return Boolean(key) && activeKeys.has(key);
+    return isControlDescriptorSelected(entry?.descriptor, activeKeys);
 }

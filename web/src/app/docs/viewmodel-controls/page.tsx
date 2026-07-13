@@ -64,6 +64,20 @@ export default function ViewModelControls() {
         with depth-colored accent bars. The root starts expanded; nested sections start collapsed.
       </p>
 
+      <h2>Dynamic Lists</h2>
+      <p>
+        ViewModel lists show every item that currently exists &mdash; there is no ten-row cap.
+        RAV derives readable one-based labels from the authored list name, so a list named
+        <code> rows</code> appears as <strong>Row 1</strong>, <strong>Row 2</strong>, and so on.
+        When animation logic changes the controlling count, the Properties panel rebuilds from
+        the live list topology automatically.
+      </p>
+      <p>
+        MCP paths use the runtime&apos;s zero-based index even though labels are one-based. For
+        example, <code>rows/0/playerName</code> addresses <strong>Row 1</strong>. Call
+        <code> rav_get_vm_tree</code> after the list resizes to discover its current bounds.
+      </p>
+
       <h2>Live Sync</h2>
       <p>
         Controls continuously sync with the runtime. If a value changes from animation logic,
@@ -74,7 +88,9 @@ export default function ViewModelControls() {
       <h2>Value Persistence</h2>
       <p>
         When you reset or restart an animation, RAV captures all ViewModel and state machine
-        values and restores them after reload. Triggers are excluded since they are one-shot actions.
+        values and restores them after reload. If list items materialize a few frames later,
+        pending values are retried until their live paths exist. Triggers are excluded since
+        they are one-shot actions.
       </p>
 
       <h2>ViewModel Labels</h2>

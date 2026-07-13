@@ -9,23 +9,7 @@ export const CONTROL_HELPER_RUNTIME_SOURCE = `function safeRavVmCall(target, met
 }
 
 function getRavVmRoot(instance = riveInst) {
-  if (!instance) return null;
-  if (instance.viewModelInstance) return instance.viewModelInstance;
-  try {
-    const defaultViewModel = typeof instance.defaultViewModel === "function"
-      ? instance.defaultViewModel()
-      : null;
-    if (!defaultViewModel) return null;
-    if (typeof defaultViewModel.defaultInstance === "function") {
-      return defaultViewModel.defaultInstance();
-    }
-    if (typeof defaultViewModel.instance === "function") {
-      return defaultViewModel.instance();
-    }
-  } catch {
-    return null;
-  }
-  return null;
+  return instance?.viewModelInstance || null;
 }
 
 function getRavVmAccessor(path, expectedKind, instance = riveInst) {
@@ -265,22 +249,100 @@ function fireRavConfiguredTriggers(instance = riveInst, vmTriggers = undefined, 
   return fired;
 }
 
-function applyRavControlSnapshot(instance = riveInst) {
-  if (!instance) return 0;
-  // Snapshot restores value-like overrides only. Triggers remain manual.
-  let applied = 0;
-  applied += applyRavVmOverrides(instance);
-  applied += applyRavStateMachineOverrides(instance);
-  return applied;
-}
-
 function createRavWebController(getInstance) {
+  let pendingVmOverrides = new Map();
+  let pendingStateMachineOverrides = new Map();
+  let retryGeneration = 0;
+  let advanceRetryBudget = 0;
+
+  const resetPendingSnapshot = () => {
+    advanceRetryBudget = 600;
+    pendingVmOverrides = new Map(Object.entries(resolveRavVmOverrides() || {}));
+    pendingStateMachineOverrides = new Map();
+    Object.entries(resolveRavStateMachineOverrides() || {}).forEach(([stateMachineName, inputs]) => {
+      Object.entries(inputs || {}).forEach(([inputName, value]) => {
+        pendingStateMachineOverrides.set(\`\${stateMachineName}/\${inputName}\`, { inputName, stateMachineName, value });
+      });
+    });
+  };
+
+  const applyPendingSnapshot = () => {
+    const instance = getInstance();
+    let applied = 0;
+    pendingVmOverrides.forEach((value, path) => {
+      if (setRavVmValue(path, value, undefined, instance)) {
+        pendingVmOverrides.delete(path);
+        applied += 1;
+      }
+    });
+    pendingStateMachineOverrides.forEach((entry, key) => {
+      if (setRavStateMachineInput(entry.stateMachineName, entry.inputName, entry.value, instance)) {
+        pendingStateMachineOverrides.delete(key);
+        applied += 1;
+      }
+    });
+    return applied;
+  };
+
+  const hasPendingSnapshot = () => pendingVmOverrides.size + pendingStateMachineOverrides.size > 0;
+  const prepareSnapshot = () => {
+    retryGeneration += 1;
+    resetPendingSnapshot();
+    return applyPendingSnapshot();
+  };
+  const schedulePendingSnapshot = () => {
+    if (!hasPendingSnapshot()) return;
+    const generation = ++retryGeneration;
+    let remainingFrames = 180;
+    const schedule = typeof requestAnimationFrame === "function"
+      ? requestAnimationFrame
+      : (callback) => setTimeout(callback, 16);
+    const retry = () => {
+      if (generation !== retryGeneration) return;
+      applyPendingSnapshot();
+      if (hasPendingSnapshot() && remainingFrames-- > 0) schedule(retry);
+    };
+    schedule(retry);
+  };
+
+  const runOnLoad = (callback, args = []) => {
+    prepareSnapshot();
+    const instance = getInstance();
+    const originalBind = instance?.bindViewModelInstance;
+    const hadOwnBind = Object.prototype.hasOwnProperty.call(instance || {}, "bindViewModelInstance");
+    let wrapped = false;
+    if (hasPendingSnapshot() && typeof originalBind === "function") {
+      try {
+        instance.bindViewModelInstance = function (...bindArgs) {
+          const result = originalBind.apply(this, bindArgs);
+          applyPendingSnapshot();
+          return result;
+        };
+        wrapped = instance.bindViewModelInstance !== originalBind;
+      } catch { /* runtime method is not writable */ }
+    }
+    try {
+      return typeof callback === "function" ? callback(...args) : undefined;
+    } finally {
+      if (wrapped) {
+        try {
+          if (hadOwnBind) instance.bindViewModelInstance = originalBind;
+          else delete instance.bindViewModelInstance;
+        } catch { /* noop */ }
+      }
+      applyPendingSnapshot();
+      schedulePendingSnapshot();
+    }
+  };
+
   return {
     get instance() {
       return getInstance();
     },
     applySnapshot() {
-      return applyRavControlSnapshot(getInstance());
+      const applied = prepareSnapshot();
+      schedulePendingSnapshot();
+      return applied;
     },
     applyStateMachineOverrides() {
       return applyRavStateMachineOverrides(getInstance());
@@ -306,6 +368,15 @@ function createRavWebController(getInstance) {
     resolveVmAccessor(path, expectedKind) {
       return getRavVmAccessor(path, expectedKind, getInstance());
     },
+    retryPendingSnapshot() {
+      return applyPendingSnapshot();
+    },
+    retryPendingSnapshotOnAdvance() {
+      if (!hasPendingSnapshot() || advanceRetryBudget <= 0) return 0;
+      advanceRetryBudget -= 1;
+      return applyPendingSnapshot();
+    },
+    runOnLoad,
     setStateMachineInput(stateMachineName, inputName, value) {
       return setRavStateMachineInput(stateMachineName, inputName, value, getInstance());
     },

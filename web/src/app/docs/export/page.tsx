@@ -35,11 +35,59 @@ export default function Export() {
       <ul>
         <li><strong>Tree checkboxes</strong> &mdash; branch checkboxes select entire nested sections, leaf checkboxes select individual controls</li>
         <li><strong>Presets</strong> &mdash; CHANGED ONLY (default), SELECT ALL, CLEAR</li>
-        <li><strong>Mode toggles</strong> &mdash; SNIPPET vs CDN vs SCAFFOLD for output format</li>
+        <li><strong>Package source</strong> &mdash; CDN vs LOCAL (see below)</li>
+        <li><strong>Snippet mode</strong> &mdash; COMPACT vs SCAFFOLD (see below)</li>
         <li><strong>Inline preview</strong> &mdash; live code preview with COPY button</li>
         <li><strong>GENERATE SNIPPET</strong> &mdash; copies the snippet to clipboard</li>
         <li><strong>EXPORT</strong> &mdash; saves a standalone HTML file</li>
       </ul>
+
+      <h3>Package source: CDN vs LOCAL</h3>
+      <p>
+        Controls how the generated snippet pulls in the Rive runtime.
+      </p>
+      <ul>
+        <li>
+          <strong>CDN</strong> (default) &mdash; emits a runtime <code>&lt;script&gt;</code> tag pointing
+          at the pinned <code>@rive-app/webgl2</code> or <code>@rive-app/canvas</code>
+          version on jsDelivr, then attaches helpers to <code>window.ravRive</code>.
+          Drop-in for static HTML, design tools, prototypes, and CodePen.
+        </li>
+        <li>
+          <strong>LOCAL</strong> &mdash; emits ES-module <code>import</code> statements that resolve
+          against your project&rsquo;s <code>node_modules</code> (e.g. <code>import &lcub; Rive &rcub; from
+          &quot;@rive-app/webgl2&quot;</code>). Pick this when you&rsquo;re inside a bundler &mdash;
+          Vite, Next.js, Webpack &mdash; so version pinning, tree-shaking, and TypeScript
+          types come from your own <code>package.json</code>.
+        </li>
+      </ul>
+
+      <h3>Snippet mode: COMPACT vs SCAFFOLD</h3>
+      <p>
+        Controls how much of the bound control surface ends up in the snippet body.
+      </p>
+      <ul>
+        <li>
+          <strong>COMPACT</strong> (default) &mdash; only the controls you ticked in the tree
+          appear, with their current live values inlined. Smallest, ready-to-paste form
+          for a finished embed where you just want this one configuration to render.
+        </li>
+        <li>
+          <strong>SCAFFOLD</strong> &mdash; emits every available control on the loaded animation,
+          but comments out the unselected ones with their default values. Ideal as a
+          starter template &mdash; you can uncomment lines later to expose more controls
+          without re-opening RAV. Pairs well with SELECT ALL or CHANGED ONLY presets when
+          you want a documented map of the full control surface.
+        </li>
+      </ul>
+
+      <p>
+        These two axes are independent &mdash; CDN + COMPACT is the default for prototyping
+        embeds, LOCAL + SCAFFOLD is the most useful when you&rsquo;re pulling the snippet
+        into an app and want all controls documented. MCP clients can drive both via the
+        <code>package_source</code> and <code>snippet_mode</code> arguments on
+        <code>generate_web_instantiation_code</code> and <code>rav_export_demo_visual</code>.
+      </p>
 
       <h2>Exporting Workflow</h2>
       <ol>

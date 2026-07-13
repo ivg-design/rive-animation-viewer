@@ -1,5 +1,9 @@
 import { normalizeStateMachineSelection } from '../../rive/default-state-machine.js';
-import { controlSnapshotKeyForDescriptor } from '../../rive/vm-controls.js';
+import {
+    controlSelectionKeyForDescriptor,
+    isControlDescriptorSelected,
+    normalizeControlSelectionKey,
+} from '../../rive/vm-controls.js';
 import {
     buildEffectiveInstantiationDescriptor,
     buildWebInstantiationResult,
@@ -26,6 +30,7 @@ export function resolveExportStateMachines(configStateMachines, detectedStateMac
 
 export function buildDemoBundlePayload({
     artboardState = {},
+    controlSelectionKeys = [],
     controlSnapshot = null,
     currentFileBuffer,
     currentLayoutAlignment = 'center',
@@ -60,12 +65,14 @@ export function buildDemoBundlePayload({
         canvas_color: transparencyState.canvasTransparent ? null : transparencyState.canvasColor,
         canvas_sizing: currentCanvasSizing ? JSON.stringify(currentCanvasSizing) : null,
         canvas_transparent: transparencyState.canvasTransparent,
+        control_selection_keys: JSON.stringify(controlSelectionKeys),
         control_snapshot: controlSnapshot ? JSON.stringify(controlSnapshot) : null,
         default_instantiation_package_source: defaultInstantiationPackageSource,
         instantiation_code: instantiationCode,
         instantiation_snippets: instantiationSnippets ? JSON.stringify(instantiationSnippets) : null,
         instantiation_source_mode: instantiationSourceMode,
         layout_state: JSON.stringify(layoutState),
+        view_model_instance_name: artboardState.currentVmInstanceName ?? null,
         vm_hierarchy: vmHierarchy ? JSON.stringify(vmHierarchy) : null,
     };
 }
@@ -103,27 +110,33 @@ export function createDemoExportController({
         updateInfo = () => {},
     } = callbacks;
 
-    function resolveSelectedControlSnapshot(selectedControlKeys) {
+    function resolveSelectedControlKeys(selectedControlKeys) {
         const explicitKeys = Array.isArray(selectedControlKeys)
             ? selectedControlKeys
             : getSelectedControlKeys();
-        if (!Array.isArray(explicitKeys)) {
-            return getChangedVmControlSnapshot();
-        }
-
-        const allowedKeys = new Set(
-            explicitKeys
+        const sourceKeys = Array.isArray(explicitKeys)
+            ? explicitKeys
+            : getChangedVmControlSnapshot()
+                .map((entry) => controlSelectionKeyForDescriptor(entry?.descriptor))
+                .filter(Boolean);
+        return Array.from(new Set(
+            sourceKeys
                 .filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
-                .map((entry) => entry.trim()),
-        );
-        if (!allowedKeys.size) {
+                .map((entry) => normalizeControlSelectionKey(entry))
+                .filter(Boolean),
+        ));
+    }
+
+    function resolveSelectedControlSnapshot(selectedControlKeys) {
+        const resolvedKeys = resolveSelectedControlKeys(selectedControlKeys);
+        if (!resolvedKeys.length) {
             return [];
         }
 
-        return captureVmControlSnapshot().filter((entry) => {
-            const key = controlSnapshotKeyForDescriptor(entry?.descriptor);
-            return Boolean(key) && allowedKeys.has(key);
-        });
+        const allowedKeys = new Set(resolvedKeys);
+
+        return captureVmControlSnapshot().filter((entry) =>
+            isControlDescriptorSelected(entry?.descriptor, allowedKeys));
     }
 
     function resolveAllControlSnapshot() {
@@ -141,9 +154,10 @@ export function createDemoExportController({
         const runtimeAsset = getRuntimeAsset(runtimeName);
         const selectedRuntimeSemver = runtimeAsset?.version || getEffectiveRuntimeVersionToken(getRuntimeVersionToken());
         const liveConfigState = getLiveConfigState();
+        const controlSelectionKeys = resolveSelectedControlKeys(selectedControlKeys);
         const controlSnapshot = snippetMode === 'scaffold'
             ? resolveAllControlSnapshot()
-            : resolveSelectedControlSnapshot(selectedControlKeys);
+            : resolveSelectedControlSnapshot(controlSelectionKeys);
         const descriptor = buildEffectiveInstantiationDescriptor({
             artboardState: getArtboardStateSnapshot(),
             currentFileName,
@@ -167,13 +181,13 @@ export function createDemoExportController({
             result: buildWebInstantiationResult(descriptor, {
                 controlSnapshot,
                 packageSource,
-                selectedControlKeys,
+                selectedControlKeys: controlSelectionKeys,
                 snippetMode,
             }),
         };
     }
 
-    async function buildExportContext({ selectedControlKeys, snippetMode = 'compact' } = {}) {
+    async function buildExportContext({ packageSource = 'cdn', selectedControlKeys, snippetMode = 'compact' } = {}) {
         const currentFileBuffer = getCurrentFileBuffer();
         const currentFileName = getCurrentFileName();
         if (!currentFileBuffer || !currentFileName) {
@@ -189,7 +203,9 @@ export function createDemoExportController({
         }
 
         const selectedRuntimeSemver = runtimeAsset.version || getEffectiveRuntimeVersionToken(getRuntimeVersionToken());
-        const controlSnapshot = resolveSelectedControlSnapshot(selectedControlKeys);
+        const defaultPackageSource = packageSource === 'local' ? 'local' : 'cdn';
+        const controlSelectionKeys = resolveSelectedControlKeys(selectedControlKeys);
+        const controlSnapshot = resolveSelectedControlSnapshot(controlSelectionKeys);
         const descriptor = buildEffectiveInstantiationDescriptor({
             artboardState: getArtboardStateSnapshot(),
             currentFileName,
@@ -210,13 +226,13 @@ export function createDemoExportController({
             cdn: buildWebInstantiationResult(descriptor, {
                 controlSnapshot: snippetMode === 'scaffold' ? resolveAllControlSnapshot() : controlSnapshot,
                 packageSource: 'cdn',
-                selectedControlKeys,
+                selectedControlKeys: controlSelectionKeys,
                 snippetMode,
             }),
             local: buildWebInstantiationResult(descriptor, {
                 controlSnapshot: snippetMode === 'scaffold' ? resolveAllControlSnapshot() : controlSnapshot,
                 packageSource: 'local',
-                selectedControlKeys,
+                selectedControlKeys: controlSelectionKeys,
                 snippetMode,
             }),
         };
@@ -225,23 +241,25 @@ export function createDemoExportController({
                 currentArtboard: descriptor.artboard,
                 currentPlaybackName: descriptor.animations[0] || descriptor.stateMachines[0] || null,
                 currentPlaybackType: descriptor.animations.length > 0 ? 'animation' : (descriptor.stateMachines.length > 0 ? 'stateMachine' : null),
+                currentVmInstanceName: descriptor.viewModelInstanceName,
             },
             controlSnapshot,
+            controlSelectionKeys,
             currentFileBuffer,
             currentFileName,
             currentCanvasSizing: descriptor.canvasSizing,
             currentLayoutAlignment: getCurrentLayoutAlignment(),
             currentLayoutFit: getCurrentLayoutFit(),
-            defaultInstantiationPackageSource: 'cdn',
+            defaultInstantiationPackageSource: defaultPackageSource,
             editorConfig: {
                 autoplay: descriptor.autoplay,
             },
-            instantiationCode: instantiationSnippets.cdn.code,
+            instantiationCode: instantiationSnippets[defaultPackageSource].code,
             instantiationSnippets: {
                 cdn: instantiationSnippets.cdn.code,
                 local: instantiationSnippets.local.code,
             },
-            instantiationSourceMode: instantiationSnippets.cdn.sourceMode,
+            instantiationSourceMode: instantiationSnippets[defaultPackageSource].sourceMode,
             layoutState: getLayoutStateSnapshot(),
             runtimeName,
             runtimeScript: runtimeAsset.text,
@@ -253,7 +271,7 @@ export function createDemoExportController({
 
         return {
             currentFileName,
-            instantiationResult: instantiationSnippets.cdn,
+            instantiationResult: instantiationSnippets[defaultPackageSource],
             instantiationSnippets,
             payload,
             runtimeName,

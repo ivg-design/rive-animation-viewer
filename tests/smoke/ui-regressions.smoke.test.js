@@ -146,6 +146,8 @@ describe('ui regression smoke', () => {
         const preamble = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'demo-template', 'js', 'core', 'preamble.js'), 'utf8');
         const eventLog = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'demo-template', 'js', 'core', 'event-log.js'), 'utf8');
         const vmAccessors = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'demo-template', 'js', 'vm', 'accessors.js'), 'utf8');
+        const vmHierarchy = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'demo-template', 'js', 'vm', 'hierarchy.js'), 'utf8');
+        const vmSync = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'demo-template', 'js', 'vm', 'sync.js'), 'utf8');
         const riveLoader = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'demo-template', 'js', 'core', 'rive-loader.js'), 'utf8');
         const bootstrap = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'demo-template', 'js', 'core', 'bootstrap.js'), 'utf8');
 
@@ -158,11 +160,22 @@ describe('ui regression smoke', () => {
         expect(markup).not.toContain('event-log-chevron');
 
         expect(preamble).toContain('const ALLOWED_CONTROL_KEYS = new Set');
-        expect(preamble).toContain('function filterHierarchyNode(node)');
+        expect(preamble).toContain('const CONTROL_SELECTION_KEYS = Array.isArray(CONFIG.controlSelectionKeys)');
+        expect(preamble).toContain('function normalizeControlSelectionKey(key)');
+        expect(preamble).toContain('let pendingControlSnapshot = new Map();');
         expect(eventLog).toContain('function setEventLogCollapsed(collapsed)');
         expect(eventLog).toContain('document.documentElement.requestFullscreen');
         expect(vmAccessors).toContain('typeof input.fire === \'function\' && !(\'value\' in input)');
-        expect(riveLoader).toContain('vmHierarchy = filterHierarchyNode(JSON.parse(JSON.stringify(VM_HIERARCHY)));');
+        expect(riveLoader).toContain('Prefer the current runtime tree so converter-driven lists cannot go stale.');
+        expect(riveLoader).toContain('? buildVmHierarchy(rootVm)');
+        expect(vmHierarchy).toContain('function buildVmListTopologySignature(rootVm)');
+        expect(vmHierarchy).toContain('ALLOWED_CONTROL_KEYS.has(selectionKey)');
+        expect(vmHierarchy).toContain('function formatVmListItemLabel(listName, index)');
+        expect(vmHierarchy).toContain('function filterHierarchyNode(node)');
+        expect(riveLoader).toContain('filterHierarchyNode(liveVmHierarchy)');
+        expect(vmSync).toContain('retryPendingControlSnapshot();');
+        expect(vmSync).toContain('renderVmControls();');
+        expect(vmSync).toContain('if (!syncVmControlTopology()) syncVmControlBindings(false);');
         expect(riveLoader).toContain('fit: resolveRiveLayoutFit(rive, currentLayoutFit)');
         expect(riveLoader).toContain('alignment: resolveRiveLayoutAlignment(rive, currentLayoutAlignment)');
         expect(bootstrap).toContain('scheduleCanvasViewportAlignment');
