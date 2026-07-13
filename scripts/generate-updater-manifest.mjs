@@ -2,6 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 function parseArgs(argv) {
   const result = {};
@@ -50,16 +51,30 @@ function buildPlatformEntry(asset, signatureAsset) {
   };
 }
 
+export function canonicalizeAssetDownloadUrl(downloadUrl, tagName, assetName) {
+  if (!downloadUrl || !tagName || !assetName) return downloadUrl;
+
+  try {
+    const url = new URL(downloadUrl);
+    const marker = '/releases/download/';
+    const markerIndex = url.pathname.indexOf(marker);
+    if (url.hostname !== 'github.com' || markerIndex === -1) return downloadUrl;
+
+    const repositoryPath = url.pathname.slice(0, markerIndex);
+    url.pathname = `${repositoryPath}${marker}${encodeURIComponent(tagName)}/${encodeURIComponent(assetName)}`;
+    url.search = '';
+    url.hash = '';
+    return url.toString();
+  } catch {
+    return downloadUrl;
+  }
+}
+
 function sortKeys(obj) {
   return Object.fromEntries(Object.entries(obj).sort(([a], [b]) => a.localeCompare(b)));
 }
 
-function main() {
-  const args = parseArgs(process.argv.slice(2));
-  const releaseFile = args['release-file'];
-  const signatureDir = args['signature-dir'];
-  const output = args.output;
-
+export function generateUpdaterManifest({ releaseFile, signatureDir, output }) {
   if (!releaseFile || !signatureDir || !output) {
     throw new Error('Usage: generate-updater-manifest --release-file <json> --signature-dir <dir> --output <file>');
   }
@@ -80,7 +95,7 @@ function main() {
       const signaturePath = path.join(signatureDir, signatureAsset.name);
       if (!fs.existsSync(signaturePath)) continue;
       const entry = buildPlatformEntry(
-        { downloadUrl: asset.url, name },
+        { downloadUrl: canonicalizeAssetDownloadUrl(asset.url, release.tagName, name), name },
         { localPath: signaturePath, name: signatureAsset.name },
       );
       if (!entry) continue;
@@ -100,7 +115,7 @@ function main() {
       const signaturePath = path.join(signatureDir, signatureAsset.name);
       if (!fs.existsSync(signaturePath)) continue;
       const entry = buildPlatformEntry(
-        { downloadUrl: asset.url, name },
+        { downloadUrl: canonicalizeAssetDownloadUrl(asset.url, release.tagName, name), name },
         { localPath: signaturePath, name: signatureAsset.name },
       );
       if (!entry) continue;
@@ -124,6 +139,18 @@ function main() {
   };
 
   fs.writeFileSync(output, `${JSON.stringify(manifest, null, 2)}\n`);
+  return manifest;
 }
 
-main();
+function main() {
+  const args = parseArgs(process.argv.slice(2));
+  generateUpdaterManifest({
+    releaseFile: args['release-file'],
+    signatureDir: args['signature-dir'],
+    output: args.output,
+  });
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main();
+}

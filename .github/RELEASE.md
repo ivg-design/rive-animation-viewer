@@ -45,7 +45,9 @@ Each runner installs Node.js 20, the Rust stable toolchain, repository dependenc
 
 The workflow extracts the matching version section from `CHANGELOG.md` and uses it as the GitHub Release body. A missing or empty release section fails the prepare job before any platform build begins.
 
-After all three platform jobs succeed, the final job downloads the updater signatures, generates a merged `latest.json`, uploads it to the same release, and then publishes the release. A failed or incomplete platform matrix therefore cannot expose a partial public release. Do not consider a release complete until the public release contains this manifest and entries for every supported target.
+After all three platform jobs succeed, the final job downloads the updater signatures, generates a merged `latest.json`, uploads it to the same release, and then publishes the release. The generator canonicalizes GitHub's draft-only `untagged-*` asset URLs to the permanent version-tag URLs before upload. A failed or incomplete platform matrix therefore cannot expose a partial public release. Do not consider a release complete until the public release contains this manifest and entries for every supported target.
+
+If an already-published release ever needs only its updater manifest rebuilt, run the **Repair Updater Manifest** workflow with that version tag. It reuses the published signatures and installers; it does not rebuild or replace platform packages.
 
 ## Required repository secrets
 

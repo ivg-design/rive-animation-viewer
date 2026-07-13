@@ -1,0 +1,76 @@
+name: Repair Updater Manifest
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/repair-updater-manifest.yml"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to repair (for example v2.4.0). Leave empty to use package.json."
+        required: false
+        type: string
+
+jobs:
+  repair-updater-manifest:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
+      - name: Resolve release tag
+        id: meta
+        shell: bash
+        env:
+          REQUESTED_TAG: ${{ github.event.inputs.tag || '' }}
+        run: |
+          set -euo pipefail
+          TAG="${REQUESTED_TAG:-v$(node -p "require('./package.json').version")}"
+          if [[ "$TAG" != v* ]]; then
+            TAG="v$TAG"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Download updater signatures
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: mkdir -p /tmp/rav-updater-signatures && gh release download "$TAG" --repo "$REPO" --dir /tmp/rav-updater-signatures --pattern "*.sig"
+
+      - name: Rebuild canonical latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          gh release view "$TAG" --repo "$REPO" --json assets,body,publishedAt,tagName > /tmp/rav-release.json
+          node scripts/generate-updater-manifest.mjs --release-file /tmp/rav-release.json --signature-dir /tmp/rav-updater-signatures --output /tmp/latest.json
+          TAG="$TAG" node <<'NODE'
+          const fs = require('node:fs');
+          const manifest = JSON.parse(fs.readFileSync('/tmp/latest.json', 'utf8'));
+          const urls = Object.values(manifest.platforms).map((entry) => entry.url);
+          if (urls.length === 0 || urls.some((url) => url.includes('/untagged-') || !url.includes(`/download/${process.env.TAG}/`))) {
+            throw new Error('latest.json contains a non-canonical release asset URL');
+          }
+          console.log(JSON.stringify(manifest, null, 2));
+          NODE
+
+      - name: Replace latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: gh release upload "$TAG" /tmp/latest.json#latest.json --repo "$REPO" --clobber
