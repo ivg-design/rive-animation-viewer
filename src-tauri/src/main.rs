@@ -12,7 +12,9 @@ use tauri::menu::{PredefinedMenuItem, Submenu, WINDOW_SUBMENU_ID};
 use tauri::{Emitter, Manager};
 
 use crate::app::constants::{ABOUT_MENU_ID, DEFAULT_MCP_PORT, ONLINE_DOCS_MENU_ID, RAV_DOCS_URL};
-use crate::app::mcp::bridge::{initialize_mcp_bridge, kill_spawned_mcp_bridge};
+use crate::app::mcp::bridge::{
+    initialize_mcp_bridge, kill_spawned_mcp_bridge, refresh_mcp_client_launcher_if_present,
+};
 use crate::app::state::{McpBridgeManager, OpenedFiles, PendingAppUpdate};
 use crate::app::support::{
     extract_opened_riv_file_args, extract_opened_riv_file_args_from_iter, looks_like_riv_file,
@@ -75,6 +77,9 @@ fn main() {
             let bridge_manager = app.state::<McpBridgeManager>();
             if let Err(error) = initialize_mcp_bridge(app.handle(), &bridge_manager) {
                 eprintln!("[rav-app] failed to start MCP bridge: {error}");
+            }
+            if let Err(error) = refresh_mcp_client_launcher_if_present(app.handle()) {
+                eprintln!("[rav-app] failed to refresh MCP client launcher: {error}");
             }
             Ok(())
         })

@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Packaged MCP sidecar discovery** — RAV now resolves `rav-mcp` from the running application's executable directory, restoring automatic MCP bridge startup for macOS installations affected by the 2.4.1 regression and refreshing an existing stable client launcher after an update.
+
 ## [2.4.1] - 2026-07-25
 
 ### Changed

@@ -296,6 +296,9 @@ the direct Vercel deployment and the public Forge URL.
 5. Download a DMG through a browser, install it on a clean Mac, disconnect
    networking, and confirm Gatekeeper launches it normally using the stapled
    ticket.
-6. Install 2.4.0, update to 2.4.1 in-app, relaunch, confirm About reports 2.4.1,
-   and confirm the next updater check reports no newer version.
+6. For the planned 2.4.2 hotfix, install 2.4.1, update to 2.4.2 in-app, and
+   relaunch. Confirm About reports 2.4.2, the next updater check reports no
+   newer version, `Contents/MacOS/rav-mcp` exists in the installed app, the MCP
+   chip reaches its healthy state, and the stable client launcher resolves to
+   that bundled sidecar.
 7. Deploy the website and verify its downloads and changelog.

@@ -145,6 +145,18 @@ Check the browser console for `[rav-mcp-bridge]` messages.
 port from the MCP Setup dialog. The bridge starts automatically with the app
 and keeps retrying until a client attaches.
 
+**RAV 2.4.1 says the sidecar is not beside the app executable (macOS)** - The
+signed sidecar is present at
+`/Applications/Rive Animation Viewer.app/Contents/MacOS/rav-mcp`; 2.4.1 can
+fail while resolving its sibling path. Update to the planned 2.4.2 patch when
+it is offered. Reinstalling 2.4.1 does not fix this regression. As a temporary
+workaround, keep the following command running and substitute the MCP Setup
+port if it is not `9274`:
+
+```bash
+"/Applications/Rive Animation Viewer.app/Contents/MacOS/rav-mcp" --bridge-only --port 9274
+```
+
 **Desktop app setup still mentions Node** - Update to a build that includes the
 native `rav-mcp` sidecar and use the in-app MCP Setup dialog instead of the
 source-only JS server path.
