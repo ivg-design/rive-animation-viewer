@@ -95,7 +95,7 @@ const jsonLd = {
       url: siteUrl,
       applicationCategory: "DeveloperApplication",
       operatingSystem: "macOS, Windows",
-      softwareVersion: "2.4.1",
+      softwareVersion: "2.4.2",
       datePublished: "2025-11-01",
       dateModified: "2026-07-25",
       downloadUrl: "https://github.com/ivg-design/rive-animation-viewer/releases/latest",

@@ -56,6 +56,14 @@ export default function Updates() {
         Failed updates no longer wait for a manual click. The app retries automatically
         on focus return, visibility change, network reconnection, and a short timer.
       </p>
+
+      <h2>MCP Repair in 2.4.2</h2>
+      <p>
+        RAV 2.4.2 fixes the packaged MCP lookup regression in 2.4.1. The updater
+        keeps <code>rav-mcp</code> beside the application executable, and the
+        relaunched app now resolves that exact sibling path and refreshes an existing
+        stable MCP launcher symlink automatically.
+      </p>
     </>
   );
 }

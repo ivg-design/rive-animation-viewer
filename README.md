@@ -4,8 +4,8 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.4.1` (2026-07-25)
-- Validation target: release from `main` with tag `v2.4.1`. macOS downloads and updater apps must be Developer ID signed, notarized, and stapled; every updater payload must also retain its separate Tauri signature.
+- Current release: `2.4.2` (2026-07-25)
+- Validation target: release from `main` with tag `v2.4.2`. macOS downloads and updater apps must be Developer ID signed, notarized, and stapled; every updater payload must also retain its separate Tauri signature.
 
 ## Regression Gates
 
@@ -20,6 +20,12 @@ The repo now has explicit prebuild guards for the surfaces that were regressing 
 
 These gates materially reduce regression risk, but they are still code- and DOM-contract tests, not full visual snapshot coverage. If we want pixel-level guarantees from this point forward, the next step is adding screenshot-based desktop smoke tests for the packaged app window.
 
+## 2.4.2 Highlights
+
+- **MCP sidecar startup restored**: Packaged RAV builds resolve `rav-mcp` beside the running application executable, so the app-owned bridge starts automatically again.
+- **Updater migration repair**: Existing stable MCP launcher symlinks are refreshed during startup after an app replacement.
+- **Regression coverage**: Rust and smoke tests now enforce the sibling-binary layout instead of relying on Tauri's unrelated generic executable-directory API.
+
 ## 2.4.1 Highlights
 
 - **Trusted macOS installs**: Apple Silicon and Intel builds are Developer ID signed with hardened runtime and secure timestamps, then notarized and stapled for normal Gatekeeper-approved launch.
@@ -28,24 +34,13 @@ These gates materially reduce regression risk, but they are still code- and DOM-
 - **Single signed MCP binary**: RAV now packages one `rav-mcp` beside the main executable, where Tauri signs it inside-out with the app. The redundant unsigned Resources copy is gone.
 - **Atomic, bounded releases**: Complete platform inventory, signing checks, job timeouts, concurrency protection, and a final draft gate prevent partial or runaway releases from becoming public.
 
-### Known MCP issue in 2.4.1
+### MCP startup regression resolved in 2.4.2
 
 RAV 2.4.1 includes the signed sidecar at
 `Rive Animation Viewer.app/Contents/MacOS/rav-mcp`, but its packaged macOS
 startup path can report that the sidecar is missing. The bundle has not moved:
 the failure is in resolving the directory that contains the running app
-executable. The fix resolves `rav-mcp` as that executable's sibling and is
-planned for the 2.4.2 patch.
-
-Until 2.4.2 is available, keep this command running in Terminal to start the
-installed sidecar manually:
-
-```bash
-"/Applications/Rive Animation Viewer.app/Contents/MacOS/rav-mcp" --bridge-only --port 9274
-```
-
-If MCP Setup uses a custom port, replace `9274` with that port. Install 2.4.2
-through the updater when it is offered; reinstalling 2.4.1 does not repair the
+executable. Update to 2.4.2 or later; reinstalling 2.4.1 does not repair the
 path-resolution failure.
 
 ## 2.4.0 Highlights
