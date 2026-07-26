@@ -277,13 +277,17 @@ the GitHub release first so dynamic download links resolve to the new assets:
 cd web
 npm ci
 npm run lint
+vercel link --yes --project rav --scope ivgs-projects
 vercel pull --yes --environment=production --scope ivgs-projects
 vercel build --prod --scope ivgs-projects
 vercel deploy --prebuilt --prod --yes --scope ivgs-projects
 ```
 
-Keep `NEXT_PUBLIC_SITE_URL=https://forge.mograph.life/apps/rav/`, then verify
-the direct Vercel deployment and the public Forge URL.
+Always run the explicit `vercel link` step on a fresh checkout; otherwise Vercel
+can create a new project from the `web/` directory name instead of selecting
+`ivgs-projects/rav`. Keep
+`NEXT_PUBLIC_SITE_URL=https://forge.mograph.life/apps/rav/`, then verify the
+direct Vercel deployment and the public Forge URL.
 
 ## Post-release verification
 
