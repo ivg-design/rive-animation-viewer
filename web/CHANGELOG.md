@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file.
 - **Notarized automatic updates** — The macOS updater archive is created from the already-notarized app and remains protected by RAV's separate Tauri updater signature.
 - **Single signed MCP sidecar** — Packaged apps now ship only the signed native `rav-mcp` executable beside the main application binary, eliminating the redundant unsigned Resources copy.
 - **Safer releases** — GitHub releases remain drafts until both macOS distributions, both Windows installers, updater signatures, and the complete cross-platform update feed pass verification.
+- **Patched production dependencies** — Next.js and `eslint-config-next` now use `16.2.12`; PostCSS `8.5.23` and Sharp `0.35.3` overrides remove all production dependency audit findings.
 
 ### Fixed
 

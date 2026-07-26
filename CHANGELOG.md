@@ -13,6 +13,7 @@ All notable changes to this project are documented in this file.
 - **Single signed MCP sidecar** — Packaged apps now contain only Tauri's signed `Contents/MacOS/rav-mcp` Cargo binary. The redundant unsigned Resources copy was removed, while development builds create the debug sidecar beside the app executable.
 - **Release safety controls** — Release jobs now have bounded timeouts, pinned Actions, non-cancelling concurrency, complete artifact inventory checks, and an explicit draft verification gate before `latest.json` or the public release can advance.
 - **Version and documentation consistency** — Release preparation validates every product version source, the version tooling covers both lockfiles and website metadata, and release documentation distinguishes Apple code signing from Tauri updater signatures.
+- **Website dependency security** — Updated Next.js and its ESLint configuration to `16.2.12`, with patched PostCSS `8.5.23` and Sharp `0.35.3` resolutions, eliminating all production dependency audit findings in `web/`.
 
 ### Fixed
 
