@@ -52,7 +52,7 @@ function buildElements() {
 function mockSetupStatus() {
     return {
         port: 9411,
-        serverPath: '/Applications/RAV/resources/rav-mcp',
+        serverPath: '/Applications/Rive Animation Viewer.app/Contents/MacOS/rav-mcp',
         targets: [
             {
                 id: 'codex',
@@ -115,7 +115,7 @@ describe('ui/mcp-setup', () => {
 
         expect(elements.mcpServerPathDisplay.textContent).toContain('rav-mcp');
         expect(elements.snippetClaudeCode.textContent).toContain('"args":["--stdio-only","--port","9411"]');
-        expect(elements.snippetClaudeDesktop.textContent).toContain('"command": "/Applications/RAV/resources/rav-mcp"');
+        expect(elements.snippetClaudeDesktop.textContent).toContain('"command": "/Applications/Rive Animation Viewer.app/Contents/MacOS/rav-mcp"');
         expect(elements.snippetCodex.textContent).toContain('args = ["--stdio-only","--port","9411"]');
         expect(elements.mcpNodeLabel.textContent).toBe('MCP ready');
         expect(elements.mcpClientStatusCodex.textContent).toBe('Installed');

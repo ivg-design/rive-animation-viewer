@@ -120,6 +120,13 @@ Rust should follow the same rule:
   - sidecar management
   - file/open routing
 
+Packaged desktop builds keep `rav-mcp` as a Cargo binary beside the main
+application executable. On macOS that is
+`Rive Animation Viewer.app/Contents/MacOS/rav-mcp`; it is signed before the
+outer app with the same Developer ID identity, secure timestamp, and hardened
+runtime. Do not copy executable code through Tauri's generic Resources bundle.
+Development builds create the debug sidecar explicitly before `tauri dev`.
+
 ## Decision Rules For New Work
 
 Before adding code to an existing file, apply these checks:

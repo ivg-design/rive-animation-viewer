@@ -11,8 +11,6 @@ coverage/
 
 # Tauri
 src-tauri/target/
-src-tauri/resources/rav-mcp
-src-tauri/resources/rav-mcp.exe
 
 # OS
 .DS_Store
@@ -42,6 +40,11 @@ animations/*.riv
 .env
 .env.local
 .env.*.local
+
+# Apple release credentials (never commit)
+/APPLE-SIGNING-KEYS-DO-NOT-COMMIT/
+*.p12
+AuthKey_*.p8
 
 # Logs
 logs/

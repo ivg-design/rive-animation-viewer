@@ -26,21 +26,18 @@ pub fn resolve_mcp_server_path(app: &tauri::AppHandle) -> Result<PathBuf, String
         "rav-mcp"
     };
 
-    let mut candidates = Vec::new();
-    if let Ok(executable_dir) = app.path().executable_dir() {
-        candidates.push(executable_dir.join(binary_name));
-    }
-    if let Ok(resource_dir) = app.path().resource_dir() {
-        candidates.push(resource_dir.join(binary_name));
-        candidates.push(resource_dir.join("resources").join(binary_name));
-    }
+    let executable_dir = app
+        .path()
+        .executable_dir()
+        .map_err(|error| format!("Failed to resolve app executable directory: {error}"))?;
+    let sidecar_path = executable_dir.join(binary_name);
 
-    candidates
-        .into_iter()
-        .find(|path| path.exists())
+    sidecar_path
+        .exists()
+        .then_some(sidecar_path)
         .ok_or_else(|| {
             format!(
-                "MCP server not found in bundled sidecar locations for {}",
+                "MCP server not found beside the application executable: {}",
                 binary_name
             )
         })

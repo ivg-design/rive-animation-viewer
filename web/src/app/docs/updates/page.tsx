@@ -10,8 +10,8 @@ export default function Updates() {
 
       <p>
         Desktop builds include Tauri&apos;s updater plugin. On launch, RAV checks the
-        GitHub Releases feed in the background. If a newer signed release is available,
-        the runtime strip shows an update chip.
+        GitHub Releases feed in the background. If a newer, Tauri-signed updater payload
+        is available, the runtime strip shows an update chip.
       </p>
 
       <Image src={asset("/docs/update-chip.webp")} alt="Runtime strip showing UPDATE 2.1.1 chip" width={600} height={40} className="rounded-lg border border-[var(--border-dark)] my-4" />
@@ -27,16 +27,28 @@ export default function Updates() {
 
       <h2>How Installation Works</h2>
       <p>
-        Clicking the update chip downloads the signed updater artifact for your platform,
-        installs it, and relaunches the app. On Windows, the app-owned MCP bridge is shut
-        down first to prevent file locking during update.
+        Clicking the update chip downloads the updater artifact for your platform,
+        verifies its Tauri signature with the public key embedded in RAV, installs it,
+        and relaunches the app. On macOS, that archive contains the same Developer ID
+        signed, notarized, and stapled app as the matching DMG. On Windows, the app-owned
+        MCP bridge is shut down first to prevent file locking during update.
       </p>
 
       <h2>Release Feed</h2>
       <p>
         The updater only surfaces a new version after the full multi-platform release
-        completes and the merged <code>latest.json</code> feed is published. A partially
-        complete GitHub release is not enough for the in-app updater to advance.
+        completes, all native-signing and artifact-parity checks pass, and the merged
+        <code>latest.json</code> feed is published. Draft releases are ignored by the
+        <code>releases/latest</code> endpoint, so a partially complete release cannot
+        advance installed clients.
+      </p>
+
+      <h2>Two Trust Layers</h2>
+      <p>
+        Apple Developer ID signing and notarization let macOS and Gatekeeper trust the
+        application. Tauri&apos;s updater <code>.sig</code> authenticates the downloaded
+        archive before RAV installs it. They are independent checks and every macOS update
+        must pass both.
       </p>
 
       <h2>Retry Behavior</h2>

@@ -108,6 +108,7 @@ describe('ui regression smoke', () => {
         const tauriWindowsConfig = JSON.parse(readFileSync(path.join(repoRoot, 'src-tauri', 'tauri.windows.conf.json'), 'utf8'));
         const cargoToml = readFileSync(path.join(repoRoot, 'src-tauri', 'Cargo.toml'), 'utf8');
         const mainRs = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'main.rs'), 'utf8');
+        const mcpBridge = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'app', 'mcp', 'bridge.rs'), 'utf8');
         const windowControls = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'app', 'window', 'controls.rs'), 'utf8');
         const capability = JSON.parse(readFileSync(path.join(repoRoot, 'src-tauri', 'capabilities', 'default.json'), 'utf8'));
         const mainWindow = tauriConfig.app.windows[0];
@@ -115,6 +116,12 @@ describe('ui regression smoke', () => {
 
         expect(tauriConfig.app.security.capabilities).toContain('main-capability');
         expect(tauriConfig.app.macOSPrivateApi).toBe(true);
+        expect(tauriConfig.bundle.macOS.hardenedRuntime).toBe(true);
+        expect(tauriConfig.bundle.macOS.signingIdentity).toBeUndefined();
+        expect(tauriConfig.bundle.resources).toBeUndefined();
+        expect(tauriConfig.build.beforeDevCommand).toContain('build:mcp:debug');
+        expect(mcpBridge).toContain('executable_dir()');
+        expect(mcpBridge).not.toContain('resource_dir()');
         expect(mainWindow.decorations).toBe(true);
         expect(mainWindow.transparent).toBe(true);
         expect(mainWindow.titleBarStyle).toBe('Overlay');

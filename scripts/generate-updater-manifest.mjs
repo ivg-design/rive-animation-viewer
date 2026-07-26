@@ -4,6 +4,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+export const REQUIRED_UPDATER_PLATFORMS = [
+  'darwin-aarch64',
+  'darwin-aarch64-app',
+  'darwin-x86_64',
+  'darwin-x86_64-app',
+  'windows-x86_64',
+  'windows-x86_64-msi',
+  'windows-x86_64-nsis',
+];
+
 function parseArgs(argv) {
   const result = {};
   for (let i = 0; i < argv.length; i += 1) {
@@ -45,8 +55,10 @@ function findSignatureMap(assets) {
 
 function buildPlatformEntry(asset, signatureAsset) {
   if (!asset || !signatureAsset) return null;
+  const signature = fs.readFileSync(signatureAsset.localPath, 'utf8').trim();
+  if (!signature) return null;
   return {
-    signature: fs.readFileSync(signatureAsset.localPath, 'utf8').trim(),
+    signature,
     url: asset.downloadUrl,
   };
 }
@@ -83,6 +95,19 @@ export function generateUpdaterManifest({ releaseFile, signatureDir, output }) {
   const assets = Array.isArray(release.assets) ? release.assets : [];
   const signatures = findSignatureMap(assets);
   const platforms = {};
+  const platformAssets = new Map();
+
+  function addPlatform(platform, entry, assetName) {
+    const previousAsset = platformAssets.get(platform);
+    if (previousAsset) {
+      throw new Error(
+        `Updater manifest has multiple payloads for ${platform}: `
+        + `${previousAsset}, ${assetName}`,
+      );
+    }
+    platforms[platform] = entry;
+    platformAssets.set(platform, assetName);
+  }
 
   for (const asset of assets) {
     const name = asset?.name || '';
@@ -99,8 +124,8 @@ export function generateUpdaterManifest({ releaseFile, signatureDir, output }) {
         { localPath: signaturePath, name: signatureAsset.name },
       );
       if (!entry) continue;
-      platforms[`darwin-${arch}`] = entry;
-      platforms[`darwin-${arch}-app`] = entry;
+      addPlatform(`darwin-${arch}`, entry, name);
+      addPlatform(`darwin-${arch}-app`, entry, name);
       continue;
     }
 
@@ -120,15 +145,24 @@ export function generateUpdaterManifest({ releaseFile, signatureDir, output }) {
       );
       if (!entry) continue;
       const installerKey = (name.endsWith('.msi') || name.endsWith('.msi.zip')) ? 'msi' : 'nsis';
-      platforms[`windows-${arch}-${installerKey}`] = entry;
-      if (installerKey === 'msi' || !platforms[`windows-${arch}`]) {
-        platforms[`windows-${arch}`] = entry;
-      }
+      addPlatform(`windows-${arch}-${installerKey}`, entry, name);
     }
   }
 
-  if (Object.keys(platforms).length === 0) {
-    throw new Error('No updater platforms were resolved from the release assets');
+  for (const arch of ['x86_64']) {
+    const genericEntry = platforms[`windows-${arch}-msi`]
+      || platforms[`windows-${arch}-nsis`];
+    if (genericEntry) {
+      platforms[`windows-${arch}`] = genericEntry;
+    }
+  }
+
+  const missingPlatforms = REQUIRED_UPDATER_PLATFORMS
+    .filter((platform) => !platforms[platform]);
+  if (missingPlatforms.length > 0) {
+    throw new Error(
+      `Updater manifest is incomplete; missing platforms: ${missingPlatforms.join(', ')}`,
+    );
   }
 
   const manifest = {

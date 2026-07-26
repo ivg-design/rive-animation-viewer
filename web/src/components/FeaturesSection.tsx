@@ -52,7 +52,7 @@ const secondaryFeatures = [
   { icon: MonitorCog, title: "Renderer + runtime", desc: "Canvas or WebGL2. Latest, pinned, or custom runtime semver. Fit and alignment in the toolbar." },
   { icon: Maximize, title: "Canvas sizing", desc: "Auto or fixed pixel dimensions with aspect lock. Carries through to exports and snippets." },
   { icon: RotateCcw, title: "State preservation", desc: "Reset and reload preserve artboard, playback, and control values across re-instantiation." },
-  { icon: Download, title: "Auto updates", desc: "Signed releases detected, downloaded, and installed from the in-app update chip." },
+  { icon: Download, title: "Auto updates", desc: "Tauri-authenticated updates, with Developer ID signing and notarization on macOS." },
   { icon: Search, title: "VM Explorer", desc: "Inject the helper snippet for vmExplore, vmGet, vmSet, vmTree, and vmPaths debugging." },
 ];
 

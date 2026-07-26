@@ -4,8 +4,8 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.4.0` (2026-07-13)
-- Validation target: release from `main` with tag `v2.4.0` so installed desktop builds can receive the signed Apple Silicon, Intel macOS, and Windows updater payloads.
+- Current release: `2.4.1` (2026-07-25)
+- Validation target: release from `main` with tag `v2.4.1`. macOS downloads and updater apps must be Developer ID signed, notarized, and stapled; every updater payload must also retain its separate Tauri signature.
 
 ## Regression Gates
 
@@ -19,6 +19,14 @@ The repo now has explicit prebuild guards for the surfaces that were regressing 
 - `cargo check --manifest-path src-tauri/Cargo.toml` validates the native Tauri layer
 
 These gates materially reduce regression risk, but they are still code- and DOM-contract tests, not full visual snapshot coverage. If we want pixel-level guarantees from this point forward, the next step is adding screenshot-based desktop smoke tests for the packaged app window.
+
+## 2.4.1 Highlights
+
+- **Trusted macOS installs**: Apple Silicon and Intel builds are Developer ID signed with hardened runtime and secure timestamps, then notarized and stapled for normal Gatekeeper-approved launch.
+- **Notarized auto-updates**: Tauri creates each macOS `.app.tar.gz` from the already-notarized app. CI verifies that it has the same code-signing hash as the app inside the notarized DMG before publishing.
+- **Two independent signature layers**: Apple signing and notarization establish macOS platform trust; the existing Tauri `.sig` files authenticate updater downloads before installation.
+- **Single signed MCP binary**: RAV now packages one `rav-mcp` beside the main executable, where Tauri signs it inside-out with the app. The redundant unsigned Resources copy is gone.
+- **Atomic, bounded releases**: Complete platform inventory, signing checks, job timeouts, concurrency protection, and a final draft gate prevent partial or runaway releases from becoming public.
 
 ## 2.4.0 Highlights
 
@@ -110,8 +118,8 @@ These gates materially reduce regression risk, but they are still code- and DOM-
 - **Readable integration snippets**: Generated snippets are organized for real integration use, round numbers to 2 decimals, annotate enum choices inline, and expose a `window.ravRive` helper API.
 - **Unified consoles**: Event Console and JavaScript Console now share the same newest-first transcript model, timestamps, search/filter workflow, and `FOLLOW` behavior.
 - **Live-source-aware editor**: The editor title itself indicates whether the live runtime is being driven by internal RAV wiring or the applied editor config.
-- **Background app updates**: The desktop app checks for signed updates on launch and exposes an update chip for install/relaunch flow.
-- **Cross-architecture updater feed**: Signed release feeds now publish Apple Silicon, Intel macOS, and Windows updater entries together so one release can serve all supported desktop targets.
+- **Background app updates**: The desktop app checks for Tauri-signed updater payloads on launch and exposes an update chip for install/relaunch flow.
+- **Cross-architecture updater feed**: Tauri-signed release feeds publish Apple Silicon, Intel macOS, and Windows updater entries together so one release can serve all supported desktop targets.
 
 ## Quick Start
 
@@ -212,7 +220,7 @@ The key rule is simple: new hand-written source files may not exceed `400` lines
 MCP Client ←(stdio)→ rav-mcp sidecar ←(WebSocket :9274)→ RAV Frontend
 ```
 
-The desktop app bundles a native `rav-mcp` sidecar binary inside the app resources and exposes a stable launcher path for external clients. The frontend MCP bridge client starts automatically when RAV launches, attaches to the configured port, and keeps retrying until a client attaches.
+The desktop app bundles one native `rav-mcp` sidecar beside the main application executable and exposes a stable launcher path for external clients. On macOS, Tauri applies the same Developer ID, hardened-runtime, and timestamp requirements to the sidecar before signing the outer app. The frontend MCP bridge client starts automatically when RAV launches, attaches to the configured port, and keeps retrying until a client attaches.
 
 #### Setup (one-time)
 
@@ -303,9 +311,10 @@ All MCP commands, responses, and connection events appear in the event console w
 - **Demo Runtime Guardrails**: Exported demos intentionally disable desktop-only transparency toggle behavior
 - **Offline Support**: Caches runtime scripts for offline use
 - **Dev Tools Access**: Programmatic DevTools opening via inject button to access console
-- **Background App Updates**: Check, download, install, and relaunch signed updates from GitHub Releases
+- **Background App Updates**: Check, authenticate with the Tauri updater signature, install, and relaunch updates from GitHub Releases
 - **Safe Updater Bridge Shutdown**: Desktop installs now stop the app-owned MCP bridge before updater installation starts, preventing Windows file-lock stalls
-- **Merged updater publishing**: Release automation now rebuilds a combined `latest.json` so macOS Apple Silicon, macOS Intel, and Windows updater payloads all stay present in the same feed
+- **Trusted macOS distribution**: Developer ID signing, notarization, stapling, and parity checks cover both direct-download DMGs and macOS updater apps
+- **Merged updater publishing**: Release automation publishes a combined `latest.json` only after macOS Apple Silicon, macOS Intel, MSI, and NSIS updater payloads are all present
 
 ## Project Structure
 
@@ -328,8 +337,11 @@ rive-local/
 │   └── codemirror-bundle.js  # Bundled CodeMirror
 ├── scripts/
 │   ├── build-dist.mjs        # Production build
-│   ├── build-mcp-sidecar.mjs # Native rav-mcp sidecar builder
-│   └── generate-updater-manifest.mjs # Merges multi-platform updater assets into one latest.json
+│   ├── build-mcp-sidecar.mjs # Debug rav-mcp builder used before tauri dev
+│   ├── check-release-version.mjs # Verifies synchronized release metadata
+│   ├── generate-updater-manifest.mjs # Merges complete multi-platform updater assets
+│   ├── verify-macos-distribution.sh # Verifies Developer ID/notary parity
+│   └── verify-updater-signatures.mjs # Verifies exact Tauri-signed payload bytes
 └── src-tauri/                # Rust/Tauri desktop wrapper + native rav-mcp
 ```
 
@@ -337,7 +349,7 @@ rive-local/
 
 ### Prerequisites
 - Rust toolchain (`rustup`)
-- Node.js 18+
+- Node.js 20.19+
 - Xcode Command Line Tools (macOS)
 
 ### Build Commands

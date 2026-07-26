@@ -4,7 +4,7 @@ site_name: RAV
 site_url: https://forge.mograph.life/apps/rav/
 canonical_url: https://forge.mograph.life/apps/rav/
 owner: IVG Design
-last_updated: 2026-07-13
+last_updated: 2026-07-25
 language: en
 
 ## Purpose

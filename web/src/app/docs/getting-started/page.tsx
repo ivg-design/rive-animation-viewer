@@ -20,7 +20,7 @@ export default function GettingStarted() {
       <ol>
         <li>Download the <code>.dmg</code> file for your architecture (Apple Silicon or Intel)</li>
         <li>Open the DMG and drag RAV to your Applications folder</li>
-        <li>On first launch, right-click the app and select &quot;Open&quot; to bypass Gatekeeper</li>
+        <li>Launch RAV normally. Current releases are Developer ID signed, notarized, and stapled for Gatekeeper.</li>
         <li>RAV registers as the default handler for <code>.riv</code> files &mdash; double-click any <code>.riv</code> to open it</li>
       </ol>
 

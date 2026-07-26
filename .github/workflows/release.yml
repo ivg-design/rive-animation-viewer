@@ -12,19 +12,16 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (e.g. 1.7.0). Leave empty to use package.json"
+        description: "Release version (for example 2.4.1). Leave empty to use package.json."
         required: false
         type: string
-      platform:
-        description: "Platform target to build"
-        required: false
-        default: all
-        type: choice
-        options:
-          - all
-          - macos_arm
-          - macos_intel
-          - windows_x64
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rav-release-${{ github.repository }}
+  cancel-in-progress: false
 
 jobs:
   prepare-release:
@@ -32,64 +29,64 @@ jobs:
       github.event_name != 'push' ||
       github.ref_type == 'tag' ||
       startsWith(github.event.head_commit.message, 'chore(release): v')
-    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     outputs:
       version: ${{ steps.meta.outputs.version }}
       tag: ${{ steps.meta.outputs.tag }}
-      matrix: ${{ steps.meta.outputs.matrix }}
-      release_body: ${{ steps.notes.outputs.body }}
+      release_id: ${{ steps.draft.outputs.release_id }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Resolve release version
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "20.19.4"
+
+      - name: Resolve and verify release version
         id: meta
         shell: bash
         env:
           DISPATCH_VERSION: ${{ github.event.inputs.version || '' }}
-          DISPATCH_PLATFORM: ${{ github.event.inputs.platform || 'all' }}
         run: |
           set -euo pipefail
 
-          PKG_VERSION=$(node -p "require('./package.json').version")
+          package_version=$(node -p "require('./package.json').version")
 
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${DISPATCH_VERSION}" ]]; then
-            VERSION="${DISPATCH_VERSION}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "$DISPATCH_VERSION" ]]; then
+            version="$DISPATCH_VERSION"
           elif [[ "${{ github.ref_type }}" == "tag" ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
+            version="${GITHUB_REF_NAME#v}"
           else
-            VERSION="$PKG_VERSION"
+            version="$package_version"
           fi
 
-          if [[ "$VERSION" != "$PKG_VERSION" ]]; then
-            echo "Version mismatch: package.json=$PKG_VERSION requested=$VERSION"
+          actual_subject=$(git log -1 --pretty=%s)
+          expected_subject="chore(release): v$package_version"
+          if [[ "$actual_subject" != "$expected_subject" ]]; then
+            echo "Release commit subject must be exactly: $expected_subject"
+            echo "Actual subject: $actual_subject"
             exit 1
           fi
 
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Preparing release $VERSION"
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "Release commit must already be reachable from origin/main"
+            exit 1
+          fi
 
-          case "$DISPATCH_PLATFORM" in
-            all)
-              MATRIX='{"include":[{"name":"macOS Apple Silicon","platform":"macos-14","rust_target":"aarch64-apple-darwin","args":"--target aarch64-apple-darwin"},{"name":"macOS Intel","platform":"macos-latest","rust_target":"x86_64-apple-darwin","args":"--target x86_64-apple-darwin"},{"name":"Windows x64","platform":"windows-latest","rust_target":"x86_64-pc-windows-msvc","args":"--target x86_64-pc-windows-msvc"}]}'
-              ;;
-            macos_arm)
-              MATRIX='{"include":[{"name":"macOS Apple Silicon","platform":"macos-14","rust_target":"aarch64-apple-darwin","args":"--target aarch64-apple-darwin"}]}'
-              ;;
-            macos_intel)
-              MATRIX='{"include":[{"name":"macOS Intel","platform":"macos-latest","rust_target":"x86_64-apple-darwin","args":"--target x86_64-apple-darwin"}]}'
-              ;;
-            windows_x64)
-              MATRIX='{"include":[{"name":"Windows x64","platform":"windows-latest","rust_target":"x86_64-pc-windows-msvc","args":"--target x86_64-pc-windows-msvc"}]}'
-              ;;
-            *)
-              echo "Unsupported platform input: $DISPATCH_PLATFORM"
-              exit 1
-              ;;
-          esac
+          node scripts/check-release-version.mjs \
+            --version "$version" \
+            --require-release-notes
 
-          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          echo "Preparing complete release $version"
 
       - name: Extract release notes from changelog
         id: notes
@@ -126,91 +123,508 @@ jobs:
           );
           NODE
 
-  release:
+      - name: Create or validate the draft release
+        id: draft
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          RELEASE_BODY: ${{ steps.notes.outputs.body }}
+        run: |
+          set -euo pipefail
+
+          releases_path="$RUNNER_TEMP/rav-releases.json"
+          release_path="$RUNNER_TEMP/rav-release.json"
+          tag_ref_path="$RUNNER_TEMP/rav-tag-ref.json"
+          tag_object_path="$RUNNER_TEMP/rav-tag-object.json"
+          release_commit=$(git rev-parse 'HEAD^{commit}')
+
+          resolve_tag_commit() {
+            local object_sha
+            local object_type
+            local status
+            local depth=0
+
+            if ! gh api "repos/$REPO/git/ref/tags/$TAG" > "$tag_ref_path"; then
+              status=$(TAG_REF_PATH="$tag_ref_path" node -p \
+                "JSON.parse(require('node:fs').readFileSync(process.env.TAG_REF_PATH, 'utf8')).status")
+              if [[ "$status" == 404 ]]; then
+                return 0
+              fi
+              echo "Failed to inspect existing tag $TAG (HTTP $status)" >&2
+              return 1
+            fi
+
+            object_type=$(TAG_REF_PATH="$tag_ref_path" node -p \
+              "JSON.parse(require('node:fs').readFileSync(process.env.TAG_REF_PATH, 'utf8')).object.type")
+            object_sha=$(TAG_REF_PATH="$tag_ref_path" node -p \
+              "JSON.parse(require('node:fs').readFileSync(process.env.TAG_REF_PATH, 'utf8')).object.sha")
+
+            while [[ "$object_type" == "tag" ]]; do
+              depth=$((depth + 1))
+              if (( depth > 8 )); then
+                echo "Annotated tag chain for $TAG is unexpectedly deep" >&2
+                return 1
+              fi
+              gh api "repos/$REPO/git/tags/$object_sha" > "$tag_object_path"
+              object_type=$(TAG_OBJECT_PATH="$tag_object_path" node -p \
+                "JSON.parse(require('node:fs').readFileSync(process.env.TAG_OBJECT_PATH, 'utf8')).object.type")
+              object_sha=$(TAG_OBJECT_PATH="$tag_object_path" node -p \
+                "JSON.parse(require('node:fs').readFileSync(process.env.TAG_OBJECT_PATH, 'utf8')).object.sha")
+            done
+
+            if [[ "$object_type" != "commit" ]]; then
+              echo "Tag $TAG resolves to unsupported object type $object_type" >&2
+              return 1
+            fi
+            printf '%s' "$object_sha"
+          }
+
+          tag_commit=$(resolve_tag_commit)
+          if [[ -n "$tag_commit" && "$tag_commit" != "$release_commit" ]]; then
+            echo "Tag $TAG points to $tag_commit, not release commit $release_commit"
+            exit 1
+          fi
+
+          gh api --paginate --slurp \
+            "repos/$REPO/releases?per_page=100" > "$releases_path"
+
+          RELEASES_PATH="$releases_path" RELEASE_PATH="$release_path" node <<'NODE'
+          const fs = require('node:fs');
+          const pages = JSON.parse(fs.readFileSync(process.env.RELEASES_PATH, 'utf8'));
+          const matches = pages.flat().filter((release) => release.tag_name === process.env.TAG);
+          if (matches.length > 1) {
+            throw new Error(`Found multiple releases for ${process.env.TAG}`);
+          }
+          if (matches.length === 1) {
+            fs.writeFileSync(process.env.RELEASE_PATH, JSON.stringify(matches[0]));
+          }
+          NODE
+
+          if [[ ! -s "$release_path" ]]; then
+            gh api --method POST "repos/$REPO/releases" \
+              --raw-field "tag_name=$TAG" \
+              --raw-field "target_commitish=$release_commit" \
+              --raw-field "name=Rive Animation Viewer v$VERSION" \
+              --raw-field "body=$RELEASE_BODY" \
+              -F draft=true \
+              -F prerelease=false > "$release_path"
+          fi
+
+          RELEASE_PATH="$release_path" EXPECTED_SHA="$release_commit" node <<'NODE'
+          const fs = require('node:fs');
+          const release = JSON.parse(fs.readFileSync(process.env.RELEASE_PATH, 'utf8'));
+          if (release.draft !== true) {
+            throw new Error(
+              `Refusing to mutate existing public release ${release.html_url || release.tag_name}`,
+            );
+          }
+          if (release.prerelease === true) {
+            throw new Error(`Release ${release.tag_name} must not be a prerelease`);
+          }
+          if (release.target_commitish !== process.env.EXPECTED_SHA) {
+            throw new Error(
+              `Draft target ${release.target_commitish} does not match ${process.env.EXPECTED_SHA}`,
+            );
+          }
+          process.stdout.write(`Validated draft release ${release.id}\n`);
+          NODE
+
+          release_id=$(RELEASE_PATH="$release_path" node -p \
+            "JSON.parse(require('node:fs').readFileSync(process.env.RELEASE_PATH, 'utf8')).id")
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+
+  build-macos:
     needs: prepare-release
+    environment: apple-release
     permissions:
       contents: write
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.prepare-release.outputs.matrix) }}
-
-    runs-on: ${{ matrix.platform }}
+      matrix:
+        include:
+          - name: macOS Apple Silicon
+            rust_target: aarch64-apple-darwin
+            updater_arch: aarch64
+          - name: macOS Intel
+            rust_target: x86_64-apple-darwin
+            updater_arch: x86_64
+    runs-on: macos-15
+    timeout-minutes: 240
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
-          node-version: "20"
+          node-version: "20.19.4"
           cache: npm
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
         with:
+          toolchain: 1.88.0
           targets: ${{ matrix.rust_target }}
 
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Build frontend
-        run: npm run build
+      - name: Validate Apple settings and materialize the API key
+        id: apple
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_API_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_API_PRIVATE_KEY_BASE64 }}
+          APPLE_API_KEY_ID: ${{ vars.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ vars.APPLE_API_ISSUER }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
 
-      - name: Build and publish (${{ matrix.name }})
-        uses: tauri-apps/tauri-action@v0.6.2
+          for required_name in \
+            APPLE_CERTIFICATE \
+            APPLE_CERTIFICATE_PASSWORD \
+            APPLE_API_PRIVATE_KEY_BASE64 \
+            APPLE_API_KEY_ID \
+            APPLE_API_ISSUER \
+            APPLE_TEAM_ID
+          do
+            if [[ -z "${!required_name:-}" ]]; then
+              echo "Required Apple release setting is missing: $required_name"
+              exit 1
+            fi
+          done
+
+          key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+
+          printf '%s' "$APPLE_API_PRIVATE_KEY_BASE64" \
+            | openssl base64 -d -A -out "$key_path"
+          chmod 600 "$key_path"
+
+          openssl pkey -in "$key_path" -check -noout
+
+          echo "api_key_path=$key_path" >> "$GITHUB_OUTPUT"
+
+      - name: Build, sign, notarize app, and upload (${{ matrix.name }})
+        id: tauri
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: Developer ID Application
+          APPLE_API_KEY: ${{ vars.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ vars.APPLE_API_ISSUER }}
+          APPLE_API_KEY_PATH: ${{ steps.apple.outputs.api_key_path }}
+        with:
+          tauriScript: npm run tauri
+          releaseId: ${{ needs.prepare-release.outputs.release_id }}
+          includeUpdaterJson: false
+          args: --target ${{ matrix.rust_target }}
+
+      - name: Notarize, staple, and replace the DMG
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+          APPLE_API_KEY: ${{ vars.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ vars.APPLE_API_ISSUER }}
+          APPLE_API_KEY_PATH: ${{ steps.apple.outputs.api_key_path }}
+        run: |
+          set -euo pipefail
+
+          dmg_dir="src-tauri/target/${{ matrix.rust_target }}/release/bundle/dmg"
+          dmg_count=$(find "$dmg_dir" -maxdepth 1 -type f -name '*.dmg' | wc -l | tr -d ' ')
+          if [[ "$dmg_count" != 1 ]]; then
+            echo "Expected exactly one DMG in $dmg_dir; found $dmg_count"
+            exit 1
+          fi
+          dmg_path=$(find "$dmg_dir" -maxdepth 1 -type f -name '*.dmg' -print -quit)
+          result_path="$RUNNER_TEMP/dmg-notarization.json"
+
+          xcrun notarytool submit "$dmg_path" \
+            --key "$APPLE_API_KEY_PATH" \
+            --key-id "$APPLE_API_KEY" \
+            --issuer "$APPLE_API_ISSUER" \
+            --wait \
+            --timeout 180m \
+            --output-format json > "$result_path"
+
+          status=$(RESULT_PATH="$result_path" node -p \
+            "JSON.parse(require('node:fs').readFileSync(process.env.RESULT_PATH, 'utf8')).status")
+          submission_id=$(RESULT_PATH="$result_path" node -p \
+            "JSON.parse(require('node:fs').readFileSync(process.env.RESULT_PATH, 'utf8')).id")
+
+          if [[ "$status" != "Accepted" ]]; then
+            xcrun notarytool log "$submission_id" \
+              --key "$APPLE_API_KEY_PATH" \
+              --key-id "$APPLE_API_KEY" \
+              --issuer "$APPLE_API_ISSUER"
+            echo "DMG notarization failed with status: $status"
+            exit 1
+          fi
+
+          xcrun stapler staple "$dmg_path"
+          xcrun stapler validate "$dmg_path"
+          gh release upload "$TAG" "$dmg_path" --repo "$REPO" --clobber
+
+      - name: Verify signed direct-download and updater artifacts
+        shell: bash
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+
+          bundle_dir="src-tauri/target/${{ matrix.rust_target }}/release/bundle"
+          dmg_path=$(find "$bundle_dir/dmg" -maxdepth 1 -type f -name '*.dmg' -print -quit)
+          updater_archive=$(find "$bundle_dir/macos" -maxdepth 1 -type f -name '*.app.tar.gz' -print -quit)
+
+          scripts/verify-macos-distribution.sh \
+            "$dmg_path" \
+            "$updater_archive" \
+            "$APPLE_TEAM_ID" \
+            "${{ matrix.updater_arch }}" \
+            "${{ needs.prepare-release.outputs.version }}"
+
+      - name: Remove materialized Apple credentials
+        if: always()
+        shell: bash
+        run: |
+          rm -f \
+            "${{ steps.apple.outputs.api_key_path }}" \
+            "$RUNNER_TEMP/dmg-notarization.json"
+
+  build-windows:
+    needs: prepare-release
+    permissions:
+      contents: write
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "20.19.4"
+          cache: npm
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: 1.88.0
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build and upload Windows x64
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tauriScript: npm run tauri
-          tagName: ${{ needs.prepare-release.outputs.tag }}
-          releaseName: Rive Animation Viewer v${{ needs.prepare-release.outputs.version }}
-          releaseBody: |
-            ${{ needs.prepare-release.outputs.release_body }}
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ needs.prepare-release.outputs.release_id }}
           includeUpdaterJson: false
-          args: ${{ matrix.args }}
+          args: --target x86_64-pc-windows-msvc
+
+  verify-draft-release:
+    needs:
+      - prepare-release
+      - build-macos
+      - build-windows
+    permissions:
+      contents: read
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "20.19.4"
+
+      - name: Download and inventory the draft release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$(gh release view "$TAG" --repo "$REPO" --json isDraft --jq .isDraft)" != "true" ]]; then
+            echo "Release $TAG must remain a draft until verification completes"
+            exit 1
+          fi
+
+          asset_dir="$RUNNER_TEMP/rav-release-assets"
+          mkdir -p "$asset_dir"
+          gh release download "$TAG" --repo "$REPO" --dir "$asset_dir"
+
+          required_assets=(
+            "Rive.Animation.Viewer_${VERSION}_aarch64.dmg"
+            "Rive.Animation.Viewer_${VERSION}_x64.dmg"
+            "Rive.Animation.Viewer_aarch64.app.tar.gz"
+            "Rive.Animation.Viewer_aarch64.app.tar.gz.sig"
+            "Rive.Animation.Viewer_x64.app.tar.gz"
+            "Rive.Animation.Viewer_x64.app.tar.gz.sig"
+            "Rive.Animation.Viewer_${VERSION}_x64_en-US.msi"
+            "Rive.Animation.Viewer_${VERSION}_x64_en-US.msi.sig"
+            "Rive.Animation.Viewer_${VERSION}_x64-setup.exe"
+            "Rive.Animation.Viewer_${VERSION}_x64-setup.exe.sig"
+          )
+
+          for asset in "${required_assets[@]}"; do
+            test -s "$asset_dir/$asset" || {
+              echo "Required release asset is missing or empty: $asset"
+              exit 1
+            }
+          done
+
+      - name: Cryptographically verify every updater payload
+        shell: bash
+        env:
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+        run: |
+          set -euo pipefail
+          asset_dir="$RUNNER_TEMP/rav-release-assets"
+
+          npm run verify:updater-signatures -- \
+            "$asset_dir/Rive.Animation.Viewer_aarch64.app.tar.gz" \
+            "$asset_dir/Rive.Animation.Viewer_x64.app.tar.gz" \
+            "$asset_dir/Rive.Animation.Viewer_${VERSION}_x64_en-US.msi" \
+            "$asset_dir/Rive.Animation.Viewer_${VERSION}_x64-setup.exe"
+
+      - name: Verify both notarized macOS distributions
+        shell: bash
+        env:
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          asset_dir="$RUNNER_TEMP/rav-release-assets"
+
+          scripts/verify-macos-distribution.sh \
+            "$asset_dir/Rive.Animation.Viewer_${VERSION}_aarch64.dmg" \
+            "$asset_dir/Rive.Animation.Viewer_aarch64.app.tar.gz" \
+            "$APPLE_TEAM_ID" \
+            aarch64 \
+            "$VERSION"
+
+          scripts/verify-macos-distribution.sh \
+            "$asset_dir/Rive.Animation.Viewer_${VERSION}_x64.dmg" \
+            "$asset_dir/Rive.Animation.Viewer_x64.app.tar.gz" \
+            "$APPLE_TEAM_ID" \
+            x86_64 \
+            "$VERSION"
 
   publish-updater-manifest:
     needs:
       - prepare-release
-      - release
+      - verify-draft-release
     permissions:
       contents: write
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
-          node-version: "20"
+          node-version: "20.19.4"
 
       - name: Download updater signatures
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           TAG: ${{ needs.prepare-release.outputs.tag }}
-        run: mkdir -p /tmp/rav-updater-signatures && gh release download "$TAG" --repo "$REPO" --dir /tmp/rav-updater-signatures --pattern "*.sig"
+        run: |
+          mkdir -p /tmp/rav-updater-signatures
+          gh release download "$TAG" \
+            --repo "$REPO" \
+            --dir /tmp/rav-updater-signatures \
+            --pattern "*.sig"
 
-      - name: Build merged latest.json
+      - name: Build and verify merged latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           TAG: ${{ needs.prepare-release.outputs.tag }}
-        run: gh release view "$TAG" --repo "$REPO" --json assets,body,publishedAt,tagName > /tmp/rav-release.json && node scripts/generate-updater-manifest.mjs --release-file /tmp/rav-release.json --signature-dir /tmp/rav-updater-signatures --output /tmp/latest.json && cat /tmp/latest.json
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          gh release view "$TAG" \
+            --repo "$REPO" \
+            --json assets,body,isDraft,publishedAt,tagName > /tmp/rav-release.json
+
+          node scripts/generate-updater-manifest.mjs \
+            --release-file /tmp/rav-release.json \
+            --signature-dir /tmp/rav-updater-signatures \
+            --output /tmp/latest.json
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const manifest = JSON.parse(fs.readFileSync('/tmp/latest.json', 'utf8'));
+          const expectedVersion = process.env.VERSION;
+          const expectedTag = process.env.TAG;
+
+          if (JSON.parse(fs.readFileSync('/tmp/rav-release.json', 'utf8')).isDraft !== true) {
+            throw new Error(`Release ${expectedTag} stopped being a draft before publication`);
+          }
+          if (manifest.version !== expectedVersion) {
+            throw new Error(
+              `Manifest version mismatch: expected ${expectedVersion}, got ${manifest.version}`,
+            );
+          }
+
+          for (const [platform, entry] of Object.entries(manifest.platforms)) {
+            if (!entry.url.includes(`/releases/download/${expectedTag}/`)) {
+              throw new Error(`${platform} has a non-canonical URL: ${entry.url}`);
+            }
+            if (!entry.signature) {
+              throw new Error(`${platform} is missing its updater signature`);
+            }
+          }
+
+          console.log(JSON.stringify(manifest, null, 2));
+          NODE
 
       - name: Upload latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           TAG: ${{ needs.prepare-release.outputs.tag }}
-        run: gh release upload "$TAG" /tmp/latest.json#latest.json --repo "$REPO" --clobber
+        run: |
+          set -euo pipefail
+          test "$(gh release view "$TAG" --repo "$REPO" --json isDraft --jq .isDraft)" = "true"
+          gh release upload "$TAG" /tmp/latest.json#latest.json --repo "$REPO" --clobber
 
-      - name: Publish completed release
+      - name: Publish the verified release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}

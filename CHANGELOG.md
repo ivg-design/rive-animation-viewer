@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-07-25
+
+### Changed
+
+- **Developer ID distribution trust** — macOS applications and nested executables are now signed with the IVG Design Developer ID Application certificate, hardened runtime, and secure timestamps instead of an ad-hoc identity.
+- **Notarized direct downloads and updates** — Tauri notarizes and staples the app before creating the updater archive; CI separately notarizes and staples each final DMG, then proves the DMG and updater archive contain the same signed app before publication.
+- **Single signed MCP sidecar** — Packaged apps now contain only Tauri's signed `Contents/MacOS/rav-mcp` Cargo binary. The redundant unsigned Resources copy was removed, while development builds create the debug sidecar beside the app executable.
+- **Release safety controls** — Release jobs now have bounded timeouts, pinned Actions, non-cancelling concurrency, complete artifact inventory checks, and an explicit draft verification gate before `latest.json` or the public release can advance.
+- **Version and documentation consistency** — Release preparation validates every product version source, the version tooling covers both lockfiles and website metadata, and release documentation distinguishes Apple code signing from Tauri updater signatures.
+
+### Fixed
+
+- **Gatekeeper acceptance** — New macOS installs no longer require users to bypass Gatekeeper by right-clicking Open.
+- **Atomic updater publishing** — Manifest generation now refuses to publish unless Apple Silicon macOS, Intel macOS, MSI, and NSIS updater payloads and signatures are all present.
+- **Runaway workflow risk** — The automatic repair workflow is manual-only, release runs cannot race each other, and every release job has a maximum execution time.
+
 ## [2.4.0] - 2026-07-13
 
 ### Changed

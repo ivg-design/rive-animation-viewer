@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-07-25
+
+### Changed
+
+- **Trusted macOS distribution** — Apple Silicon and Intel builds are Developer ID signed, use hardened runtime and secure timestamps, and are notarized and stapled by Apple.
+- **Notarized automatic updates** — The macOS updater archive is created from the already-notarized app and remains protected by RAV's separate Tauri updater signature.
+- **Single signed MCP sidecar** — Packaged apps now ship only the signed native `rav-mcp` executable beside the main application binary, eliminating the redundant unsigned Resources copy.
+- **Safer releases** — GitHub releases remain drafts until both macOS distributions, both Windows installers, updater signatures, and the complete cross-platform update feed pass verification.
+
+### Fixed
+
+- **Gatekeeper first launch** — Current macOS downloads open normally without the previous right-click Open workaround.
+- **Incomplete update feeds** — Release automation refuses to publish a `latest.json` that is missing any supported architecture or installer.
+
 ## [2.4.0] - 2026-07-13
 
 ### Changed

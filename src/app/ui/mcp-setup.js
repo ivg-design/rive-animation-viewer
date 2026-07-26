@@ -107,12 +107,12 @@ export function createMcpSetupController({
         }
 
         statusEl.classList.add('is-missing');
-        labelEl.textContent = 'Bundled MCP sidecar not found in the app resources';
-        statusEl.title = 'Bundled MCP sidecar not found in the app resources.';
+        labelEl.textContent = 'Bundled MCP sidecar not found beside the app executable';
+        statusEl.title = 'Bundled MCP sidecar not found beside the app executable.';
     }
 
     function populateSnippets(serverPath, port) {
-        const resolvedPath = serverPath || '/path/to/Rive Animation Viewer.app/Contents/Resources/resources/rav-mcp';
+        const resolvedPath = serverPath || '/path/to/Rive Animation Viewer.app/Contents/MacOS/rav-mcp';
         const resolvedPort = Number.isInteger(port) && port > 0 ? port : 9274;
 
         if (elements.mcpServerPathDisplay) {

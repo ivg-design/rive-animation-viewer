@@ -1,6 +1,6 @@
 {
   "name": "rive-animation-viewer",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "Desktop and web viewer for .riv files with ViewModel controls, artboard/animation switching, script editor, event console, standalone export, and MCP remote control",
   "main": "index.html",
   "scripts": {
@@ -17,10 +17,13 @@
     "test:coverage": "vitest run --coverage && node scripts/theme-coverage-report.mjs",
     "test:coverage:serve": "npm run test:coverage && node scripts/serve-static.mjs coverage 4174 127.0.0.1",
     "prebuild": "npm run test",
-    "build": "npm run generate:snippets && node scripts/build-mcp-sidecar.mjs && node scripts/build-dist.mjs",
+    "build:mcp": "node scripts/build-mcp-sidecar.mjs",
+    "build:mcp:debug": "node scripts/build-mcp-sidecar.mjs --debug",
+    "build": "npm run generate:snippets && node scripts/build-dist.mjs",
     "tauri": "tauri",
     "build:full": "npm run build && npm run tauri build",
-    "sync": "node scripts/sync-version.mjs"
+    "sync": "node scripts/sync-version.mjs",
+    "verify:updater-signatures": "node scripts/verify-updater-signatures.mjs"
   },
   "keywords": [
     "rive",
