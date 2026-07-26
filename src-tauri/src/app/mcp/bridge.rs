@@ -1,6 +1,6 @@
 use std::fs;
 use std::net::{SocketAddr, TcpStream};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::Duration;
 
@@ -19,28 +19,40 @@ use crate::app::support::ensure_parent_directory;
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-pub fn resolve_mcp_server_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+fn resolve_mcp_server_path_from_executable(
+    executable_path: &Path,
+    binary_name: &str,
+) -> Result<PathBuf, String> {
+    executable_path
+        .parent()
+        .map(|directory| directory.join(binary_name))
+        .ok_or_else(|| {
+            format!(
+                "Application executable has no parent directory: {}",
+                executable_path.display()
+            )
+        })
+}
+
+pub fn resolve_mcp_server_path(_app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let binary_name = if cfg!(target_os = "windows") {
         "rav-mcp.exe"
     } else {
         "rav-mcp"
     };
 
-    let executable_dir = app
-        .path()
-        .executable_dir()
-        .map_err(|error| format!("Failed to resolve app executable directory: {error}"))?;
-    let sidecar_path = executable_dir.join(binary_name);
+    let executable_path = std::env::current_exe()
+        .map_err(|error| format!("Failed to resolve current application executable: {error}"))?;
+    let sidecar_path = resolve_mcp_server_path_from_executable(&executable_path, binary_name)?;
 
-    sidecar_path
-        .exists()
-        .then_some(sidecar_path)
-        .ok_or_else(|| {
-            format!(
-                "MCP server not found beside the application executable: {}",
-                binary_name
-            )
-        })
+    if sidecar_path.is_file() {
+        Ok(sidecar_path)
+    } else {
+        Err(format!(
+            "MCP server not found beside the application executable: {}",
+            sidecar_path.display()
+        ))
+    }
 }
 
 pub fn mcp_client_launcher_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -111,6 +123,21 @@ pub fn ensure_mcp_client_launcher(app: &tauri::AppHandle) -> Result<PathBuf, Str
     }
 
     Ok(launcher_path)
+}
+
+pub fn refresh_mcp_client_launcher_if_present(
+    app: &tauri::AppHandle,
+) -> Result<Option<PathBuf>, String> {
+    let launcher_path = mcp_client_launcher_path(app)?;
+    match fs::symlink_metadata(&launcher_path) {
+        Ok(_) => ensure_mcp_client_launcher(app).map(Some),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(format!(
+            "Failed to inspect MCP launcher at {}: {}",
+            launcher_path.display(),
+            error
+        )),
+    }
 }
 
 pub fn mcp_server_path_candidates(app: &tauri::AppHandle) -> Result<Vec<PathBuf>, String> {
@@ -342,6 +369,10 @@ pub fn get_mcp_port(
     let port = ensure_mcp_bridge_running(&app, &bridge_manager)?;
     Ok(port)
 }
+
+#[cfg(test)]
+#[path = "bridge_tests.rs"]
+mod tests;
 
 #[tauri::command]
 pub fn set_mcp_port(

@@ -125,6 +125,10 @@ application executable. On macOS that is
 `Rive Animation Viewer.app/Contents/MacOS/rav-mcp`; it is signed before the
 outer app with the same Developer ID identity, secure timestamp, and hardened
 runtime. Do not copy executable code through Tauri's generic Resources bundle.
+Runtime discovery must derive the sidecar path from
+`std::env::current_exe()` and join `rav-mcp` to that executable's parent
+directory. Do not use a generic application resource or base-directory
+resolver for this sibling-binary contract.
 Development builds create the debug sidecar explicitly before `tauri dev`.
 
 ## Decision Rules For New Work

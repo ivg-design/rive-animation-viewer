@@ -28,6 +28,26 @@ These gates materially reduce regression risk, but they are still code- and DOM-
 - **Single signed MCP binary**: RAV now packages one `rav-mcp` beside the main executable, where Tauri signs it inside-out with the app. The redundant unsigned Resources copy is gone.
 - **Atomic, bounded releases**: Complete platform inventory, signing checks, job timeouts, concurrency protection, and a final draft gate prevent partial or runaway releases from becoming public.
 
+### Known MCP issue in 2.4.1
+
+RAV 2.4.1 includes the signed sidecar at
+`Rive Animation Viewer.app/Contents/MacOS/rav-mcp`, but its packaged macOS
+startup path can report that the sidecar is missing. The bundle has not moved:
+the failure is in resolving the directory that contains the running app
+executable. The fix resolves `rav-mcp` as that executable's sibling and is
+planned for the 2.4.2 patch.
+
+Until 2.4.2 is available, keep this command running in Terminal to start the
+installed sidecar manually:
+
+```bash
+"/Applications/Rive Animation Viewer.app/Contents/MacOS/rav-mcp" --bridge-only --port 9274
+```
+
+If MCP Setup uses a custom port, replace `9274` with that port. Install 2.4.2
+through the updater when it is offered; reinstalling 2.4.1 does not repair the
+path-resolution failure.
+
 ## 2.4.0 Highlights
 
 - **Dynamic ViewModel lists**: List instances populate as soon as a file opens and rebuild when their controlling count changes, with readable `Row 1`, `Row 2`, … labels instead of an arbitrary ten-item ceiling.
@@ -220,7 +240,7 @@ The key rule is simple: new hand-written source files may not exceed `400` lines
 MCP Client ←(stdio)→ rav-mcp sidecar ←(WebSocket :9274)→ RAV Frontend
 ```
 
-The desktop app bundles one native `rav-mcp` sidecar beside the main application executable and exposes a stable launcher path for external clients. On macOS, Tauri applies the same Developer ID, hardened-runtime, and timestamp requirements to the sidecar before signing the outer app. The frontend MCP bridge client starts automatically when RAV launches, attaches to the configured port, and keeps retrying until a client attaches.
+The desktop app bundles one native `rav-mcp` sidecar beside the main application executable and exposes a stable launcher path for external clients. On macOS, the exact location is `Rive Animation Viewer.app/Contents/MacOS/rav-mcp`; RAV derives it from the running executable's parent directory. Tauri applies the same Developer ID, hardened-runtime, and timestamp requirements to the sidecar before signing the outer app. The frontend MCP bridge client starts automatically when RAV launches, attaches to the configured port, and keeps retrying until a client attaches.
 
 #### Setup (one-time)
 
