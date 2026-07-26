@@ -448,7 +448,8 @@ jobs:
       - build-macos
       - build-windows
     permissions:
-      contents: read
+      # GitHub hides draft releases from tokens without contents write access.
+      contents: write
     runs-on: macos-15
     timeout-minutes: 30
     steps:
