@@ -9,9 +9,9 @@ Windows. The final user-supplied assets are tracked at:
 
 The Tauri resource map copies it into the macOS app bundle at
 `Contents/Resources/RiveFileIcon.icns`. Do not replace it with the application
-icon or a generated placeholder. RAV exports and owns the canonical
-`app.rive.animation.viewer.riv` UTI, and both its UTI declaration and document
-claim reference this file.
+icon or a generated placeholder. Both the official
+`app.rive.editor.rive-file` UTI and RAV's pre-2.4.3 legacy
+`app.rive.animation.viewer.riv` migration declaration reference this file.
 
 The Windows icon is bundled as `RiveFileIcon.ico`; the NSIS post-install hook
 overrides Tauri's executable-based `Rive File\\DefaultIcon` registration with

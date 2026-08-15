@@ -4,16 +4,6 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
-## [2.4.4] - 2026-08-15
-
-### Fixed
-
-- **macOS `.riv` ownership and icon registration** — RAV now exports one canonical `app.rive.animation.viewer.riv` UTI for `.riv`, conforms it directly to `public.data` and `public.content`, claims the document type as Viewer/Owner, and assigns the exact tracked `RiveFileIcon.icns` to both the UTI and document declaration. The first launch after update advances the Launch Services schema marker and re-registers the installed bundle.
-
-### Validation
-
-- **Guarded signed acceptance** — Source and package tests require the sole exported UTI, Owner rank, exact icon resource, and absence of the former imported Editor UTI. Public promotion remains gated on installing the exact signed Apple Silicon candidate with Rive Editor and Rive Early Access registered, then checking existing and freshly created `.riv` files through Finder and NSWorkspace.
-
 ## [2.4.3] - 2026-08-14
 
 ### Added

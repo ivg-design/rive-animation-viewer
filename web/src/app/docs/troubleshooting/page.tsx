@@ -37,10 +37,9 @@ export default function Troubleshooting() {
 
       <h2>The Finder icon did not change</h2>
       <ul>
-        <li>Install the signed 2.4.4 app over the older bundle and launch it once so RAV can refresh its Launch Services registration</li>
-        <li>2.4.4 exports and owns <code>app.rive.animation.viewer.riv</code>, claims Viewer/Owner rank, and assigns the supplied <code>RiveFileIcon.icns</code> to both declarations</li>
+        <li>The 2.4.3 UTI and icon declarations require the signed installed app to replace the older bundle and launch once</li>
         <li>A private draft is ignored by the normal public updater and cannot update an installed public build</li>
-        <li>The release gate checks existing and newly created <code>.riv</code> files with Rive Editor and Rive Early Access registered; report the macOS version and file path if a public 2.4.4 install still renders a generic icon</li>
+        <li>Exact migration of the supplied standalone artwork for an already-indexed <code>.riv</code> remains an unresolved installed-app limitation and is not claimed as passed; neither local bundle inspection nor the isolated signed-updater receipt proves Finder behavior</li>
       </ul>
 
       <h2>The Windows .riv icon did not change</h2>

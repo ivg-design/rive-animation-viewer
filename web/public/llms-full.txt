@@ -7,7 +7,7 @@ language: en
 site_type: product-marketing + technical documentation
 
 ## 1) Product Definition
-RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.riv) animations outside the Rive editor. Version 2.4.4 is the current public release and is available through the normal public updater feed.
+RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.riv) animations outside the Rive editor. Version 2.4.3 is the current public release and is available through the normal public updater feed.
 
 ## 2) Primary Entities
 - RAV: SoftwareApplication / DeveloperApplication
@@ -29,7 +29,7 @@ RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.
 - Transparency overlay mode: https://forge.mograph.life/apps/rav/docs#transparency-mode
 - Standalone self-contained export: https://forge.mograph.life/apps/rav/docs#standalone-export
 - Applied editor config and lifecycle callbacks are embedded and executed in standalone exports: https://forge.mograph.life/apps/rav/docs/script-editor
-- macOS 2.4.4 exports and owns one canonical `app.rive.animation.viewer.riv` UTI for `.riv`, conforms it to `public.data` and `public.content`, assigns the supplied file-icon resource, claims Viewer/Owner rank, and performs a version/schema-gated post-update Launch Services refresh: https://forge.mograph.life/apps/rav/docs/opening-files
+- macOS .riv declarations cover official UTI `app.rive.editor.rive-file` and legacy compatibility UTI `app.rive.animation.viewer.riv`, both with the file-icon resource, Viewer role, Alternate rank, and version/schema-gated post-update Launch Services refresh without default takeover. Exact migration of the supplied standalone Finder artwork remains an unresolved installed-app limitation and is not claimed as passed: https://forge.mograph.life/apps/rav/docs/opening-files
 - Windows NSIS and MSI packages ship a dedicated ten-resolution `RiveFileIcon.ico`. NSIS rewrites the generated `Rive File` document-icon value on install/update, preserves the association that preceded RAV for uninstall, and notifies Explorer; MSI owns the equivalent value as an upgrade-aware removable component: https://forge.mograph.life/apps/rav/docs/opening-files
 - Web 2.40.0 / runtime-v0.1.271 has a proven nested, data-bound image double-offset in both WebGL2 and Canvas for `leaderboard_v4.riv`. RAV defaults to 2.39.2, migrates stored `latest`/2.40.0 preferences once, and warns when either is explicitly selected again. runtime-v0.1.272 remains a separate canary: https://forge.mograph.life/apps/rav/docs/configuration
 - Fixed-size central canvases use overflow-safe auto margins to stay centered while they fit; the margins collapse safely to preserve authored top-left scrolling with styled 10px scrollbars when oversized: https://forge.mograph.life/apps/rav/docs/ui-layout
@@ -39,7 +39,7 @@ RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.
 - Keyboard shortcut reference: https://forge.mograph.life/apps/rav/docs#keyboard-shortcuts
 
 ## 5) Platform and Distribution Signals
-- 2.4.4 status: current public release; published through the normal public updater feed.
+- 2.4.3 status: current public release; published through the normal public updater feed.
 - Product + downloads context: https://forge.mograph.life/apps/rav/
 - Release downloads endpoint: https://github.com/ivg-design/rive-animation-viewer/releases/latest
 - Source repository references:
