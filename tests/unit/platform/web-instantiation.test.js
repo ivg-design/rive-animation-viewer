@@ -56,7 +56,7 @@ describe('platform/web-instantiation', () => {
                 onPlay: () => {},
             },
             runtimeName: 'webgl2',
-            runtimeVersion: '2.34.3',
+            runtimeVersion: '2.40.0',
             sourceMode: 'editor',
             transparencyState: {
                 canvasColor: '#112233',

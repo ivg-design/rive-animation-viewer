@@ -1,4 +1,4 @@
-name: Release Tauri App
+name: Stage Signed Tauri Updater Candidate
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -7,8 +7,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       version:
@@ -27,7 +25,6 @@ jobs:
   prepare-release:
     if: >-
       github.event_name != 'push' ||
-      github.ref_type == 'tag' ||
       startsWith(github.event.head_commit.message, 'chore(release): v')
     permissions:
       contents: write
@@ -61,8 +58,6 @@ jobs:
 
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "$DISPATCH_VERSION" ]]; then
             version="$DISPATCH_VERSION"
-          elif [[ "${{ github.ref_type }}" == "tag" ]]; then
-            version="${GITHUB_REF_NAME#v}"
           else
             version="$package_version"
           fi
@@ -539,7 +534,7 @@ jobs:
             x86_64 \
             "$VERSION"
 
-  publish-updater-manifest:
+  stage-private-updater-candidate:
     needs:
       - prepare-release
       - verify-draft-release
@@ -558,17 +553,16 @@ jobs:
         with:
           node-version: "20.19.4"
 
-      - name: Download updater signatures
+      - name: Download verified updater assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           TAG: ${{ needs.prepare-release.outputs.tag }}
         run: |
-          mkdir -p /tmp/rav-updater-signatures
+          mkdir -p /tmp/rav-updater-stage
           gh release download "$TAG" \
             --repo "$REPO" \
-            --dir /tmp/rav-updater-signatures \
-            --pattern "*.sig"
+            --dir /tmp/rav-updater-stage
 
       - name: Build and verify merged latest.json
         env:
@@ -581,16 +575,16 @@ jobs:
 
           gh release view "$TAG" \
             --repo "$REPO" \
-            --json assets,body,isDraft,publishedAt,tagName > /tmp/rav-release.json
+            --json assets,body,createdAt,isDraft,publishedAt,tagName,targetCommitish > /tmp/rav-release.json
 
           node scripts/generate-updater-manifest.mjs \
             --release-file /tmp/rav-release.json \
-            --signature-dir /tmp/rav-updater-signatures \
-            --output /tmp/latest.json
+            --signature-dir /tmp/rav-updater-stage \
+            --output /tmp/rav-updater-stage/latest.json
 
           node <<'NODE'
           const fs = require('node:fs');
-          const manifest = JSON.parse(fs.readFileSync('/tmp/latest.json', 'utf8'));
+          const manifest = JSON.parse(fs.readFileSync('/tmp/rav-updater-stage/latest.json', 'utf8'));
           const expectedVersion = process.env.VERSION;
           const expectedTag = process.env.TAG;
 
@@ -615,7 +609,7 @@ jobs:
           console.log(JSON.stringify(manifest, null, 2));
           NODE
 
-      - name: Upload latest.json
+      - name: Upload private canonical latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -623,11 +617,38 @@ jobs:
         run: |
           set -euo pipefail
           test "$(gh release view "$TAG" --repo "$REPO" --json isDraft --jq .isDraft)" = "true"
-          gh release upload "$TAG" /tmp/latest.json#latest.json --repo "$REPO" --clobber
+          gh release upload "$TAG" /tmp/rav-updater-stage/latest.json#latest.json --repo "$REPO" --clobber
 
-      - name: Publish the verified release
+      - name: Create immutable updater byte ledger
+        env:
+          COMMIT: ${{ github.sha }}
+          RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$COMMIT"
+          node scripts/updater-staging-ledger.mjs create \
+            --asset-dir /tmp/rav-updater-stage \
+            --commit "$COMMIT" \
+            --config src-tauri/tauri.conf.json \
+            --output /tmp/rav-updater-stage/updater-staging-ledger.json \
+            --release-file /tmp/rav-release.json \
+            --release-id "$RELEASE_ID" \
+            --repository "$REPO" \
+            --version "$VERSION"
+
+      - name: Hold candidate privately for signed acceptance
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           TAG: ${{ needs.prepare-release.outputs.tag }}
-        run: gh release edit "$TAG" --repo "$REPO" --draft=false
+        run: |
+          set -euo pipefail
+          test "$(gh release view "$TAG" --repo "$REPO" --json isDraft --jq .isDraft)" = "true"
+          gh release upload "$TAG" \
+            /tmp/rav-updater-stage/updater-staging-ledger.json#updater-staging-ledger.json \
+            --repo "$REPO" \
+            --clobber
+          test "$(gh release view "$TAG" --repo "$REPO" --json isDraft --jq .isDraft)" = "true"
+          echo "Candidate $TAG remains a private draft. Run isolated acceptance, upload its receipt, then dispatch Promote Accepted Updater Candidate."

@@ -31,6 +31,8 @@ const DEMO_TEMPLATE_APP_JS: &str = concat!(
     "\n",
     include_str!("../demo-template/js/core/event-log.js"),
     "\n",
+    include_str!("../demo-template/js/core/editor-config.js"),
+    "\n",
     include_str!("../demo-template/js/vm/accessors.js"),
     "\n",
     include_str!("../demo-template/js/vm/hierarchy.js"),
@@ -113,6 +115,7 @@ pub fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json
       } else {
         "cdn"
       },
+      "editorCode": payload.editor_code,
       "instantiationCode": payload.instantiation_code,
       "instantiationSnippets": payload
         .instantiation_snippets
@@ -216,6 +219,7 @@ mod tests {
             control_selection_keys: Some(r#"["vm:root/value:number"]"#.into()),
             control_snapshot: Some(r#"[{"descriptor":{"path":"root/value","kind":"number"},"kind":"number","value":42}]"#.into()),
             default_instantiation_package_source: "cdn".into(),
+            editor_code: "({ onLoad: () => window.__editorApplied = true })".into(),
             file_name: "demo.riv".into(),
             instantiation_code: "<canvas></canvas>\n<script type=\"module\">\nconsole.log('ok');\n</script>".into(),
             instantiation_snippets: Some(r#"{"cdn":"<script src=\"https://unpkg.com/demo\"></script>","local":"<script type=\"module\"></script>"}"#.into()),
@@ -242,6 +246,11 @@ mod tests {
         assert!(html.contains("controlSnapshot"));
         assert!(html.contains("\"viewModelInstanceName\":\"Preview\""));
         assert!(
+            html.contains("\"editorCode\":\"({ onLoad: () => window.__editorApplied = true })\"")
+        );
+        assert!(html.contains("function resolveStandaloneEditorConfig"));
+        assert!(html.contains("invokeStandaloneEditorCallback(appliedEditorConfig.onLoad"));
+        assert!(
             html.contains("bindViewModelInstanceByKey(riveInstance, CONFIG.viewModelInstanceName)")
         );
         assert!(html.contains("autoBind: !CONFIG.viewModelInstanceName"));
@@ -260,6 +269,7 @@ mod tests {
             control_selection_keys: None,
             control_snapshot: None,
             default_instantiation_package_source: "cdn".into(),
+            editor_code: String::new(),
             file_name: "demo.riv".into(),
             instantiation_code: "console.log('snippet');".into(),
             instantiation_snippets: Some(

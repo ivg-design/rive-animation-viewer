@@ -33,7 +33,23 @@
             return filtered;
         }
 
-        function formatVmListItemLabel(listName, index) {
+        function getVmListItemName(itemInstance) {
+            if (!itemInstance || typeof itemInstance !== 'object') return null;
+            var names = ['name', 'viewModelName', 'instanceName'];
+            for (var nameIndex = 0; nameIndex < names.length; nameIndex++) {
+                var value = null;
+                try {
+                    value = itemInstance[names[nameIndex]];
+                    if (typeof value === 'function') value = value.call(itemInstance);
+                } catch (e) { value = null; }
+                if (typeof value === 'string' && value.trim()) return value.trim();
+            }
+            return null;
+        }
+
+        function formatVmListItemLabel(listName, index, itemInstance) {
+            var authoredName = getVmListItemName(itemInstance);
+            if (authoredName) return authoredName;
             var words = String(listName || 'Item')
                 .trim()
                 .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
@@ -146,7 +162,7 @@
                             var itemInstance = null;
                             try { if (typeof listAccessor.instanceAt === 'function') itemInstance = listAccessor.instanceAt(idx); } catch (e) { /* noop */ }
                             if (itemInstance) {
-                                listNode.children.push(walk(itemInstance, formatVmListItemLabel(name, idx), fullPath + '/' + idx, 'instance'));
+                                listNode.children.push(walk(itemInstance, formatVmListItemLabel(name, idx, itemInstance), fullPath + '/' + idx, 'instance'));
                             }
                         }
                         node.children.push(listNode);

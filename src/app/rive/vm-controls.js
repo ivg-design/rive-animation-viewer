@@ -12,6 +12,7 @@ export {
     getStateMachineInputKind,
     getVmAccessor,
     getVmListItemAt,
+    getVmListItemName,
     getVmListLength,
     navigateToVmInstance,
     isControlDescriptorSelected,

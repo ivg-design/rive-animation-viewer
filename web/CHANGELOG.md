@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.4.3] - 2026-08-14
+
+### Added
+
+- **ViewModel list and image controls** — Auto-generated list controls use each item's authored instance name when available, with a readable one-based list-derived fallback otherwise. ViewModel image properties now appear as file controls that select, decode, replace, and clear images.
+- **Standalone editor-config preservation** — Applied editor JavaScript/config, including lifecycle callbacks, is embedded in standalone exports and executed in editor source mode after RAV binding and snapshot restoration; unsaved drafts are not exported as active config.
+- **`.riv` desktop opening and file identity** — macOS Launch Services references the official `app.rive.editor.rive-file` UTI as an alternate Viewer and uses the tracked `src-tauri/icons/RiveFileIcon.icns` copied to `Contents/Resources/RiveFileIcon.icns`. A version-gated post-update first launch refreshes the shipped bundle with `lsregister -f` without restarting Finder, changing the Viewer/Alternate rank, or taking over the default handler.
+
+### Changed
+
+- **Released runtime evidence** — Renderer coverage passed against the exact Web 2.40.0 package line aligned to runtime-v0.1.271 for WebGL2 and Canvas, with canary v0.1.272 kept separate.
+
+### Validation
+
+- **Release gates passed** — Full JavaScript, Rust, clippy, exact WebGL2/Canvas fixture, generated bundle metadata/icon, Launch Services, and cold/warm `.riv` open-routing checks passed. Updater signing/notarization still requires coordinator release credentials.
+
 ## [2.4.2] - 2026-07-25
 
 ### Fixed

@@ -61,6 +61,9 @@ describe('platform/app-updater', () => {
                     version: '1.10.0',
                 };
             }
+            if (command === 'get_updater_acceptance_config') {
+                return { autoInstall: false, enabled: false };
+            }
             if (command === 'install_app_update') {
                 return { installed: true, version: '1.10.0' };
             }
@@ -107,11 +110,48 @@ describe('platform/app-updater', () => {
         });
         expect(callOrder).toEqual([
             'check_for_app_update',
+            'get_updater_acceptance_config',
             'bridge-disable-start',
             'bridge-disable-done',
             'install_app_update',
             'relaunch_app',
         ]);
+    });
+
+    it('auto-installs and relaunches only in explicit updater acceptance mode', async () => {
+        const elements = createElements();
+        const invoke = vi.fn(async (command) => {
+            if (command === 'check_for_app_update') {
+                return {
+                    available: true,
+                    currentVersion: '2.4.2',
+                    version: '2.4.3',
+                };
+            }
+            if (command === 'get_updater_acceptance_config') {
+                return { autoInstall: true, enabled: true };
+            }
+            if (command === 'install_app_update') {
+                return { installed: true, version: '2.4.3' };
+            }
+            if (command === 'relaunch_app' || command === 'stop_mcp_bridge') {
+                return true;
+            }
+            throw new Error(`Unexpected command: ${command}`);
+        });
+        const controller = createAppUpdaterController({
+            elements,
+            getTauriInvoker: () => invoke,
+            isTauriEnvironment: () => true,
+        });
+
+        controller.setup();
+        await controller.checkForUpdatesOnLaunch();
+
+        expect(invoke).toHaveBeenCalledWith('get_updater_acceptance_config', {});
+        expect(invoke).toHaveBeenCalledWith('install_app_update', {});
+        expect(invoke).toHaveBeenCalledWith('relaunch_app', {});
+        expect(elements.updateChip.dataset.updateState).toBe('restarting');
     });
 
     it('shows retry state when the update check fails', async () => {
@@ -171,7 +211,7 @@ describe('platform/app-updater', () => {
 
         await vi.advanceTimersByTimeAsync(5000);
 
-        expect(invoke).toHaveBeenCalledTimes(2);
+        expect(invoke).toHaveBeenCalledTimes(3);
         expect(elements.updateChip.dataset.updateState).toBe('available');
         expect(elements.updateChip.textContent).toContain('2.0.3');
     });

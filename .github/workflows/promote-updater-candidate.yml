@@ -1,0 +1,205 @@
+name: Promote Accepted Updater Candidate
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Exact private draft tag (for example v2.4.3)"
+        required: true
+        type: string
+      expected_commit:
+        description: "Exact 40-character candidate commit SHA"
+        required: true
+        type: string
+      acceptance_receipt_sha256:
+        description: "SHA-256 of updater-acceptance-receipt.json uploaded to the private draft"
+        required: true
+        type: string
+      confirmation:
+        description: "Type PUBLISH followed by the tag, for example PUBLISH v2.4.3"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rav-release-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  promote-exact-accepted-bytes:
+    permissions:
+      contents: write
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Checkout the exact accepted commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ inputs.expected_commit }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "20.19.4"
+
+      - name: Verify explicit promotion identity
+        shell: bash
+        env:
+          COMMIT: ${{ inputs.expected_commit }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          [[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$COMMIT"
+          version=$(node -p "require('./package.json').version")
+          test "$TAG" = "v$version"
+          test "$CONFIRMATION" = "PUBLISH $TAG"
+          node scripts/check-release-version.mjs --version "$version" --require-release-notes
+
+      - name: Verify the release is still the exact private draft
+        shell: bash
+        env:
+          COMMIT: ${{ inputs.expected_commit }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" \
+            --repo "$REPO" \
+            --json assets,body,createdAt,databaseId,isDraft,publishedAt,tagName,targetCommitish \
+            > "$RUNNER_TEMP/rav-release.json"
+
+          RELEASE_FILE="$RUNNER_TEMP/rav-release.json" node <<'NODE'
+          const fs = require('node:fs');
+          const release = JSON.parse(fs.readFileSync(process.env.RELEASE_FILE, 'utf8'));
+          if (release.isDraft !== true) throw new Error('Release is no longer a private draft');
+          if (release.tagName !== process.env.TAG) throw new Error('Draft tag mismatch');
+          if (release.targetCommitish !== process.env.COMMIT) throw new Error('Draft commit mismatch');
+          fs.appendFileSync(process.env.GITHUB_ENV, `RAV_RELEASE_ID=${release.databaseId}\n`);
+          NODE
+
+          if gh api "repos/$REPO/git/ref/tags/$TAG" > /dev/null 2> "$RUNNER_TEMP/tag-error.txt"; then
+            echo "Public tag $TAG already exists; refusing promotion"
+            exit 1
+          fi
+          grep -q 'HTTP 404' "$RUNNER_TEMP/tag-error.txt"
+
+      - name: Download the private candidate and acceptance receipt
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/rav-promotion-assets"
+          gh release download "$TAG" \
+            --repo "$REPO" \
+            --dir "$RUNNER_TEMP/rav-promotion-assets"
+
+      - name: Reverify exact staged bytes and receipt provenance
+        shell: bash
+        env:
+          COMMIT: ${{ inputs.expected_commit }}
+          EXPECTED_RECEIPT_SHA256: ${{ inputs.acceptance_receipt_sha256 }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          asset_dir="$RUNNER_TEMP/rav-promotion-assets"
+          ledger="$asset_dir/updater-staging-ledger.json"
+          receipt="$asset_dir/updater-acceptance-receipt.json"
+          test -s "$ledger"
+          test -s "$receipt"
+          test "$(shasum -a 256 "$receipt" | awk '{print $1}')" = "$EXPECTED_RECEIPT_SHA256"
+
+          node scripts/updater-staging-ledger.mjs verify \
+            --asset-dir "$asset_dir" \
+            --commit "$COMMIT" \
+            --config src-tauri/tauri.conf.json \
+            --ledger "$ledger" \
+            --release-id "$RAV_RELEASE_ID" \
+            --repository "$REPO"
+          node scripts/updater-staging-ledger.mjs verify-receipt \
+            --ledger "$ledger" \
+            --receipt "$receipt"
+
+      - name: Reverify both notarized macOS distributions
+        shell: bash
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          asset_dir="$RUNNER_TEMP/rav-promotion-assets"
+          scripts/verify-macos-distribution.sh \
+            "$asset_dir/Rive.Animation.Viewer_${version}_aarch64.dmg" \
+            "$asset_dir/Rive.Animation.Viewer_aarch64.app.tar.gz" \
+            "$APPLE_TEAM_ID" aarch64 "$version"
+          scripts/verify-macos-distribution.sh \
+            "$asset_dir/Rive.Animation.Viewer_${version}_x64.dmg" \
+            "$asset_dir/Rive.Animation.Viewer_x64.app.tar.gz" \
+            "$APPLE_TEAM_ID" x86_64 "$version"
+
+      - name: Reproduce the canonical updater manifest byte-for-byte
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          asset_dir="$RUNNER_TEMP/rav-promotion-assets"
+          node scripts/generate-updater-manifest.mjs \
+            --release-file "$RUNNER_TEMP/rav-release.json" \
+            --signature-dir "$asset_dir" \
+            --output "$RUNNER_TEMP/reproduced-latest.json"
+          cmp "$RUNNER_TEMP/reproduced-latest.json" "$asset_dir/latest.json"
+
+      - name: Publish the same accepted private draft without rebuilding
+        shell: bash
+        env:
+          COMMIT: ${{ inputs.expected_commit }}
+          EXPECTED_RECEIPT_SHA256: ${{ inputs.acceptance_receipt_sha256 }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          before="$RUNNER_TEMP/rav-release-before-publish.json"
+          after="$RUNNER_TEMP/rav-release-after-final-verify.json"
+          final_assets="$RUNNER_TEMP/rav-final-promotion-assets"
+          gh api "repos/$REPO/releases/$RAV_RELEASE_ID" > "$before"
+          mkdir -p "$final_assets"
+          gh release download "$TAG" --repo "$REPO" --dir "$final_assets"
+
+          test "$(shasum -a 256 "$final_assets/updater-acceptance-receipt.json" | awk '{print $1}')" = "$EXPECTED_RECEIPT_SHA256"
+          node scripts/updater-staging-ledger.mjs verify \
+            --asset-dir "$final_assets" \
+            --commit "$COMMIT" \
+            --config src-tauri/tauri.conf.json \
+            --ledger "$final_assets/updater-staging-ledger.json" \
+            --release-id "$RAV_RELEASE_ID" \
+            --repository "$REPO"
+          node scripts/updater-staging-ledger.mjs verify-receipt \
+            --ledger "$final_assets/updater-staging-ledger.json" \
+            --receipt "$final_assets/updater-acceptance-receipt.json"
+          cmp "$RUNNER_TEMP/reproduced-latest.json" "$final_assets/latest.json"
+
+          gh api "repos/$REPO/releases/$RAV_RELEASE_ID" > "$after"
+          BEFORE="$before" AFTER="$after" node <<'NODE'
+          const fs = require('node:fs');
+          const before = JSON.parse(fs.readFileSync(process.env.BEFORE, 'utf8'));
+          const release = JSON.parse(fs.readFileSync(process.env.AFTER, 'utf8'));
+          if (String(release.id) !== process.env.RAV_RELEASE_ID) throw new Error('Draft release ID changed');
+          if (release.draft !== true) throw new Error('Release stopped being a draft');
+          if (release.target_commitish !== process.env.COMMIT) throw new Error('Draft target commit changed');
+          if (before.updated_at !== release.updated_at) throw new Error('Draft changed during final byte verification');
+          NODE
+          gh release edit "$TAG" --repo "$REPO" --draft=false

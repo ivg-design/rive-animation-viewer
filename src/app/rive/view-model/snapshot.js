@@ -33,7 +33,7 @@ function serializeHierarchyNode(node, resolveControlAccessor) {
             let value = null;
             try {
                 const accessor = resolveControlAccessor(descriptor);
-                if (accessor && input.kind !== 'trigger') {
+                if (accessor && input.kind !== 'trigger' && input.kind !== 'image') {
                     value = accessor.value;
                 }
                 if (accessor && input.kind === 'enum' && Array.isArray(accessor.values)) {
@@ -185,11 +185,11 @@ export function createVmSnapshotController({
             }
 
             const accessor = resolveControlAccessor(descriptor);
-            if (!accessor || (binding.kind !== 'trigger' && !('value' in accessor))) {
+            if (!accessor || (binding.kind !== 'trigger' && binding.kind !== 'image' && !('value' in accessor))) {
                 return;
             }
 
-            let value = binding.kind === 'trigger' ? null : accessor.value;
+            let value = binding.kind === 'trigger' || binding.kind === 'image' ? null : accessor.value;
             let enumValues = null;
             if (binding.kind === 'number') {
                 const numericValue = Number(value);

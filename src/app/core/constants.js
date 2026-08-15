@@ -1,4 +1,4 @@
-export const DEFAULT_RUNTIME_VERSION = '2.34.3';
+export const DEFAULT_RUNTIME_VERSION = '2.40.0';
 export const MIN_SCRIPTING_RUNTIME_VERSION = '2.34.0';
 export const DEFAULT_CANVAS_COLOR = '#0d1117';
 export const DEFAULT_CANVAS_WIDTH = 1280;
@@ -75,7 +75,7 @@ export const LAYOUT_ALIGNMENTS = [
 ];
 export const RUNTIME_CACHE_NAME = 'rive-runtime-cache-v1';
 export const RUNTIME_META_STORAGE_KEY = 'riveRuntimeMeta';
-export const VM_CONTROL_KINDS = new Set(['number', 'boolean', 'string', 'enum', 'color', 'trigger']);
+export const VM_CONTROL_KINDS = new Set(['number', 'boolean', 'string', 'enum', 'color', 'image', 'trigger']);
 export const VM_CONTROL_SYNC_INTERVAL_MS = 120;
 export const OPEN_FILE_POLL_INTERVAL_MS = 900;
 export const MCP_SCRIPT_ACCESS_STORAGE_KEY = 'rav-mcp-script-access-enabled';

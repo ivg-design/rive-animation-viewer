@@ -21,7 +21,7 @@ export default function GettingStarted() {
         <li>Download the <code>.dmg</code> file for your architecture (Apple Silicon or Intel)</li>
         <li>Open the DMG and drag RAV to your Applications folder</li>
         <li>Launch RAV normally. Current releases are Developer ID signed, notarized, and stapled for Gatekeeper.</li>
-        <li>RAV registers as the default handler for <code>.riv</code> files &mdash; double-click any <code>.riv</code> to open it</li>
+        <li>RAV registers as an alternate Viewer for <code>.riv</code> files &mdash; double-click or use Open With without replacing the existing default handler</li>
       </ol>
 
       <h3>Windows</h3>

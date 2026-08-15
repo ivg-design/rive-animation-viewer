@@ -206,6 +206,43 @@
                 colorWrap.appendChild(alphaInput);
                 inputContainer.appendChild(colorWrap);
 
+            } else if (descriptor.kind === 'image') {
+                var imageInput = document.createElement('input');
+                imageInput.type = 'file';
+                imageInput.accept = 'image/*';
+                imageInput.disabled = isDisabled || typeof rive.decodeImage !== 'function';
+
+                var clearImageButton = document.createElement('button');
+                clearImageButton.type = 'button';
+                clearImageButton.textContent = 'Clear';
+                clearImageButton.disabled = isDisabled;
+
+                imageInput.addEventListener('change', function () {
+                    var file = imageInput.files && imageInput.files[0];
+                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'image', source: descriptor.source, stateMachineName: descriptor.stateMachineName });
+                    if (!file || !live || typeof rive.decodeImage !== 'function') return;
+                    file.arrayBuffer().then(function (buffer) {
+                        return rive.decodeImage(new Uint8Array(buffer));
+                    }).then(function (image) {
+                        if (!image) throw new Error('The runtime could not decode this image.');
+                        live.value = image;
+                        if (typeof image.unref === 'function') image.unref();
+                        logEvent('ui', 'vm-image', 'Set ' + descriptor.path + ' image from ' + file.name + '.');
+                    }).catch(function (error) {
+                        logEvent('ui', 'vm-image-error', 'Unable to set ' + descriptor.path + ' image: ' + (error.message || error));
+                    });
+                });
+                clearImageButton.addEventListener('click', function () {
+                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'image', source: descriptor.source, stateMachineName: descriptor.stateMachineName });
+                    if (!live) return;
+                    live.value = null;
+                    imageInput.value = '';
+                    logEvent('ui', 'vm-image', 'Cleared ' + descriptor.path + ' image.');
+                });
+                registerVmControlBinding(descriptor, { kind: 'image', input: imageInput, clearButton: clearImageButton });
+                inputContainer.appendChild(imageInput);
+                inputContainer.appendChild(clearImageButton);
+
             } else if (descriptor.kind === 'trigger') {
                 var button = document.createElement('button');
                 button.type = 'button';
@@ -248,4 +285,3 @@
             row.appendChild(inputContainer);
             return row;
         }
-

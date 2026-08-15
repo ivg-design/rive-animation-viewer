@@ -25,8 +25,8 @@ export default function ViewModelControls() {
               <h3 className="text-sm font-semibold text-[var(--text-white)] mb-1">ViewModel Section</h3>
               <p className="text-xs text-[var(--text-dim)] leading-relaxed">
                 Enum dropdowns, number inputs, boolean checkboxes, color picker with alpha slider,
-                string inputs, and collapsible nested VM instances &mdash; all auto-discovered from
-                the loaded animation.
+                string and image inputs, plus collapsible nested VM instances &mdash; all
+                auto-discovered from the loaded animation.
               </p>
             </div>
           </div>
@@ -55,6 +55,7 @@ export default function ViewModelControls() {
           <tr><td>Trigger</td><td>Button</td><td>Fires the trigger once per click</td></tr>
           <tr><td>Enum</td><td>Dropdown</td><td>Lists all enum values, selects immediately</td></tr>
           <tr><td>Color</td><td>Color picker + alpha</td><td>Native color input with alpha slider</td></tr>
+          <tr><td>Image</td><td>File picker + CLEAR</td><td>Decodes a selected image through the loaded runtime, replaces the property, or clears it to <code>null</code></td></tr>
         </tbody>
       </table>
 
@@ -67,10 +68,11 @@ export default function ViewModelControls() {
       <h2>Dynamic Lists</h2>
       <p>
         ViewModel lists show every item that currently exists &mdash; there is no ten-row cap.
-        RAV derives readable one-based labels from the authored list name, so a list named
-        <code> rows</code> appears as <strong>Row 1</strong>, <strong>Row 2</strong>, and so on.
-        When animation logic changes the controlling count, the Properties panel rebuilds from
-        the live list topology automatically.
+        RAV uses each item&apos;s authored instance name when the runtime exposes one. If an item
+        has no readable authored name, RAV falls back to a readable one-based label derived from
+        the list property, so a list named <code>rows</code> appears as <strong>Row 1</strong>,
+        <strong>Row 2</strong>, and so on. When animation logic changes the controlling count,
+        the Properties panel rebuilds from the live list topology automatically.
       </p>
       <p>
         MCP paths use the runtime&apos;s zero-based index even though labels are one-based. For
@@ -97,6 +99,11 @@ export default function ViewModelControls() {
       <p>
         Section headers display the exact name from the Rive file, preserving original casing,
         dashes, and special characters.
+      </p>
+      <p>
+        Image controls are intentionally live-only: selecting a file calls the released runtime&apos;s
+        image decoder, and <strong>CLEAR</strong> writes <code>null</code>. Decoded image objects are
+        not included in JSON snapshots or generated control-value payloads.
       </p>
     </>
   );

@@ -19,10 +19,14 @@ export default function OpeningFiles() {
 
       <h2>Double-Click (Desktop)</h2>
       <p>
-        On macOS, RAV registers as a handler for <code>.riv</code> files. Double-click any
-        <code>.riv</code> file in Finder to open it directly. If RAV is already running, the
-        file is loaded into the existing window. On Windows, right-click a <code>.riv</code>
-        file and choose &quot;Open with&quot; to associate RAV.
+        On macOS, RAV registers the official <code>app.rive.editor.rive-file</code> UTI as an
+        alternate Viewer for <code>.riv</code> files and uses the dedicated Rive file icon.
+        Use Open With or an existing Finder association to open any <code>.riv</code> file
+        directly. If RAV is already running, the file is routed into the existing window;
+        RAV does not claim the default handler. After an app update, the first launch of the
+        new version refreshes that bundle&apos;s Launch Services registration once for the version
+        without restarting Finder or changing the Viewer/Alternate rank. On Windows, right-click
+        a <code>.riv</code> file and choose &quot;Open with&quot; to associate RAV.
       </p>
 
       <h2>Supported Formats</h2>

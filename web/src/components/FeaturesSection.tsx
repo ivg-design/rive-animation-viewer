@@ -14,7 +14,7 @@ const primaryFeatures = [
   {
     label: "Controls",
     title: "Every property, live",
-    description: "RAV reads the ViewModel hierarchy and state machine inputs from your .riv file and renders native controls — booleans, numbers, strings, enums, colors, and triggers — all synchronized with the running runtime in real time.",
+    description: "RAV reads the ViewModel hierarchy and state machine inputs from your .riv file, keeps authored list-item names, and adds native image controls for select, decode, replace, and clear — all synchronized with the running runtime.",
     image: "/docs/vm-controls-panel.webp",
     imageAlt: "ViewModel controls panel showing enums, numbers, booleans, color picker, and nested instances",
     imageWidth: 400,
@@ -24,7 +24,7 @@ const primaryFeatures = [
   {
     label: "Export",
     title: "From viewer to codebase",
-    description: "Choose which controls to serialize, pick CDN or local package output, preview the generated snippet inline, and copy or export a self-contained HTML demo — all from one dialog. Fixed canvas sizes, layout modes, and artboard state carry through.",
+    description: "Choose controls, CDN or local packages, then copy a snippet or export a self-contained HTML demo. Applied editor configuration and lifecycle callbacks are preserved and executed with the selected file, canvas, layout, and control state.",
     image: "/docs/export-controls.webp",
     imageAlt: "Snippet & Export Controls dialog with tree checkboxes and live code preview",
     imageWidth: 800,
@@ -48,7 +48,7 @@ const primaryFeatures = [
 const secondaryFeatures = [
   { icon: Layers, title: "Artboard switching", desc: "Switch artboards and playback targets from dropdowns. VM controls repopulate per target." },
   { icon: Terminal, title: "Dual consoles", desc: "Event log and JavaScript REPL with timestamps, follow mode, level filters, and copy." },
-  { icon: Code2, title: "Script editor", desc: "CodeMirror 6 with live source indication. Apply config without losing artboard state." },
+  { icon: Code2, title: "Script editor", desc: "CodeMirror 6 with live source indication. Apply configuration without losing artboard state; standalone exports preserve and execute it." },
   { icon: MonitorCog, title: "Renderer + runtime", desc: "Canvas or WebGL2. Latest, pinned, or custom runtime semver. Fit and alignment in the toolbar." },
   { icon: Maximize, title: "Canvas sizing", desc: "Auto or fixed pixel dimensions with aspect lock. Carries through to exports and snippets." },
   { icon: RotateCcw, title: "State preservation", desc: "Reset and reload preserve artboard, playback, and control values across re-instantiation." },

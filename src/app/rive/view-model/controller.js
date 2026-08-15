@@ -168,7 +168,7 @@ export function createVmControlsController({
         if (!vmControlBindings.length) {
             return;
         }
-        syncVmBindings(vmControlBindings, resolveControlAccessor, documentRef, force);
+        syncVmBindings(vmControlBindings, resolveControlAccessor, documentRef, force, () => getLoadedRuntime(getCurrentRuntime()));
     }
 
     function currentVmListTopologySignature() {
@@ -201,6 +201,7 @@ export function createVmControlsController({
         documentRef,
         fireStateMachineTriggerByName,
         getRiveInstance,
+        getLoadedRuntime: () => getLoadedRuntime(getCurrentRuntime()),
         logEvent,
         registerVmControlBinding,
         resolveControlAccessor,

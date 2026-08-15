@@ -4,8 +4,8 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.4.2` (2026-07-25)
-- Validation target: release from `main` with tag `v2.4.2`. macOS downloads and updater apps must be Developer ID signed, notarized, and stapled; every updater payload must also retain its separate Tauri signature.
+- Current release: `2.4.3` (2026-08-14)
+- Validation target: release from `main` with tag `v2.4.3`. macOS downloads and updater apps must be Developer ID signed, notarized, and stapled; every updater payload must also retain its separate Tauri signature.
 
 ## Regression Gates
 
@@ -19,6 +19,13 @@ The repo now has explicit prebuild guards for the surfaces that were regressing 
 - `cargo check --manifest-path src-tauri/Cargo.toml` validates the native Tauri layer
 
 These gates materially reduce regression risk, but they are still code- and DOM-contract tests, not full visual snapshot coverage. If we want pixel-level guarantees from this point forward, the next step is adding screenshot-based desktop smoke tests for the packaged app window.
+
+## 2.4.3 Highlights
+
+- **ViewModel list and image controls**: List controls use each item's authored instance name when available, with a readable one-based list-derived fallback otherwise. Image properties appear as file controls that select, runtime-decode, replace, and clear images; decoded image objects are not serialized into JSON snapshots.
+- **Standalone editor-config preservation**: Applied editor JavaScript/config and lifecycle callbacks are embedded in standalone exports and executed in editor source mode after RAV binding and snapshot restoration; unsaved drafts remain inactive.
+- **macOS `.riv` opening and file identity**: Double-click/open-with and warm single-instance opens route through the native queue and `open-file` bridge. The official `app.rive.editor.rive-file` UTI is registered as an alternate Viewer with tracked `RiveFileIcon.icns`; a version-gated post-update launch runs `lsregister -f` without restarting Finder or taking over the default handler.
+- **Runtime compatibility evidence**: The released Web 2.40.0 / runtime-v0.1.271 target passed exact WebGL2 and Canvas fixture loads; canary v0.1.272 remains separate.
 
 ## 2.4.2 Highlights
 

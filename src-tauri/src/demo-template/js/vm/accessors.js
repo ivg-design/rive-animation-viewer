@@ -35,6 +35,7 @@
                 ['string', 'string'],
                 ['enum', 'enum'],
                 ['color', 'color'],
+                ['image', 'image'],
                 ['trigger', 'trigger'],
             ];
 

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "version": "2.4.2",
+  "identifier": "app.rive.animation.viewer.updater-acceptance",
+  "bundle": {
+    "createUpdaterArtifacts": false
+  },
+  "plugins": {
+    "updater": {
+      "dangerousInsecureTransportProtocol": true
+    }
+  }
+}

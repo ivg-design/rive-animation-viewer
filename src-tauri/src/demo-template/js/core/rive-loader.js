@@ -80,13 +80,20 @@
                 var configuredStateMachines = normalizeStateMachineSelection(CONFIG.stateMachines);
                 var userSpecifiedStateMachines = configuredStateMachines.length > 0;
                 var didRestartForStateMachine = false;
+                var appliedEditorConfig = resolveStandaloneEditorConfig(
+                    CONFIG.editorCode,
+                    CONFIG.instantiationSourceMode,
+                    function (error) {
+                        logEvent('native', 'editor-config-error', 'Unable to restore applied editor config: ' + (error.message || error));
+                    },
+                );
 
-                var riveConfig = {
+                var riveConfig = Object.assign({}, appliedEditorConfig, {
                     src: animationUrl,
                     canvas: els.canvas,
                     autoplay: CONFIG.autoplay !== false,
                     autoBind: !CONFIG.viewModelInstanceName,
-                };
+                });
 
                 if (CONFIG.artboardName) {
                     riveConfig.artboard = CONFIG.artboardName;
@@ -110,6 +117,7 @@
                 }
 
                 riveConfig.onLoad = function () {
+                    var callbackArgs = Array.prototype.slice.call(arguments);
                     // Auto-detect state machine if none specified
                     if (!didRestartForStateMachine && !userSpecifiedStateMachines) {
                         var detectedSmName = null;
@@ -175,36 +183,49 @@
                     applyControlSnapshot(currentControlSnapshot);
                     // Render VM controls
                     renderVmControls();
+                    invokeStandaloneEditorCallback(appliedEditorConfig.onLoad, riveInstance, callbackArgs, function (error) {
+                        logEvent('native', 'editor-callback-error', 'Applied editor callback failed: ' + (error.message || error));
+                    });
                 };
 
                 riveConfig.onLoadError = function (error) {
                     var errorMsg = (error && error.message) || String(error);
                     showError('Error loading animation: ' + errorMsg);
                     logEvent('native', 'loaderror', 'Load error: ' + errorMsg);
+                    invokeStandaloneEditorCallback(appliedEditorConfig.onLoadError, riveInstance, Array.prototype.slice.call(arguments), function (error) {
+                        logEvent('native', 'editor-callback-error', 'Applied editor callback failed: ' + (error.message || error));
+                    });
                 };
 
                 riveConfig.onPlay = function (event) {
                     logEvent('native', 'play', 'Playback started by runtime.', event);
+                    invokeStandaloneEditorCallback(appliedEditorConfig.onPlay, riveInstance, Array.prototype.slice.call(arguments));
                 };
 
                 riveConfig.onPause = function (event) {
                     logEvent('native', 'pause', 'Playback paused by runtime.', event);
+                    invokeStandaloneEditorCallback(appliedEditorConfig.onPause, riveInstance, Array.prototype.slice.call(arguments));
                 };
 
                 riveConfig.onStop = function (event) {
                     logEvent('native', 'stop', 'Playback stopped by runtime.', event);
+                    invokeStandaloneEditorCallback(appliedEditorConfig.onStop, riveInstance, Array.prototype.slice.call(arguments));
                 };
 
                 riveConfig.onLoop = function (event) {
                     logEvent('native', 'loop', 'Loop event emitted by runtime.', event);
+                    invokeStandaloneEditorCallback(appliedEditorConfig.onLoop, riveInstance, Array.prototype.slice.call(arguments));
                 };
 
                 riveConfig.onStateChange = function (event) {
                     logEvent('native', 'statechange', 'State machine changed state.', event);
+                    invokeStandaloneEditorCallback(appliedEditorConfig.onStateChange, riveInstance, Array.prototype.slice.call(arguments));
                 };
 
                 riveConfig.onAdvance = function (event) {
                     updatePlaybackChips();
+                    retryPendingControlSnapshot();
+                    invokeStandaloneEditorCallback(appliedEditorConfig.onAdvance, riveInstance, Array.prototype.slice.call(arguments));
                 };
 
                 // Remove undefined keys

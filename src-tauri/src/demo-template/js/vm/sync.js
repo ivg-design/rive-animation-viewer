@@ -9,7 +9,7 @@
             var seen = new Set();
 
             vmControlBindings.forEach(function (binding) {
-                if (!binding || binding.kind === 'trigger') return;
+                if (!binding || binding.kind === 'trigger' || binding.kind === 'image') return;
                 var descriptor = binding.descriptor || {};
                 var key = (descriptor.source === 'state-machine'
                     ? 'sm:' + (descriptor.stateMachineName || '') + ':' + (descriptor.name || '') + ':' + (binding.kind || '')
@@ -128,6 +128,7 @@
                 if (binding.input) binding.input.disabled = !canEdit;
                 if (binding.colorInput) binding.colorInput.disabled = !canEdit;
                 if (binding.alphaInput) binding.alphaInput.disabled = !canEdit;
+                if (binding.clearButton) binding.clearButton.disabled = !canEdit;
                 if (!canEdit) return;
 
                 if (binding.kind === 'number') {
