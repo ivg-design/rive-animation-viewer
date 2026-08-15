@@ -4,11 +4,11 @@ site_name: RAV
 site_url: https://forge.mograph.life/apps/rav/
 canonical_url: https://forge.mograph.life/apps/rav/
 owner: IVG Design
-last_updated: 2026-08-14
+last_updated: 2026-08-15
 language: en
 
 ## Purpose
-RAV is a standalone desktop app for inspecting, debugging, and testing Rive (.riv) files offline. Version 2.4.3 is a private acceptance candidate, not a public release; normal updater clients still follow the unchanged public feed.
+RAV is a standalone desktop app for inspecting, debugging, and testing Rive (.riv) files offline. Version 2.4.3 is the current public release and is available through the normal updater feed.
 
 ## Canonical Sources
 - Home: https://forge.mograph.life/apps/rav/
@@ -24,7 +24,7 @@ RAV is a standalone desktop app for inspecting, debugging, and testing Rive (.ri
 - Transparency mode: https://forge.mograph.life/apps/rav/docs#transparency-mode
 - Standalone export: https://forge.mograph.life/apps/rav/docs#standalone-export
 - Applied editor config and lifecycle callbacks are preserved and executed in standalone exports: https://forge.mograph.life/apps/rav/docs/script-editor
-- macOS .riv declarations cover official and legacy compatibility UTIs as an alternate Viewer without default takeover; exact Finder icon migration requires separate installed-app verification and is not proved by the isolated signed-updater receipt: https://forge.mograph.life/apps/rav/docs/opening-files
+- macOS .riv declarations cover official and legacy compatibility UTIs as an alternate Viewer without default takeover; exact migration of the supplied standalone Finder artwork remains an unresolved installed-app limitation and is not claimed as passed: https://forge.mograph.life/apps/rav/docs/opening-files
 - Windows NSIS and MSI packages ship a dedicated multi-resolution .riv icon; installs and updates own the matching document-icon value, while uninstall cleanup preserves the association that preceded RAV: https://forge.mograph.life/apps/rav/docs/opening-files
 - RAV defaults to runtime 2.39.2 because 2.40.0 has a confirmed nested-image double-offset in both Canvas and WebGL2; Latest/2.40.0 remain warned explicit opt-ins: https://forge.mograph.life/apps/rav/docs/configuration
 - Fixed canvases use overflow-safe auto margins to stay centered while they fit and preserve authored-origin scrolling when oversized: https://forge.mograph.life/apps/rav/docs/ui-layout
