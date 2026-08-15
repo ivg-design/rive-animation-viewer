@@ -2,13 +2,15 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const templateRoot = path.resolve(process.cwd(), 'src-tauri/src/demo-template/js');
-const accessorsSource = readFileSync(path.join(templateRoot, 'vm/accessors.js'), 'utf8');
-const hierarchySource = readFileSync(path.join(templateRoot, 'vm/hierarchy.js'), 'utf8');
-const preambleSource = readFileSync(path.join(templateRoot, 'core/preamble.js'), 'utf8');
-const riveLoaderSource = readFileSync(path.join(templateRoot, 'core/rive-loader.js'), 'utf8');
-const editorConfigSource = readFileSync(path.join(templateRoot, 'core/editor-config.js'), 'utf8');
-const controlsRenderSource = readFileSync(path.join(templateRoot, 'vm/controls-render.js'), 'utf8');
-const syncSource = readFileSync(path.join(templateRoot, 'vm/sync.js'), 'utf8');
+const readTemplateSource = (relativePath) => readFileSync(path.join(templateRoot, relativePath), 'utf8')
+    .replace(/\r\n?/g, '\n');
+const accessorsSource = readTemplateSource('vm/accessors.js');
+const hierarchySource = readTemplateSource('vm/hierarchy.js');
+const preambleSource = readTemplateSource('core/preamble.js');
+const riveLoaderSource = readTemplateSource('core/rive-loader.js');
+const editorConfigSource = readTemplateSource('core/editor-config.js');
+const controlsRenderSource = readTemplateSource('vm/controls-render.js');
+const syncSource = readTemplateSource('vm/sync.js');
 
 function createDemoVmHarness(riveInstance, { controlSelectionKeys = null, controlSnapshot = [], vmHierarchy = null } = {}) {
     const build = new Function('riveInstance', 'CONTROL_SELECTION_KEYS', 'CONTROL_SNAPSHOT', 'VM_HIERARCHY', `
