@@ -31,7 +31,9 @@ export default function Updates() {
         verifies its Tauri signature with the public key embedded in RAV, installs it,
         and relaunches the app. On macOS, that archive contains the same Developer ID
         signed, notarized, and stapled app as the matching DMG. On Windows, the app-owned
-        MCP bridge is shut down first to prevent file locking during update.
+        MCP bridge is shut down first to prevent file locking during update. The NSIS updater
+        also installs the dedicated <code>.riv</code> icon, rewrites the document-icon registry
+        value, and notifies Explorer after every update.
       </p>
 
       <h2>Release Feed</h2>

@@ -14,7 +14,7 @@
       "name": "RAV",
       "type": "SoftwareApplication",
       "url": "https://forge.mograph.life/apps/rav/",
-      "description": "RAV desktop Rive animation viewer. The private 2.4.3 candidate uses direct or unique canonical-string ViewModel list labels; one full-width image-source select with embedded rasters, Open file, and Clear; overflow-safe canvas centering; safe runtime 2.39.2 by default; applied-editor-aware standalone export; and event inspection."
+      "description": "RAV desktop Rive animation viewer. The private 2.4.3 candidate uses direct or unique canonical-string ViewModel list labels; one full-width image-source select with embedded rasters, Open file, and Clear; overflow-safe canvas centering; safe runtime 2.39.2 by default; applied-editor-aware standalone export; a dedicated Windows .riv document icon; and event inspection."
     },
     {
       "name": "IVG Design",

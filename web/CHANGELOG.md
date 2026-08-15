@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file.
 - **Embedded image controls** — Each ViewModel image property uses one full-width select containing every embedded raster asset followed by `Open file…` and `Clear`. `Open file…` invokes a hidden file input; there are no separate folder/Clear buttons and no `Embedded image…` placeholder. The catalog uses `uniqueFilename` identity, magic-byte MIME detection, and numbered labels for duplicate display names. The same embedded bytes and control carry into standalone exports.
 - **Standalone editor-config preservation** — Applied editor JavaScript/config, including lifecycle callbacks, is embedded in standalone exports and executed in editor source mode after RAV binding and snapshot restoration; unsaved drafts are not exported as active config.
 - **`.riv` desktop declarations** — macOS Launch Services declares both the official `app.rive.editor.rive-file` UTI and the pre-2.4.3 `app.rive.animation.viewer.riv` compatibility UTI as alternate Viewer types, each backed by `RiveFileIcon.icns`. A version-and-schema-gated post-update first launch refreshes the installed bundle with `lsregister -f` without restarting Finder, changing the Viewer/Alternate rank, or taking over the default handler.
+- **Windows `.riv` document icon** — Windows NSIS and MSI bundles include the dedicated ten-resolution `RiveFileIcon.ico` generated mechanically from the supplied 1024 px master. NSIS replaces Tauri's executable-based document icon during installs, repairs, and updates, preserves the pre-RAV association for later uninstall, and notifies Explorer. MSI owns its corresponding icon value as an upgrade-aware component removed on uninstall.
 
 ### Changed
 
@@ -25,7 +26,7 @@ All notable changes to this project are documented in this file.
 
 ### Validation
 
-- **Local candidate gates passed** — The full JavaScript suite (49 files / 264 tests), Rust tests (13 app tests plus 1 `rav-mcp` test), and clippy passed.
+- **Local candidate gates passed** — The full JavaScript suite (50 files / 265 tests), including the dedicated NSIS/MSI document-icon packaging gate, Rust tests (13 app tests plus 1 `rav-mcp` test), and clippy passed.
 - **Live fixture evidence** — RAV MCP reproduced the 2.40.0 layout regression in both renderers and confirmed the authored layout on 2.39.2. The exact list resolved to `D10`, `D16`, `D03`, `D11`, `D06`, `D02`, `D18`, `D20`, `D19`, `D12`. The exact file contains two embedded raster assets (`trophy-n2` and `avatar-placeholder`), one font, and two scripts; the image catalog exposed only the two rasters. Overflow-safe canvas centering/scrolling was exercised, and an exported standalone marker confirmed the applied editor script executed.
 - **Acceptance isolation boundary** — The signed-updater harness recursively fingerprints the installed `/Applications` bundle and production RAV user-data roots before and after its temporary update/relaunch and requires both to remain unchanged. Its receipt proves the signed updater path only; Launch Services registration and exact Finder icon migration remain a separate installed-app proof.
 

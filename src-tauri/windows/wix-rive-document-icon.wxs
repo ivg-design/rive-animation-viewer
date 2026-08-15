@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?if $(sys.BUILDARCH)="x86"?>
+  <?define Win64 = "no" ?>
+<?elseif $(sys.BUILDARCH)="x64"?>
+  <?define Win64 = "yes" ?>
+<?elseif $(sys.BUILDARCH)="arm64"?>
+  <?define Win64 = "yes" ?>
+<?else?>
+  <?error Unsupported value of sys.BUILDARCH=$(sys.BUILDARCH)?>
+<?endif?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <DirectoryRef Id="INSTALLDIR">
+      <!--
+        Tauri's generated MSI advertises .riv as
+        "Rive Animation Viewer.riv" but does not assign a document icon.
+        This per-machine component follows that generated ProgId, is replaced
+        during major upgrades, and is removed automatically on uninstall.
+      -->
+      <Component
+          Id="RiveDocumentIconRegistry"
+          Guid="{8A091BC5-78C5-4B55-BAF4-02607EA9B49F}"
+          Win64="$(var.Win64)">
+        <RegistryValue
+            Root="HKLM"
+            Key="Software\Classes\Rive Animation Viewer.riv\DefaultIcon"
+            Type="string"
+            Value="&quot;[INSTALLDIR]RiveFileIcon.ico&quot;,0"
+            KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>

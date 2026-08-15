@@ -32,8 +32,15 @@ export default function OpeningFiles() {
         changing the Viewer/Alternate rank. The declarations, icon resource, and refresh logic have
         passed local bundle checks. Exact migration of an already-indexed Finder icon is still pending
         separate installed-app verification and is not established by the isolated signed-updater
-        receipt, which skips Launch Services registration. On Windows,
-        right-click a <code>.riv</code> file and choose &quot;Open with&quot; to associate RAV.
+        receipt, which skips Launch Services registration.
+      </p>
+      <p>
+        On Windows, both the NSIS setup executable and MSI package install a dedicated
+        ten-resolution <code>RiveFileIcon.ico</code> for <code>.riv</code> documents. The NSIS
+        updater rewrites the document-icon registration and notifies Explorer on every update;
+        uninstall restores the association that existed before RAV. MSI owns the equivalent
+        registry value as an upgrade-aware component and removes it on uninstall. Right-click a
+        <code>.riv</code> file and choose &quot;Open with&quot; if you want RAV to be its active handler.
       </p>
 
       <h2>Supported Formats</h2>

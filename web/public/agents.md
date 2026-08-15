@@ -16,6 +16,7 @@
 - Runtime 2.39.2 is the safe default. Web 2.40.0 / runtime-v0.1.271 has a confirmed nested-image double-offset in both renderers and is a warned explicit opt-in.
 - Other key surfaces include a 36-tool MCP bridge, event and script consoles, applied-editor-aware generated snippets, overflow-safe auto-margin canvas centering, styled fixed-canvas scrollbars, and standalone HTML export.
 - Official and legacy .riv UTI/icon declarations are present. Exact Finder migration remains a separate installed-app verification item and is not proved by the isolated signed-updater receipt.
+- Windows NSIS and MSI packages contain a dedicated multi-resolution .riv icon with upgrade-aware registration and uninstall cleanup; this corrects the original draft's executable-icon registration.
 - Primary maintainers: IVG Design.
 
 ## Retrieval Notes
