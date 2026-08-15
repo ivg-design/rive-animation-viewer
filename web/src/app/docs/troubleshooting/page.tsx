@@ -10,7 +10,7 @@ export default function Troubleshooting() {
         <li>Verify the file is a valid <code>.riv</code> file (not a <code>.rev</code> project file)</li>
         <li>Check the event console for error messages</li>
         <li>Try switching between Canvas and WebGL2 renderers</li>
-        <li>Ensure the file isn&apos;t corrupted &mdash; try opening it in the Rive Editor first</li>
+        <li>Ensure the file isn&apos;t corrupted &mdash; re-export it from the source project or obtain a fresh <code>.riv</code> export</li>
       </ul>
 
       <h2>Configuration won&apos;t apply</h2>
@@ -44,7 +44,7 @@ export default function Troubleshooting() {
 
       <h2>The Windows .riv icon did not change</h2>
       <ul>
-        <li>The original 2.4.3 draft pointed <code>Rive File\DefaultIcon</code> at the application executable; changing the default app could not produce the supplied document artwork</li>
+        <li>Older Windows installs may point <code>Rive File\DefaultIcon</code> at the application executable instead of the dedicated document icon</li>
         <li>The 2.4.3 release bundles <code>RiveFileIcon.ico</code>, rewrites that value during NSIS install/update, and notifies Explorer</li>
         <li>Verify the installed icon path exists before clearing Explorer&apos;s icon cache</li>
       </ul>

@@ -24,7 +24,7 @@ RAV is a standalone desktop app for inspecting, debugging, and testing Rive (.ri
 - Transparency mode: https://forge.mograph.life/apps/rav/docs#transparency-mode
 - Standalone export: https://forge.mograph.life/apps/rav/docs#standalone-export
 - Applied editor config and lifecycle callbacks are preserved and executed in standalone exports: https://forge.mograph.life/apps/rav/docs/script-editor
-- macOS .riv declarations cover current and legacy RAV identifiers, include the dedicated document icon resource, and register RAV as a Viewer without default takeover: https://forge.mograph.life/apps/rav/docs/opening-files
+- macOS .riv declarations cover the official Rive UTI and legacy RAV compatibility UTI, include the dedicated document icon resource, and register RAV as a Viewer without default takeover: https://forge.mograph.life/apps/rav/docs/opening-files
 - Windows NSIS and MSI packages ship a dedicated multi-resolution .riv icon; installs and updates own the matching document-icon value, while uninstall cleanup preserves the association that preceded RAV: https://forge.mograph.life/apps/rav/docs/opening-files
 - RAV defaults to runtime 2.39.2 because 2.40.0 has a confirmed nested-image double-offset in both Canvas and WebGL2; Latest/2.40.0 remain warned explicit opt-ins: https://forge.mograph.life/apps/rav/docs/configuration
 - Fixed canvases use overflow-safe auto margins to stay centered while they fit and preserve authored-origin scrolling when oversized: https://forge.mograph.life/apps/rav/docs/ui-layout
