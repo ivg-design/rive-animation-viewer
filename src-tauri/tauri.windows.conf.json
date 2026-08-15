@@ -1,4 +1,22 @@
 {
+  "bundle": {
+    "resources": {
+      "icons/RiveFileIcon.ico": "RiveFileIcon.ico"
+    },
+    "windows": {
+      "nsis": {
+        "installerHooks": "windows/nsis-hooks.nsh"
+      },
+      "wix": {
+        "fragmentPaths": [
+          "windows/wix-rive-document-icon.wxs"
+        ],
+        "componentRefs": [
+          "RiveDocumentIconRegistry"
+        ]
+      }
+    }
+  },
   "app": {
     "windows": [
       {

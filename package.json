@@ -26,7 +26,8 @@
     "accept:updater": "node scripts/run-updater-acceptance.mjs",
     "sync": "node scripts/sync-version.mjs",
     "verify:updater-signatures": "node scripts/verify-updater-signatures.mjs",
-    "verify:updater-staging": "node scripts/updater-staging-ledger.mjs"
+    "verify:updater-staging": "node scripts/updater-staging-ledger.mjs",
+    "verify:windows-document-icon": "node scripts/verify-windows-document-icon.mjs"
   },
   "keywords": [
     "rive",

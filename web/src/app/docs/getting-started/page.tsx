@@ -26,9 +26,9 @@ export default function GettingStarted() {
 
       <h3>Windows</h3>
       <ol>
-        <li>Download the <code>.msi</code> installer</li>
+        <li>Download the x64 setup <code>.exe</code> or <code>.msi</code> installer</li>
         <li>Run the installer and follow the setup wizard</li>
-        <li>RAV will be available from the Start menu</li>
+        <li>RAV will be available from the Start menu and registers its dedicated <code>.riv</code> document icon</li>
       </ol>
 
       <h3>Browser Mode</h3>

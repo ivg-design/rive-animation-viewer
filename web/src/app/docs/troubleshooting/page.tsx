@@ -42,6 +42,13 @@ export default function Troubleshooting() {
         <li>Exact migration for an already-indexed <code>.riv</code> requires separate installed-app Launch Services/Finder verification; neither local bundle inspection nor the isolated signed-updater receipt proves that Finder refreshed it</li>
       </ul>
 
+      <h2>The Windows .riv icon did not change</h2>
+      <ul>
+        <li>The original 2.4.3 draft pointed <code>Rive File\DefaultIcon</code> at the application executable; changing the default app could not produce the supplied document artwork</li>
+        <li>The corrected candidate bundles <code>RiveFileIcon.ico</code>, rewrites that value during NSIS install/update, and notifies Explorer</li>
+        <li>Verify the installed icon path exists before clearing Explorer&apos;s icon cache; a normal public updater cannot install a private draft</li>
+      </ul>
+
       <h2>Desktop build fails</h2>
       <ul>
         <li>Run <code>rustup update</code> to ensure latest Rust toolchain</li>

@@ -360,6 +360,43 @@ xcrun stapler validate "$dmg"
 Then run `scripts/verify-macos-distribution.sh` with the DMG, updater archive,
 Team ID, architecture, and release version.
 
+## Windows `.riv` document-icon acceptance
+
+The static gate verifies both installer definitions and all ten frames of the
+tracked icon before packaging:
+
+```bash
+npm run verify:windows-document-icon
+```
+
+After building, use a Windows snapshot with a known pre-existing `.riv`
+handler. Install or update with the NSIS setup executable, then run the checked-in
+PowerShell gate from the same candidate checkout. For the current acceptance
+fixture, the pre-RAV ProgID is `Rive Animation`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\verify-windows-document-icon.ps1 `
+  -ExpectedVersion 2.4.3 `
+  -ExpectedBundleType NSS `
+  -ExpectedPreviousProgId 'Rive Animation' `
+  -ExpectedIconSha256 13e12927439f4c98db3250516389822d706e4d1b7fdf3e2b2dad0fc6cff785fb `
+  -ReceiptPath "$env:USERPROFILE\Desktop\rav-windows-document-icon-receipt.json"
+```
+
+The gate fails unless the installed executable has the expected product
+version and NSIS marker, `.riv` resolves to an existing ProgID, `DefaultIcon`
+uses an existing `RiveFileIcon.ico` rather than `app.exe`, the icon hash
+matches, and the original handler backup survived the in-place update. Confirm
+the desktop `.riv` changes without restarting Explorer or clearing its icon
+cache. Then uninstall normally and confirm `.riv` is restored to the original
+ProgID, `Rive File_backup` is absent, and the installed icon file was removed.
+
+Repeat from a clean snapshot with the MSI, `-ExpectedBundleType MSI`, and the
+explicit per-machine `-InstallDir` (omit `-ExpectedPreviousProgId`). The MSI
+gate requires the generated ProgID and icon value under HKLM and rejects an
+HKCU shadow. This proves both package types; a passing NSIS updater check alone
+does not prove the MSI component.
+
 ## One-off release without GitHub-hosted runners
 
 The checked-in workflow pins GitHub-hosted runner labels, so attaching a
@@ -425,4 +462,6 @@ direct Vercel deployment and the public Forge URL.
    version, `Contents/MacOS/rav-mcp` exists in the installed app, the MCP chip
    reaches its healthy state, and the stable client launcher resolves to that
    bundled sidecar.
-7. Deploy the website and verify its downloads and changelog.
+7. Run the Windows `.riv` document-icon acceptance above against both NSIS and
+   MSI packages, including the NSIS uninstall restoration check.
+8. Deploy the website and verify its downloads and changelog.
