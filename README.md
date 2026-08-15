@@ -4,7 +4,7 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current public release: `2.4.3`
+- Current release: `2.4.3` (signed staging and public promotion pending; the distribution details below describe the intended final public state)
 - Distribution: GitHub release `v2.4.3` and the normal public `latest.json` updater feed.
 - Release source: the verified `v2.4.3` commit on `main`. macOS downloads and updater apps are Developer ID signed, notarized, and stapled; every updater payload also retains its separate Tauri signature. Exact migration of the supplied standalone `.riv` artwork in Finder remains an unresolved installed-app limitation and is not claimed as passed.
 
