@@ -75,4 +75,26 @@ describe('core/canvas-sizing', () => {
             top: 150,
         });
     });
+
+    it('keeps scroll origins at zero when fixed canvas content fits the viewport', () => {
+        expect(buildCenteredCanvasScrollOffsets({
+            containerWidth: 1200,
+            containerHeight: 1000,
+            contentWidth: 1000,
+            contentHeight: 934,
+        })).toEqual({
+            left: 0,
+            top: 0,
+        });
+
+        expect(buildCenteredCanvasScrollOffsets({
+            containerWidth: 900,
+            containerHeight: 1000,
+            contentWidth: 1600,
+            contentHeight: 934,
+        })).toEqual({
+            left: 350,
+            top: 0,
+        });
+    });
 });

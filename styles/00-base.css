@@ -96,6 +96,7 @@ body.transparency-mode .center-panel {
 }
 
 body::-webkit-scrollbar,
+#canvas-container::-webkit-scrollbar,
 #code-editor .cm-scroller::-webkit-scrollbar,
 #code-editor textarea::-webkit-scrollbar,
 .mcp-setup-body::-webkit-scrollbar,
@@ -115,6 +116,7 @@ body::-webkit-scrollbar,
 }
 
 body::-webkit-scrollbar-track,
+#canvas-container::-webkit-scrollbar-track,
 #code-editor .cm-scroller::-webkit-scrollbar-track,
 #code-editor textarea::-webkit-scrollbar-track,
 .mcp-setup-body::-webkit-scrollbar-track,
@@ -134,6 +136,7 @@ body::-webkit-scrollbar-track,
 }
 
 body::-webkit-scrollbar-thumb,
+#canvas-container::-webkit-scrollbar-thumb,
 #code-editor .cm-scroller::-webkit-scrollbar-thumb,
 #code-editor textarea::-webkit-scrollbar-thumb,
 .mcp-setup-body::-webkit-scrollbar-thumb,
@@ -154,6 +157,7 @@ body::-webkit-scrollbar-thumb,
 }
 
 body::-webkit-scrollbar-thumb:hover,
+#canvas-container::-webkit-scrollbar-thumb:hover,
 #code-editor .cm-scroller::-webkit-scrollbar-thumb:hover,
 #code-editor textarea::-webkit-scrollbar-thumb:hover,
 .mcp-setup-body::-webkit-scrollbar-thumb:hover,
@@ -169,6 +173,10 @@ body::-webkit-scrollbar-thumb:hover,
 .about-dialog-body::-webkit-scrollbar-thumb:hover,
 .about-dialog-dependencies::-webkit-scrollbar-thumb:hover {
     background: #444b5d;
+}
+
+#canvas-container::-webkit-scrollbar-corner {
+    background: #0f1015;
 }
 
 .app-shell {

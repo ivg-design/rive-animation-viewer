@@ -7,7 +7,6 @@ import {
 import { shouldResumePlaybackForTrigger } from './accessors.js';
 import { countAllInputs } from './hierarchy.js';
 import { appendVmImageControl } from './image-control.js';
-
 function updateStringInputRows(input, value) {
     if (!input || typeof input.rows !== 'number') {
         return;
@@ -20,6 +19,7 @@ export function createVmControlRowFactory({
     documentRef,
     fireStateMachineTriggerByName,
     getRiveInstance,
+    getEmbeddedImageAssets = () => [],
     getLoadedRuntime = () => null,
     logEvent,
     registerVmControlBinding,
@@ -173,6 +173,7 @@ export function createVmControlRowFactory({
                 descriptor,
                 documentRef,
                 getLoadedRuntime,
+                getEmbeddedImageAssets,
                 inputContainer,
                 logEvent,
                 registerVmControlBinding,
@@ -308,6 +309,18 @@ export function syncVmBindings(bindings, resolveControlAccessor, documentRef, fo
         if (binding.clearButton) {
             binding.clearButton.disabled = !canEdit;
         }
+        if (binding.browseButton) {
+            binding.browseButton.disabled = !canEdit || typeof getLoadedRuntime()?.decodeImage !== 'function';
+        }
+        if (binding.assetSelect) {
+            const canDecodeImage = typeof getLoadedRuntime()?.decodeImage === 'function';
+            binding.assetSelect.disabled = !canEdit;
+            Array.from(binding.assetSelect.options).forEach((option) => {
+                if (option.value === '__open__' || option.value.startsWith('embedded:')) {
+                    option.disabled = !canDecodeImage;
+                }
+            });
+        }
         if (!canEdit) {
             return;
         }
@@ -379,7 +392,6 @@ export function resetVmInputControls(elements, message = 'No bound ViewModel inp
     if (!count || !empty || !tree) {
         return;
     }
-
     tree.innerHTML = '';
     count.textContent = '0';
     empty.hidden = false;

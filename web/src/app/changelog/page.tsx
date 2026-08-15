@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, Sparkles, Bug, Wrench } from "lucide-react";
+import { ChevronLeft, Sparkles, Bug, Wrench, ShieldCheck } from "lucide-react";
 import { asset } from "@/lib/config";
 import { parseChangelog } from "@/lib/changelog";
 import { toCanonicalUrl } from "@/lib/seo";
 
+const PRIVATE_ACCEPTANCE_CANDIDATE_VERSION = "2.4.3";
+
 export const metadata: Metadata = {
   title: "RAV Changelog | Release Notes",
-  description: "Version-by-version release notes for Rive Animation Viewer (RAV).",
+  description: "Public release notes and explicitly labeled private acceptance candidates for Rive Animation Viewer (RAV).",
   alternates: {
     canonical: toCanonicalUrl("/changelog"),
   },
@@ -46,20 +48,25 @@ function CategorySection({
 }
 
 function VersionSidebar({ versions }: { versions: string[] }) {
+  const latestPublicVersion = versions.find(
+    (version) => version !== PRIVATE_ACCEPTANCE_CANDIDATE_VERSION,
+  );
   return (
     <nav className="hidden lg:block fixed left-8 top-1/2 -translate-y-1/2 z-30">
       <div className="flex flex-col gap-1 p-3 rounded-xl bg-[var(--bg-zinc)]/80 backdrop-blur-sm border border-[var(--border-light)] max-h-[70vh] overflow-y-auto">
         <span className="text-[10px] font-medium text-[var(--text-ghost)] uppercase tracking-wider px-2 mb-1">
           Versions
         </span>
-        {versions.map((version, index) => (
+        {versions.map((version) => (
           <a
             key={version}
             href={`#v${version}`}
             className={`px-3 py-1.5 rounded-lg text-sm font-mono transition-all duration-200 ${
-              index === 0
-                ? 'bg-[var(--neon-dim)] text-[var(--neon)]'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-white)] hover:bg-[var(--bg-void)]'
+              version === PRIVATE_ACCEPTANCE_CANDIDATE_VERSION
+                ? 'bg-amber-400/10 text-amber-300'
+                : version === latestPublicVersion
+                  ? 'bg-[var(--neon-dim)] text-[var(--neon)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-white)] hover:bg-[var(--bg-void)]'
             }`}
           >
             v{version}
@@ -73,6 +80,9 @@ function VersionSidebar({ versions }: { versions: string[] }) {
 export default function ChangelogPage() {
   const entries = parseChangelog();
   const versionList = entries.map(e => e.version);
+  const latestPublicVersion = entries.find(
+    (entry) => entry.version !== PRIVATE_ACCEPTANCE_CANDIDATE_VERSION,
+  )?.version;
 
   return (
     <main className="min-h-screen bg-[var(--bg-void)]">
@@ -108,7 +118,7 @@ export default function ChangelogPage() {
             Changelog
           </h1>
           <p className="text-lg text-[var(--text-muted)] max-w-2xl mx-auto">
-            All notable changes to Rive Animation Viewer, from v1.0.0 to the latest release.
+            Public release notes and explicitly labeled private acceptance candidates, from v1.0.0 onward.
           </p>
         </div>
       </section>
@@ -123,7 +133,10 @@ export default function ChangelogPage() {
           ) : (
             <div className="space-y-12">
               {entries.map((entry, index) => {
-                const hasContent = entry.added.length > 0 || entry.fixed.length > 0 || entry.changed.length > 0;
+                const hasContent = entry.added.length > 0
+                  || entry.fixed.length > 0
+                  || entry.changed.length > 0
+                  || entry.validation.length > 0;
                 return (
                   <div
                     key={entry.version}
@@ -133,7 +146,11 @@ export default function ChangelogPage() {
                     }`}
                   >
                     <div className={`absolute left-0 -translate-x-1/2 w-4 h-4 rounded-full border-4 border-[var(--bg-void)] ${
-                      index === 0 ? 'bg-[var(--neon)]' : 'bg-[var(--border-light)]'
+                      entry.version === PRIVATE_ACCEPTANCE_CANDIDATE_VERSION
+                        ? 'bg-amber-400'
+                        : entry.version === latestPublicVersion
+                          ? 'bg-[var(--neon)]'
+                          : 'bg-[var(--border-light)]'
                     }`} />
 
                     <div className="mb-6">
@@ -141,9 +158,14 @@ export default function ChangelogPage() {
                         <h2 className="text-2xl font-bold font-mono text-[var(--text-white)]">
                           v{entry.version}
                         </h2>
-                        {index === 0 && (
+                        {entry.version === PRIVATE_ACCEPTANCE_CANDIDATE_VERSION && (
+                          <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-400/10 text-amber-300">
+                            Private candidate
+                          </span>
+                        )}
+                        {entry.version === latestPublicVersion && (
                           <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-[var(--neon-dim)] text-[var(--neon)]">
-                            Latest
+                            Latest public
                           </span>
                         )}
                       </div>
@@ -161,6 +183,7 @@ export default function ChangelogPage() {
                         <CategorySection icon={Sparkles} title="Added" items={entry.added} color="text-green-400" />
                         <CategorySection icon={Wrench} title="Changed" items={entry.changed} color="text-amber-400" />
                         <CategorySection icon={Bug} title="Fixed" items={entry.fixed} color="text-blue-400" />
+                        <CategorySection icon={ShieldCheck} title="Validation" items={entry.validation} color="text-cyan-400" />
                       </div>
                     )}
                   </div>

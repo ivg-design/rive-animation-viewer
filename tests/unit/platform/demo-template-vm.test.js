@@ -4,6 +4,7 @@ import path from 'node:path';
 const templateRoot = path.resolve(process.cwd(), 'src-tauri/src/demo-template/js');
 const accessorsSource = readFileSync(path.join(templateRoot, 'vm/accessors.js'), 'utf8');
 const hierarchySource = readFileSync(path.join(templateRoot, 'vm/hierarchy.js'), 'utf8');
+const preambleSource = readFileSync(path.join(templateRoot, 'core/preamble.js'), 'utf8');
 const riveLoaderSource = readFileSync(path.join(templateRoot, 'core/rive-loader.js'), 'utf8');
 const editorConfigSource = readFileSync(path.join(templateRoot, 'core/editor-config.js'), 'utf8');
 const controlsRenderSource = readFileSync(path.join(templateRoot, 'vm/controls-render.js'), 'utf8');
@@ -86,6 +87,17 @@ function createDemoVmHarness(riveInstance, { controlSelectionKeys = null, contro
     return build(riveInstance, controlSelectionKeys, controlSnapshot, vmHierarchy);
 }
 
+function createEmbeddedImageAssetHarness() {
+    const start = preambleSource.indexOf('        let loadedRiveRuntime');
+    const end = preambleSource.indexOf('        /* ── DOM references', start);
+    const source = preambleSource.slice(start, end);
+    return new Function(`${source}; return {
+        composeEmbeddedImageAssetLoader,
+        getEmbeddedImageAssets,
+        resetEmbeddedImageAssets,
+    };`)();
+}
+
 function createHierarchyInput(path, kind = 'string') {
     const name = path.split('/').pop();
     return {
@@ -144,17 +156,87 @@ describe('exported demo ViewModel snapshot runtime', () => {
         helpers.invokeStandaloneEditorCallback(applied.onLoad, instance, []);
         expect(applied.marker).toBe('applied-editor');
         expect(instance.markerSeen).toBe(true);
+        const onError = vi.fn();
+        helpers.invokeStandaloneEditorCallback(() => {
+            throw new Error('callback failed');
+        }, instance, [], onError);
+        expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'callback failed' }));
+        expect(riveLoaderSource).toContain('reportAppliedEditorCallbackError');
+        expect(riveLoaderSource).toContain('appliedEditorConfig.onAdvance, riveInstance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError');
     });
 
-    it('keeps standalone image controls wired to runtime decode and clear', () => {
+    it('captures copied embedded-image bytes while preserving the applied asset loader return', () => {
+        const harness = createEmbeddedImageAssetHarness();
+        const sourceBytes = new Uint8Array([1, 2, 3]);
+        const expectedReturn = { handled: true };
+        const receiver = { marker: 'asset-loader-this' };
+        const userLoader = vi.fn(function (asset, bytes) {
+            expect(this).toBe(receiver);
+            expect(bytes).toBe(sourceBytes);
+            return expectedReturn;
+        });
+        const loader = harness.composeEmbeddedImageAssetLoader(userLoader);
+        const asset = {
+            fileExtension: 'png',
+            isImage: true,
+            name: () => 'avatar-placeholder',
+            uniqueFilename: 'avatar-placeholder-6536361.png',
+        };
+
+        expect(loader.call(receiver, asset, sourceBytes)).toBe(expectedReturn);
+        sourceBytes[0] = 99;
+        expect(harness.getEmbeddedImageAssets()).toEqual([expect.objectContaining({
+            bytes: new Uint8Array([1, 2, 3]),
+            extension: 'png',
+            key: 'avatar-placeholder-6536361.png',
+            label: 'avatar-placeholder',
+            mimeType: 'application/octet-stream',
+            name: 'avatar-placeholder',
+            uniqueFilename: 'avatar-placeholder-6536361.png',
+        })]);
+        expect(userLoader).toHaveBeenCalledOnce();
+
+        harness.resetEmbeddedImageAssets();
+        expect(harness.getEmbeddedImageAssets()).toEqual([]);
+        expect(harness.composeEmbeddedImageAssetLoader()(asset, sourceBytes)).toBe(false);
+    });
+
+    it('keeps standalone image controls in one full-width action select with file decode and clear', () => {
         expect(controlsRenderSource).toContain("descriptor.kind === 'image'");
-        expect(controlsRenderSource).toContain('rive.decodeImage');
+        expect(controlsRenderSource).toContain("getEmbeddedImageAssets()");
+        expect(controlsRenderSource).toContain("openImageOption.textContent = 'Open file…'");
+        expect(controlsRenderSource).toContain("clearImageOption.textContent = 'Clear'");
+        expect(controlsRenderSource).toContain("assetPlaceholder.textContent = 'Select image…'");
+        expect(controlsRenderSource).not.toContain('Embedded image…');
+        expect(controlsRenderSource).not.toContain('browseImageButton');
+        expect(controlsRenderSource).toContain('imageInput.hidden = true');
+        expect(controlsRenderSource).toContain('loadedRiveRuntime.decodeImage');
+        expect(controlsRenderSource).toContain('Promise.resolve().then(function ()');
+        expect(controlsRenderSource).toContain('then(function (applied)');
+        expect(controlsRenderSource).toContain('if (!applied) return;');
+        expect(controlsRenderSource).toContain('requestId !== imageRequestSequence');
+        expect(controlsRenderSource).toContain('decodedImage.unref()');
         expect(controlsRenderSource).toContain('live.value = null');
+        expect(preambleSource).toContain("readEmbeddedAssetField(asset, 'uniqueFilename')");
+        expect(preambleSource).toContain("return 'image/webp'");
+        expect(syncSource).toContain('binding.assetSelect.disabled');
+    });
+
+    it('resets embedded assets once per outer load and composes the applied asset loader', () => {
+        expect(riveLoaderSource.match(/resetEmbeddedImageAssets\(\)/g)).toHaveLength(1);
+        expect(riveLoaderSource).toContain('composeEmbeddedImageAssetLoader(riveConfig.assetLoader)');
     });
 
     it('disables runtime auto-binding only when an explicit instance is configured', () => {
-        expect(riveLoaderSource).toContain('autoBind: !CONFIG.viewModelInstanceName');
+        expect(riveLoaderSource).toContain('typeof appliedEditorConfig.autoBind === \'boolean\'');
+        expect(riveLoaderSource).toContain('CONFIG.viewModelInstanceName\n                        ? false');
         expect(riveLoaderSource).toContain('bindViewModelInstanceByKey(riveInstance, CONFIG.viewModelInstanceName)');
+    });
+
+    it('preserves non-fit layout properties from applied editor configuration', () => {
+        expect(riveLoaderSource).toContain('Object.assign({}, appliedEditorConfig.layout)');
+        expect(riveLoaderSource).toContain('delete appliedLayoutProps.fit');
+        expect(riveLoaderSource).toContain('}, appliedLayoutProps)');
     });
 
     it('binds a configured ViewModel instance by name and falls back to index', () => {
@@ -335,7 +417,53 @@ describe('exported demo ViewModel snapshot runtime', () => {
             'Row 2',
             'Row 3',
         ]);
-        expect(harness.formatVmListItemLabel('playerEntries', 3)).toBe('Player Entry 4');
+        expect(harness.formatVmListItemLabel('playerEntries', 3)).toBe('Row 4');
+    });
+
+    it('uses one unambiguous canonical string match for authored live-list labels', () => {
+        const rows = [
+            {
+                properties: [{ name: 'driver_abbr' }, { name: 'status' }],
+                string: (name) => ({
+                    driver_abbr: { value: 'D10' },
+                    status: { value: 'Leader' },
+                })[name] || null,
+                viewModelName: 'LeaderBoardRowVM',
+            },
+            {
+                properties: [{ name: 'driver_abbr' }, { name: 'alternate' }],
+                string: (name) => ({
+                    alternate: { value: 'D16' },
+                    driver_abbr: { value: 'D10' },
+                })[name] || null,
+                viewModelName: 'LeaderBoardRowVM',
+            },
+        ];
+        const riveInstance = {
+            viewModelByName: (name) => (name === 'LeaderBoardRowVM'
+                ? { instanceNames: ['D10', 'D16'] }
+                : null),
+            viewModelInstance: {
+                list: (name) => (name === 'rows' ? {
+                    instanceAt: (index) => rows[index] || null,
+                    length: rows.length,
+                } : null),
+                properties: [{ name: 'rows' }],
+            },
+        };
+        const harness = createDemoVmHarness(riveInstance, {
+            controlSelectionKeys: [
+                'vm:rows/*/driver_abbr:string',
+                'vm:rows/*/status:string',
+                'vm:rows/*/alternate:string',
+            ],
+        });
+
+        const hierarchy = harness.filterHierarchyNode(harness.buildVmHierarchy(riveInstance.viewModelInstance));
+        expect(hierarchy.children[0].children.map((child) => child.label)).toEqual([
+            'D10',
+            'Row 2',
+        ]);
     });
 
     it('uses authored list instance names and discovers image controls', () => {

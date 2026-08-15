@@ -73,9 +73,24 @@ describe('ui regression smoke', () => {
         expect(appBaseCss).toContain('.mcp-setup-body::-webkit-scrollbar');
         expect(appBaseCss).toContain('.about-dialog-dependencies::-webkit-scrollbar');
         expect(appBaseCss).toContain('.event-log-body::-webkit-scrollbar');
+        expect(appBaseCss).toContain('#canvas-container::-webkit-scrollbar');
+        expect(appBaseCss).toContain('#canvas-container::-webkit-scrollbar-track');
+        expect(appBaseCss).toContain('#canvas-container::-webkit-scrollbar-thumb');
 
         expect(demoBaseCss).toContain('.properties-panel-body::-webkit-scrollbar');
         expect(demoBaseCss).toContain('.event-log-body::-webkit-scrollbar');
+    });
+
+    it('uses overflow-safe flex centering for fixed canvases', () => {
+        const workspaceCss = readFileSync(path.join(repoRoot, 'styles', '03-workspace.css'), 'utf8');
+        const fixedCanvasRule = workspaceCss.match(/#canvas-container\.canvas-container-fixed-size\s*\{([^}]*)\}/)?.[1] || '';
+        const fixedCanvasElementRule = workspaceCss.match(/#rive-canvas\.rive-canvas-fixed-size\s*\{([^}]*)\}/)?.[1] || '';
+
+        expect(fixedCanvasRule).toContain('overflow: auto;');
+        expect(fixedCanvasRule).toContain('align-items: flex-start;');
+        expect(fixedCanvasRule).toContain('justify-content: flex-start;');
+        expect(fixedCanvasElementRule).toContain('margin: auto;');
+        expect(fixedCanvasElementRule).not.toContain('transform:');
     });
 
     it('keeps the main app header on the custom titlebar contract', () => {
@@ -108,6 +123,10 @@ describe('ui regression smoke', () => {
         const tauriWindowsConfig = JSON.parse(readFileSync(path.join(repoRoot, 'src-tauri', 'tauri.windows.conf.json'), 'utf8'));
         const cargoToml = readFileSync(path.join(repoRoot, 'src-tauri', 'Cargo.toml'), 'utf8');
         const mainRs = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'main.rs'), 'utf8');
+        const mcpBridgeRs = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'app', 'mcp', 'bridge.rs'), 'utf8');
+        const mcpCommandsRs = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'app', 'mcp', 'commands.rs'), 'utf8');
+        const updaterRs = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'app', 'updater.rs'), 'utf8');
+        const mcpBridgeClient = readFileSync(path.join(repoRoot, 'src', 'app', 'platform', 'mcp', 'bridge-client.js'), 'utf8');
         const windowControls = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'app', 'window', 'controls.rs'), 'utf8');
         const capability = JSON.parse(readFileSync(path.join(repoRoot, 'src-tauri', 'capabilities', 'default.json'), 'utf8'));
         const mainWindow = tauriConfig.app.windows[0];
@@ -121,17 +140,28 @@ describe('ui regression smoke', () => {
             'icons/RiveFileIcon.icns': 'RiveFileIcon.icns',
         });
         expect(tauriConfig.build.beforeDevCommand).toContain('build:mcp:debug');
+        expect(mainWindow.label).toBe('main');
+        expect(mainWindow.create).toBe(false);
         expect(mainWindow.decorations).toBe(true);
         expect(mainWindow.transparent).toBe(true);
         expect(mainWindow.titleBarStyle).toBe('Overlay');
         expect(mainWindow.trafficLightPosition).toEqual({ x: -120, y: -120 });
         expect(mainWindow.hiddenTitle).toBe(true);
         expect(windowsMainWindow.decorations).toBe(false);
+        expect(windowsMainWindow.label).toBe('main');
+        expect(windowsMainWindow.create).toBe(false);
         expect(windowsMainWindow.transparent).toBe(false);
         expect(windowsMainWindow.titleBarStyle).toBe('Visible');
         expect(windowsMainWindow.trafficLightPosition).toBeNull();
         expect(windowsMainWindow.hiddenTitle).toBe(false);
         expect(mainRs).not.toContain('set_decorations(false)');
+        expect(mainRs).toContain('WebviewWindowBuilder::from_config');
+        expect(mainRs).toContain('.incognito(true)');
+        expect(mainRs).toContain('window.__RAV_UPDATER_ACCEPTANCE__ = true;');
+        expect(mcpBridgeClient).toContain('if (!updaterAcceptanceMode)');
+        expect(mcpCommandsRs).toContain('MCP bridge changes are disabled during updater acceptance');
+        expect(mcpBridgeRs).toContain('kill_spawned_mcp_bridge');
+        expect(updaterRs).toContain('if !acceptance.is_enabled()');
         expect(mainRs).toContain('apply_windows_corner_preference(&_window)');
         expect(windowControls).toContain('DwmSetWindowAttribute');
         expect(windowControls).toContain('DWMWA_WINDOW_CORNER_PREFERENCE');

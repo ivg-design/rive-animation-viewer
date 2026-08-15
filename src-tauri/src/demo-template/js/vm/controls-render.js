@@ -207,41 +207,128 @@
                 inputContainer.appendChild(colorWrap);
 
             } else if (descriptor.kind === 'image') {
+                var imageControl = document.createElement('div');
+                imageControl.className = 'vm-image-control';
+
+                var embeddedAssets = getEmbeddedImageAssets();
+                var assetSelect = document.createElement('select');
+                assetSelect.className = 'vm-image-asset-select';
+                assetSelect.setAttribute('aria-label', 'Image source for ' + descriptor.name);
+                var assetPlaceholder = document.createElement('option');
+                assetPlaceholder.value = '';
+                assetPlaceholder.textContent = 'Select image…';
+                assetPlaceholder.disabled = true;
+                assetPlaceholder.selected = true;
+                assetSelect.appendChild(assetPlaceholder);
+                embeddedAssets.forEach(function (asset, index) {
+                    var option = document.createElement('option');
+                    option.value = 'embedded:' + index;
+                    option.textContent = asset.label || asset.name;
+                    assetSelect.appendChild(option);
+                });
+                var openImageOption = document.createElement('option');
+                openImageOption.value = '__open__';
+                openImageOption.textContent = 'Open file…';
+                assetSelect.appendChild(openImageOption);
+                var clearImageOption = document.createElement('option');
+                clearImageOption.value = '__clear__';
+                clearImageOption.textContent = 'Clear';
+                assetSelect.appendChild(clearImageOption);
+
                 var imageInput = document.createElement('input');
                 imageInput.type = 'file';
                 imageInput.accept = 'image/*';
-                imageInput.disabled = isDisabled || typeof rive.decodeImage !== 'function';
+                imageInput.className = 'vm-image-file-input';
+                imageInput.hidden = true;
+                imageInput.tabIndex = -1;
 
-                var clearImageButton = document.createElement('button');
-                clearImageButton.type = 'button';
-                clearImageButton.textContent = 'Clear';
-                clearImageButton.disabled = isDisabled;
+                var canDecodeImage = typeof (loadedRiveRuntime && loadedRiveRuntime.decodeImage) === 'function';
+                var imageRequestSequence = 0;
+                imageInput.disabled = isDisabled || !canDecodeImage;
+                assetSelect.disabled = isDisabled;
+                openImageOption.disabled = !canDecodeImage;
+                embeddedAssets.forEach(function (_asset, index) {
+                    assetSelect.options[index + 1].disabled = !canDecodeImage;
+                });
 
-                imageInput.addEventListener('change', function () {
-                    var file = imageInput.files && imageInput.files[0];
+                var applyImageBytes = function (bytes, sourceLabel, requestId) {
+                    var runtime = loadedRiveRuntime;
                     var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'image', source: descriptor.source, stateMachineName: descriptor.stateMachineName });
-                    if (!file || !live || typeof rive.decodeImage !== 'function') return;
-                    file.arrayBuffer().then(function (buffer) {
-                        return rive.decodeImage(new Uint8Array(buffer));
+                    if (!runtime || typeof runtime.decodeImage !== 'function' || !live) return Promise.resolve(false);
+                    var decodedImage = null;
+                    return Promise.resolve().then(function () {
+                        return runtime.decodeImage(new Uint8Array(bytes));
                     }).then(function (image) {
                         if (!image) throw new Error('The runtime could not decode this image.');
+                        decodedImage = image;
+                        if (requestId !== imageRequestSequence) return false;
                         live.value = image;
-                        if (typeof image.unref === 'function') image.unref();
-                        logEvent('ui', 'vm-image', 'Set ' + descriptor.path + ' image from ' + file.name + '.');
+                        logEvent('ui', 'vm-image', 'Set ' + descriptor.path + ' image from ' + sourceLabel + '.');
+                        return true;
                     }).catch(function (error) {
                         logEvent('ui', 'vm-image-error', 'Unable to set ' + descriptor.path + ' image: ' + (error.message || error));
+                        return false;
+                    }).finally(function () {
+                        if (decodedImage && typeof decodedImage.unref === 'function') decodedImage.unref();
+                    });
+                };
+
+                assetSelect.addEventListener('change', function () {
+                    if (assetSelect.value === '__open__') {
+                        imageRequestSequence += 1;
+                        assetSelect.value = '';
+                        imageInput.click();
+                        return;
+                    }
+                    if (assetSelect.value === '__clear__') {
+                        imageRequestSequence += 1;
+                        var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'image', source: descriptor.source, stateMachineName: descriptor.stateMachineName });
+                        if (!live) return;
+                        live.value = null;
+                        imageInput.value = '';
+                        var staleFileOption = assetSelect.querySelector('option[data-image-file-option]');
+                        if (staleFileOption) staleFileOption.remove();
+                        assetSelect.value = '';
+                        logEvent('ui', 'vm-image', 'Cleared ' + descriptor.path + ' image.');
+                        return;
+                    }
+                    var selectedIndex = parseInt(assetSelect.value.replace(/^embedded:/, ''), 10);
+                    var selected = Number.isInteger(selectedIndex) ? embeddedAssets[selectedIndex] : null;
+                    if (selected) {
+                        var requestId = ++imageRequestSequence;
+                        applyImageBytes(selected.bytes, 'embedded asset ' + selected.name, requestId);
+                    }
+                });
+                imageInput.addEventListener('change', function () {
+                    var file = imageInput.files && imageInput.files[0];
+                    if (!file) return;
+                    var requestId = ++imageRequestSequence;
+                    file.arrayBuffer().then(function (buffer) {
+                        return applyImageBytes(buffer, file.name, requestId);
+                    }).then(function (applied) {
+                        if (!applied) return;
+                        var fileOption = assetSelect.querySelector('option[data-image-file-option]');
+                        if (!fileOption) {
+                            fileOption = document.createElement('option');
+                            fileOption.value = '__file__';
+                            fileOption.setAttribute('data-image-file-option', 'true');
+                            assetSelect.insertBefore(fileOption, openImageOption);
+                        }
+                        fileOption.textContent = file.name;
+                        assetSelect.value = '__file__';
+                    }).catch(function (error) {
+                        logEvent('ui', 'vm-image-error', 'Unable to read ' + file.name + ': ' + (error.message || error));
                     });
                 });
-                clearImageButton.addEventListener('click', function () {
-                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'image', source: descriptor.source, stateMachineName: descriptor.stateMachineName });
-                    if (!live) return;
-                    live.value = null;
-                    imageInput.value = '';
-                    logEvent('ui', 'vm-image', 'Cleared ' + descriptor.path + ' image.');
+                registerVmControlBinding(descriptor, {
+                    assetSelect: assetSelect,
+                    embeddedAssetCount: embeddedAssets.length,
+                    input: imageInput,
+                    kind: 'image',
                 });
-                registerVmControlBinding(descriptor, { kind: 'image', input: imageInput, clearButton: clearImageButton });
-                inputContainer.appendChild(imageInput);
-                inputContainer.appendChild(clearImageButton);
+                imageControl.appendChild(assetSelect);
+                imageControl.appendChild(imageInput);
+                inputContainer.appendChild(imageControl);
 
             } else if (descriptor.kind === 'trigger') {
                 var button = document.createElement('button');

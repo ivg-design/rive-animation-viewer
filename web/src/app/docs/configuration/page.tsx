@@ -14,7 +14,7 @@ export default function Configuration() {
 
       <p>The Settings gear in the toolbar opens the configuration panel with:</p>
       <ol>
-        <li><strong>Runtime Ver</strong> &mdash; select Latest (auto), a pinned version, or Custom semver</li>
+        <li><strong>Runtime Ver</strong> &mdash; use the safe 2.39.2 default, or explicitly select Latest, another pinned version, or Custom semver</li>
         <li><strong>BG Color</strong> &mdash; canvas background color picker with NO BG reset</li>
         <li><strong>Canvas Size</strong> &mdash; AUTO (fills viewport) or FIXED (explicit pixels)</li>
         <li><strong>Pixels</strong> &mdash; width and height inputs with aspect-ratio LOCK</li>
@@ -35,9 +35,17 @@ export default function Configuration() {
 
       <h2>Runtime Version</h2>
       <p>
-        In Settings, choose <strong>Latest (auto)</strong>, one of the latest four concrete
-        versions, or <strong>Custom</strong> for manual semver input. The selected version is
-        persisted per file and embedded in exports.
+        RAV 2.4.3 defaults to <strong>2.39.2</strong>. Live RAV MCP comparison proved that
+        Web 2.40.0 / runtime-v0.1.271 double-offsets nested, data-bound images in both WebGL2
+        and Canvas for <code>leaderboard_v4.riv</code>; 2.39.2 preserves the Rive
+        Editor-authored layout. On first 2.4.3 launch, a one-time migration changes stored
+        <code>latest</code> and <code>2.40.0</code> preferences to 2.39.2.
+      </p>
+      <p>
+        You can explicitly choose <strong>Latest (auto)</strong>, one of the concrete versions,
+        or <strong>Custom</strong> for manual semver input. Latest and 2.40.0 are marked with an
+        authored-layout risk warning; selecting either after migration is treated as deliberate
+        opt-in and remains persisted per file and embedded in exports.
       </p>
 
       <h2>Layout</h2>
@@ -61,7 +69,9 @@ export default function Configuration() {
         In Settings, switch between <strong>AUTO</strong> (canvas fills the viewport) and
         <strong>FIXED</strong> (explicit pixel width and height). When fixed, an aspect-ratio
         lock keeps dimensions proportional while editing. Fixed sizes carry through to
-        exports and snippets.
+        exports and snippets. Overflow-safe auto margins keep a fixed canvas centered while it
+        fits; when it exceeds the viewport, the margins collapse and the canvas scrolls from the
+        authored top-left origin with a styled 10px track, thumb, and corner.
       </p>
     </>
   );

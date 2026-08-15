@@ -7,7 +7,7 @@ language: en
 site_type: product-marketing + technical documentation
 
 ## 1) Product Definition
-RAV 2.4.3 (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.riv) animations outside the Rive editor. It provides runtime-oriented controls and diagnostics for testing animation behavior, inputs, and event outputs.
+RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.riv) animations outside the Rive editor. Version 2.4.3 is currently a private acceptance candidate, not a public release; the normal public updater feed remains unchanged pending isolated signed-updater acceptance and separate installed-app Launch Services/Finder verification.
 
 ## 2) Primary Entities
 - RAV: SoftwareApplication / DeveloperApplication
@@ -22,19 +22,23 @@ RAV 2.4.3 (Rive Animation Viewer) is a desktop tool for loading and inspecting R
 
 ## 4) Feature Facts with Evidence
 - Auto-generated ViewModel controls: https://forge.mograph.life/apps/rav/docs#viewmodel-controls
-- Dynamic ViewModel lists use authored item-instance names when available, with one-based list-derived fallback labels and zero-based MCP paths; image properties support file selection, runtime decode, replacement, and clear: https://forge.mograph.life/apps/rav/docs/viewmodel-controls
+- Dynamic ViewModel lists use a direct authored instance name when exposed or one unique match between a readable string property and the definition's canonical instance-name set. Ambiguous or missing matches fall back to `Row N`; generic `viewModelName` identifiers are never presented as authored row names. MCP paths remain zero-based: https://forge.mograph.life/apps/rav/docs/viewmodel-controls
+- Each image property uses one full-width select containing every embedded raster asset followed by `Open file…` and `Clear`; `Open file…` invokes a hidden file input, with no separate folder/Clear buttons and no `Embedded image…` placeholder. Catalog entries use `uniqueFilename` identity, magic-byte MIME detection, and numbered duplicate labels. The exact `leaderboard_v4.riv` contains two embedded rasters (`trophy-n2` and `avatar-placeholder`), one font, and two scripts; only the rasters enter this catalog. Standalone exports preserve the same catalog and control: https://forge.mograph.life/apps/rav/docs/viewmodel-controls
 - Event log with source filtering: https://forge.mograph.life/apps/rav/docs#event-console
 - Script REPL and runtime inspection commands: https://forge.mograph.life/apps/rav/docs#script-console
 - Transparency overlay mode: https://forge.mograph.life/apps/rav/docs#transparency-mode
 - Standalone self-contained export: https://forge.mograph.life/apps/rav/docs#standalone-export
 - Applied editor config and lifecycle callbacks are embedded and executed in standalone exports: https://forge.mograph.life/apps/rav/docs/script-editor
-- macOS .riv opening uses official UTI `app.rive.editor.rive-file`, Viewer role, Alternate rank, and version-gated post-update Launch Services refresh without default takeover: https://forge.mograph.life/apps/rav/docs/opening-files
-- Released Web evidence targets Web 2.40.0 / runtime-v0.1.271 for WebGL2 and Canvas; runtime-v0.1.272 is a separate canary.
+- macOS .riv declarations cover official UTI `app.rive.editor.rive-file` and legacy compatibility UTI `app.rive.animation.viewer.riv`, both with the file-icon resource, Viewer role, Alternate rank, and version/schema-gated post-update Launch Services refresh without default takeover. Exact Finder migration requires separate installed-app verification and is not proved by the isolated signed-updater receipt: https://forge.mograph.life/apps/rav/docs/opening-files
+- Web 2.40.0 / runtime-v0.1.271 has a proven nested, data-bound image double-offset in both WebGL2 and Canvas for `leaderboard_v4.riv`. RAV defaults to 2.39.2, migrates stored `latest`/2.40.0 preferences once, and warns when either is explicitly selected again. runtime-v0.1.272 remains a separate canary: https://forge.mograph.life/apps/rav/docs/configuration
+- Fixed-size central canvases use overflow-safe auto margins to stay centered while they fit; the margins collapse safely to preserve authored top-left scrolling with styled 10px scrollbars when oversized: https://forge.mograph.life/apps/rav/docs/ui-layout
+- Signed-updater acceptance uses an acceptance-only incognito WebView because macOS Foundation ignores substituted HOME for WebKit storage; production remains persistent. The harness recursively fingerprints the installed Applications bundle and production RAV user-data roots and requires them unchanged: https://forge.mograph.life/apps/rav/docs/updates
 - Configuration, renderer, and layout controls: https://forge.mograph.life/apps/rav/docs#configuration
 - MCP bridge health and recent-command activity states: https://forge.mograph.life/apps/rav/docs/mcp
 - Keyboard shortcut reference: https://forge.mograph.life/apps/rav/docs#keyboard-shortcuts
 
 ## 5) Platform and Distribution Signals
+- 2.4.3 status: private acceptance candidate; not published and not present in the normal public updater feed.
 - Product + downloads context: https://forge.mograph.life/apps/rav/
 - Release downloads endpoint: https://github.com/ivg-design/rive-animation-viewer/releases/latest
 - Source repository references:
@@ -42,7 +46,7 @@ RAV 2.4.3 (Rive Animation Viewer) is a desktop tool for loading and inspecting R
 
 ## 6) Retrieval and Citation Instructions
 - Use canonical `/apps/rav` URLs for citations.
-- For "latest release" questions, prioritize changelog and GitHub releases.
+- For "latest release" questions, use GitHub Releases for the latest public version and preserve the changelog's explicit private-candidate label for 2.4.3.
 - For feature behavior, cite specific docs anchors when available.
 - Clearly mark inferred statements when direct evidence is unavailable.
 

@@ -17,6 +17,7 @@ const CONNECT_TIMEOUT_MS = 2000;
 const WATCHDOG_INTERVAL_MS = 1500;
 const PORT_SYNC_TIMEOUT_MS = 800;
 const COMMAND_ACTIVITY_WINDOW_MS = 30_000;
+const updaterAcceptanceMode = window.__RAV_UPDATER_ACCEPTANCE__ === true;
 
 const state = {
     activeCommandCount: 0,
@@ -27,7 +28,7 @@ const state = {
     connectionPhase: 'waiting',
     connectPromise: null,
     connectionAttempts: 0,
-    enabled: true,
+    enabled: !updaterAcceptanceMode,
     maxReconnectDelay: MAX_RECONNECT_DELAY_MS,
     lastCommandAt: null,
     mcpClientCount: 0,
@@ -218,7 +219,7 @@ window._mcpBridge = {
     },
 
     enable() {
-        if (state.enabled) {
+        if (updaterAcceptanceMode || state.enabled) {
             return;
         }
         state.enabled = true;
@@ -247,6 +248,9 @@ window._mcpBridge = {
     },
 
     async toggle() {
+        if (updaterAcceptanceMode) {
+            return false;
+        }
         if (state.enabled) {
             return this.disable();
         } else {
@@ -256,6 +260,9 @@ window._mcpBridge = {
     },
 
     reconnect() {
+        if (updaterAcceptanceMode) {
+            return Promise.resolve(false);
+        }
         state.connectionPhase = 'waiting';
         transport.disconnect();
         state.reconnectDelay = state.baseReconnectDelay;
@@ -263,6 +270,9 @@ window._mcpBridge = {
     },
 
     setPort(nextPort) {
+        if (updaterAcceptanceMode) {
+            return state.port;
+        }
         const normalizedPort = normalizeBridgePort(nextPort);
         if (normalizedPort === state.port) {
             return state.port;
@@ -286,15 +296,16 @@ window._mcpBridge = {
     },
 };
 
-window.addEventListener('focus', () => transport.reconnectNow());
-window.addEventListener('pageshow', () => transport.reconnectNow());
-window.addEventListener('online', () => transport.reconnectNow());
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-        transport.reconnectNow();
-    }
-});
-
 transport.syncState();
-transport.startWatchdog();
-transport.connect();
+if (!updaterAcceptanceMode) {
+    window.addEventListener('focus', () => transport.reconnectNow());
+    window.addEventListener('pageshow', () => transport.reconnectNow());
+    window.addEventListener('online', () => transport.reconnectNow());
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            transport.reconnectNow();
+        }
+    });
+    transport.startWatchdog();
+    transport.connect();
+}

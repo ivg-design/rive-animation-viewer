@@ -20,16 +20,31 @@ pub(crate) fn app_bundle_path_from_executable(executable: &Path) -> Option<PathB
     Some(bundle.to_path_buf())
 }
 
-pub(crate) fn registration_needed(marker_contents: Option<&str>, package_version: &str) -> bool {
+pub(crate) fn registration_needed(
+    marker_contents: Option<&str>,
+    package_version: &str,
+    bundle: &Path,
+) -> bool {
+    let expected = registration_marker(package_version, bundle);
     marker_contents
-        .map(|contents| contents.trim() != package_version)
+        .map(|contents| contents.trim() != expected)
         .unwrap_or(true)
+}
+
+const DOCUMENT_TYPE_REGISTRATION_REVISION: &str = "riv-uti-v3";
+
+fn registration_marker(package_version: &str, bundle: &Path) -> String {
+    format!(
+        "{package_version}:{DOCUMENT_TYPE_REGISTRATION_REVISION}:{}",
+        bundle.display()
+    )
 }
 
 #[cfg(target_os = "macos")]
 const LSREGISTER_PATH: &str = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister";
 
-/// Re-register the shipped app bundle once per package version.
+/// Re-register the shipped app bundle once per package version and document
+/// type schema revision.
 ///
 /// `lsregister -f` refreshes the bundle's declared document types and imported
 /// UTI metadata without changing the bundle's role/rank or restarting Finder.
@@ -55,6 +70,7 @@ pub fn refresh_for_installed_version(app: &tauri::AppHandle) -> Result<(), Strin
         if !bundle.join("Contents").join("Info.plist").is_file() {
             return Ok(());
         }
+        let canonical_bundle = fs::canonicalize(&bundle).unwrap_or(bundle);
 
         let version = app.package_info().version.to_string();
         let data_dir = app
@@ -63,13 +79,13 @@ pub fn refresh_for_installed_version(app: &tauri::AppHandle) -> Result<(), Strin
             .map_err(|error| format!("failed to resolve app data directory: {error}"))?;
         let marker = data_dir.join("launch-services-registration-version");
         let marker_contents = fs::read_to_string(&marker).ok();
-        if !registration_needed(marker_contents.as_deref(), &version) {
+        if !registration_needed(marker_contents.as_deref(), &version, &canonical_bundle) {
             return Ok(());
         }
 
         let status = Command::new(LSREGISTER_PATH)
             .arg("-f")
-            .arg(&bundle)
+            .arg(&canonical_bundle)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -87,8 +103,11 @@ pub fn refresh_for_installed_version(app: &tauri::AppHandle) -> Result<(), Strin
             "launch-services-registration-version.{}.tmp",
             std::process::id()
         ));
-        fs::write(&temporary_marker, format!("{version}\n"))
-            .map_err(|error| format!("failed to write Launch Services marker: {error}"))?;
+        fs::write(
+            &temporary_marker,
+            format!("{}\n", registration_marker(&version, &canonical_bundle)),
+        )
+        .map_err(|error| format!("failed to write Launch Services marker: {error}"))?;
         fs::rename(&temporary_marker, &marker)
             .map_err(|error| format!("failed to commit Launch Services marker: {error}"))?;
         Ok(())
@@ -116,8 +135,19 @@ mod tests {
 
     #[test]
     fn refreshes_when_marker_is_missing_or_for_another_version() {
-        assert!(registration_needed(None, "2.4.3"));
-        assert!(registration_needed(Some("2.4.2\n"), "2.4.3"));
-        assert!(!registration_needed(Some("2.4.3\n"), "2.4.3"));
+        let installed = Path::new("/Applications/Rive Animation Viewer.app");
+        assert!(registration_needed(None, "2.4.3", installed));
+        assert!(registration_needed(Some("2.4.2\n"), "2.4.3", installed));
+        assert!(registration_needed(Some("2.4.3\n"), "2.4.3", installed));
+        assert!(registration_needed(
+            Some("2.4.3:riv-uti-v3:/tmp/Rive Animation Viewer.app\n"),
+            "2.4.3",
+            installed,
+        ));
+        assert!(!registration_needed(
+            Some("2.4.3:riv-uti-v3:/Applications/Rive Animation Viewer.app\n"),
+            "2.4.3",
+            installed,
+        ));
     }
 }

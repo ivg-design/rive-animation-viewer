@@ -20,6 +20,7 @@ export default function Export() {
         <li>The selected runtime semver baked in</li>
         <li>The current artboard, playback target, and active live source mode</li>
         <li>Only the checked or changed ViewModel / state-machine values</li>
+        <li>The embedded raster catalog used by each image property&apos;s single source select</li>
         <li>The raw applied editor config and lifecycle callbacks when Editor mode is active</li>
         <li>The generated canonical instantiation snippet (CDN and local variants)</li>
         <li>Canvas sizing mode (auto or fixed pixel dimensions)</li>
@@ -102,14 +103,27 @@ export default function Export() {
       <p>
         Applied editor callbacks and non-toolbar config execute in the exported standalone page
         after its binding and snapshot-restore lifecycle. Changes still marked as an unapplied
-        draft remain out of the export.
+        draft remain out of the export. The 2.4.3 candidate was exercised with a live marker in
+        an exported page, confirming that the applied script executes outside RAV.
+      </p>
+
+      <h2>ViewModel Control Parity</h2>
+      <p>
+        Standalone exports rebuild the live ViewModel list-label resolver and embedded-image
+        catalog. Authored list labels therefore follow the same direct-name or unique
+        canonical-string rule, with ambiguous items falling back to <strong>Row N</strong>, and
+        image properties retain one full-width select containing every embedded raster asset,
+        <strong>Open file…</strong>, and <strong>Clear</strong>, backed by a hidden file input.
+        The catalog preserves <code>uniqueFilename</code> identity, magic-byte MIME detection,
+        and duplicate-name disambiguation.
       </p>
 
       <h2>Canvas Sizing in Exports</h2>
       <p>
         When the viewer is pinned to a fixed canvas size, exported demos and generated
-        snippets preserve those exact pixel dimensions. The canvas stays centered in the
-        viewport rather than pinning to the upper-left corner.
+        snippets preserve those exact pixel dimensions. In RAV, overflow-safe auto margins keep
+        a fixed canvas centered while it fits; once it exceeds the viewport, those margins
+        collapse so scrolling starts at the authored top-left origin.
       </p>
 
       <h2>Limitations</h2>

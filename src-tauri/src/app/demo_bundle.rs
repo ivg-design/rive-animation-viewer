@@ -149,7 +149,7 @@ pub fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json
     });
     let config_json = serde_json::to_string(&config)?;
     let escaped_config = escape_embedded_script_json(&config_json);
-    let escaped_runtime = payload.runtime_script.replace("</script", "<\\/script");
+    let escaped_runtime = escape_script_end_tags(&payload.runtime_script);
     let canvas_color = payload.canvas_color.as_deref().unwrap_or("#0d1117");
     let runtime_display = if payload.runtime_name == "canvas" {
         "Canvas"
@@ -187,9 +187,27 @@ pub fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json
 }
 
 pub fn escape_embedded_script_json(raw: &str) -> String {
-    raw.replace('\\', "\\\\")
-        .replace('\'', "\\'")
-        .replace("</script", "<\\/script")
+    escape_script_end_tags(&raw.replace('\\', "\\\\").replace('\'', "\\'"))
+}
+
+fn escape_script_end_tags(raw: &str) -> String {
+    const SCRIPT_END_PREFIX: &[u8] = b"</script";
+    let bytes = raw.as_bytes();
+    let mut escaped = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        if index + SCRIPT_END_PREFIX.len() <= bytes.len()
+            && bytes[index..index + SCRIPT_END_PREFIX.len()].eq_ignore_ascii_case(SCRIPT_END_PREFIX)
+        {
+            escaped.extend_from_slice(b"<\\/");
+            escaped.extend_from_slice(&bytes[index + 2..index + SCRIPT_END_PREFIX.len()]);
+            index += SCRIPT_END_PREFIX.len();
+        } else {
+            escaped.push(bytes[index]);
+            index += 1;
+        }
+    }
+    String::from_utf8(escaped).expect("script escaping preserves UTF-8")
 }
 
 #[cfg(test)]
@@ -199,11 +217,12 @@ mod tests {
 
     #[test]
     fn escapes_script_closing_sequences_in_embedded_demo_json() {
-        let raw = r#"{"instantiationCode":"<script>demo()</script>","vm":"</script>"}"#;
+        let raw = r#"{"instantiationCode":"<script>demo()</SCRIPT>","vm":"</ScRiPt>"}"#;
         let escaped = escape_embedded_script_json(raw);
 
-        assert!(!escaped.contains("</script"));
-        assert!(escaped.contains("<\\/script"));
+        assert!(!escaped.to_ascii_lowercase().contains("</script"));
+        assert!(escaped.contains("<\\/SCRIPT"));
+        assert!(escaped.contains("<\\/ScRiPt"));
     }
 
     #[test]
@@ -228,7 +247,7 @@ mod tests {
             layout_fit: "contain".into(),
             layout_state: Some("{}".into()),
             runtime_name: "webgl2".into(),
-            runtime_script: "console.log('runtime');".into(),
+            runtime_script: "console.log('</ScRiPt>');".into(),
             runtime_version: Some("2.36.0".into()),
             state_machines: vec!["main-sm".into()],
             view_model_instance_name: Some("Preview".into()),
@@ -238,6 +257,7 @@ mod tests {
         let html = build_demo_html(&payload).expect("demo html");
 
         assert!(html.contains("<\\/script>"));
+        assert!(html.contains("<\\/ScRiPt>"));
         assert!(html.contains("const CONFIG = JSON.parse('"));
         assert!(html.contains("const VM_HIERARCHY = JSON.parse('"));
         assert!(html.contains("defaultInstantiationPackageSource"));
@@ -253,7 +273,7 @@ mod tests {
         assert!(
             html.contains("bindViewModelInstanceByKey(riveInstance, CONFIG.viewModelInstanceName)")
         );
-        assert!(html.contains("autoBind: !CONFIG.viewModelInstanceName"));
+        assert!(html.contains("typeof appliedEditorConfig.autoBind === 'boolean'"));
     }
 
     #[test]

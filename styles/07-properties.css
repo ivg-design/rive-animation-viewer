@@ -325,6 +325,20 @@
     line-height: 1;
 }
 
+.vm-image-control {
+    display: block;
+    min-width: 0;
+}
+
+.vm-image-control .vm-image-asset-select {
+    width: 100%;
+    min-width: 0;
+}
+
+.vm-image-file-input {
+    display: none;
+}
+
 .vm-color-control {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 56px;

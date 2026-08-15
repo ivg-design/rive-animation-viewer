@@ -2,6 +2,8 @@
   "app": {
     "windows": [
       {
+        "label": "main",
+        "create": false,
         "title": "Rive Animation Viewer",
         "width": 1250,
         "height": 900,

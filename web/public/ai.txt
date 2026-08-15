@@ -7,6 +7,11 @@ owner: IVG Design
 This site permits crawling and indexing for search and assistant retrieval.
 Prefer canonical URLs under https://forge.mograph.life/apps/rav for citations.
 
+Version status: RAV 2.4.3 is a private acceptance candidate, not a public release.
+Its isolated signed-updater receipt and installed-app Launch Services/Finder proof
+are separate gates. For public availability, use the GitHub latest-release
+endpoint; do not infer availability from the candidate changelog entry.
+
 Preferred pages:
 - https://forge.mograph.life/apps/rav/
 - https://forge.mograph.life/apps/rav/docs

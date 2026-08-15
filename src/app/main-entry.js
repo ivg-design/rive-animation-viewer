@@ -21,10 +21,11 @@ import { normalizeOpenedFilePath } from './platform/session/file-session.js';
 import {
     buildFileRuntimePreferenceId as createFileRuntimePreferenceId,
     loadRuntimeMeta,
-    loadRuntimeVersionByFile,
-    loadRuntimeVersionPreference,
+    migrateRuntimeLayoutCompatibilityPreferences,
 } from './platform/runtime/runtime-utils.js';
 import { createTauriBridgeController } from './platform/tauri-bridge.js';
+
+const runtimePreferenceMigration = migrateRuntimeLayoutCompatibilityPreferences();
 
 const tauriController = createTauriBridgeController();
 const {
@@ -43,7 +44,7 @@ const runtimeState = {
     runtimeRegistry: {},
     runtimeResolvedUrls: {},
     runtimeSourceTexts: {},
-    runtimeVersionByFile: loadRuntimeVersionByFile(),
+    runtimeVersionByFile: runtimePreferenceMigration.runtimeVersionByFile,
     runtimeVersions: {},
     runtimeVersionOptionsState: {
         latest: FALLBACK_RUNTIME_VERSION_OPTIONS[0],
@@ -61,7 +62,7 @@ const appState = {
     currentLayoutFit: DEFAULT_LAYOUT_FIT,
     currentMcpPort: Number(globalThis.window?._mcpBridge?.port) || 9274,
     currentRuntime: 'webgl2',
-    runtimeVersionToken: loadRuntimeVersionPreference(),
+    runtimeVersionToken: runtimePreferenceMigration.runtimeVersionToken,
 };
 
 let demoExportController = null;
@@ -197,6 +198,26 @@ const controllerStack = createControllerStack({
     },
     runtimeState,
 });
+
+if (runtimePreferenceMigration.migrated) {
+    const scopes = [
+        runtimePreferenceMigration.migratedGlobal ? 'global preference' : null,
+        runtimePreferenceMigration.migratedFileCount
+            ? `${runtimePreferenceMigration.migratedFileCount} file preference(s)`
+            : null,
+    ].filter(Boolean).join(' and ');
+    controllerStack.logEvent(
+        'native',
+        'runtime-layout-migration',
+        `Migrated ${scopes} to runtime 2.39.2 for authored-layout compatibility.`,
+        {
+            completed: runtimePreferenceMigration.completed,
+            migratedFileCount: runtimePreferenceMigration.migratedFileCount,
+            migratedGlobal: runtimePreferenceMigration.migratedGlobal,
+            safeRuntimeVersion: runtimePreferenceMigration.safeRuntimeVersion,
+        },
+    );
+}
 
 demoExportController = controllerStack.demoExportController;
 fileSessionController = controllerStack.fileSessionController;

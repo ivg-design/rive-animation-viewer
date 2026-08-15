@@ -40,6 +40,7 @@ function createListItem(name, speed) {
                 }
                 return propertyName === 'fallbackLaunch' ? fireAccessor : null;
             },
+            viewModelName: 'ListRowVM',
         },
         triggerAccessor,
     };
@@ -118,7 +119,12 @@ function createLiveVmHarness() {
     };
     const windowRef = {
         ...legacy,
-        riveInst: { viewModelInstance: rootVm },
+        riveInst: {
+            viewModelByName(name) {
+                return name === 'ListRowVM' ? { instanceNames: ['Alpha', 'Bravo'] } : null;
+            },
+            viewModelInstance: rootVm,
+        },
     };
     const commands = createViewModelCommands({ buildViewModelSnapshot, windowRef });
 
@@ -183,7 +189,7 @@ describe('platform/mcp ViewModel traversal', () => {
         }));
         expect(findTreeNode(snapshot.tree, 'rows/0')).toEqual(expect.objectContaining({
             kind: 'instance',
-            label: 'Row 1',
+            label: 'Alpha',
         }));
         expect(snapshot.tree).not.toBe(harness.legacy.vmTree);
     });
@@ -200,6 +206,7 @@ describe('platform/mcp ViewModel traversal', () => {
         harness.rows.push(createListItem('Bravo', 27));
         const grownTree = await harness.commands.rav_get_vm_tree();
         expect(findTreeNode(grownTree.tree, 'rows').label).toBe('rows [2]');
+        expect(findTreeNode(grownTree.tree, 'rows/1').label).toBe('Bravo');
         expect(grownTree.paths).toContain('rows/1/name');
         await expect(harness.commands.rav_vm_get({ path: 'rows/1/speed' })).resolves.toEqual({
             path: 'rows/1/speed',

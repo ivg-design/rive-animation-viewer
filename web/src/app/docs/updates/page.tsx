@@ -42,6 +42,29 @@ export default function Updates() {
         <code>releases/latest</code> endpoint, so a partially complete release cannot
         advance installed clients.
       </p>
+      <p>
+        Version 2.4.3 is currently a private draft acceptance candidate. It is intentionally
+        invisible to normal installed clients and has not changed the public update feed.
+        Publication remains blocked on two distinct proofs: the isolated signed-updater
+        install/relaunch receipt, and separate installed-app Launch Services/Finder verification
+        for an already-indexed <code>.riv</code> file. The updater receipt does not prove Finder
+        migration.
+      </p>
+
+      <h2>Acceptance Isolation</h2>
+      <p>
+        The configured Tauri main window uses <code>create: false</code> and is constructed from
+        that config in Rust. Only the acceptance environment creates it with an incognito,
+        non-persistent WebView. This is necessary because macOS Foundation ignores a substituted
+        <code>HOME</code> for WebKit storage; normal production launches remain persistent.
+      </p>
+      <p>
+        Before and after the temporary update/relaunch, the harness recursively fingerprints the
+        installed <code>/Applications/Rive Animation Viewer.app</code> tree and production RAV
+        user-data roots, and requires both fingerprints to remain unchanged. Acceptance skips
+        Launch Services registration, so exact Finder icon migration is tested separately on an
+        installed signed candidate.
+      </p>
 
       <h2>Two Trust Layers</h2>
       <p>

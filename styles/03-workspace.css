@@ -1,5 +1,4 @@
 /* ── Workspace grid ───────────────────────────────────────── */
-
 .workspace {
     flex: 1;
     min-height: 0;
@@ -340,6 +339,8 @@
 
 #canvas-container.canvas-container-fixed-size {
     overflow: auto;
+    align-items: flex-start;
+    justify-content: flex-start;
 }
 
 body.transparency-mode .canvas-drop-target,
@@ -366,6 +367,7 @@ body.transparency-mode .event-log-list {
     flex: none;
     max-width: none;
     max-height: none;
+    margin: auto; /* Centers spare space; collapses safely to zero on overflow. */
 }
 
 .canvas-drop-target.drag-active {

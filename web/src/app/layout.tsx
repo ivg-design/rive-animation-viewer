@@ -22,7 +22,7 @@ const faviconPath =
 export const metadata: Metadata = {
   title: "RAV - Rive Animation Viewer",
   description:
-    "Free desktop player for inspecting, debugging, and testing Rive (.riv) animations offline. ViewModel controls, unified consoles, MCP integration, auto updates, runtime version selection, and self-contained HTML demo export.",
+    "Free desktop player for inspecting, debugging, and testing Rive (.riv) animations offline. Canonical ViewModel list labels, embedded-image controls, unified consoles, MCP, safe runtime selection, and self-contained HTML export.",
   keywords: [
     "rive",
     "animation",
@@ -55,7 +55,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "RAV - Rive Animation Viewer",
     description:
-      "Free desktop player for inspecting and debugging Rive animations. ViewModel controls, unified consoles, MCP integration, auto updates, and standalone export.",
+      "Free desktop player for inspecting and debugging Rive animations with canonical ViewModel list labels, embedded-image controls, unified consoles, MCP, and standalone export.",
     type: "website",
     url: siteUrl,
     siteName: "RAV - Rive Animation Viewer",
@@ -91,11 +91,12 @@ const jsonLd = {
       name: "RAV - Rive Animation Viewer",
       alternateName: "RAV",
       description:
-        "Free desktop player for inspecting, debugging, and testing Rive (.riv) animations offline. ViewModel controls, unified consoles, MCP integration, auto updates, runtime version selection, and self-contained HTML demo export.",
+        "Free desktop player for inspecting, debugging, and testing Rive (.riv) animations offline. Documentation currently covers the 2.4.3 private acceptance candidate, which is not publicly released.",
       url: siteUrl,
       applicationCategory: "DeveloperApplication",
       operatingSystem: "macOS, Windows",
       softwareVersion: "2.4.3",
+      releaseNotes: "Version 2.4.3 is a private acceptance candidate. Public release and updater-feed publication remain blocked on isolated signed-updater acceptance and separate installed-app Launch Services/Finder verification.",
       datePublished: "2025-11-01",
       dateModified: "2026-08-14",
       downloadUrl: "https://github.com/ivg-design/rive-animation-viewer/releases/latest",
@@ -115,7 +116,8 @@ const jsonLd = {
       license: "https://opensource.org/licenses/MIT",
       isAccessibleForFree: true,
       featureList: [
-        "ViewModel controls with authored list-item labels, image file selection/decode/replace/clear, and auto-discovered values",
+        "ViewModel list labels from direct authored names or one unique canonical-string match, with ambiguous rows falling back to Row N",
+        "One full-width image-source select with every embedded raster, Open file, Clear, hidden external file input, and standalone export parity",
         "Unified Event Console and JavaScript Console with timestamps, search, follow mode, and copy tools",
         "Self-contained HTML demo export that preserves and executes applied editor config and lifecycle callbacks",
         "Snippet and export dialog for selecting exactly which live control values are serialized",
@@ -124,8 +126,9 @@ const jsonLd = {
         "VM Explorer console commands for deep runtime inspection",
         "Bundled native rav-mcp sidecar with one-click setup for supported AI clients",
         "Developer ID signed and notarized macOS releases with Tauri-authenticated auto updates",
-        "Tauri v2 desktop app with official .riv UTI, alternate Viewer registration, dedicated file icon, and single-instance forwarding",
-        "Canvas and WebGL2 dual renderer with live semver/runtime switching",
+        "Tauri v2 desktop app with official and legacy .riv UTI declarations, alternate Viewer registration, dedicated file-icon resource, and single-instance forwarding",
+        "Canvas and WebGL2 dual renderer with safe 2.39.2 default, warned 2.40.0 opt-in, and live semver switching",
+        "Overflow-safe auto-margin centering and styled 10px scrollbars for fixed-size central canvases",
         "State preservation across refresh, reload, and export flows",
       ],
     },
@@ -153,7 +156,7 @@ const jsonLd = {
           name: "How do I debug a Rive animation file?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Open your .riv file in RAV. It auto-discovers all ViewModel inputs and generates interactive controls. The Event Console shows Native, Rive User, UI, and MCP activity in real time, and the JavaScript Console provides a live REPL. The VM Explorer exposes vmExplore, vmGet, vmSet, vmTree, and vmPaths for deep runtime inspection.",
+            text: "Open your .riv file in RAV. It auto-discovers ViewModel inputs, resolves list labels without treating a generic ViewModel definition name as an authored row name, and builds embedded-image controls. The Event Console shows Native, Rive User, UI, and MCP activity in real time, and the JavaScript Console provides a live REPL.",
           },
         },
         {
@@ -161,7 +164,7 @@ const jsonLd = {
           name: "Can I export a Rive animation as a standalone HTML file?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Yes. RAV's export flow creates a self-contained HTML file with the .riv animation embedded, the selected runtime package and semver, the current live layout state, selected control values, and a copyable canonical web-instantiation snippet.",
+            text: "Yes. RAV's export flow creates a self-contained HTML file with the .riv animation and embedded image catalog, selected runtime package and semver, live layout state, selected controls, and applied editor script and lifecycle callbacks. Unapplied drafts are excluded.",
           },
         },
         {

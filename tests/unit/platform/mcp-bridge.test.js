@@ -48,11 +48,36 @@ describe('platform/mcp-bridge', () => {
         delete window._mcpLogEvent;
         delete window._mcpUpdateStatus;
         delete window.__RAV_MCP_PORT__;
+        delete window.__RAV_UPDATER_ACCEPTANCE__;
         delete window.__TAURI__;
     });
 
     afterEach(() => {
         vi.unstubAllGlobals();
+    });
+
+    it('stays fully disconnected during updater acceptance', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        vi.stubGlobal('setInterval', vi.fn(() => 1));
+        vi.stubGlobal('clearInterval', vi.fn());
+        const invoke = vi.fn();
+        window.__RAV_UPDATER_ACCEPTANCE__ = true;
+        window.__TAURI__ = { core: { invoke } };
+
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-updater-acceptance');
+        await flushBridgeMicrotasks();
+
+        expect(window._mcpBridge.enabled).toBe(false);
+        expect(window._mcpBridge.state).toBe('off');
+        expect(FakeWebSocket.instances).toHaveLength(0);
+        await expect(window._mcpBridge.disable()).resolves.toBe(true);
+        window._mcpBridge.enable();
+        await expect(window._mcpBridge.toggle()).resolves.toBe(false);
+        await expect(window._mcpBridge.reconnect()).resolves.toBe(false);
+        expect(window._mcpBridge.setPort(9999)).toBe(9274);
+        expect(window._mcpBridge.enabled).toBe(false);
+        expect(FakeWebSocket.instances).toHaveLength(0);
+        expect(invoke).not.toHaveBeenCalled();
     });
 
     it('syncs the bridge port from desktop and reconnects quickly after disconnect', async () => {

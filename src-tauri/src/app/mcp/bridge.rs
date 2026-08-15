@@ -45,14 +45,13 @@ pub fn resolve_mcp_server_path(_app: &tauri::AppHandle) -> Result<PathBuf, Strin
         .map_err(|error| format!("Failed to resolve current application executable: {error}"))?;
     let sidecar_path = resolve_mcp_server_path_from_executable(&executable_path, binary_name)?;
 
-    if sidecar_path.is_file() {
-        Ok(sidecar_path)
-    } else {
-        Err(format!(
+    if !sidecar_path.is_file() {
+        return Err(format!(
             "MCP server not found beside the application executable: {}",
             sidecar_path.display()
-        ))
+        ));
     }
+    Ok(sidecar_path)
 }
 
 pub fn mcp_client_launcher_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -144,17 +143,14 @@ pub fn mcp_server_path_candidates(app: &tauri::AppHandle) -> Result<Vec<PathBuf>
     let primary = ensure_mcp_client_launcher(app)?;
     let bundled = resolve_mcp_server_path(app)?;
     let mut paths = vec![primary];
-    if !paths.iter().any(|path| path == &bundled) {
+    if paths[0] != bundled {
         paths.push(bundled);
     }
     Ok(paths)
 }
 
 pub fn normalize_mcp_port(port: Option<u16>) -> u16 {
-    match port {
-        Some(value) if value > 0 => value,
-        _ => DEFAULT_MCP_PORT,
-    }
+    port.filter(|value| *value > 0).unwrap_or(DEFAULT_MCP_PORT)
 }
 
 pub fn build_mcp_args(port: u16) -> Vec<String> {
@@ -356,40 +352,6 @@ pub fn initialize_mcp_bridge(
     ensure_mcp_bridge_running(app, manager).map(|_| ())
 }
 
-#[tauri::command]
-pub fn get_mcp_server_path(app: tauri::AppHandle) -> Result<String, String> {
-    resolve_mcp_server_path(&app).map(|path| path.to_string_lossy().to_string())
-}
-
-#[tauri::command]
-pub fn get_mcp_port(
-    app: tauri::AppHandle,
-    bridge_manager: tauri::State<'_, McpBridgeManager>,
-) -> Result<u16, String> {
-    let port = ensure_mcp_bridge_running(&app, &bridge_manager)?;
-    Ok(port)
-}
-
 #[cfg(test)]
 #[path = "bridge_tests.rs"]
 mod tests;
-
-#[tauri::command]
-pub fn set_mcp_port(
-    app: tauri::AppHandle,
-    bridge_manager: tauri::State<'_, McpBridgeManager>,
-    port: u16,
-) -> Result<u16, String> {
-    let next_port = normalize_mcp_port(Some(port));
-    persist_mcp_port(&app, next_port)?;
-    restart_mcp_bridge(&app, &bridge_manager, next_port)
-}
-
-#[tauri::command]
-pub fn stop_mcp_bridge(
-    app: tauri::AppHandle,
-    bridge_manager: tauri::State<'_, McpBridgeManager>,
-) -> bool {
-    kill_spawned_mcp_bridge(&app, &bridge_manager);
-    true
-}

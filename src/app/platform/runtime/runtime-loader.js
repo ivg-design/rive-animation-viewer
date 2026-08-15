@@ -2,6 +2,7 @@ import {
     CURRENT_CUSTOM_RUNTIME_OPTION_VALUE,
     DEFAULT_RUNTIME_VERSION,
     DEFAULT_RUNTIME_VERSION_TOKEN,
+    LATEST_RUNTIME_VERSION_TOKEN,
     FALLBACK_RUNTIME_VERSION_OPTIONS,
     MIN_SCRIPTING_RUNTIME_VERSION,
     RUNTIME_CACHE_NAME,
@@ -206,7 +207,7 @@ export function createRuntimeLoaderController({
         }
         const { latest, versions } = runtimeVersionOptionsState;
         const selectedToken = normalizeRuntimeVersionToken(getRuntimeVersionToken());
-        const matchesKnownOption = selectedToken === DEFAULT_RUNTIME_VERSION_TOKEN || versions.includes(selectedToken);
+        const matchesKnownOption = selectedToken === LATEST_RUNTIME_VERSION_TOKEN || versions.includes(selectedToken);
         select.replaceChildren();
         const appendOption = (value, label) => {
             const option = documentRef.createElement('option');
@@ -214,8 +215,12 @@ export function createRuntimeLoaderController({
             option.textContent = label;
             select.appendChild(option);
         };
-        appendOption(DEFAULT_RUNTIME_VERSION_TOKEN, `Latest (auto: ${latest})`);
-        versions.forEach((version) => appendOption(version, version));
+        const latestRiskSuffix = latest === '2.40.0' ? '; authored-layout risk' : '';
+        appendOption(LATEST_RUNTIME_VERSION_TOKEN, `Latest (auto: ${latest}${latestRiskSuffix})`);
+        versions.forEach((version) => appendOption(
+            version,
+            version === '2.40.0' ? `${version} (authored-layout risk)` : version,
+        ));
         if (!matchesKnownOption) {
             appendOption(CURRENT_CUSTOM_RUNTIME_OPTION_VALUE, `Current: ${selectedToken}`);
         }
@@ -328,10 +333,27 @@ export function createRuntimeLoaderController({
         showError(`Runtime ${runtimeName}@${version} is below ${MIN_SCRIPTING_RUNTIME_VERSION}; VM scripting may be unavailable.`);
     }
 
+    function warnIfRuntimeHasAuthoredLayoutRisk(runtimeName) {
+        const cacheKey = getRuntimeCacheKey(runtimeName);
+        const version = runtimeVersions[cacheKey] || runtimeRegistry[cacheKey]?.version;
+        if (version !== '2.40.0') {
+            return;
+        }
+        const warningKey = `authored-layout:${runtimeName}@${version}`;
+        if (runtimeWarningsShown.has(warningKey)) {
+            return;
+        }
+        runtimeWarningsShown.add(warningKey);
+        const message = `Runtime ${runtimeName}@${version} has a known authored-layout regression that can displace nested images. Use 2.39.2 unless you are explicitly testing this runtime.`;
+        showError(message);
+        logEvent('native', 'runtime-layout-risk', message);
+    }
+
     async function ensureRuntime(runtimeName) {
         const runtime = await runtimeAssetLoader.loadRuntime(runtimeName);
         windowRef.rive = runtime;
         warnIfRuntimeLacksScripting(runtimeName);
+        warnIfRuntimeHasAuthoredLayoutRisk(runtimeName);
         if (runtimeName === getCurrentRuntime()) {
             updateVersionInfo();
         }
