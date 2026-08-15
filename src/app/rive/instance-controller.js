@@ -4,6 +4,7 @@ import {
     normalizeCanvasSizingState,
 } from '../core/canvas-sizing.js';
 import { resolveRiveAlignment, resolveRiveFit } from '../core/rive-layout.js';
+import { composeEmbeddedImageAssetLoader } from './assets/embedded-image-assets.js';
 import { runUserOnLoadWithVmRestore } from './instance/load-hooks.js';
 import { buildPlaybackContext, buildPlaybackStatusLabel } from './playback-status.js';
 export function safelyInvokeUserCallback(callback, event, callbackName) {
@@ -19,6 +20,7 @@ export function safelyInvokeUserCallback(callback, event, callbackName) {
 
 export function createRiveInstanceController({
     callbacks = {},
+    embeddedImageAssetCatalog = null,
     elements,
     getCurrentCanvasSizing = () => normalizeCanvasSizingState(),
     getCurrentLayoutAlignment = () => 'center',
@@ -259,6 +261,7 @@ export function createRiveInstanceController({
                 Object.assign(effectiveUserConfig, configOverrides);
             }
             const config = { ...effectiveUserConfig };
+            embeddedImageAssetCatalog?.reset?.();
 
             const userOnLoad = config.onLoad;
             const userOnLoadError = config.onLoadError;
@@ -268,6 +271,7 @@ export function createRiveInstanceController({
             const userOnLoop = config.onLoop;
             const userOnStateChange = config.onStateChange;
             const userOnAdvance = config.onAdvance;
+            const userAssetLoader = config.assetLoader;
             const configuredStateMachines = Array.isArray(config.stateMachines)
                 ? config.stateMachines.filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
                 : (typeof config.stateMachines === 'string' && config.stateMachines.trim().length > 0 ? [config.stateMachines] : []);
@@ -282,6 +286,7 @@ export function createRiveInstanceController({
             });
             config.src = fileUrl;
             config.canvas = canvas;
+            config.assetLoader = composeEmbeddedImageAssetLoader(embeddedImageAssetCatalog, userAssetLoader);
             if (typeof config.autoBind === 'undefined') {
                 config.autoBind = true;
             }

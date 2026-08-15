@@ -167,6 +167,18 @@ fn validate_loopback_endpoint(endpoint: &Url) -> Result<(), String> {
     Ok(())
 }
 
+fn map_updater_error(
+    acceptance: &UpdaterAcceptance,
+    stage: &str,
+    error: impl std::fmt::Display,
+) -> String {
+    let message = error.to_string();
+    if acceptance.is_enabled() {
+        eprintln!("[rav-updater-acceptance] {stage}: {message}");
+    }
+    message
+}
+
 #[tauri::command]
 pub fn get_updater_acceptance_config(
     acceptance: tauri::State<'_, UpdaterAcceptance>,
@@ -186,11 +198,16 @@ pub async fn check_for_app_update(
     if let Some(endpoint) = acceptance.endpoint() {
         builder = builder
             .endpoints(vec![endpoint])
-            .map_err(|error| error.to_string())?;
+            .map_err(|error| map_updater_error(&acceptance, "endpoint override failed", error))?;
     }
-    let updater = builder.build().map_err(|error| error.to_string())?;
+    let updater = builder
+        .build()
+        .map_err(|error| map_updater_error(&acceptance, "updater build failed", error))?;
     let current_version = app.package_info().version.to_string();
-    let update = updater.check().await.map_err(|error| error.to_string())?;
+    let update = updater
+        .check()
+        .await
+        .map_err(|error| map_updater_error(&acceptance, "update check failed", error))?;
 
     let mut pending_guard = pending_update.0.lock().map_err(|error| error.to_string())?;
     *pending_guard = update;
@@ -216,6 +233,7 @@ pub async fn install_app_update(
     app: tauri::AppHandle,
     bridge_manager: tauri::State<'_, McpBridgeManager>,
     pending_update: tauri::State<'_, PendingAppUpdate>,
+    acceptance: tauri::State<'_, UpdaterAcceptance>,
 ) -> Result<AppUpdateInstallResult, String> {
     let update = {
         let mut pending_guard = pending_update.0.lock().map_err(|error| error.to_string())?;
@@ -230,7 +248,9 @@ pub async fn install_app_update(
     };
 
     let version = update.version.clone();
-    kill_spawned_mcp_bridge(&app, &bridge_manager);
+    if !acceptance.is_enabled() {
+        kill_spawned_mcp_bridge(&app, &bridge_manager);
+    }
 
     update
         .download_and_install(|_, _| {}, || {})

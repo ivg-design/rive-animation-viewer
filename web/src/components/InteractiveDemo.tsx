@@ -40,7 +40,7 @@ const hotspots = [
   {
     id: "canvas",
     label: "Canvas",
-    description: "The animation viewport. Drop a .riv file here or hit OPEN. Renders via WebGL2 by default; switch to Canvas in the toolbar.",
+    description: "The animation viewport. Drop a .riv file here or hit OPEN. Renders via WebGL2 by default; switch renderer in the toolbar. Auto margins center fixed canvases and collapse safely for authored-origin scrolling.",
     top: "15.079%", left: "23.817%", width: "51.893%", height: "55.873%",
   },
   {
@@ -58,7 +58,7 @@ const hotspots = [
   {
     id: "properties",
     label: "Properties",
-    description: "Auto-discovered ViewModel controls and state machine inputs for the loaded animation. Switch artboards, select VM instances, and reset to file defaults.",
+    description: "Auto-discovered ViewModel controls and state machine inputs. List rows resolve authored labels; each image property uses one full-width select with embedded rasters, Open file…, and Clear.",
     top: "15.079%", left: "75.976%", width: "18.935%", height: "77.619%",
   },
 ];

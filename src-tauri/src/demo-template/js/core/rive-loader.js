@@ -47,6 +47,7 @@
 
             updateInfo('Loading animation...');
             logEvent('native', 'load-start', 'Loading embedded animation.');
+            resetEmbeddedImageAssets();
 
             try {
                 // Locate the Rive constructor from the runtime
@@ -63,6 +64,7 @@
 
                 // Clean up previous instance
                 cleanupInstance();
+                loadedRiveRuntime = rive;
 
                 // Decode embedded animation from base64
                 var base64Data = CONFIG.animationBase64;
@@ -87,13 +89,21 @@
                         logEvent('native', 'editor-config-error', 'Unable to restore applied editor config: ' + (error.message || error));
                     },
                 );
+                var reportAppliedEditorCallbackError = function (error) {
+                    logEvent('native', 'editor-callback-error', 'Applied editor callback failed: ' + (error.message || error));
+                };
 
                 var riveConfig = Object.assign({}, appliedEditorConfig, {
                     src: animationUrl,
                     canvas: els.canvas,
                     autoplay: CONFIG.autoplay !== false,
-                    autoBind: !CONFIG.viewModelInstanceName,
+                    autoBind: CONFIG.viewModelInstanceName
+                        ? false
+                        : (typeof appliedEditorConfig.autoBind === 'boolean'
+                            ? appliedEditorConfig.autoBind
+                            : true),
                 });
+                riveConfig.assetLoader = composeEmbeddedImageAssetLoader(riveConfig.assetLoader);
 
                 if (CONFIG.artboardName) {
                     riveConfig.artboard = CONFIG.artboardName;
@@ -107,10 +117,14 @@
 
                 // Set layout
                 if (rive.Layout) {
-                    riveConfig.layout = new rive.Layout({
+                    var appliedLayoutProps = appliedEditorConfig.layout && typeof appliedEditorConfig.layout === 'object'
+                        ? Object.assign({}, appliedEditorConfig.layout)
+                        : {};
+                    delete appliedLayoutProps.fit;
+                    riveConfig.layout = new rive.Layout(Object.assign({
                         fit: resolveRiveLayoutFit(rive, currentLayoutFit),
                         alignment: resolveRiveLayoutAlignment(rive, currentLayoutAlignment),
-                    });
+                    }, appliedLayoutProps));
                 }
                 if (isCanvasEffectivelyTransparent() && CONFIG.runtimeName !== 'canvas' && typeof riveConfig.useOffscreenRenderer === 'undefined') {
                     riveConfig.useOffscreenRenderer = true;
@@ -183,49 +197,45 @@
                     applyControlSnapshot(currentControlSnapshot);
                     // Render VM controls
                     renderVmControls();
-                    invokeStandaloneEditorCallback(appliedEditorConfig.onLoad, riveInstance, callbackArgs, function (error) {
-                        logEvent('native', 'editor-callback-error', 'Applied editor callback failed: ' + (error.message || error));
-                    });
+                    invokeStandaloneEditorCallback(appliedEditorConfig.onLoad, riveInstance, callbackArgs, reportAppliedEditorCallbackError);
                 };
 
                 riveConfig.onLoadError = function (error) {
                     var errorMsg = (error && error.message) || String(error);
                     showError('Error loading animation: ' + errorMsg);
                     logEvent('native', 'loaderror', 'Load error: ' + errorMsg);
-                    invokeStandaloneEditorCallback(appliedEditorConfig.onLoadError, riveInstance, Array.prototype.slice.call(arguments), function (error) {
-                        logEvent('native', 'editor-callback-error', 'Applied editor callback failed: ' + (error.message || error));
-                    });
+                    invokeStandaloneEditorCallback(appliedEditorConfig.onLoadError, riveInstance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
                 };
 
                 riveConfig.onPlay = function (event) {
                     logEvent('native', 'play', 'Playback started by runtime.', event);
-                    invokeStandaloneEditorCallback(appliedEditorConfig.onPlay, riveInstance, Array.prototype.slice.call(arguments));
+                    invokeStandaloneEditorCallback(appliedEditorConfig.onPlay, riveInstance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
                 };
 
                 riveConfig.onPause = function (event) {
                     logEvent('native', 'pause', 'Playback paused by runtime.', event);
-                    invokeStandaloneEditorCallback(appliedEditorConfig.onPause, riveInstance, Array.prototype.slice.call(arguments));
+                    invokeStandaloneEditorCallback(appliedEditorConfig.onPause, riveInstance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
                 };
 
                 riveConfig.onStop = function (event) {
                     logEvent('native', 'stop', 'Playback stopped by runtime.', event);
-                    invokeStandaloneEditorCallback(appliedEditorConfig.onStop, riveInstance, Array.prototype.slice.call(arguments));
+                    invokeStandaloneEditorCallback(appliedEditorConfig.onStop, riveInstance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
                 };
 
                 riveConfig.onLoop = function (event) {
                     logEvent('native', 'loop', 'Loop event emitted by runtime.', event);
-                    invokeStandaloneEditorCallback(appliedEditorConfig.onLoop, riveInstance, Array.prototype.slice.call(arguments));
+                    invokeStandaloneEditorCallback(appliedEditorConfig.onLoop, riveInstance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
                 };
 
                 riveConfig.onStateChange = function (event) {
                     logEvent('native', 'statechange', 'State machine changed state.', event);
-                    invokeStandaloneEditorCallback(appliedEditorConfig.onStateChange, riveInstance, Array.prototype.slice.call(arguments));
+                    invokeStandaloneEditorCallback(appliedEditorConfig.onStateChange, riveInstance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
                 };
 
                 riveConfig.onAdvance = function (event) {
                     updatePlaybackChips();
                     retryPendingControlSnapshot();
-                    invokeStandaloneEditorCallback(appliedEditorConfig.onAdvance, riveInstance, Array.prototype.slice.call(arguments));
+                    invokeStandaloneEditorCallback(appliedEditorConfig.onAdvance, riveInstance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
                 };
 
                 // Remove undefined keys
@@ -262,6 +272,7 @@
             }
             riveInstance = null;
             window.riveInst = null;
+            loadedRiveRuntime = null;
         }
 
         /* ── Rive event listeners ────────────────────────────── */

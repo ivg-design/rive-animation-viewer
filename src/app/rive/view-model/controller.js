@@ -35,6 +35,7 @@ export function createVmControlsController({
     callbacks = {},
     documentRef = globalThis.document,
     elements,
+    getEmbeddedImageAssets = () => [],
     getCurrentRuntime = () => 'webgl2',
     getLoadedRuntime = () => null,
     getRiveInstance = () => null,
@@ -172,7 +173,7 @@ export function createVmControlsController({
     }
 
     function currentVmListTopologySignature() {
-        return buildVmListTopologySignature(resolveVmRootInstance(getRiveInstance()));
+        return buildVmListTopologySignature(resolveVmRootInstance(getRiveInstance()), getRiveInstance());
     }
 
     function stopVmControlSync() {
@@ -201,6 +202,7 @@ export function createVmControlsController({
         documentRef,
         fireStateMachineTriggerByName,
         getRiveInstance,
+        getEmbeddedImageAssets,
         getLoadedRuntime: () => getLoadedRuntime(getCurrentRuntime()),
         logEvent,
         registerVmControlBinding,
@@ -248,8 +250,8 @@ export function createVmControlsController({
             clearVmControlBindings();
 
             const rootVm = resolveVmRootInstance(getRiveInstance());
-            vmListTopologySignature = buildVmListTopologySignature(rootVm);
-            const vmHierarchy = rootVm ? buildVmHierarchy(rootVm) : null;
+            vmListTopologySignature = buildVmListTopologySignature(rootVm, getRiveInstance());
+            const vmHierarchy = rootVm ? buildVmHierarchy(rootVm, getRiveInstance()) : null;
             const stateMachineHierarchy = currentStateMachineHierarchy();
 
             const vmTotal = vmHierarchy?.totalInputs || 0;

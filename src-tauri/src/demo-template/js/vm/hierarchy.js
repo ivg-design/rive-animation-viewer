@@ -33,40 +33,68 @@
             return filtered;
         }
 
-        function getVmListItemName(itemInstance) {
+        function readVmStringMember(target, propertyName) {
+            if (!target || typeof target !== 'object') return null;
+            var value = null;
+            try {
+                value = target[propertyName];
+                if (typeof value === 'function') value = value.call(target);
+            } catch (e) { value = null; }
+            return typeof value === 'string' && value.trim() ? value.trim() : null;
+        }
+
+        function getCanonicalVmInstanceNames(instance, viewModelName) {
+            var definition = safeVmCall(instance, 'viewModelByName', viewModelName);
+            if (!definition) return new Set();
+
+            var instanceNames = null;
+            try {
+                instanceNames = definition.instanceNames;
+                if (typeof instanceNames === 'function') instanceNames = instanceNames.call(definition);
+            } catch (e) { instanceNames = null; }
+            if (!Array.isArray(instanceNames)) return new Set();
+
+            return new Set(instanceNames
+                .filter(function (name) { return typeof name === 'string' && name.trim(); })
+                .map(function (name) { return name.trim(); }));
+        }
+
+        function findCanonicalVmInstanceName(itemInstance, instance) {
+            var viewModelName = readVmStringMember(itemInstance, 'viewModelName');
+            if (!viewModelName) return null;
+
+            var canonicalNames = getCanonicalVmInstanceNames(instance, viewModelName);
+            if (!canonicalNames.size) return null;
+
+            var properties = [];
+            try { properties = Array.isArray(itemInstance.properties) ? itemInstance.properties : []; } catch (e) { properties = []; }
+            var matches = new Set();
+            properties.forEach(function (property) {
+                var propertyName = property && typeof property.name === 'string' ? property.name : null;
+                if (!propertyName) return;
+                var accessor = safeVmCall(itemInstance, 'string', propertyName);
+                var value = readVmStringMember(accessor, 'value');
+                if (value && canonicalNames.has(value)) matches.add(value);
+            });
+
+            return matches.size === 1 ? Array.from(matches)[0] : null;
+        }
+
+        function getVmListItemName(itemInstance, instance) {
             if (!itemInstance || typeof itemInstance !== 'object') return null;
-            var names = ['name', 'viewModelName', 'instanceName'];
+            var names = ['instanceName', 'name'];
             for (var nameIndex = 0; nameIndex < names.length; nameIndex++) {
-                var value = null;
-                try {
-                    value = itemInstance[names[nameIndex]];
-                    if (typeof value === 'function') value = value.call(itemInstance);
-                } catch (e) { value = null; }
-                if (typeof value === 'string' && value.trim()) return value.trim();
+                var value = readVmStringMember(itemInstance, names[nameIndex]);
+                if (value) return value;
             }
-            return null;
+            return findCanonicalVmInstanceName(itemInstance, instance);
         }
 
         function formatVmListItemLabel(listName, index, itemInstance) {
-            var authoredName = getVmListItemName(itemInstance);
+            var instance = arguments.length > 3 ? arguments[3] : riveInstance;
+            var authoredName = getVmListItemName(itemInstance, instance);
             if (authoredName) return authoredName;
-            var words = String(listName || 'Item')
-                .trim()
-                .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-                .replace(/[_-]+/g, ' ')
-                .split(/\s+/)
-                .filter(Boolean);
-            var lastIndex = words.length - 1;
-            if (lastIndex >= 0) {
-                var word = words[lastIndex];
-                if (/ies$/i.test(word) && word.length > 3) words[lastIndex] = word.slice(0, -3) + 'y';
-                else if (/(ches|shes|xes|zes)$/i.test(word)) words[lastIndex] = word.slice(0, -2);
-                else if (/s$/i.test(word) && !/ss$/i.test(word)) words[lastIndex] = word.slice(0, -1);
-            }
-            var label = words
-                .map(function (word) { return word.charAt(0).toUpperCase() + word.slice(1); })
-                .join(' ') || 'Item';
-            return label + ' ' + (index + 1);
+            return 'Row ' + (index + 1);
         }
 
         function buildVmListTopologySignature(rootVm) {
@@ -100,7 +128,12 @@
                         var itemInstance = null;
                         try { if (typeof listAccessor.instanceAt === 'function') itemInstance = listAccessor.instanceAt(index); } catch (e) { /* noop */ }
                         var itemPath = fullPath + '/' + index;
-                        topology.push(['item', itemPath, Boolean(itemInstance)]);
+                        topology.push([
+                            'item',
+                            itemPath,
+                            Boolean(itemInstance),
+                            itemInstance ? formatVmListItemLabel(name, index, itemInstance, riveInstance) : null,
+                        ]);
                         if (itemInstance) walk(itemInstance, itemPath);
                     }
                 });
@@ -162,7 +195,7 @@
                             var itemInstance = null;
                             try { if (typeof listAccessor.instanceAt === 'function') itemInstance = listAccessor.instanceAt(idx); } catch (e) { /* noop */ }
                             if (itemInstance) {
-                                listNode.children.push(walk(itemInstance, formatVmListItemLabel(name, idx, itemInstance), fullPath + '/' + idx, 'instance'));
+                                listNode.children.push(walk(itemInstance, formatVmListItemLabel(name, idx, itemInstance, riveInstance), fullPath + '/' + idx, 'instance'));
                             }
                         }
                         node.children.push(listNode);

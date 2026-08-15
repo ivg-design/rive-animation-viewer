@@ -117,7 +117,7 @@ export function buildViewModelSnapshot(windowRef = globalThis.window) {
                         }
                         listNode.children.push(walkVm(
                             itemInstance,
-                            formatVmListItemLabel(name, index, itemInstance),
+                            formatVmListItemLabel(name, index, itemInstance, inst),
                             `${fullPath}/${index}`,
                             'instance',
                         ));

@@ -44,7 +44,7 @@
                 var descriptor = (entry && entry.descriptor) || {};
                 var kind = entry && (entry.kind || descriptor.kind);
                 var key = controlSnapshotKeyForDescriptor(Object.assign({}, descriptor, { kind: kind }));
-                if (key && kind !== 'trigger') pendingControlSnapshot.set(key, entry);
+                if (key && kind !== 'trigger' && kind !== 'image') pendingControlSnapshot.set(key, entry);
             });
             return retryPendingControlSnapshot();
         }
@@ -56,7 +56,7 @@
             pendingControlSnapshot.forEach(function (entry, key) {
                 var descriptor = (entry && entry.descriptor) || {};
                 var kind = entry && (entry.kind || descriptor.kind);
-                if (!descriptor || !kind || kind === 'trigger') {
+                if (!descriptor || !kind || kind === 'trigger' || kind === 'image') {
                     pendingControlSnapshot.delete(key);
                     return;
                 }
@@ -96,6 +96,10 @@
                 input: binding.input || null,
                 colorInput: binding.colorInput || null,
                 alphaInput: binding.alphaInput || null,
+                assetSelect: binding.assetSelect || null,
+                browseButton: binding.browseButton || null,
+                clearButton: binding.clearButton || null,
+                embeddedAssetCount: Number(binding.embeddedAssetCount) || 0,
             });
         }
 
@@ -124,6 +128,20 @@
             vmControlBindings.forEach(function (binding) {
                 var accessor = resolveControlAccessor(binding.descriptor);
                 var canEdit = Boolean(accessor);
+
+                if (binding.kind === 'image') {
+                    var canDecodeImage = typeof (loadedRiveRuntime && loadedRiveRuntime.decodeImage) === 'function';
+                    if (binding.input) binding.input.disabled = !canEdit || !canDecodeImage;
+                    if (binding.assetSelect) {
+                        binding.assetSelect.disabled = !canEdit;
+                        Array.prototype.forEach.call(binding.assetSelect.options, function (option) {
+                            if (option.value === '__open__' || option.value.indexOf('embedded:') === 0) {
+                                option.disabled = !canDecodeImage;
+                            }
+                        });
+                    }
+                    return;
+                }
 
                 if (binding.input) binding.input.disabled = !canEdit;
                 if (binding.colorInput) binding.colorInput.disabled = !canEdit;

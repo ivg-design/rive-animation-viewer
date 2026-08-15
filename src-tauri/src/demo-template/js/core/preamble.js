@@ -71,6 +71,8 @@
         let lastFpsUpdate = 0;
         let frameCount = 0;
         let isFallbackFullscreenMode = false;
+        let loadedRiveRuntime = null;
+        const embeddedImageAssets = new Map();
 
         function controlSnapshotKeyForDescriptor(descriptor) {
             if (!descriptor) return null;
@@ -133,6 +135,93 @@
                 });
             }
             return total;
+        }
+
+        function readEmbeddedAssetField(asset, fieldName) {
+            try {
+                var value = asset && asset[fieldName];
+                return typeof value === 'function' ? value.call(asset) : value;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function copyEmbeddedAssetBytes(bytes) {
+            if (bytes instanceof Uint8Array) return new Uint8Array(bytes);
+            if (ArrayBuffer.isView(bytes)) {
+                return new Uint8Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+            }
+            if (bytes instanceof ArrayBuffer) return new Uint8Array(bytes.slice(0));
+            return null;
+        }
+
+        function embeddedBytesMatch(bytes, offset, signature) {
+            return signature.every(function (value, index) { return bytes[offset + index] === value; });
+        }
+
+        function detectEmbeddedImageMimeType(bytes) {
+            if (bytes && bytes.length >= 12 && embeddedBytesMatch(bytes, 0, [0x89, 0x50, 0x4e, 0x47])) {
+                return 'image/png';
+            }
+            if (bytes && bytes.length >= 12
+                && embeddedBytesMatch(bytes, 0, [0x52, 0x49, 0x46, 0x46])
+                && embeddedBytesMatch(bytes, 8, [0x57, 0x45, 0x42, 0x50])) {
+                return 'image/webp';
+            }
+            if (bytes && bytes.length >= 3 && embeddedBytesMatch(bytes, 0, [0xff, 0xd8, 0xff])) {
+                return 'image/jpeg';
+            }
+            if (bytes && bytes.length >= 12 && embeddedBytesMatch(bytes, 4, [0x66, 0x74, 0x79, 0x70])) {
+                var brand = String.fromCharCode.apply(null, bytes.slice(8, 12));
+                if (brand === 'avif' || brand === 'avis') return 'image/avif';
+            }
+            return 'application/octet-stream';
+        }
+
+        var anonymousEmbeddedImageSequence = 0;
+
+        function captureEmbeddedImageAsset(asset, bytes) {
+            var copiedBytes = copyEmbeddedAssetBytes(bytes);
+            if (!readEmbeddedAssetField(asset, 'isImage') || !copiedBytes || !copiedBytes.length) return false;
+            var name = String(readEmbeddedAssetField(asset, 'name') || '').trim();
+            if (!name) return false;
+            var uniqueFilename = String(readEmbeddedAssetField(asset, 'uniqueFilename') || '').trim();
+            var assetId = String(readEmbeddedAssetField(asset, 'id') || '').trim();
+            var key = uniqueFilename || assetId || 'anonymous-image-' + anonymousEmbeddedImageSequence++;
+            embeddedImageAssets.set(key, {
+                bytes: copiedBytes,
+                extension: String(readEmbeddedAssetField(asset, 'fileExtension') || '').trim(),
+                key: key,
+                mimeType: detectEmbeddedImageMimeType(copiedBytes),
+                name: name,
+                uniqueFilename: uniqueFilename,
+            });
+            return true;
+        }
+
+        function getEmbeddedImageAssets() {
+            var nameCounts = new Map();
+            return Array.from(embeddedImageAssets.values()).map(function (entry) {
+                var occurrence = (nameCounts.get(entry.name) || 0) + 1;
+                nameCounts.set(entry.name, occurrence);
+                return Object.assign({}, entry, {
+                    label: occurrence === 1 ? entry.name : entry.name + ' (' + occurrence + ')',
+                });
+            });
+        }
+
+        function resetEmbeddedImageAssets() {
+            embeddedImageAssets.clear();
+            anonymousEmbeddedImageSequence = 0;
+        }
+
+        function composeEmbeddedImageAssetLoader(userAssetLoader) {
+            return function (asset, bytes) {
+                captureEmbeddedImageAsset(asset, bytes);
+                return typeof userAssetLoader === 'function'
+                    ? userAssetLoader.apply(this, arguments)
+                    : false;
+            };
         }
 
         /* ── DOM references ──────────────────────────────────── */

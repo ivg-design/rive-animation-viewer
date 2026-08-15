@@ -17,36 +17,15 @@ export function countAllInputs(node) {
     return total;
 }
 
-export function formatVmListItemLabel(listName, index, itemInstance = null) {
-    const authoredName = getVmListItemName(itemInstance);
+export function formatVmListItemLabel(_listName, index, itemInstance = null, riveInstance = null) {
+    const authoredName = getVmListItemName(itemInstance, riveInstance);
     if (authoredName) {
         return authoredName;
     }
-
-    const words = String(listName || 'Item')
-        .trim()
-        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-        .replace(/[_-]+/g, ' ')
-        .split(/\s+/)
-        .filter(Boolean);
-    const lastIndex = words.length - 1;
-    if (lastIndex >= 0) {
-        const word = words[lastIndex];
-        if (/ies$/i.test(word) && word.length > 3) {
-            words[lastIndex] = `${word.slice(0, -3)}y`;
-        } else if (/(ches|shes|xes|zes)$/i.test(word)) {
-            words[lastIndex] = word.slice(0, -2);
-        } else if (/s$/i.test(word) && !/ss$/i.test(word)) {
-            words[lastIndex] = word.slice(0, -1);
-        }
-    }
-    const label = words
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ') || 'Item';
-    return `${label} ${index + 1}`;
+    return `Row ${index + 1}`;
 }
 
-export function buildVmListTopologySignature(rootVm) {
+export function buildVmListTopologySignature(rootVm, riveInstance = null) {
     if (!rootVm || typeof rootVm !== 'object') {
         return null;
     }
@@ -84,7 +63,12 @@ export function buildVmListTopologySignature(rootVm) {
             for (let index = 0; index < listLength; index += 1) {
                 const itemInstance = getVmListItemAt(listAccessor, index);
                 const itemPath = `${fullPath}/${index}`;
-                topology.push(['item', itemPath, Boolean(itemInstance)]);
+                topology.push([
+                    'item',
+                    itemPath,
+                    Boolean(itemInstance),
+                    itemInstance ? formatVmListItemLabel(name, index, itemInstance, riveInstance) : null,
+                ]);
                 if (itemInstance) {
                     walk(itemInstance, itemPath);
                 }
@@ -98,7 +82,7 @@ export function buildVmListTopologySignature(rootVm) {
     return topology.length ? JSON.stringify(topology) : null;
 }
 
-export function buildVmHierarchy(rootVm) {
+export function buildVmHierarchy(rootVm, riveInstance = null) {
     const seenInputPaths = new Set();
     const activeInstances = new WeakSet();
     let totalInputs = 0;
@@ -161,7 +145,12 @@ export function buildVmHierarchy(rootVm) {
                         continue;
                     }
                     const itemPath = `${fullPath}/${index}`;
-                    listNode.children.push(walk(itemInstance, formatVmListItemLabel(name, index, itemInstance), itemPath, 'instance'));
+                    listNode.children.push(walk(
+                        itemInstance,
+                        formatVmListItemLabel(name, index, itemInstance, riveInstance),
+                        itemPath,
+                        'instance',
+                    ));
                 }
                 node.children.push(listNode);
             }

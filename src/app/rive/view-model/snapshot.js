@@ -174,7 +174,7 @@ export function createVmSnapshotController({
         const snapshot = [];
         const seen = new Set();
         bindings.forEach((binding) => {
-            if (!binding) {
+            if (!binding || binding.kind === 'image') {
                 return;
             }
 
@@ -189,7 +189,7 @@ export function createVmSnapshotController({
                 return;
             }
 
-            let value = binding.kind === 'trigger' || binding.kind === 'image' ? null : accessor.value;
+            let value = binding.kind === 'trigger' ? null : accessor.value;
             let enumValues = null;
             if (binding.kind === 'number') {
                 const numericValue = Number(value);
@@ -300,7 +300,7 @@ export function createVmSnapshotController({
             return null;
         }
 
-        const hierarchy = buildVmHierarchy(rootVm);
+        const hierarchy = buildVmHierarchy(rootVm, getRiveInstance());
         if (!hierarchy) {
             return null;
         }
@@ -310,7 +310,9 @@ export function createVmSnapshotController({
 
     function serializeControlHierarchy() {
         const rootVm = resolveVmRootInstance(getRiveInstance());
-        const vmHierarchy = rootVm ? stripNestedRootVmInputs(buildVmHierarchy(rootVm)) : null;
+        const vmHierarchy = rootVm
+            ? stripNestedRootVmInputs(buildVmHierarchy(rootVm, getRiveInstance()))
+            : null;
         const stateMachineHierarchy = buildStateMachineHierarchy();
         const children = [];
 

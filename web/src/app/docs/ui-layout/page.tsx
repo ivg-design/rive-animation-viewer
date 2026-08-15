@@ -60,6 +60,10 @@ export default function UiLayout() {
       <p>
         The primary animation viewport. Renders the loaded Rive animation with the selected
         renderer (Canvas or WebGL2). Fit and alignment are controlled from the main toolbar.
+        In fixed-size mode, overflow-safe auto margins keep the canvas centered while it fits.
+        When it becomes oversized, the margins collapse safely, scrolling starts from the
+        authored top-left origin, and the central viewport exposes a styled 10px track, thumb,
+        and corner for both axes.
       </p>
 
       <h2>Properties Panel</h2>

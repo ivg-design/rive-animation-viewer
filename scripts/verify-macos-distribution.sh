@@ -12,6 +12,8 @@ updater_archive=$2
 expected_team_id=$3
 expected_arch=$4
 expected_version=$5
+repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+document_icon_source="$repo_root/src-tauri/icons/RiveFileIcon.icns"
 
 if [[ ! "$expected_team_id" =~ ^[A-Z0-9]{10}$ ]]; then
   echo "Expected Apple Team ID must be exactly 10 uppercase letters or digits" >&2
@@ -103,6 +105,45 @@ reject_forbidden_entitlements() {
   fi
 }
 
+require_plist_value() {
+  local plist=$1
+  local key_path=$2
+  local expected=$3
+  local actual
+
+  actual=$(/usr/libexec/PlistBuddy -c "Print :$key_path" "$plist" 2>/dev/null) \
+    || fail "Required plist value is missing: $key_path"
+  [[ "$actual" == "$expected" ]] \
+    || fail "Unexpected plist value for $key_path: $actual (expected $expected)"
+}
+
+require_document_icon_contract() {
+  local app_path=$1
+  local plist="$app_path/Contents/Info.plist"
+  local bundled_icon="$app_path/Contents/Resources/RiveFileIcon.icns"
+
+  [[ -s "$document_icon_source" ]] \
+    || fail "Tracked Rive document icon is missing: $document_icon_source"
+  [[ -s "$bundled_icon" ]] \
+    || fail "Bundled Rive document icon is missing: $bundled_icon"
+  cmp -s "$document_icon_source" "$bundled_icon" \
+    || fail "Bundled Rive document icon differs from the tracked master"
+
+  require_plist_value "$plist" "CFBundleDocumentTypes:0:CFBundleTypeExtensions:0" "riv"
+  require_plist_value "$plist" "CFBundleDocumentTypes:0:CFBundleTypeIconFile" "RiveFileIcon.icns"
+  require_plist_value "$plist" "CFBundleDocumentTypes:0:CFBundleTypeIconSystemGenerated" "false"
+  require_plist_value "$plist" "CFBundleDocumentTypes:0:CFBundleTypeRole" "Viewer"
+  require_plist_value "$plist" "CFBundleDocumentTypes:0:LSHandlerRank" "Alternate"
+  require_plist_value "$plist" "CFBundleDocumentTypes:0:LSItemContentTypes:0" "app.rive.editor.rive-file"
+  require_plist_value "$plist" "CFBundleDocumentTypes:0:LSItemContentTypes:1" "app.rive.animation.viewer.riv"
+
+  require_plist_value "$plist" "UTImportedTypeDeclarations:0:UTTypeIdentifier" "app.rive.editor.rive-file"
+  require_plist_value "$plist" "UTImportedTypeDeclarations:0:UTTypeIconFile" "RiveFileIcon.icns"
+  require_plist_value "$plist" "UTExportedTypeDeclarations:0:UTTypeIdentifier" "app.rive.animation.viewer.riv"
+  require_plist_value "$plist" "UTExportedTypeDeclarations:0:UTTypeIconFile" "RiveFileIcon.icns"
+  require_plist_value "$plist" "UTExportedTypeDeclarations:0:UTTypeConformsTo:0" "app.rive.editor.rive-file"
+}
+
 verify_app() {
   local app_path=$1
   local label=$2
@@ -141,6 +182,7 @@ verify_app() {
     || fail "$label has unexpected short version: $bundle_short_version"
   [[ "$bundle_version" == "$expected_version" ]] \
     || fail "$label has unexpected bundle version: $bundle_version"
+  require_document_icon_contract "$app_path"
   [[ -x "$main_binary" ]] || fail "$label main executable is missing: $main_binary"
   [[ -x "$sidecar" ]] || fail "$label MCP sidecar is missing: $sidecar"
 

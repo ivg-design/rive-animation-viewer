@@ -296,6 +296,20 @@
     background: #2c2c32;
 }
 
+.vm-image-control {
+    display: block;
+    min-width: 0;
+}
+
+.vm-image-control .vm-image-asset-select {
+    width: 100%;
+    min-width: 0;
+}
+
+.vm-image-file-input {
+    display: none;
+}
+
 .vm-color-control {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 56px;
@@ -321,4 +335,3 @@
     color: var(--text-white);
     font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
 }
-

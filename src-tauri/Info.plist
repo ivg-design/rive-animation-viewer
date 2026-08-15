@@ -2,7 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- RAV consumes the UTI owned by the official Rive editor. -->
+	<!-- RAV consumes the UTI owned by the official Rive editor and keeps its
+	     pre-2.4.3 UTI readable during Launch Services migration. -->
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -12,6 +13,10 @@
 			</array>
 			<key>CFBundleTypeIconFile</key>
 			<string>RiveFileIcon.icns</string>
+			<!-- Prevent modern Launch Services from replacing the authored
+			     document artwork with a generic page plus app badge. -->
+			<key>CFBundleTypeIconSystemGenerated</key>
+			<false/>
 			<key>CFBundleTypeName</key>
 			<string>Rive File</string>
 			<key>CFBundleTypeRole</key>
@@ -21,7 +26,37 @@
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>app.rive.editor.rive-file</string>
+				<string>app.rive.animation.viewer.riv</string>
 			</array>
+		</dict>
+	</array>
+	<!-- Existing RAV installations exported this identifier. Keep it declared
+	     with the new icon and make it conform to the official Rive file UTI so
+	     already-indexed .riv files migrate without a generic document badge. -->
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>app.rive.animation.viewer.riv</string>
+			<key>UTTypeDescription</key>
+			<string>Rive File (legacy RAV identifier)</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>app.rive.editor.rive-file</string>
+				<string>public.data</string>
+				<string>public.content</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>riv</string>
+				</array>
+				<key>public.mime-type</key>
+				<string>application/octet-stream</string>
+			</dict>
+			<key>UTTypeIconFile</key>
+			<string>RiveFileIcon.icns</string>
 		</dict>
 	</array>
 	<key>UTImportedTypeDeclarations</key>

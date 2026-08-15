@@ -3,6 +3,7 @@ import { detectDefaultStateMachineName } from '../../rive/default-state-machine.
 import { createRiveInstanceController } from '../../rive/instance-controller.js';
 import { createPlaybackController } from '../../rive/playback-controls.js';
 import { createVmControlsController } from '../../rive/vm-controls.js';
+import { createEmbeddedImageAssetCatalog } from '../../rive/assets/embedded-image-assets.js';
 
 export function createRiveStack({
     elements,
@@ -40,8 +41,10 @@ export function createRiveStack({
         updatePlaybackChips,
     } = callbacks;
 
+    const embeddedImageAssetCatalog = createEmbeddedImageAssetCatalog();
     const vmControlsController = createVmControlsController({
         elements,
+        getEmbeddedImageAssets: () => embeddedImageAssetCatalog.list(),
         getCurrentRuntime,
         getLoadedRuntime,
         getRiveInstance,
@@ -130,6 +133,7 @@ export function createRiveStack({
             updateInfo,
             updatePlaybackChips: updatePlaybackIndicators,
         },
+        embeddedImageAssetCatalog,
         elements,
         getCurrentCanvasSizing,
         getCurrentLayoutAlignment,

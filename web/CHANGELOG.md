@@ -8,17 +8,26 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- **ViewModel list and image controls** — Auto-generated list controls use each item's authored instance name when available, with a readable one-based list-derived fallback otherwise. ViewModel image properties now appear as file controls that select, decode, replace, and clear images.
+- **Canonical ViewModel list labels** — Auto-generated list rows use a direct authored instance name when available. When the Web wrapper exposes only the ViewModel definition name, RAV uses a unique match between that definition's canonical instance-name set and a readable string property; ambiguous or missing matches fall back to `Row N`. `viewModelName` is never presented as an authored row label.
+- **Embedded image controls** — Each ViewModel image property uses one full-width select containing every embedded raster asset followed by `Open file…` and `Clear`. `Open file…` invokes a hidden file input; there are no separate folder/Clear buttons and no `Embedded image…` placeholder. The catalog uses `uniqueFilename` identity, magic-byte MIME detection, and numbered labels for duplicate display names. The same embedded bytes and control carry into standalone exports.
 - **Standalone editor-config preservation** — Applied editor JavaScript/config, including lifecycle callbacks, is embedded in standalone exports and executed in editor source mode after RAV binding and snapshot restoration; unsaved drafts are not exported as active config.
-- **`.riv` desktop opening and file identity** — macOS Launch Services references the official `app.rive.editor.rive-file` UTI as an alternate Viewer and uses the tracked `src-tauri/icons/RiveFileIcon.icns` copied to `Contents/Resources/RiveFileIcon.icns`. A version-gated post-update first launch refreshes the shipped bundle with `lsregister -f` without restarting Finder, changing the Viewer/Alternate rank, or taking over the default handler.
+- **`.riv` desktop declarations** — macOS Launch Services declares both the official `app.rive.editor.rive-file` UTI and the pre-2.4.3 `app.rive.animation.viewer.riv` compatibility UTI as alternate Viewer types, each backed by `RiveFileIcon.icns`. A version-and-schema-gated post-update first launch refreshes the installed bundle with `lsregister -f` without restarting Finder, changing the Viewer/Alternate rank, or taking over the default handler.
 
 ### Changed
 
-- **Released runtime evidence** — Renderer coverage passed against the exact Web 2.40.0 package line aligned to runtime-v0.1.271 for WebGL2 and Canvas, with canary v0.1.272 kept separate.
+- **Private acceptance status** — `2.4.3` is a private GitHub draft candidate, not a public release. The public release and `latest.json` feed remain unchanged pending isolated signed-updater acceptance and separate installed-app Launch Services/Finder verification.
+- **Safe runtime default** — Web 2.40.0 / runtime-v0.1.271 remains selectable, but live RAV MCP testing proved that it double-offsets nested, data-bound images in `leaderboard_v4.riv` in both WebGL2 and Canvas. RAV defaults to 2.39.2, where the authored layout is preserved. A one-time migration changes stored `latest` and `2.40.0` preferences to 2.39.2; explicitly choosing either again shows an authored-layout warning. Canary v0.1.272 remains separate.
+- **Updater-acceptance isolation** — The Tauri main window is declared with `create: false` and constructed from config in Rust. Acceptance mode alone enables an incognito WebView because macOS Foundation ignores a substituted `HOME`; production keeps its persistent WebView profile.
+
+### Fixed
+
+- **Fixed-canvas centering and overflow** — Overflow-safe auto margins keep a fixed canvas centered while it fits, then collapse safely so oversized content scrolls from its authored top-left origin. The central scroller uses a styled 10px scrollbar track, thumb, and corner.
 
 ### Validation
 
-- **Release gates passed** — Full JavaScript, Rust, clippy, exact WebGL2/Canvas fixture, generated bundle metadata/icon, Launch Services, and cold/warm `.riv` open-routing checks passed. Updater signing/notarization still requires coordinator release credentials.
+- **Local candidate gates passed** — The full JavaScript suite (49 files / 264 tests), Rust tests (13 app tests plus 1 `rav-mcp` test), and clippy passed.
+- **Live fixture evidence** — RAV MCP reproduced the 2.40.0 layout regression in both renderers and confirmed the authored layout on 2.39.2. The exact list resolved to `D10`, `D16`, `D03`, `D11`, `D06`, `D02`, `D18`, `D20`, `D19`, `D12`. The exact file contains two embedded raster assets (`trophy-n2` and `avatar-placeholder`), one font, and two scripts; the image catalog exposed only the two rasters. Overflow-safe canvas centering/scrolling was exercised, and an exported standalone marker confirmed the applied editor script executed.
+- **Acceptance isolation boundary** — The signed-updater harness recursively fingerprints the installed `/Applications` bundle and production RAV user-data roots before and after its temporary update/relaunch and requires both to remain unchanged. Its receipt proves the signed updater path only; Launch Services registration and exact Finder icon migration remain a separate installed-app proof.
 
 ## [2.4.2] - 2026-07-25
 

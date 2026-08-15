@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -17,6 +17,7 @@ import {
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, '..');
 const CONFIG_PATH = path.join(REPO_ROOT, 'src-tauri', 'tauri.conf.json');
+const LSREGISTER_PATH = '/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister';
 
 function parseArgs(argv) {
   const args = {};
@@ -58,10 +59,67 @@ function compareVersions(left, right) {
   return 0;
 }
 
+export function fingerprintProtectedPaths(rootPaths) {
+    const hash = createHash('sha256');
+    let byteCount = 0;
+    let fileCount = 0;
+    let existingRootCount = 0;
+    const visit = (absolutePath, relativePath) => {
+      const entryStat = fs.lstatSync(absolutePath);
+      const kind = entryStat.isDirectory() ? 'directory'
+        : entryStat.isSymbolicLink() ? 'symlink'
+          : entryStat.isFile() ? 'file'
+            : 'other';
+      hash.update(`${kind}\0${relativePath}\0${entryStat.mode}\0${entryStat.size}\0`);
+      if (entryStat.isDirectory()) {
+        for (const name of fs.readdirSync(absolutePath).sort()) {
+          visit(path.join(absolutePath, name), relativePath ? path.join(relativePath, name) : name);
+        }
+      } else if (entryStat.isSymbolicLink()) {
+        hash.update(fs.readlinkSync(absolutePath));
+      } else if (entryStat.isFile()) {
+        hash.update(fs.readFileSync(absolutePath));
+        byteCount += entryStat.size;
+        fileCount += 1;
+      }
+    };
+    for (const [index, rootPath] of [...rootPaths].sort().entries()) {
+      const rootStat = fs.lstatSync(rootPath, { throwIfNoEntry: false });
+      const rootLabel = `root-${index}`;
+      if (!rootStat) {
+        hash.update(`missing\0${rootLabel}\0`);
+        continue;
+      }
+      existingRootCount += 1;
+      visit(rootPath, rootLabel);
+    }
+    return {
+      byteCount,
+      existingRootCount,
+      fileCount,
+      sha256: hash.digest('hex'),
+    };
+}
+
 function protectedAppFingerprint() {
-  const appPath = '/Applications/Rive Animation Viewer.app';
-  const stat = fs.statSync(appPath, { throwIfNoEntry: false });
-  return stat ? { exists: true, inode: stat.ino, modified: stat.mtimeMs, size: stat.size } : { exists: false };
+  return fingerprintProtectedPaths(['/Applications/Rive Animation Viewer.app']);
+}
+
+function protectedUserDataFingerprint() {
+  const userLibrary = path.join(os.homedir(), 'Library');
+  return fingerprintProtectedPaths([
+    path.join(userLibrary, 'Application Support', 'app.rive.animation.viewer'),
+    path.join(userLibrary, 'Caches', 'app.rive.animation.viewer'),
+    path.join(userLibrary, 'HTTPStorages', 'app.rive.animation.viewer'),
+    path.join(userLibrary, 'Preferences', 'app.rive.animation.viewer.plist'),
+    path.join(userLibrary, 'Saved Application State', 'app.rive.animation.viewer.savedState'),
+    path.join(userLibrary, 'WebKit', 'app.rive.animation.viewer'),
+  ]);
+}
+
+function unregisterLaunchServicesBundle(appPath) {
+  if (process.platform !== 'darwin' || !appPath || !fs.existsSync(appPath)) return;
+  run(LSREGISTER_PATH, ['-u', appPath]);
 }
 
 function assertNoRunningProductionViewer() {
@@ -71,10 +129,29 @@ function assertNoRunningProductionViewer() {
   }
 }
 
+export function normalizePrivateDraftRelease(release) {
+  return {
+    id: release.databaseId,
+    draft: release.isDraft,
+    tag_name: release.tagName,
+    target_commitish: release.targetCommitish,
+  };
+}
+
 function downloadPrivateDraft(args, assetDir) {
   run('gh', ['auth', 'status']);
-  const apiPath = `repos/${args.repo}/releases/tags/${encodeURIComponent(args.tag)}`;
-  const release = JSON.parse(run('gh', ['api', apiPath]));
+  // GitHub's REST `releases/tags/{tag}` endpoint returns 404 for unpublished
+  // drafts. `gh release view` resolves authenticated drafts through the release
+  // list, so normalize its field names to the REST-shaped object used below.
+  const release = normalizePrivateDraftRelease(JSON.parse(run('gh', [
+    'release',
+    'view',
+    args.tag,
+    '--repo',
+    args.repo,
+    '--json',
+    'databaseId,isDraft,tagName,targetCommitish',
+  ])));
   if (release.draft !== true) throw new Error('Acceptance requires an unpublished private draft release');
   if (release.tag_name !== args.tag) throw new Error('Private draft tag mismatch');
   if (release.target_commitish !== args['expected-commit']) {
@@ -89,6 +166,7 @@ function createServer({ localManifestPath, payloadName, payloadPath, token, requ
   const payloadRoute = `/${token}/payload/${encodeURIComponent(payloadName)}`;
   return http.createServer((request, response) => {
     const requestPath = new URL(request.url, 'http://127.0.0.1').pathname;
+    console.error(`[rav-updater-acceptance] ${request.method} ${requestPath}`);
     if (!['GET', 'HEAD'].includes(request.method)) {
       response.writeHead(405).end();
       return;
@@ -150,37 +228,68 @@ function isRunning(pid) {
   }
 }
 
-async function terminateAndWait(pid) {
+export function processCommandBelongsToApp(command, appPath) {
+  const executablePrefix = `${path.resolve(appPath)}${path.sep}Contents${path.sep}MacOS${path.sep}`;
+  return String(command || '').startsWith(executablePrefix);
+}
+
+function assertAcceptanceProcess(pid, appPath) {
+  let command;
+  try {
+    command = run('/bin/ps', ['-p', String(pid), '-o', 'command=']);
+  } catch (error) {
+    if (!isRunning(pid)) return false;
+    throw error;
+  }
+  const appRoot = fs.realpathSync(appPath);
+  if (!processCommandBelongsToApp(command, appRoot)) {
+    throw new Error(`Refusing to terminate PID ${pid}; process escaped acceptance bundle: ${command}`);
+  }
+  return true;
+}
+
+async function terminateAndWait(pid, appPath) {
   if (!Number.isInteger(pid) || !isRunning(pid)) return;
+  if (!appPath || !assertAcceptanceProcess(pid, appPath)) return;
   process.kill(pid, 'SIGTERM');
   const deadline = Date.now() + 3_000;
   while (Date.now() < deadline && isRunning(pid)) {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   if (isRunning(pid)) {
+    assertAcceptanceProcess(pid, appPath);
     process.kill(pid, 'SIGKILL');
   }
 }
 
 export async function runUpdaterAcceptance(argv = process.argv.slice(2)) {
-  if (process.platform !== 'darwin') throw new Error('Real updater acceptance currently requires macOS');
+  if (process.platform !== 'darwin') throw new Error('Synthetic signed-updater acceptance currently requires macOS');
   const args = parseArgs(argv);
   if (!/^[0-9a-f]{40}$/.test(args['expected-commit'])) throw new Error('--expected-commit must be a full Git SHA');
   assertNoRunningProductionViewer();
 
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rav-updater-acceptance-'));
+  // macOS exposes /var as a symlink to /private/var. Tauri's updater rejects a
+  // starting executable whose path traverses a symlink, so launch exclusively
+  // through the canonical temporary path.
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rav-updater-acceptance-')));
   const assetDir = path.join(root, 'assets');
   const isolatedHome = path.join(root, 'home');
   const localManifestPath = path.join(root, 'local-latest.json');
   const output = path.resolve(args.output);
+  fs.rmSync(output, { force: true });
   fs.mkdirSync(assetDir);
   fs.mkdirSync(isolatedHome);
   const beforeProtectedApp = protectedAppFingerprint();
+  const beforeProtectedUserData = protectedUserDataFingerprint();
   let server;
   let child;
   let bootstrapPid;
   let candidatePid;
+  let bootstrapTarget;
+  let requests;
   let passed = false;
+  let launchServicesUnregistered = false;
+  let pendingReceiptPath;
 
   try {
     const release = downloadPrivateDraft(args, assetDir);
@@ -203,7 +312,7 @@ export async function runUpdaterAcceptance(argv = process.argv.slice(2)) {
       : ['darwin-x86_64', 'darwin-x86_64-app'];
 
     const token = randomBytes(24).toString('hex');
-    const requests = { manifest: 0, payload: 0 };
+    requests = { manifest: 0, payload: 0 };
     server = createServer({ localManifestPath, payloadName, payloadPath, requests, token });
     const port = await listen(server);
     const baseUrl = `http://127.0.0.1:${port}/${token}`;
@@ -216,7 +325,7 @@ export async function runUpdaterAcceptance(argv = process.argv.slice(2)) {
     });
 
     const bootstrapSource = path.resolve(args['bootstrap-app']);
-    const bootstrapTarget = path.join(root, 'Rive Animation Viewer.app');
+    bootstrapTarget = path.join(root, 'Rive Animation Viewer.app');
     run('/usr/bin/ditto', ['--noqtn', bootstrapSource, bootstrapTarget]);
     const bootstrapVersion = readPlistValue(bootstrapTarget, 'CFBundleShortVersionString');
     if (compareVersions(bootstrapVersion, ledger.version) >= 0) {
@@ -265,12 +374,23 @@ export async function runUpdaterAcceptance(argv = process.argv.slice(2)) {
     if (requests.manifest < 1 || requests.payload < 1) {
       throw new Error('Updater did not request both the manifest and signed payload');
     }
-    if (JSON.stringify(beforeProtectedApp) !== JSON.stringify(protectedAppFingerprint())) {
-      throw new Error('/Applications/Rive Animation Viewer.app changed during isolated acceptance');
-    }
-
     const payload = ledger.assets.find((asset) => asset.name === payloadName);
     const manifest = ledger.assets.find((asset) => asset.name === 'latest.json');
+    await terminateAndWait(candidatePid, bootstrapTarget);
+    await terminateAndWait(bootstrapPid, bootstrapTarget);
+    unregisterLaunchServicesBundle(bootstrapTarget);
+    launchServicesUnregistered = true;
+    server.closeAllConnections?.();
+    await new Promise((resolve) => server.close(resolve));
+    server = undefined;
+    const afterProtectedApp = protectedAppFingerprint();
+    const afterProtectedUserData = protectedUserDataFingerprint();
+    if (JSON.stringify(beforeProtectedApp) !== JSON.stringify(afterProtectedApp)) {
+      throw new Error('/Applications/Rive Animation Viewer.app changed during isolated acceptance');
+    }
+    if (JSON.stringify(beforeProtectedUserData) !== JSON.stringify(afterProtectedUserData)) {
+      throw new Error('Production RAV user data changed during isolated acceptance');
+    }
     const receipt = {
       schemaVersion: 1,
       kind: 'rav-updater-acceptance-receipt',
@@ -294,22 +414,39 @@ export async function runUpdaterAcceptance(argv = process.argv.slice(2)) {
       relaunchObserved: candidateMarker.pid !== bootstrapMarker.pid,
       isolatedTempBundle: true,
       protectedApplicationsBundleUnchanged: true,
+      protectedProductionUserDataUnchanged: true,
+      protectedApplicationsFingerprint: afterProtectedApp,
+      protectedProductionUserDataFingerprint: afterProtectedUserData,
     };
-    await terminateAndWait(candidatePid);
-    await terminateAndWait(bootstrapPid);
+    if (!args.keepWorkdir) fs.rmSync(root, { recursive: true, force: true });
     fs.mkdirSync(path.dirname(output), { recursive: true });
-    fs.writeFileSync(output, `${JSON.stringify(receipt, null, 2)}\n`);
+    pendingReceiptPath = `${output}.pending-${process.pid}`;
+    fs.writeFileSync(pendingReceiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    fs.renameSync(pendingReceiptPath, output);
+    pendingReceiptPath = undefined;
     passed = true;
     return receipt;
   } finally {
-    await terminateAndWait(candidatePid);
-    await terminateAndWait(bootstrapPid || child?.pid);
-    if (server) {
-      server.closeAllConnections?.();
-      await new Promise((resolve) => server.close(resolve));
+    if (requests) {
+      console.error(`[rav-updater-acceptance] requests ${JSON.stringify(requests)}`);
     }
-    if (passed && !args.keepWorkdir) fs.rmSync(root, { recursive: true, force: true });
-    else if (!passed) console.error(`Acceptance work directory retained for diagnosis: ${root}`);
+    if (!passed) {
+      await terminateAndWait(candidatePid, bootstrapTarget);
+      await terminateAndWait(bootstrapPid || child?.pid, bootstrapTarget);
+      if (!launchServicesUnregistered && bootstrapTarget && fs.existsSync(bootstrapTarget)) {
+        try {
+          unregisterLaunchServicesBundle(bootstrapTarget);
+        } catch (error) {
+          console.error(`Failed to unregister temporary acceptance bundle: ${error.message}`);
+        }
+      }
+      if (server) {
+        server.closeAllConnections?.();
+        await new Promise((resolve) => server.close(resolve));
+      }
+      if (pendingReceiptPath) fs.rmSync(pendingReceiptPath, { force: true });
+      console.error(`Acceptance work directory retained for diagnosis: ${root}`);
+    }
   }
 }
 

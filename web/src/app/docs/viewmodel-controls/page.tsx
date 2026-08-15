@@ -55,7 +55,7 @@ export default function ViewModelControls() {
           <tr><td>Trigger</td><td>Button</td><td>Fires the trigger once per click</td></tr>
           <tr><td>Enum</td><td>Dropdown</td><td>Lists all enum values, selects immediately</td></tr>
           <tr><td>Color</td><td>Color picker + alpha</td><td>Native color input with alpha slider</td></tr>
-          <tr><td>Image</td><td>File picker + CLEAR</td><td>Decodes a selected image through the loaded runtime, replaces the property, or clears it to <code>null</code></td></tr>
+          <tr><td>Image</td><td>One full-width source select</td><td>Lists every embedded raster asset, then <strong>Open file…</strong> and <strong>Clear</strong>; the file input stays hidden and there are no separate action buttons</td></tr>
         </tbody>
       </table>
 
@@ -68,11 +68,18 @@ export default function ViewModelControls() {
       <h2>Dynamic Lists</h2>
       <p>
         ViewModel lists show every item that currently exists &mdash; there is no ten-row cap.
-        RAV uses each item&apos;s authored instance name when the runtime exposes one. If an item
-        has no readable authored name, RAV falls back to a readable one-based label derived from
-        the list property, so a list named <code>rows</code> appears as <strong>Row 1</strong>,
-        <strong>Row 2</strong>, and so on. When animation logic changes the controlling count,
-        the Properties panel rebuilds from the live list topology automatically.
+        RAV first uses a direct authored instance name when the runtime exposes one. If the Web
+        wrapper exposes only the definition&apos;s <code>viewModelName</code>, RAV compares readable
+        string properties with that definition&apos;s canonical instance-name set and accepts only
+        one unique match. Ambiguous or missing matches fall back to <strong>Row 1</strong>,
+        <strong>Row 2</strong>, and so on; the generic definition name is never presented as an
+        authored row label. When animation logic changes the controlling count, the Properties
+        panel rebuilds from the live list topology automatically.
+      </p>
+      <p>
+        In the validated <code>leaderboard_v4.riv</code> fixture, runtime order resolves exactly
+        to <code>D10</code>, <code>D16</code>, <code>D03</code>, <code>D11</code>, <code>D06</code>,
+        <code>D02</code>, <code>D18</code>, <code>D20</code>, <code>D19</code>, <code>D12</code>.
       </p>
       <p>
         MCP paths use the runtime&apos;s zero-based index even though labels are one-based. For
@@ -100,10 +107,28 @@ export default function ViewModelControls() {
         Section headers display the exact name from the Rive file, preserving original casing,
         dashes, and special characters.
       </p>
+      <h2>Embedded Images</h2>
       <p>
-        Image controls are intentionally live-only: selecting a file calls the released runtime&apos;s
-        image decoder, and <strong>CLEAR</strong> writes <code>null</code>. Decoded image objects are
-        not included in JSON snapshots or generated control-value payloads.
+        RAV captures raster bytes embedded in the loaded <code>.riv</code> while leaving the
+        runtime&apos;s normal asset loading intact. Each image property gets one full-width select:
+        every captured raster appears first, followed by <strong>Open file…</strong> and
+        <strong>Clear</strong>. <strong>Open file…</strong> invokes a hidden external file input.
+        There is no separate folder button, separate clear button, or <code>Embedded image…</code>
+        placeholder.
+      </p>
+      <p>
+        Catalog entries use the runtime asset&apos;s <code>uniqueFilename</code> identity, determine
+        PNG, WebP, JPEG, or AVIF MIME from the bytes rather than trusting an extension, and add
+        numbered labels when display names repeat. The exact <code>leaderboard_v4.riv</code>
+        contains two embedded rasters (<code>trophy-n2</code> and
+        <code>avatar-placeholder</code>), one embedded font, and two embedded scripts; the image
+        select intentionally catalogs only the two rasters. Standalone exports rebuild the same
+        catalog and control.
+      </p>
+      <p>
+        Selecting an image calls the loaded runtime&apos;s decoder; <strong>Clear</strong> writes
+        <code>null</code>. Decoded image objects are live runtime values and are not included in
+        JSON snapshots or generated control-value payloads.
       </p>
     </>
   );

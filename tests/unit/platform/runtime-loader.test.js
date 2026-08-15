@@ -344,7 +344,8 @@ describe('platform/runtime-loader', () => {
 
         await harness.controller.setupRuntimeVersionPicker();
         expect(select.disabled).toBe(false);
-        expect(select.innerHTML).toContain('Latest (auto: 2.40.0)');
+        expect(select.innerHTML).toContain('Latest (auto: 2.40.0; authored-layout risk)');
+        expect(select.innerHTML).toContain('2.40.0 (authored-layout risk)');
 
         select.value = 'custom';
         select.dispatchEvent(new Event('change'));
@@ -361,6 +362,16 @@ describe('platform/runtime-loader', () => {
 
         expect(harness.getRuntimeVersionToken()).toBe('2.40.0');
         expect(harness.storage.setItem).toHaveBeenCalledWith(RUNTIME_VERSION_PREF_STORAGE_KEY, '2.40.0');
+        await vi.waitFor(() => {
+            expect(harness.callbacks.showError).toHaveBeenCalledWith(
+                'Runtime webgl2@2.40.0 has a known authored-layout regression that can displace nested images. Use 2.39.2 unless you are explicitly testing this runtime.',
+            );
+        });
+        expect(harness.callbacks.logEvent).toHaveBeenCalledWith(
+            'native',
+            'runtime-layout-risk',
+            expect.stringContaining('known authored-layout regression'),
+        );
     });
 
     it('uses Cache API assets and only warns once for unsupported scripting runtimes', async () => {

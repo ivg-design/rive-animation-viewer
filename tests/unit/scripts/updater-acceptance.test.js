@@ -10,6 +10,11 @@ import {
     verifyUpdaterAcceptanceReceipt,
     verifyUpdaterStagingLedger,
 } from '../../../scripts/updater-acceptance-lib.mjs';
+import {
+    fingerprintProtectedPaths,
+    normalizePrivateDraftRelease,
+    processCommandBelongsToApp,
+} from '../../../scripts/run-updater-acceptance.mjs';
 
 const VERSION = '9.8.7';
 const COMMIT = 'a'.repeat(40);
@@ -81,6 +86,43 @@ async function createLedger(fixture) {
 }
 
 describe('updater acceptance provenance', () => {
+    it('fingerprints protected path contents recursively', () => {
+        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rav-protected-path-test-'));
+        const nested = path.join(root, 'Rive Animation Viewer.app', 'Contents');
+        fs.mkdirSync(nested, { recursive: true });
+        const executable = path.join(nested, 'app');
+        fs.writeFileSync(executable, 'one');
+        const before = fingerprintProtectedPaths([path.join(root, 'Rive Animation Viewer.app')]);
+        fs.writeFileSync(executable, 'two');
+        const after = fingerprintProtectedPaths([path.join(root, 'Rive Animation Viewer.app')]);
+        expect(before.fileCount).toBe(1);
+        expect(before.sha256).not.toBe(after.sha256);
+        fs.rmSync(root, { recursive: true, force: true });
+    });
+
+    it('normalizes authenticated gh release-view metadata for a private draft', () => {
+        expect(normalizePrivateDraftRelease({
+            databaseId: 370886926,
+            isDraft: true,
+            tagName: `v${VERSION}`,
+            targetCommitish: COMMIT,
+        })).toEqual({
+            id: 370886926,
+            draft: true,
+            tag_name: `v${VERSION}`,
+            target_commitish: COMMIT,
+        });
+    });
+
+    it('limits destructive cleanup to executables inside the isolated app bundle', () => {
+        const appPath = '/private/tmp/rav-acceptance/Rive Animation Viewer.app';
+        expect(processCommandBelongsToApp(
+            `${appPath}/Contents/MacOS/rive-animation-viewer --acceptance`,
+            appPath,
+        )).toBe(true);
+        expect(processCommandBelongsToApp('/Applications/Other.app/Contents/MacOS/other', appPath)).toBe(false);
+    });
+
     it('creates and re-verifies a byte-exact signed private-draft ledger', async () => {
         const fixture = createFixture();
         try {
@@ -182,6 +224,19 @@ describe('updater acceptance provenance', () => {
                 relaunchObserved: true,
                 isolatedTempBundle: true,
                 protectedApplicationsBundleUnchanged: true,
+                protectedProductionUserDataUnchanged: true,
+                protectedApplicationsFingerprint: {
+                    byteCount: 10,
+                    existingRootCount: 1,
+                    fileCount: 2,
+                    sha256: '1'.repeat(64),
+                },
+                protectedProductionUserDataFingerprint: {
+                    byteCount: 20,
+                    existingRootCount: 3,
+                    fileCount: 4,
+                    sha256: '2'.repeat(64),
+                },
             }));
             expect(verifyUpdaterAcceptanceReceipt({
                 ledgerPath: fixture.ledgerPath,

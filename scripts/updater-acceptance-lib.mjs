@@ -265,8 +265,21 @@ export function verifyUpdaterAcceptanceReceipt({ ledgerPath, receiptPath }) {
     || receipt.relaunchObserved !== true
     || receipt.isolatedTempBundle !== true
     || receipt.protectedApplicationsBundleUnchanged !== true
+    || receipt.protectedProductionUserDataUnchanged !== true
   ) {
     fail('Acceptance receipt did not prove isolated relaunch');
+  }
+  for (const [fingerprint, label] of [
+    [receipt.protectedApplicationsFingerprint, 'applications'],
+    [receipt.protectedProductionUserDataFingerprint, 'production user data'],
+  ]) {
+    if (!fingerprint
+      || !/^[0-9a-f]{64}$/.test(String(fingerprint.sha256))
+      || !Number.isSafeInteger(fingerprint.fileCount)
+      || !Number.isSafeInteger(fingerprint.byteCount)
+      || !Number.isSafeInteger(fingerprint.existingRootCount)) {
+      fail(`Acceptance receipt ${label} fingerprint is invalid`);
+    }
   }
   return receipt;
 }

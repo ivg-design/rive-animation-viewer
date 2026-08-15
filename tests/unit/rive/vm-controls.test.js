@@ -176,7 +176,7 @@ function createVmHarness() {
 }
 
 describe('rive/vm-controls', () => {
-    it('normalizes repeated list controls into one family key and one-based label', () => {
+    it('normalizes repeated list controls and uses authored or generic row labels', () => {
         expect(controlSelectionKeyForDescriptor({
             kind: 'number',
             path: 'rows/149/introY',
@@ -184,10 +184,41 @@ describe('rive/vm-controls', () => {
         expect(normalizeControlSelectionKey('vm:rows/0/introY:number')).toBe('vm:rows/*/introY:number');
         expect(normalizeControlSelectionKey('sm:Main:armed:boolean')).toBe('sm:Main:armed:boolean');
         expect(formatVmListItemLabel('rows', 0)).toBe('Row 1');
-        expect(formatVmListItemLabel('playerEntries', 149)).toBe('Player Entry 150');
+        expect(formatVmListItemLabel('playerEntries', 149)).toBe('Row 150');
         expect(formatVmListItemLabel('rows', 0, { name: 'Authored Row' })).toBe('Authored Row');
-        expect(getVmListItemName({ viewModelName: 'Named VM' })).toBe('Named VM');
+        expect(getVmListItemName({ instanceName: 'Instance Name', name: 'Fallback Name' })).toBe('Instance Name');
+        expect(getVmListItemName({ viewModelName: 'Named VM' })).toBeNull();
         expect(getVmListItemName({ name: '  ' })).toBeNull();
+    });
+
+    it('matches exactly one readable string value to canonical authored instance names', () => {
+        const riveInstance = {
+            viewModelByName: vi.fn((name) => (name === 'LeaderBoardRowVM'
+                ? { instanceNames: ['D01', 'D02', 'D03'] }
+                : null)),
+        };
+        const createItem = (values) => ({
+            properties: Object.keys(values).map((name) => ({ name })),
+            string: (name) => (name in values ? { value: values[name] } : null),
+            viewModelName: 'LeaderBoardRowVM',
+        });
+
+        const matchedItem = createItem({ driver_abbr: 'D01', status: 'Leader' });
+        expect(getVmListItemName(matchedItem, riveInstance)).toBe('D01');
+        expect(formatVmListItemLabel('rows', 0, matchedItem, riveInstance)).toBe('D01');
+
+        const ambiguousItem = createItem({ driver_abbr: 'D01', alternate: 'D02' });
+        expect(getVmListItemName(ambiguousItem, riveInstance)).toBeNull();
+        expect(formatVmListItemLabel('rows', 4, ambiguousItem, riveInstance)).toBe('Row 5');
+
+        const hierarchy = buildVmHierarchy({
+            list: (name) => (name === 'rows' ? {
+                instanceAt: () => matchedItem,
+                length: 1,
+            } : null),
+            properties: [{ name: 'rows' }],
+        }, riveInstance);
+        expect(hierarchy.children[0].children[0].label).toBe('D01');
     });
 
     it('resolves the VM root from the live instance or default view model', () => {
@@ -269,31 +300,119 @@ describe('rive/vm-controls', () => {
         ]);
     });
 
-    it('renders an image file picker and clear action for an image control', async () => {
+    it('renders embedded-image choices and file/clear actions in one select', async () => {
         const accessor = { value: null };
         const container = document.createElement('div');
         const bindings = [];
         const decodedImage = { unref: vi.fn() };
+        const decodeImage = vi.fn(async () => decodedImage);
+        const logEvent = vi.fn();
         appendVmImageControl({
             descriptor: { kind: 'image', name: 'avatar', path: 'avatar' },
             documentRef: document,
-            getLoadedRuntime: () => ({ decodeImage: vi.fn(async () => decodedImage) }),
+            getEmbeddedImageAssets: () => [
+                { name: 'avatar-placeholder', bytes: new Uint8Array([1, 2]) },
+                { name: 'trophy-n2', bytes: new Uint8Array([3, 4]) },
+            ],
+            getLoadedRuntime: () => ({ decodeImage }),
             inputContainer: container,
-            logEvent: vi.fn(),
+            logEvent,
             registerVmControlBinding: (_descriptor, binding) => bindings.push(binding),
             resolveControlAccessor: () => accessor,
         });
 
         const fileInput = container.querySelector('input[type="file"]');
-        const clearButton = container.querySelector('button');
+        const assetSelect = container.querySelector('.vm-image-asset-select');
         expect(fileInput?.accept).toBe('image/*');
-        expect(clearButton?.textContent).toBe('Clear');
+        expect(fileInput?.hidden).toBe(true);
+        expect(fileInput?.tabIndex).toBe(-1);
+        expect(assetSelect?.getAttribute('aria-label')).toBe('Image source for avatar');
+        expect(container.querySelector('button')).toBeNull();
+        expect(Array.from(assetSelect.options).map((option) => option.textContent)).toEqual([
+            'Select image…',
+            'avatar-placeholder',
+            'trophy-n2',
+            'Open file…',
+            'Clear',
+        ]);
         expect(bindings[0]?.kind).toBe('image');
+        expect(bindings[0]).toEqual(expect.objectContaining({ assetSelect, input: fileInput }));
+
+        const inputClick = vi.spyOn(fileInput, 'click').mockImplementation(() => {});
+        assetSelect.value = '__open__';
+        assetSelect.dispatchEvent(new Event('change'));
+        expect(inputClick).toHaveBeenCalledOnce();
+
+        assetSelect.value = 'embedded:0';
+        assetSelect.dispatchEvent(new Event('change'));
+        await vi.waitFor(() => expect(accessor.value).toBe(decodedImage));
+        expect(decodeImage).toHaveBeenCalledWith(new Uint8Array([1, 2]));
+        expect(decodedImage.unref).toHaveBeenCalledOnce();
 
         accessor.value = { existing: true };
-        clearButton.click();
+        assetSelect.value = '__clear__';
+        assetSelect.dispatchEvent(new Event('change'));
         expect(accessor.value).toBeNull();
-        expect(decodedImage.unref).not.toHaveBeenCalled();
+        expect(assetSelect.value).toBe('');
+
+        decodeImage.mockRejectedValueOnce(new Error('decode failed'));
+        const invalidImageFile = {
+            arrayBuffer: vi.fn().mockResolvedValue(new Uint8Array([9]).buffer),
+            name: 'invalid.png',
+        };
+        Object.defineProperty(fileInput, 'files', { configurable: true, value: [invalidImageFile] });
+        fileInput.dispatchEvent(new Event('change'));
+        await vi.waitFor(() => expect(logEvent).toHaveBeenCalledWith(
+            'ui',
+            'vm-image-error',
+            'Unable to set avatar image: decode failed',
+        ));
+        expect(assetSelect.querySelector('option[data-image-file-option]')).toBeNull();
+
+        const unreadableFile = {
+            arrayBuffer: vi.fn().mockRejectedValue(new Error('read failed')),
+            name: 'unreadable.png',
+        };
+        Object.defineProperty(fileInput, 'files', { configurable: true, value: [unreadableFile] });
+        fileInput.dispatchEvent(new Event('change'));
+        await vi.waitFor(() => expect(logEvent).toHaveBeenCalledWith(
+            'ui',
+            'vm-image-error',
+            'Unable to read unreadable.png: read failed',
+        ));
+    });
+
+    it('keeps the most recently selected image when decodes resolve out of order', async () => {
+        const accessor = { value: null };
+        const container = document.createElement('div');
+        const pending = [];
+        const decodeImage = vi.fn(() => new Promise((resolve) => pending.push(resolve)));
+        appendVmImageControl({
+            descriptor: { kind: 'image', name: 'avatar', path: 'avatar' },
+            documentRef: document,
+            getEmbeddedImageAssets: () => [
+                { name: 'A', bytes: new Uint8Array([1]) },
+                { name: 'B', bytes: new Uint8Array([2]) },
+            ],
+            getLoadedRuntime: () => ({ decodeImage }),
+            inputContainer: container,
+            logEvent: vi.fn(),
+            registerVmControlBinding: vi.fn(),
+            resolveControlAccessor: () => accessor,
+        });
+        const select = container.querySelector('.vm-image-asset-select');
+        select.value = 'embedded:0';
+        select.dispatchEvent(new Event('change'));
+        select.value = 'embedded:1';
+        select.dispatchEvent(new Event('change'));
+
+        const imageA = { unref: vi.fn() };
+        const imageB = { unref: vi.fn() };
+        pending[1](imageB);
+        await vi.waitFor(() => expect(accessor.value).toBe(imageB));
+        pending[0](imageA);
+        await vi.waitFor(() => expect(imageA.unref).toHaveBeenCalledOnce());
+        expect(accessor.value).toBe(imageB);
     });
 
     it('covers helper edge cases for safe calls, list accessors, and input kind detection', () => {
@@ -510,8 +629,8 @@ describe('rive/vm-controls', () => {
 
         expect(harness.elements.vmControlsCount.textContent).toBe('10');
         expect(harness.elements.vmControlsTree.textContent).toContain('items [2]');
-        expect(harness.elements.vmControlsTree.textContent).toContain('Item 1');
-        expect(harness.elements.vmControlsTree.textContent).toContain('Item 2');
+        expect(harness.elements.vmControlsTree.textContent).toContain('Row 1');
+        expect(harness.elements.vmControlsTree.textContent).toContain('Row 2');
         expect(findNumberInput('items/1/speed').value).toBe('24');
         expect(harness.callbacks.initLucideIcons).toHaveBeenCalledTimes(2);
         expect(harness.intervals).toHaveLength(1);

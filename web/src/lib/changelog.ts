@@ -7,6 +7,7 @@ export interface ChangelogEntry {
   added: string[];
   changed: string[];
   fixed: string[];
+  validation: string[];
 }
 
 export function parseChangelog(): ChangelogEntry[] {
@@ -30,7 +31,7 @@ export function parseChangelog(): ChangelogEntry[] {
 
   const entries: ChangelogEntry[] = [];
   let current: ChangelogEntry | null = null;
-  let currentSection: 'added' | 'changed' | 'fixed' | null = null;
+  let currentSection: 'added' | 'changed' | 'fixed' | 'validation' | null = null;
 
   for (const line of content.split('\n')) {
     const versionMatch = line.match(/^## \[(.+?)\] - (\d{4}-\d{2}-\d{2})/);
@@ -42,6 +43,7 @@ export function parseChangelog(): ChangelogEntry[] {
         added: [],
         changed: [],
         fixed: [],
+        validation: [],
       };
       currentSection = null;
       continue;
@@ -49,9 +51,14 @@ export function parseChangelog(): ChangelogEntry[] {
 
     if (!current) continue;
 
-    const sectionMatch = line.match(/^### (Added|Changed|Fixed)/);
+    const sectionMatch = line.match(/^### (Added|Changed|Fixed|Validation)/);
     if (sectionMatch) {
-      currentSection = sectionMatch[1].toLowerCase() as 'added' | 'changed' | 'fixed';
+      currentSection = sectionMatch[1].toLowerCase() as 'added' | 'changed' | 'fixed' | 'validation';
+      continue;
+    }
+
+    if (line.startsWith('### ')) {
+      currentSection = null;
       continue;
     }
 

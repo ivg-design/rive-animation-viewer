@@ -62,6 +62,33 @@ fn main() {
         .manage(PendingAppUpdate::default())
         .manage(updater_acceptance)
         .setup(|app| {
+            let updater_acceptance_enabled =
+                app.state::<app::updater::UpdaterAcceptance>().is_enabled();
+            let main_window_config = app
+                .config()
+                .app
+                .windows
+                .iter()
+                .find(|config| config.label == "main")
+                .cloned()
+                .ok_or_else(|| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::NotFound,
+                        "missing main webview window configuration",
+                    )
+                })?;
+            let mut main_window_builder =
+                tauri::WebviewWindowBuilder::from_config(app.handle(), &main_window_config)?;
+            if updater_acceptance_enabled {
+                // Foundation ignores a substituted HOME on macOS. A non-persistent
+                // WebKit data store keeps signed updater acceptance out of the real
+                // RAV localStorage/cache profile while production remains persistent.
+                main_window_builder = main_window_builder
+                    .incognito(true)
+                    .initialization_script("window.__RAV_UPDATER_ACCEPTANCE__ = true;");
+            }
+            main_window_builder.build()?;
+
             #[cfg(desktop)]
             {
                 let menu = build_desktop_menu(app.handle())?;
@@ -78,7 +105,7 @@ fn main() {
             }
 
             let updater_acceptance = app.state::<app::updater::UpdaterAcceptance>();
-            if updater_acceptance.is_enabled() {
+            if updater_acceptance_enabled {
                 updater_acceptance.write_launch_marker(app.handle())?;
             } else {
                 if let Err(error) =
@@ -100,10 +127,10 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             app::demo_bundle::make_demo_bundle,
             app::demo_bundle::make_demo_bundle_to_path,
-            app::mcp::bridge::get_mcp_server_path,
-            app::mcp::bridge::get_mcp_port,
-            app::mcp::bridge::set_mcp_port,
-            app::mcp::bridge::stop_mcp_bridge,
+            app::mcp::commands::get_mcp_server_path,
+            app::mcp::commands::get_mcp_port,
+            app::mcp::commands::set_mcp_port,
+            app::mcp::commands::stop_mcp_bridge,
             app::mcp::commands::get_mcp_setup_status,
             app::mcp::commands::install_mcp_client,
             app::mcp::commands::remove_mcp_client,
@@ -126,8 +153,13 @@ fn main() {
         .expect("error while building tauri application")
         .run(|app, event| {
             if matches!(event, tauri::RunEvent::Exit) {
-                if let Some(manager) = app.try_state::<McpBridgeManager>() {
-                    kill_spawned_mcp_bridge(app, &manager);
+                let updater_acceptance_enabled = app
+                    .try_state::<app::updater::UpdaterAcceptance>()
+                    .is_some_and(|acceptance| acceptance.is_enabled());
+                if !updater_acceptance_enabled {
+                    if let Some(manager) = app.try_state::<McpBridgeManager>() {
+                        kill_spawned_mcp_bridge(app, &manager);
+                    }
                 }
             }
 

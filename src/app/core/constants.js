@@ -1,11 +1,12 @@
-export const DEFAULT_RUNTIME_VERSION = '2.40.0';
+export const DEFAULT_RUNTIME_VERSION = '2.39.2';
 export const MIN_SCRIPTING_RUNTIME_VERSION = '2.34.0';
 export const DEFAULT_CANVAS_COLOR = '#0d1117';
 export const DEFAULT_CANVAS_WIDTH = 1280;
 export const DEFAULT_CANVAS_HEIGHT = 720;
 export const TRANSPARENT_CANVAS_COLOR = 'transparent';
 export const CLICK_THROUGH_POLL_INTERVAL_MS = 42;
-export const DEFAULT_RUNTIME_VERSION_TOKEN = 'latest';
+export const DEFAULT_RUNTIME_VERSION_TOKEN = DEFAULT_RUNTIME_VERSION;
+export const LATEST_RUNTIME_VERSION_TOKEN = 'latest';
 export const RUNTIME_VERSION_PREF_STORAGE_KEY = 'riveRuntimeVersionPreference';
 export const RUNTIME_FILE_VERSION_PREFS_STORAGE_KEY = 'riveRuntimeVersionPreferencesByFile';
 export const CANVAS_SIZING_PREF_STORAGE_KEY = 'ravCanvasSizingPreference';

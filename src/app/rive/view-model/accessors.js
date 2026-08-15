@@ -46,27 +46,97 @@ export function getVmListItemAt(listAccessor, index) {
     }
 }
 
-export function getVmListItemName(itemInstance) {
+function readVmStringMember(target, propertyName) {
+    if (!target || typeof target !== 'object') {
+        return null;
+    }
+
+    let value;
+    try {
+        value = target[propertyName];
+        if (typeof value === 'function') {
+            value = value.call(target);
+        }
+    } catch {
+        return null;
+    }
+
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function getCanonicalVmInstanceNames(riveInstance, viewModelName) {
+    const definition = safeVmMethodCall(riveInstance, 'viewModelByName', viewModelName);
+    if (!definition) {
+        return new Set();
+    }
+
+    let instanceNames;
+    try {
+        instanceNames = definition.instanceNames;
+        if (typeof instanceNames === 'function') {
+            instanceNames = instanceNames.call(definition);
+        }
+    } catch {
+        instanceNames = null;
+    }
+
+    if (!Array.isArray(instanceNames)) {
+        return new Set();
+    }
+
+    return new Set(instanceNames
+        .filter((name) => typeof name === 'string' && name.trim())
+        .map((name) => name.trim()));
+}
+
+function findCanonicalVmInstanceName(itemInstance, riveInstance) {
+    const viewModelName = readVmStringMember(itemInstance, 'viewModelName');
+    if (!viewModelName) {
+        return null;
+    }
+
+    const canonicalNames = getCanonicalVmInstanceNames(riveInstance, viewModelName);
+    if (!canonicalNames.size) {
+        return null;
+    }
+
+    let properties;
+    try {
+        properties = Array.isArray(itemInstance.properties) ? itemInstance.properties : [];
+    } catch {
+        properties = [];
+    }
+
+    const matches = new Set();
+    properties.forEach((property) => {
+        const propertyName = typeof property?.name === 'string' ? property.name : null;
+        if (!propertyName) {
+            return;
+        }
+
+        const accessor = safeVmMethodCall(itemInstance, 'string', propertyName);
+        const value = readVmStringMember(accessor, 'value');
+        if (value && canonicalNames.has(value)) {
+            matches.add(value);
+        }
+    });
+
+    return matches.size === 1 ? [...matches][0] : null;
+}
+
+export function getVmListItemName(itemInstance, riveInstance = null) {
     if (!itemInstance || typeof itemInstance !== 'object') {
         return null;
     }
 
-    for (const propertyName of ['name', 'viewModelName', 'instanceName']) {
-        let value;
-        try {
-            value = itemInstance[propertyName];
-            if (typeof value === 'function') {
-                value = value.call(itemInstance);
-            }
-        } catch {
-            value = null;
-        }
-        if (typeof value === 'string' && value.trim()) {
-            return value.trim();
+    for (const propertyName of ['instanceName', 'name']) {
+        const value = readVmStringMember(itemInstance, propertyName);
+        if (value) {
+            return value;
         }
     }
 
-    return null;
+    return findCanonicalVmInstanceName(itemInstance, riveInstance);
 }
 
 export function getVmAccessor(vmInstance, propertyName) {

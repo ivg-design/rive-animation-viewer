@@ -209,9 +209,18 @@ app inside the separately notarized DMG. Only then does publication move
 
 ## Private signed updater acceptance
 
-Acceptance exercises Tauri's real updater from an older 2.4.2 bootstrap app to
-the exact signed and notarized archive held in the private draft. It does not
-copy into `/Applications` and does not use the real user profile.
+Acceptance exercises the candidate's real Tauri updater mechanics from a
+synthetic disposable bootstrap to the exact signed and notarized archive held
+in the private draft. The bootstrap is built from the current acceptance-aware
+source, stamped `2.4.2`, and assigned a separate acceptance bundle identifier;
+it is **not** the public v2.4.2 binary. This lane proves signature verification,
+download, in-place replacement, and relaunch without publishing, but it cannot
+prove the literal public-v2.4.2-to-v2.4.3 GitHub `releases/latest` path. The
+public v2.4.2 binary has no private-draft endpoint override and GitHub excludes
+drafts from `releases/latest`, so that exact path is not available before
+publication. Keep this receipt scoped to synthetic signed-updater acceptance.
+It does not copy into `/Applications` and must not mutate the real production
+profile.
 
 The production updater config remains HTTPS-only and fixed at GitHub
 `releases/latest`. Insecure loopback transport is enabled only in
@@ -228,16 +237,25 @@ checks:
   public key before installation.
 
 The installed production candidate does not inherit the bootstrap's insecure
-transport setting. It only records the isolated relaunch marker; the harness
-then terminates it before a second acceptance update check.
+transport setting. The main window is declared with `create: false` in the
+Tauri config and constructed from that config in Rust. Only when
+`RAV_UPDATER_ACCEPTANCE=1` is active does the builder add `.incognito(true)`.
+This non-persistent WebView is required because macOS Foundation ignores a
+substituted `HOME` for WebKit storage. Normal production launches do not enable
+incognito mode and retain their persistent WebView profile. The candidate only
+records the isolated relaunch marker; the harness then terminates it before a
+second acceptance update check.
 
 Acceptance mode also skips Launch Services registration and MCP launcher/bridge
 integration. The harness copies the bootstrap into a fresh temporary root,
 redirects `HOME`, `TMPDIR`, and XDG directories there, serves only the selected
 manifest and payload on loopback, and requires launch markers proving a new PID
 and the candidate version from the same temporary `.app` path. It refuses to
-start while another RAV instance is running and verifies that the existing
-`/Applications/Rive Animation Viewer.app` metadata did not change.
+start while another RAV instance is running. Before and after the run it
+recursively fingerprints the complete `/Applications/Rive Animation Viewer.app`
+tree and the production RAV roots under Application Support, Caches,
+HTTPStorages, Preferences, Saved Application State, and WebKit; every
+fingerprint must remain unchanged.
 
 After the signed staging workflow completes, use the exact candidate checkout:
 
@@ -255,9 +273,16 @@ npm run accept:updater -- \
 
 The harness uses the authenticated `gh` session only to read the private draft.
 It verifies the ledger, all updater signatures, the canonical manifest, the
-served payload request, installation, and relaunch before writing a passing
-receipt. A failed run retains its temporary directory for diagnosis; a passing
-run removes it unless `--keep-workdir` is supplied.
+served payload request, installation, relaunch, and unchanged protected-path
+fingerprints before writing a passing receipt. A failed run retains its
+temporary directory for diagnosis; a passing run removes it unless
+`--keep-workdir` is supplied.
+
+The signed updater receipt is deliberately not Launch Services or Finder proof:
+acceptance skips Launch Services registration and never replaces the installed
+`/Applications` bundle. Exact Finder icon migration must be verified separately
+with the signed candidate installed over an older build and relaunched through
+the production path. Do not attach that claim to the updater receipt.
 
 Review the receipt, then record and promote it as two explicit operations:
 

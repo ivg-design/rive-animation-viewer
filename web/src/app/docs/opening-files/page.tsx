@@ -19,14 +19,21 @@ export default function OpeningFiles() {
 
       <h2>Double-Click (Desktop)</h2>
       <p>
-        On macOS, RAV registers the official <code>app.rive.editor.rive-file</code> UTI as an
-        alternate Viewer for <code>.riv</code> files and uses the dedicated Rive file icon.
-        Use Open With or an existing Finder association to open any <code>.riv</code> file
-        directly. If RAV is already running, the file is routed into the existing window;
-        RAV does not claim the default handler. After an app update, the first launch of the
-        new version refreshes that bundle&apos;s Launch Services registration once for the version
-        without restarting Finder or changing the Viewer/Alternate rank. On Windows, right-click
-        a <code>.riv</code> file and choose &quot;Open with&quot; to associate RAV.
+        On macOS, the 2.4.3 candidate declares both the official
+        <code>app.rive.editor.rive-file</code> UTI and the legacy
+        <code>app.rive.animation.viewer.riv</code> compatibility UTI as alternate Viewer types,
+        with the dedicated <code>RiveFileIcon.icns</code> assigned to both. Use Open With or an
+        existing Finder association to open any <code>.riv</code> file directly. If RAV is already
+        running, the file is routed into the existing window; RAV does not claim the default handler.
+      </p>
+      <p>
+        After an app update, the first launch of the new version refreshes that installed bundle&apos;s
+        Launch Services registration once for the version and schema, without restarting Finder or
+        changing the Viewer/Alternate rank. The declarations, icon resource, and refresh logic have
+        passed local bundle checks. Exact migration of an already-indexed Finder icon is still pending
+        separate installed-app verification and is not established by the isolated signed-updater
+        receipt, which skips Launch Services registration. On Windows,
+        right-click a <code>.riv</code> file and choose &quot;Open with&quot; to associate RAV.
       </p>
 
       <h2>Supported Formats</h2>

@@ -128,6 +128,10 @@ export default function ScriptEditor() {
         callbacks and non-toolbar settings survive outside RAV. Draft edits that have not been
         applied are not treated as live export configuration.
       </p>
+      <p>
+        Candidate acceptance included a live exported marker test: an applied editor script was
+        exported, opened as a standalone page, and observed executing there.
+      </p>
 
       <h2>The live instance: <code>window.riveInst</code></h2>
       <p>
