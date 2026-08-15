@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { promises as fs } from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
 
 const root = process.cwd();
 const distDir = path.join(root, 'dist');
@@ -24,20 +24,63 @@ function getGitShortSha() {
   }
 }
 
-function getGitWorktreeStatus() {
+function runGit(args, allowedStatuses = [0]) {
+  const result = spawnSync('git', args, {
+    cwd: root,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    encoding: 'utf8',
+  });
+
+  if (result.error) {
+    throw result.error;
+  }
+  if (!allowedStatuses.includes(result.status)) {
+    const stderr = result.stderr.trim();
+    throw new Error(
+      `git ${args.join(' ')} exited with status ${result.status}${stderr ? `: ${stderr}` : ''}`,
+    );
+  }
+  return result;
+}
+
+function getGitWorktreeState() {
   try {
-    return execSync('git status --porcelain=v2 --untracked-files=all', {
-      cwd: root,
-      stdio: ['ignore', 'pipe', 'ignore'],
-      encoding: 'utf8',
-    }).trim();
+    // Use content-aware comparisons for tracked files. On Windows, Tauri's TOML
+    // round-trip can change CRLF worktree bytes to LF while Git's normalized
+    // content remains identical; porcelain status alone can mislabel that as dirty.
+    const unstaged = runGit(['diff', '--quiet', '--no-ext-diff', '--'], [0, 1]);
+    const staged = runGit(['diff', '--cached', '--quiet', '--no-ext-diff', '--'], [0, 1]);
+    const untrackedResult = runGit(['ls-files', '--others', '--exclude-standard', '-z']);
+    const untracked = untrackedResult.stdout.split('\0').filter(Boolean);
+    const dirty = unstaged.status === 1 || staged.status === 1 || untracked.length > 0;
+    const diagnostics = [];
+
+    if (unstaged.status === 1) {
+      const details = runGit(['diff', '--name-status', '--no-ext-diff', '--']).stdout.trim();
+      diagnostics.push(`unstaged:\n${details || '(tracked content differs)'}`);
+    }
+    if (staged.status === 1) {
+      const details = runGit([
+        'diff',
+        '--cached',
+        '--name-status',
+        '--no-ext-diff',
+        '--',
+      ]).stdout.trim();
+      diagnostics.push(`staged:\n${details || '(index content differs)'}`);
+    }
+    if (untracked.length > 0) {
+      diagnostics.push(`untracked:\n${untracked.map((file) => `? ${file}`).join('\n')}`);
+    }
+
+    return { dirty, diagnostics: diagnostics.join('\n') };
   } catch (error) {
     if (isCiBuild()) {
       console.error('Unable to collect Git worktree status for a CI distribution build.');
       throw new Error('CI distribution builds require readable Git status.', { cause: error });
     }
     console.warn('Unable to collect Git worktree status; local build cleanliness is unknown.');
-    return '';
+    return { dirty: false, diagnostics: '' };
   }
 }
 
@@ -123,13 +166,13 @@ async function copyDir(src, dest) {
 }
 
 async function build() {
-  const gitWorktreeStatus = getGitWorktreeStatus();
-  if (gitWorktreeStatus && isCiBuild()) {
+  const gitWorktreeState = getGitWorktreeState();
+  if (gitWorktreeState.dirty && isCiBuild()) {
     console.error('Refusing CI distribution build from a dirty Git checkout:');
-    console.error(gitWorktreeStatus);
+    console.error(gitWorktreeState.diagnostics);
     throw new Error('CI distribution builds require a clean Git checkout.');
   }
-  const gitWorktreeSuffix = gitWorktreeStatus ? '-dirty' : '';
+  const gitWorktreeSuffix = gitWorktreeState.dirty ? '-dirty' : '';
   await fs.rm(distDir, { recursive: true, force: true });
   await ensureDir(distDir);
   const cliBuildNumber = parseCliBuildNumber(process.argv.slice(2));
