@@ -2,8 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- RAV consumes the UTI owned by the official Rive editor and keeps its
-	     pre-2.4.3 UTI readable during Launch Services migration. -->
+	<!-- RAV owns the desktop .riv playback association. The Rive editor exports
+	     .riv files but does not open them, so the viewer declares one canonical
+	     UTI instead of importing or conforming to the editor's UTI. -->
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -22,50 +23,21 @@
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
-			<string>Alternate</string>
+			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>app.rive.editor.rive-file</string>
 				<string>app.rive.animation.viewer.riv</string>
 			</array>
 		</dict>
 	</array>
-	<!-- Existing RAV installations exported this identifier. Keep it declared
-	     with the new icon and make it conform to the official Rive file UTI so
-	     already-indexed .riv files migrate without a generic document badge. -->
+	<!-- The exported declaration makes this bundle the UTI owner used by Finder. -->
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
 			<key>UTTypeIdentifier</key>
 			<string>app.rive.animation.viewer.riv</string>
 			<key>UTTypeDescription</key>
-			<string>Rive File (legacy RAV identifier)</string>
-			<key>UTTypeConformsTo</key>
-			<array>
-				<string>app.rive.editor.rive-file</string>
-				<string>public.data</string>
-				<string>public.content</string>
-			</array>
-			<key>UTTypeTagSpecification</key>
-			<dict>
-				<key>public.filename-extension</key>
-				<array>
-					<string>riv</string>
-				</array>
-				<key>public.mime-type</key>
-				<string>application/octet-stream</string>
-			</dict>
-			<key>UTTypeIconFile</key>
-			<string>RiveFileIcon.icns</string>
-		</dict>
-	</array>
-	<key>UTImportedTypeDeclarations</key>
-	<array>
-		<dict>
-			<key>UTTypeIdentifier</key>
-			<string>app.rive.editor.rive-file</string>
-			<key>UTTypeDescription</key>
-			<string>Rive File</string>
+			<string>Rive Animation</string>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.data</string>
@@ -80,7 +52,6 @@
 				<key>public.mime-type</key>
 				<string>application/vnd.rive.editor</string>
 			</dict>
-			<!-- Dedicated document icon supplied by the product owner. -->
 			<key>UTTypeIconFile</key>
 			<string>RiveFileIcon.icns</string>
 		</dict>

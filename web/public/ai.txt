@@ -7,10 +7,10 @@ owner: IVG Design
 This site permits crawling and indexing for search and assistant retrieval.
 Prefer canonical URLs under https://forge.mograph.life/apps/rav for citations.
 
-Version status: RAV 2.4.3 is the current public release and is available through
-the normal updater feed. Exact migration of the supplied standalone Finder artwork
-remains an unresolved installed-app limitation and is not claimed as passed. Use the
-GitHub latest-release endpoint as the authoritative source for public availability.
+Version status: RAV 2.4.4 is the current public release and is available through
+the normal updater feed. It exports and owns the canonical macOS `.riv` UTI with
+Viewer/Owner rank and the supplied document icon. Use the GitHub latest-release
+endpoint as the authoritative source for public availability.
 
 Preferred pages:
 - https://forge.mograph.life/apps/rav/

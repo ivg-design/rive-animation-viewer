@@ -31,7 +31,7 @@ pub(crate) fn registration_needed(
         .unwrap_or(true)
 }
 
-const DOCUMENT_TYPE_REGISTRATION_REVISION: &str = "riv-uti-v3";
+const DOCUMENT_TYPE_REGISTRATION_REVISION: &str = "riv-uti-owner-v4";
 
 fn registration_marker(package_version: &str, bundle: &Path) -> String {
     format!(
@@ -136,17 +136,17 @@ mod tests {
     #[test]
     fn refreshes_when_marker_is_missing_or_for_another_version() {
         let installed = Path::new("/Applications/Rive Animation Viewer.app");
-        assert!(registration_needed(None, "2.4.3", installed));
-        assert!(registration_needed(Some("2.4.2\n"), "2.4.3", installed));
-        assert!(registration_needed(Some("2.4.3\n"), "2.4.3", installed));
+        assert!(registration_needed(None, "2.4.4", installed));
+        assert!(registration_needed(Some("2.4.3\n"), "2.4.4", installed));
+        assert!(registration_needed(Some("2.4.4\n"), "2.4.4", installed));
         assert!(registration_needed(
-            Some("2.4.3:riv-uti-v3:/tmp/Rive Animation Viewer.app\n"),
-            "2.4.3",
+            Some("2.4.4:riv-uti-owner-v4:/tmp/Rive Animation Viewer.app\n"),
+            "2.4.4",
             installed,
         ));
         assert!(!registration_needed(
-            Some("2.4.3:riv-uti-v3:/Applications/Rive Animation Viewer.app\n"),
-            "2.4.3",
+            Some("2.4.4:riv-uti-owner-v4:/Applications/Rive Animation Viewer.app\n"),
+            "2.4.4",
             installed,
         ));
     }

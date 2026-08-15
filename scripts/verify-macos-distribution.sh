@@ -117,6 +117,15 @@ require_plist_value() {
     || fail "Unexpected plist value for $key_path: $actual (expected $expected)"
 }
 
+reject_plist_key() {
+  local plist=$1
+  local key_path=$2
+
+  if /usr/libexec/PlistBuddy -c "Print :$key_path" "$plist" >/dev/null 2>&1; then
+    fail "Forbidden plist key is present: $key_path"
+  fi
+}
+
 require_document_icon_contract() {
   local app_path=$1
   local plist="$app_path/Contents/Info.plist"
@@ -133,15 +142,16 @@ require_document_icon_contract() {
   require_plist_value "$plist" "CFBundleDocumentTypes:0:CFBundleTypeIconFile" "RiveFileIcon.icns"
   require_plist_value "$plist" "CFBundleDocumentTypes:0:CFBundleTypeIconSystemGenerated" "false"
   require_plist_value "$plist" "CFBundleDocumentTypes:0:CFBundleTypeRole" "Viewer"
-  require_plist_value "$plist" "CFBundleDocumentTypes:0:LSHandlerRank" "Alternate"
-  require_plist_value "$plist" "CFBundleDocumentTypes:0:LSItemContentTypes:0" "app.rive.editor.rive-file"
-  require_plist_value "$plist" "CFBundleDocumentTypes:0:LSItemContentTypes:1" "app.rive.animation.viewer.riv"
+  require_plist_value "$plist" "CFBundleDocumentTypes:0:LSHandlerRank" "Owner"
+  require_plist_value "$plist" "CFBundleDocumentTypes:0:LSItemContentTypes:0" "app.rive.animation.viewer.riv"
 
-  require_plist_value "$plist" "UTImportedTypeDeclarations:0:UTTypeIdentifier" "app.rive.editor.rive-file"
-  require_plist_value "$plist" "UTImportedTypeDeclarations:0:UTTypeIconFile" "RiveFileIcon.icns"
+  reject_plist_key "$plist" "UTImportedTypeDeclarations"
   require_plist_value "$plist" "UTExportedTypeDeclarations:0:UTTypeIdentifier" "app.rive.animation.viewer.riv"
   require_plist_value "$plist" "UTExportedTypeDeclarations:0:UTTypeIconFile" "RiveFileIcon.icns"
-  require_plist_value "$plist" "UTExportedTypeDeclarations:0:UTTypeConformsTo:0" "app.rive.editor.rive-file"
+  require_plist_value "$plist" "UTExportedTypeDeclarations:0:UTTypeConformsTo:0" "public.data"
+  require_plist_value "$plist" "UTExportedTypeDeclarations:0:UTTypeConformsTo:1" "public.content"
+  require_plist_value "$plist" "UTExportedTypeDeclarations:0:UTTypeTagSpecification:public.filename-extension:0" "riv"
+  require_plist_value "$plist" "UTExportedTypeDeclarations:0:UTTypeTagSpecification:public.mime-type" "application/vnd.rive.editor"
 }
 
 verify_app() {
@@ -183,6 +193,9 @@ verify_app() {
   [[ "$bundle_version" == "$expected_version" ]] \
     || fail "$label has unexpected bundle version: $bundle_version"
   require_document_icon_contract "$app_path"
+  if find "$app_path/Contents" -type d -name '*.appex' -print -quit | grep -q .; then
+    fail "$label contains an unexpected application extension"
+  fi
   [[ -x "$main_binary" ]] || fail "$label main executable is missing: $main_binary"
   [[ -x "$sidecar" ]] || fail "$label MCP sidecar is missing: $sidecar"
 

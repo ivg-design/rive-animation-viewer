@@ -19,21 +19,21 @@ export default function OpeningFiles() {
 
       <h2>Double-Click (Desktop)</h2>
       <p>
-        On macOS, the 2.4.3 release declares both the official
-        <code>app.rive.editor.rive-file</code> UTI and the legacy
-        <code>app.rive.animation.viewer.riv</code> compatibility UTI as alternate Viewer types,
-        with the dedicated <code>RiveFileIcon.icns</code> assigned to both. Use Open With or an
-        existing Finder association to open any <code>.riv</code> file directly. If RAV is already
-        running, the file is routed into the existing window; RAV does not claim the default handler.
+        On macOS, 2.4.4 exports one canonical <code>app.rive.animation.viewer.riv</code>
+        UTI for <code>.riv</code>, conforms it to <code>public.data</code> and
+        <code>public.content</code>, and claims the document as Viewer/Owner. The dedicated
+        <code>RiveFileIcon.icns</code> is assigned in both the UTI and document declarations.
+        Double-click or use Open With to load a file directly; if RAV is already running, the file
+        is routed into the existing window.
       </p>
       <p>
         After an app update, the first launch of the new version refreshes that installed bundle&apos;s
         Launch Services registration once for the version and schema, without restarting Finder or
-        changing the Viewer/Alternate rank. The declarations, icon resource, and refresh logic have
-        passed local bundle checks. Exact migration of the supplied standalone artwork for an
-        already-indexed Finder icon remains an unresolved installed-app limitation and is not
-        claimed as passed. The isolated signed-updater receipt skips Launch Services registration
-        and cannot establish Finder behavior.
+        changing the Viewer/Owner rank. Public promotion is separately gated on installing the exact
+        signed Apple Silicon candidate while Rive Editor and Rive Early Access are registered, then
+        checking both existing and freshly created <code>.riv</code> files through Finder and
+        NSWorkspace. The isolated signed-updater receipt skips Launch Services registration and does
+        not substitute for that installed-app check.
       </p>
       <p>
         On Windows, both the NSIS setup executable and MSI package install a dedicated
