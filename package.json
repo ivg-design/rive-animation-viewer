@@ -1,6 +1,6 @@
 {
   "name": "rive-animation-viewer",
-  "version": "2.4.2",
+  "version": "2.4.3",
   "description": "Desktop and web viewer for .riv files with ViewModel controls, artboard/animation switching, script editor, event console, standalone export, and MCP remote control",
   "main": "index.html",
   "scripts": {
@@ -22,8 +22,11 @@
     "build": "npm run generate:snippets && node scripts/build-dist.mjs",
     "tauri": "tauri",
     "build:full": "npm run build && npm run tauri build",
+    "build:updater-bootstrap": "tauri build --bundles app --no-sign --config src-tauri/tauri.acceptance.conf.json",
+    "accept:updater": "node scripts/run-updater-acceptance.mjs",
     "sync": "node scripts/sync-version.mjs",
-    "verify:updater-signatures": "node scripts/verify-updater-signatures.mjs"
+    "verify:updater-signatures": "node scripts/verify-updater-signatures.mjs",
+    "verify:updater-staging": "node scripts/updater-staging-ledger.mjs"
   },
   "keywords": [
     "rive",

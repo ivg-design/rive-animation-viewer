@@ -30,6 +30,8 @@ pub struct DemoBundlePayload {
     #[serde(default)]
     pub default_instantiation_package_source: String,
     #[serde(default)]
+    pub editor_code: String,
+    #[serde(default)]
     pub instantiation_code: String,
     #[serde(default)]
     pub instantiation_snippets: Option<String>,

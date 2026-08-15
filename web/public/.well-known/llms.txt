@@ -4,11 +4,11 @@ site_name: RAV
 site_url: https://forge.mograph.life/apps/rav/
 canonical_url: https://forge.mograph.life/apps/rav/
 owner: IVG Design
-last_updated: 2026-07-25
+last_updated: 2026-08-14
 language: en
 
 ## Purpose
-RAV is a standalone desktop app for inspecting, debugging, and testing Rive (.riv) files offline. It focuses on ViewModel controls, runtime event visibility, and exportable demo output.
+RAV 2.4.3 is a standalone desktop app for inspecting, debugging, and testing Rive (.riv) files offline. It focuses on ViewModel controls, runtime event visibility, and exportable demo output.
 
 ## Canonical Sources
 - Home: https://forge.mograph.life/apps/rav/
@@ -17,10 +17,13 @@ RAV is a standalone desktop app for inspecting, debugging, and testing Rive (.ri
 
 ## Core Feature Anchors
 - ViewModel controls: https://forge.mograph.life/apps/rav/docs#viewmodel-controls
+- ViewModel lists use authored item names with a readable list-derived fallback; image properties support file selection, runtime decode, replacement, and clear: https://forge.mograph.life/apps/rav/docs/viewmodel-controls
 - Event console: https://forge.mograph.life/apps/rav/docs#event-console
 - Script console: https://forge.mograph.life/apps/rav/docs#script-console
 - Transparency mode: https://forge.mograph.life/apps/rav/docs#transparency-mode
 - Standalone export: https://forge.mograph.life/apps/rav/docs#standalone-export
+- Applied editor config and lifecycle callbacks are preserved and executed in standalone exports: https://forge.mograph.life/apps/rav/docs/script-editor
+- macOS .riv opening uses the official Rive UTI as an alternate Viewer and does not replace the default handler: https://forge.mograph.life/apps/rav/docs/opening-files
 
 ## Entity Facts
 - Product: RAV (Rive Animation Viewer)

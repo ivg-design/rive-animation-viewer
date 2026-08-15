@@ -20,6 +20,7 @@ export default function Export() {
         <li>The selected runtime semver baked in</li>
         <li>The current artboard, playback target, and active live source mode</li>
         <li>Only the checked or changed ViewModel / state-machine values</li>
+        <li>The raw applied editor config and lifecycle callbacks when Editor mode is active</li>
         <li>The generated canonical instantiation snippet (CDN and local variants)</li>
         <li>Canvas sizing mode (auto or fixed pixel dimensions)</li>
         <li>Complete styling for standalone viewing</li>
@@ -97,6 +98,12 @@ export default function Export() {
         <li>Use the dialog to curate which controls are serialized</li>
         <li>Copy the snippet directly or save a standalone HTML file</li>
       </ol>
+
+      <p>
+        Applied editor callbacks and non-toolbar config execute in the exported standalone page
+        after its binding and snapshot-restore lifecycle. Changes still marked as an unapplied
+        draft remain out of the export.
+      </p>
 
       <h2>Canvas Sizing in Exports</h2>
       <p>

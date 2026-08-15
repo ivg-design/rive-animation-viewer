@@ -3,7 +3,9 @@
 RAV releases are built as one atomic cross-platform set by
 `.github/workflows/release.yml`. Every platform uploads to a draft GitHub
 Release. The release stays private until native signing, Apple notarization,
-artifact inventory, updater signatures, and the merged `latest.json` all pass.
+artifact inventory, updater signatures, the merged `latest.json`, and an
+isolated update/install/relaunch acceptance all pass. Publication is a separate
+manual promotion that never rebuilds the accepted bytes.
 
 ## Trust model
 
@@ -37,7 +39,9 @@ The workflow also has:
   notarization;
 - no single-platform publish path;
 - a manual-only updater-manifest repair workflow;
-- publication as the last command after draft verification.
+- private staging that cannot change `releases/latest`;
+- a separate manual promotion workflow that re-verifies the exact commit,
+  byte ledger, acceptance receipt, signatures, notarization, and manifest.
 
 If a build fails, use GitHub's **Re-run failed jobs** action. Do not start a
 second release for the same ref while the first is active.
@@ -162,12 +166,23 @@ Pushing the guarded release commit to `main` starts this sequence:
      public key embedded in the app;
    - matching app `CDHash` in the DMG and updater archive;
    - complete macOS, MSI, and NSIS artifact inventory.
-7. `publish-updater-manifest` creates a complete `latest.json`, uploads it, and
-   makes the release public.
+7. `stage-private-updater-candidate` creates a deterministic complete
+   `latest.json`, uploads it to the draft, cryptographically verifies the
+   updater payloads again, and records every release byte in
+   `updater-staging-ledger.json`.
+8. The workflow stops. The draft, its tag name, and all assets remain private;
+   no Git tag exists and `releases/latest` remains unchanged.
+9. After local signed acceptance, an operator uploads the generated
+   `updater-acceptance-receipt.json` and explicitly dispatches
+   `.github/workflows/promote-updater-candidate.yml`. Promotion checks out the
+   ledger's exact commit, rehashes every staged asset, re-verifies every updater
+   signature and both notarized macOS distributions, reproduces `latest.json`
+   byte-for-byte, verifies the receipt, then publishes the same draft without a
+   rebuild.
 
-The normal release action creates the `vX.Y.Z` tag at the release commit. Tag
-push and manual dispatch remain recovery entry points, but they run the same
-complete platform set.
+Only the promotion action creates the public `vX.Y.Z` tag. A guarded release
+commit push and manual staging dispatch run the same complete platform set but
+cannot publish it.
 
 ## How auto-update receives the notarized app
 
@@ -191,6 +206,84 @@ and stapling. Its matching `.sig` authenticates the exact final archive.
 The draft verification job extracts it and compares its app `CDHash` with the
 app inside the separately notarized DMG. Only then does publication move
 `releases/latest` and expose the new `latest.json`.
+
+## Private signed updater acceptance
+
+Acceptance exercises Tauri's real updater from an older 2.4.2 bootstrap app to
+the exact signed and notarized archive held in the private draft. It does not
+copy into `/Applications` and does not use the real user profile.
+
+The production updater config remains HTTPS-only and fixed at GitHub
+`releases/latest`. Insecure loopback transport is enabled only in
+`src-tauri/tauri.acceptance.conf.json`, which builds the disposable 2.4.2
+bootstrap. The Rust backend applies that endpoint only after all of these
+checks:
+
+- `RAV_UPDATER_ACCEPTANCE=1` is explicitly set;
+- the endpoint uses an IP literal of `127.0.0.1` or `::1`, an explicit port, no
+  credentials/query/fragment, and ends in `/latest.json`;
+- `RAV_UPDATER_ACCEPTANCE_ROOT` is exactly the process `TMPDIR`;
+- the harness supplies a random unguessable URL path;
+- Tauri still verifies the downloaded archive with the production updater
+  public key before installation.
+
+The installed production candidate does not inherit the bootstrap's insecure
+transport setting. It only records the isolated relaunch marker; the harness
+then terminates it before a second acceptance update check.
+
+Acceptance mode also skips Launch Services registration and MCP launcher/bridge
+integration. The harness copies the bootstrap into a fresh temporary root,
+redirects `HOME`, `TMPDIR`, and XDG directories there, serves only the selected
+manifest and payload on loopback, and requires launch markers proving a new PID
+and the candidate version from the same temporary `.app` path. It refuses to
+start while another RAV instance is running and verifies that the existing
+`/Applications/Rive Animation Viewer.app` metadata did not change.
+
+After the signed staging workflow completes, use the exact candidate checkout:
+
+```bash
+npm ci
+npm run build:updater-bootstrap
+
+npm run accept:updater -- \
+  --repo ivg-design/rive-animation-viewer \
+  --tag vX.Y.Z \
+  --expected-commit FULL_40_CHARACTER_COMMIT_SHA \
+  --bootstrap-app "src-tauri/target/release/bundle/macos/Rive Animation Viewer.app" \
+  --output updater-acceptance-receipt.json
+```
+
+The harness uses the authenticated `gh` session only to read the private draft.
+It verifies the ledger, all updater signatures, the canonical manifest, the
+served payload request, installation, and relaunch before writing a passing
+receipt. A failed run retains its temporary directory for diagnosis; a passing
+run removes it unless `--keep-workdir` is supplied.
+
+Review the receipt, then record and promote it as two explicit operations:
+
+```bash
+tag=vX.Y.Z
+commit=FULL_40_CHARACTER_COMMIT_SHA
+receipt=updater-acceptance-receipt.json
+receipt_sha=$(shasum -a 256 "$receipt" | awk '{print $1}')
+
+gh release upload "$tag" \
+  "$receipt#updater-acceptance-receipt.json" \
+  --repo ivg-design/rive-animation-viewer \
+  --clobber
+
+gh workflow run promote-updater-candidate.yml \
+  --repo ivg-design/rive-animation-viewer \
+  --ref main \
+  -f tag="$tag" \
+  -f expected_commit="$commit" \
+  -f acceptance_receipt_sha256="$receipt_sha" \
+  -f confirmation="PUBLISH $tag"
+```
+
+Do not upload a receipt from a different draft or rerun acceptance after any
+asset changes. Any change causes ledger or receipt verification to fail and
+requires a fresh staging/acceptance cycle.
 
 ## Local signed build
 
@@ -260,7 +353,9 @@ manual release requires:
    both Windows installers;
 6. `scripts/verify-macos-distribution.sh` run for both Mac architectures;
 7. `scripts/generate-updater-manifest.mjs` run against the draft asset list;
-8. `latest.json` uploaded and the draft published only after all checks pass.
+8. `latest.json` and the byte ledger uploaded while the release remains draft;
+9. the same isolated acceptance harness run against the private assets;
+10. the passing receipt recorded and the no-rebuild promotion checks completed.
 
 GitHub secrets cannot be downloaded, so the updater private key must come from
 its original secure backup. If that key or a Windows builder is unavailable,

@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Rive Animation Viewer",
-  "version": "2.4.2",
+  "version": "2.4.3",
   "identifier": "app.rive.animation.viewer",
   "build": {
     "beforeBuildCommand": "npm run build",
@@ -55,25 +55,26 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "resources": {
+      "icons/RiveFileIcon.icns": "RiveFileIcon.icns"
+    },
     "macOS": {
-      "hardenedRuntime": true
+      "hardenedRuntime": true,
+      "infoPlist": "Info.plist"
     },
     "fileAssociations": [
       {
         "ext": [
           "riv"
         ],
-        "name": "Rive Animation",
+        "name": "Rive File",
         "description": "Rive animation file",
         "role": "Viewer",
-        "rank": "Owner",
-        "mimeType": "application/octet-stream",
-        "exportedType": {
-          "identifier": "app.rive.animation.viewer.riv",
-          "conformsTo": [
-            "public.data"
-          ]
-        }
+        "rank": "Alternate",
+        "mimeType": "application/vnd.rive.editor",
+        "contentTypes": [
+          "app.rive.editor.rive-file"
+        ]
       }
     ]
   },

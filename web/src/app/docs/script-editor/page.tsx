@@ -120,6 +120,15 @@ export default function ScriptEditor() {
         or <code>&quot;internal&quot;</code>.
       </p>
 
+      <h2>Standalone export preservation</h2>
+      <p>
+        When editor mode is active, standalone export carries the raw <strong>applied</strong>
+        editor object and its lifecycle callbacks into the self-contained HTML file. The exported
+        runtime executes that config after its own ViewModel binding and snapshot restoration, so
+        callbacks and non-toolbar settings survive outside RAV. Draft edits that have not been
+        applied are not treated as live export configuration.
+      </p>
+
       <h2>The live instance: <code>window.riveInst</code></h2>
       <p>
         RAV always exposes the active Rive instance on{" "}

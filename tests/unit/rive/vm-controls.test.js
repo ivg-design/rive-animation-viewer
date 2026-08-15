@@ -1,10 +1,12 @@
 import {
     argbToColorMeta,
+    buildVmHierarchy,
     controlSelectionKeyForDescriptor,
     createVmControlsController,
     formatVmListItemLabel,
     getVmAccessor,
     getVmListItemAt,
+    getVmListItemName,
     getVmListLength,
     getStateMachineInputKind,
     hexToRgb,
@@ -15,6 +17,7 @@ import {
     rgbAlphaToArgb,
     shouldResumePlaybackForTrigger,
 } from '../../../src/app/rive/vm-controls.js';
+import { appendVmImageControl } from '../../../src/app/rive/view-model/image-control.js';
 
 function createVmElements() {
     document.body.innerHTML = `
@@ -44,7 +47,8 @@ function createVmHarness() {
     const smBoolean = { name: 'armed', type: 1, value: true };
     const smTrigger = { name: 'Launch', type: 3, fire: vi.fn() };
 
-    const createListItem = (numberAccessor) => ({
+    const createListItem = (numberAccessor, name = null) => ({
+        ...(name ? { name } : {}),
         number(name) {
             return name === 'speed' ? numberAccessor : null;
         },
@@ -181,6 +185,9 @@ describe('rive/vm-controls', () => {
         expect(normalizeControlSelectionKey('sm:Main:armed:boolean')).toBe('sm:Main:armed:boolean');
         expect(formatVmListItemLabel('rows', 0)).toBe('Row 1');
         expect(formatVmListItemLabel('playerEntries', 149)).toBe('Player Entry 150');
+        expect(formatVmListItemLabel('rows', 0, { name: 'Authored Row' })).toBe('Authored Row');
+        expect(getVmListItemName({ viewModelName: 'Named VM' })).toBe('Named VM');
+        expect(getVmListItemName({ name: '  ' })).toBeNull();
     });
 
     it('resolves the VM root from the live instance or default view model', () => {
@@ -246,6 +253,47 @@ describe('rive/vm-controls', () => {
             alphaPercent: 50,
             hex: '#336699',
         });
+    });
+
+    it('discovers image inputs as writable ViewModel controls', () => {
+        const imageAccessor = { value: null };
+        const imageVm = {
+            image(name) {
+                return name === 'avatar' ? imageAccessor : null;
+            },
+            properties: [{ name: 'avatar' }],
+        };
+        const hierarchy = buildVmHierarchy(imageVm);
+        expect(hierarchy.inputs).toEqual([
+            expect.objectContaining({ kind: 'image', name: 'avatar', path: 'avatar' }),
+        ]);
+    });
+
+    it('renders an image file picker and clear action for an image control', async () => {
+        const accessor = { value: null };
+        const container = document.createElement('div');
+        const bindings = [];
+        const decodedImage = { unref: vi.fn() };
+        appendVmImageControl({
+            descriptor: { kind: 'image', name: 'avatar', path: 'avatar' },
+            documentRef: document,
+            getLoadedRuntime: () => ({ decodeImage: vi.fn(async () => decodedImage) }),
+            inputContainer: container,
+            logEvent: vi.fn(),
+            registerVmControlBinding: (_descriptor, binding) => bindings.push(binding),
+            resolveControlAccessor: () => accessor,
+        });
+
+        const fileInput = container.querySelector('input[type="file"]');
+        const clearButton = container.querySelector('button');
+        expect(fileInput?.accept).toBe('image/*');
+        expect(clearButton?.textContent).toBe('Clear');
+        expect(bindings[0]?.kind).toBe('image');
+
+        accessor.value = { existing: true };
+        clearButton.click();
+        expect(accessor.value).toBeNull();
+        expect(decodedImage.unref).not.toHaveBeenCalled();
     });
 
     it('covers helper edge cases for safe calls, list accessors, and input kind detection', () => {

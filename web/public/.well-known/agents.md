@@ -10,7 +10,7 @@
 
 ## Product Facts
 - RAV is a standalone desktop app for Rive (.riv) inspection and debugging.
-- Key surfaces include dynamic ViewModel controls, a 36-tool MCP bridge, event and script consoles, generated web snippets, and standalone HTML export.
+- Key surfaces include dynamic ViewModel controls (authored list labels and image select/decode/replace/clear), a 36-tool MCP bridge, event and script consoles, applied-editor-aware generated snippets, and standalone HTML export.
 - Primary maintainers: IVG Design.
 
 ## Retrieval Notes

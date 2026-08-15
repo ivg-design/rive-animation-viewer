@@ -4,6 +4,7 @@ const VM_ACCESSOR_PROBES = [
     ['string', 'string'],
     ['enum', 'enum'],
     ['color', 'color'],
+    ['image', 'image'],
     ['trigger', 'trigger'],
 ];
 
@@ -43,6 +44,29 @@ export function getVmListItemAt(listAccessor, index) {
     } catch {
         return null;
     }
+}
+
+export function getVmListItemName(itemInstance) {
+    if (!itemInstance || typeof itemInstance !== 'object') {
+        return null;
+    }
+
+    for (const propertyName of ['name', 'viewModelName', 'instanceName']) {
+        let value;
+        try {
+            value = itemInstance[propertyName];
+            if (typeof value === 'function') {
+                value = value.call(itemInstance);
+            }
+        } catch {
+            value = null;
+        }
+        if (typeof value === 'string' && value.trim()) {
+            return value.trim();
+        }
+    }
+
+    return null;
 }
 
 export function getVmAccessor(vmInstance, propertyName) {

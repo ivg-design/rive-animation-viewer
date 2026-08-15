@@ -117,7 +117,9 @@ describe('ui regression smoke', () => {
         expect(tauriConfig.app.macOSPrivateApi).toBe(true);
         expect(tauriConfig.bundle.macOS.hardenedRuntime).toBe(true);
         expect(tauriConfig.bundle.macOS.signingIdentity).toBeUndefined();
-        expect(tauriConfig.bundle.resources).toBeUndefined();
+        expect(tauriConfig.bundle.resources).toEqual({
+            'icons/RiveFileIcon.icns': 'RiveFileIcon.icns',
+        });
         expect(tauriConfig.build.beforeDevCommand).toContain('build:mcp:debug');
         expect(mainWindow.decorations).toBe(true);
         expect(mainWindow.transparent).toBe(true);
@@ -183,7 +185,7 @@ describe('ui regression smoke', () => {
         expect(riveLoader).toContain('? buildVmHierarchy(rootVm)');
         expect(vmHierarchy).toContain('function buildVmListTopologySignature(rootVm)');
         expect(vmHierarchy).toContain('ALLOWED_CONTROL_KEYS.has(selectionKey)');
-        expect(vmHierarchy).toContain('function formatVmListItemLabel(listName, index)');
+        expect(vmHierarchy).toContain('function formatVmListItemLabel(listName, index, itemInstance)');
         expect(vmHierarchy).toContain('function filterHierarchyNode(node)');
         expect(riveLoader).toContain('filterHierarchyNode(liveVmHierarchy)');
         expect(vmSync).toContain('retryPendingControlSnapshot();');

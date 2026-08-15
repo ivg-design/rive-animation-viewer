@@ -97,6 +97,12 @@ export function createAppUpdaterController({
                     notes: update.body || null,
                     version: update.version,
                 });
+
+                const acceptance = await invokeDesktop('get_updater_acceptance_config').catch(() => null);
+                if (acceptance?.enabled && acceptance?.autoInstall) {
+                    logEvent('ui', 'update-acceptance-auto-install', `Installing acceptance update ${update.version}`);
+                    await installPendingUpdate();
+                }
                 return update;
             } catch (error) {
                 state.pendingUpdate = null;

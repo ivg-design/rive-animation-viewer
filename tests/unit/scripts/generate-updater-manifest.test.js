@@ -17,7 +17,7 @@ function fixtureAsset(name) {
     };
 }
 
-function createFixture({ omit = [] } = {}) {
+function createFixture({ omit = [], publishedAt = '2030-01-02T03:04:05.000Z' } = {}) {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rav-updater-manifest-'));
     const signatureDir = path.join(tempDir, 'signatures');
     const releaseFile = path.join(tempDir, 'release.json');
@@ -44,7 +44,8 @@ function createFixture({ omit = [] } = {}) {
     fs.writeFileSync(releaseFile, JSON.stringify({
         tagName: FIXTURE_TAG,
         body: 'Release notes',
-        publishedAt: '2030-01-02T03:04:05.000Z',
+        createdAt: '2029-12-01T00:00:00.000Z',
+        publishedAt,
         assets,
     }));
 
@@ -77,6 +78,16 @@ describe('generate-updater-manifest', () => {
             expect(manifest.platforms['windows-x86_64-nsis'].url)
                 .toContain(`Rive.Animation.Viewer_${FIXTURE_VERSION}_x64-setup.exe`);
             expect(serialized).not.toContain('/untagged-');
+        } finally {
+            fixture.cleanup();
+        }
+    });
+
+    it('uses the immutable draft creation date before publication', () => {
+        const fixture = createFixture({ publishedAt: null });
+        try {
+            const manifest = generateUpdaterManifest(fixture);
+            expect(manifest.pub_date).toBe('2029-12-01T00:00:00.000Z');
         } finally {
             fixture.cleanup();
         }

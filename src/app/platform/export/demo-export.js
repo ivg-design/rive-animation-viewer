@@ -38,6 +38,7 @@ export function buildDemoBundlePayload({
     currentFileName,
     currentLayoutFit = 'contain',
     defaultInstantiationPackageSource = 'cdn',
+    editorCode = '',
     editorConfig = {},
     layoutState = {},
     instantiationSnippets = null,
@@ -68,6 +69,7 @@ export function buildDemoBundlePayload({
         control_selection_keys: JSON.stringify(controlSelectionKeys),
         control_snapshot: controlSnapshot ? JSON.stringify(controlSnapshot) : null,
         default_instantiation_package_source: defaultInstantiationPackageSource,
+        editor_code: editorCode,
         instantiation_code: instantiationCode,
         instantiation_snippets: instantiationSnippets ? JSON.stringify(instantiationSnippets) : null,
         instantiation_source_mode: instantiationSourceMode,
@@ -251,6 +253,7 @@ export function createDemoExportController({
             currentLayoutAlignment: getCurrentLayoutAlignment(),
             currentLayoutFit: getCurrentLayoutFit(),
             defaultInstantiationPackageSource: defaultPackageSource,
+            editorCode: descriptor.editorCode,
             editorConfig: {
                 autoplay: descriptor.autoplay,
             },

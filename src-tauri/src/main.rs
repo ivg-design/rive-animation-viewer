@@ -27,6 +27,8 @@ use crate::app::window::controls::open_external_url;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 fn main() {
     let opened_files = extract_opened_riv_file_args();
+    let updater_acceptance = app::updater::UpdaterAcceptance::from_process_env()
+        .unwrap_or_else(|error| panic!("invalid updater acceptance configuration: {error}"));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
@@ -58,6 +60,7 @@ fn main() {
         .manage(OpenedFiles(Mutex::new(VecDeque::from(opened_files))))
         .manage(McpBridgeManager::new(DEFAULT_MCP_PORT))
         .manage(PendingAppUpdate::default())
+        .manage(updater_acceptance)
         .setup(|app| {
             #[cfg(desktop)]
             {
@@ -74,12 +77,23 @@ fn main() {
                 }
             }
 
-            let bridge_manager = app.state::<McpBridgeManager>();
-            if let Err(error) = initialize_mcp_bridge(app.handle(), &bridge_manager) {
-                eprintln!("[rav-app] failed to start MCP bridge: {error}");
-            }
-            if let Err(error) = refresh_mcp_client_launcher_if_present(app.handle()) {
-                eprintln!("[rav-app] failed to refresh MCP client launcher: {error}");
+            let updater_acceptance = app.state::<app::updater::UpdaterAcceptance>();
+            if updater_acceptance.is_enabled() {
+                updater_acceptance.write_launch_marker(app.handle())?;
+            } else {
+                if let Err(error) =
+                    app::launch_services::refresh_for_installed_version(app.handle())
+                {
+                    eprintln!("[rav-app] failed to refresh Launch Services registration: {error}");
+                }
+
+                let bridge_manager = app.state::<McpBridgeManager>();
+                if let Err(error) = initialize_mcp_bridge(app.handle(), &bridge_manager) {
+                    eprintln!("[rav-app] failed to start MCP bridge: {error}");
+                }
+                if let Err(error) = refresh_mcp_client_launcher_if_present(app.handle()) {
+                    eprintln!("[rav-app] failed to refresh MCP client launcher: {error}");
+                }
             }
             Ok(())
         })
@@ -95,6 +109,7 @@ fn main() {
             app::mcp::commands::remove_mcp_client,
             app::node_runtime::detect_node_runtime,
             app::updater::check_for_app_update,
+            app::updater::get_updater_acceptance_config,
             app::updater::install_app_update,
             app::updater::relaunch_app,
             app::window::controls::open_devtools,

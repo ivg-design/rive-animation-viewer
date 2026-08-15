@@ -2,12 +2,12 @@
 
 canonical_url: https://forge.mograph.life/apps/rav/
 owner: IVG Design
-last_updated: 2026-07-25
+last_updated: 2026-08-14
 language: en
 site_type: product-marketing + technical documentation
 
 ## 1) Product Definition
-RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.riv) animations outside the Rive editor. It provides runtime-oriented controls and diagnostics for testing animation behavior, inputs, and event outputs.
+RAV 2.4.3 (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.riv) animations outside the Rive editor. It provides runtime-oriented controls and diagnostics for testing animation behavior, inputs, and event outputs.
 
 ## 2) Primary Entities
 - RAV: SoftwareApplication / DeveloperApplication
@@ -22,11 +22,14 @@ RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.
 
 ## 4) Feature Facts with Evidence
 - Auto-generated ViewModel controls: https://forge.mograph.life/apps/rav/docs#viewmodel-controls
-- Dynamic ViewModel lists, one-based labels, and zero-based MCP paths: https://forge.mograph.life/apps/rav/docs/viewmodel-controls
+- Dynamic ViewModel lists use authored item-instance names when available, with one-based list-derived fallback labels and zero-based MCP paths; image properties support file selection, runtime decode, replacement, and clear: https://forge.mograph.life/apps/rav/docs/viewmodel-controls
 - Event log with source filtering: https://forge.mograph.life/apps/rav/docs#event-console
 - Script REPL and runtime inspection commands: https://forge.mograph.life/apps/rav/docs#script-console
 - Transparency overlay mode: https://forge.mograph.life/apps/rav/docs#transparency-mode
 - Standalone self-contained export: https://forge.mograph.life/apps/rav/docs#standalone-export
+- Applied editor config and lifecycle callbacks are embedded and executed in standalone exports: https://forge.mograph.life/apps/rav/docs/script-editor
+- macOS .riv opening uses official UTI `app.rive.editor.rive-file`, Viewer role, Alternate rank, and version-gated post-update Launch Services refresh without default takeover: https://forge.mograph.life/apps/rav/docs/opening-files
+- Released Web evidence targets Web 2.40.0 / runtime-v0.1.271 for WebGL2 and Canvas; runtime-v0.1.272 is a separate canary.
 - Configuration, renderer, and layout controls: https://forge.mograph.life/apps/rav/docs#configuration
 - MCP bridge health and recent-command activity states: https://forge.mograph.life/apps/rav/docs/mcp
 - Keyboard shortcut reference: https://forge.mograph.life/apps/rav/docs#keyboard-shortcuts

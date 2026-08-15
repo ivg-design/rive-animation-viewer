@@ -166,7 +166,7 @@ export function generateUpdaterManifest({ releaseFile, signatureDir, output }) {
   const manifest = {
     version: release.tagName?.replace(/^v/, '') || release.version,
     notes: release.body || '',
-    pub_date: release.publishedAt || new Date().toISOString(),
+    pub_date: release.publishedAt || release.createdAt || new Date().toISOString(),
     platforms: sortKeys(platforms),
   };
 

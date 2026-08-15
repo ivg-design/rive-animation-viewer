@@ -5,12 +5,14 @@ const templateRoot = path.resolve(process.cwd(), 'src-tauri/src/demo-template/js
 const accessorsSource = readFileSync(path.join(templateRoot, 'vm/accessors.js'), 'utf8');
 const hierarchySource = readFileSync(path.join(templateRoot, 'vm/hierarchy.js'), 'utf8');
 const riveLoaderSource = readFileSync(path.join(templateRoot, 'core/rive-loader.js'), 'utf8');
+const editorConfigSource = readFileSync(path.join(templateRoot, 'core/editor-config.js'), 'utf8');
+const controlsRenderSource = readFileSync(path.join(templateRoot, 'vm/controls-render.js'), 'utf8');
 const syncSource = readFileSync(path.join(templateRoot, 'vm/sync.js'), 'utf8');
 
 function createDemoVmHarness(riveInstance, { controlSelectionKeys = null, controlSnapshot = [], vmHierarchy = null } = {}) {
     const build = new Function('riveInstance', 'CONTROL_SELECTION_KEYS', 'CONTROL_SNAPSHOT', 'VM_HIERARCHY', `
         const VM_CONTROL_SYNC_INTERVAL_MS = 120;
-        const VM_CONTROL_KINDS = new Set(['number', 'boolean', 'string', 'enum', 'color', 'trigger']);
+        const VM_CONTROL_KINDS = new Set(['number', 'boolean', 'string', 'enum', 'color', 'image', 'trigger']);
         let vmControlBindings = [];
         let vmControlSyncTimer = null;
         let vmListTopologySignature = null;
@@ -131,6 +133,25 @@ function stripHierarchyDescriptors(node) {
 }
 
 describe('exported demo ViewModel snapshot runtime', () => {
+    it('executes the distinctive applied editor callback from exported config', () => {
+        const build = new Function(`${editorConfigSource}; return { resolveStandaloneEditorConfig, invokeStandaloneEditorCallback };`);
+        const helpers = build();
+        const applied = helpers.resolveStandaloneEditorConfig(
+            '({ marker: "applied-editor", onLoad: function () { this.markerSeen = true; } })',
+            'editor',
+        );
+        const instance = {};
+        helpers.invokeStandaloneEditorCallback(applied.onLoad, instance, []);
+        expect(applied.marker).toBe('applied-editor');
+        expect(instance.markerSeen).toBe(true);
+    });
+
+    it('keeps standalone image controls wired to runtime decode and clear', () => {
+        expect(controlsRenderSource).toContain("descriptor.kind === 'image'");
+        expect(controlsRenderSource).toContain('rive.decodeImage');
+        expect(controlsRenderSource).toContain('live.value = null');
+    });
+
     it('disables runtime auto-binding only when an explicit instance is configured', () => {
         expect(riveLoaderSource).toContain('autoBind: !CONFIG.viewModelInstanceName');
         expect(riveLoaderSource).toContain('bindViewModelInstanceByKey(riveInstance, CONFIG.viewModelInstanceName)');
@@ -315,6 +336,36 @@ describe('exported demo ViewModel snapshot runtime', () => {
             'Row 3',
         ]);
         expect(harness.formatVmListItemLabel('playerEntries', 3)).toBe('Player Entry 4');
+    });
+
+    it('uses authored list instance names and discovers image controls', () => {
+        const imageAccessor = { value: null };
+        const rows = [
+            {
+                name: 'First Authored Row',
+                image: (name) => (name === 'avatar' ? imageAccessor : null),
+                properties: [{ name: 'avatar' }],
+            },
+        ];
+        const riveInstance = {
+            viewModelInstance: {
+                list: (name) => (name === 'rows' ? {
+                    instanceAt: (index) => rows[index] || null,
+                    length: rows.length,
+                } : null),
+                properties: [{ name: 'rows' }],
+            },
+        };
+        const harness = createDemoVmHarness(riveInstance, {
+            controlSelectionKeys: ['vm:rows/*/avatar:image'],
+        });
+
+        const hierarchy = harness.filterHierarchyNode(harness.buildVmHierarchy(riveInstance.viewModelInstance));
+        expect(hierarchy.children[0].children[0].label).toBe('First Authored Row');
+        expect(hierarchy.children[0].children[0].inputs[0]).toEqual(expect.objectContaining({
+            kind: 'image',
+            path: 'rows/0/avatar',
+        }));
     });
 
     it('tracks playerCount-driven list growth and shrinkage in the rendered hierarchy', () => {

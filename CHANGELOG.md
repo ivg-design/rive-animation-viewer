@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.4.3] - 2026-08-14
+
+### Added
+
+- **ViewModel list and image controls** — Auto-generated list controls now use each list item's authored instance name when the runtime exposes it, with a readable one-based list-derived fallback when it does not. ViewModel image properties now generate file controls that select, runtime-decode, replace, and clear images; image values remain excluded from JSON snapshots because decoded image objects are not serializable.
+- **Standalone editor-config preservation** — The raw applied editor JavaScript/config, including lifecycle callbacks, is embedded in standalone exports and executed in editor source mode after the export's RAV binding and snapshot lifecycle. Unsaved editor drafts are not treated as applied config.
+- **macOS `.riv` document opening** — RAV registers the official `app.rive.editor.rive-file` UTI as an alternate Viewer, routes cold-start and warm single-instance opens through the existing native queue/event bridge, and uses the tracked `src-tauri/icons/RiveFileIcon.icns` document icon copied to `Contents/Resources/RiveFileIcon.icns` without replacing the user's default handler. A version-gated first launch after an update refreshes this bundle with `lsregister -f`; it does not restart Finder or change the Viewer/Alternate rank.
+
+### Changed
+
+- **Runtime release evidence** — RAV's release candidate is pinned to the released Web 2.40.0 / runtime-v0.1.271 boundary for both renderer package paths, with exact WebGL2 and Canvas fixture loads recorded; canary runtime-v0.1.272 remains separate.
+
+### Validation
+
+- **Release gates passed** — The full JavaScript suite (47 files / 245 tests), Rust tests (13 app tests plus 1 rav-mcp test), clippy, exact WebGL2/Canvas 2.40.0 live fixture loads, generated Info.plist/resource inspection, ten-representation `.icns` validation, Launch Services registration, and cold/warm `.riv` open routing passed. Updater signing/notarization remains a coordinator-stage operation requiring release credentials.
+
 ## [2.4.2] - 2026-07-25
 
 ### Fixed

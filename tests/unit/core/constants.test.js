@@ -16,7 +16,7 @@ describe('core/constants', () => {
         expect(DEFAULT_LAYOUT_FIT).toBe('contain');
         expect(CLICK_THROUGH_POLL_INTERVAL_MS).toBe(42);
         expect(OPEN_FILE_POLL_INTERVAL_MS).toBe(900);
-        expect(FALLBACK_RUNTIME_VERSION_OPTIONS).toEqual(['2.34.3', '2.34.2', '2.34.1', '2.34.0']);
+        expect(FALLBACK_RUNTIME_VERSION_OPTIONS).toEqual(['2.40.0']);
     });
 
     it('defines the supported runtime and VM control kinds', () => {

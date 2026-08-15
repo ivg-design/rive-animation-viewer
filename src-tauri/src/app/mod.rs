@@ -1,5 +1,6 @@
 pub mod constants;
 pub mod demo_bundle;
+pub mod launch_services;
 pub mod mcp;
 pub mod node_runtime;
 pub mod state;

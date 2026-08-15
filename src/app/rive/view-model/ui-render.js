@@ -6,6 +6,7 @@ import {
 } from './color-utils.js';
 import { shouldResumePlaybackForTrigger } from './accessors.js';
 import { countAllInputs } from './hierarchy.js';
+import { appendVmImageControl } from './image-control.js';
 
 function updateStringInputRows(input, value) {
     if (!input || typeof input.rows !== 'number') {
@@ -19,6 +20,7 @@ export function createVmControlRowFactory({
     documentRef,
     fireStateMachineTriggerByName,
     getRiveInstance,
+    getLoadedRuntime = () => null,
     logEvent,
     registerVmControlBinding,
     resolveControlAccessor,
@@ -166,6 +168,16 @@ export function createVmControlRowFactory({
             colorWrap.appendChild(colorInput);
             colorWrap.appendChild(alphaInput);
             inputContainer.appendChild(colorWrap);
+        } else if (descriptor.kind === 'image') {
+            appendVmImageControl({
+                descriptor,
+                documentRef,
+                getLoadedRuntime,
+                inputContainer,
+                logEvent,
+                registerVmControlBinding,
+                resolveControlAccessor,
+            });
         } else if (descriptor.kind === 'trigger') {
             const button = documentRef.createElement('button');
             button.type = 'button';
@@ -276,7 +288,7 @@ export function createVmSectionElementFactory({
     };
 }
 
-export function syncVmBindings(bindings, resolveControlAccessor, documentRef, force = false) {
+export function syncVmBindings(bindings, resolveControlAccessor, documentRef, force = false, getLoadedRuntime = () => null) {
     const isEditingControl = (element) => documentRef.activeElement === element;
 
     bindings.forEach((binding) => {
@@ -284,13 +296,17 @@ export function syncVmBindings(bindings, resolveControlAccessor, documentRef, fo
         const canEdit = Boolean(accessor);
 
         if (binding.input) {
-            binding.input.disabled = !canEdit;
+            binding.input.disabled = !canEdit
+                || (binding.kind === 'image' && typeof getLoadedRuntime()?.decodeImage !== 'function');
         }
         if (binding.colorInput) {
             binding.colorInput.disabled = !canEdit;
         }
         if (binding.alphaInput) {
             binding.alphaInput.disabled = !canEdit;
+        }
+        if (binding.clearButton) {
+            binding.clearButton.disabled = !canEdit;
         }
         if (!canEdit) {
             return;

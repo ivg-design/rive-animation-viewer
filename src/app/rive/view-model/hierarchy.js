@@ -2,6 +2,7 @@ import {
     getStateMachineInputKind,
     getVmAccessor,
     getVmListItemAt,
+    getVmListItemName,
     getVmListLength,
     safeVmMethodCall,
 } from './accessors.js';
@@ -16,7 +17,12 @@ export function countAllInputs(node) {
     return total;
 }
 
-export function formatVmListItemLabel(listName, index) {
+export function formatVmListItemLabel(listName, index, itemInstance = null) {
+    const authoredName = getVmListItemName(itemInstance);
+    if (authoredName) {
+        return authoredName;
+    }
+
     const words = String(listName || 'Item')
         .trim()
         .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
@@ -155,7 +161,7 @@ export function buildVmHierarchy(rootVm) {
                         continue;
                     }
                     const itemPath = `${fullPath}/${index}`;
-                    listNode.children.push(walk(itemInstance, formatVmListItemLabel(name, index), itemPath, 'instance'));
+                    listNode.children.push(walk(itemInstance, formatVmListItemLabel(name, index, itemInstance), itemPath, 'instance'));
                 }
                 node.children.push(listNode);
             }
