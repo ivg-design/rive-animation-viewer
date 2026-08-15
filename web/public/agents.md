@@ -15,7 +15,7 @@
 - Each image property uses one full-width select containing every embedded raster asset, `Open file…`, and `Clear`; the external file input is hidden, with no separate action buttons and standalone export parity.
 - Runtime 2.39.2 is the safe default. Web 2.40.0 / runtime-v0.1.271 has a confirmed nested-image double-offset in both renderers and is a warned explicit opt-in.
 - Other key surfaces include a 36-tool MCP bridge, event and script consoles, applied-editor-aware generated snippets, overflow-safe auto-margin canvas centering, styled fixed-canvas scrollbars, and standalone HTML export.
-- Official and legacy .riv UTI/icon declarations are present. Exact migration of the supplied standalone Finder artwork remains an unresolved installed-app limitation and is not claimed as passed.
+- macOS .riv declarations support both current and legacy RAV identifiers, include the dedicated document icon resource, and register RAV as a Viewer without forcing a default-app change.
 - Windows NSIS and MSI packages contain a dedicated multi-resolution .riv icon with upgrade-aware registration and uninstall cleanup; this corrects the original draft's executable-icon registration.
 - Primary maintainers: IVG Design.
 

@@ -77,9 +77,8 @@ export default function ViewModelControls() {
         panel rebuilds from the live list topology automatically.
       </p>
       <p>
-        In the validated <code>leaderboard_v4.riv</code> fixture, runtime order resolves exactly
-        to <code>D10</code>, <code>D16</code>, <code>D03</code>, <code>D11</code>, <code>D06</code>,
-        <code>D02</code>, <code>D18</code>, <code>D20</code>, <code>D19</code>, <code>D12</code>.
+        Live validation confirmed that authored per-instance labels remain distinct and preserve
+        runtime order across a dynamically populated multi-row list.
       </p>
       <p>
         MCP paths use the runtime&apos;s zero-based index even though labels are one-based. For
@@ -119,11 +118,9 @@ export default function ViewModelControls() {
       <p>
         Catalog entries use the runtime asset&apos;s <code>uniqueFilename</code> identity, determine
         PNG, WebP, JPEG, or AVIF MIME from the bytes rather than trusting an extension, and add
-        numbered labels when display names repeat. The exact <code>leaderboard_v4.riv</code>
-        contains two embedded rasters (<code>trophy-n2</code> and
-        <code>avatar-placeholder</code>), one embedded font, and two embedded scripts; the image
-        select intentionally catalogs only the two rasters. Standalone exports rebuild the same
-        catalog and control.
+        numbered labels when display names repeat. Live validation confirmed that every embedded
+        raster is included while embedded fonts, scripts, and other non-raster resources remain
+        outside the image catalog. Standalone exports rebuild the same catalog and control.
       </p>
       <p>
         Selecting an image calls the loaded runtime&apos;s decoder; <strong>Clear</strong> writes

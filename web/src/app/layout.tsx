@@ -96,7 +96,7 @@ const jsonLd = {
       applicationCategory: "DeveloperApplication",
       operatingSystem: "macOS, Windows",
       softwareVersion: "2.4.3",
-      releaseNotes: "Version 2.4.3 is the current public release. Exact migration of the supplied standalone .riv artwork in Finder remains an unresolved installed-app limitation and is not claimed as passed.",
+      releaseNotes: "Version 2.4.3 is the current public release with authored ViewModel list labels, embedded-image controls, standalone editor-config preservation, fixed-canvas centering, and dedicated .riv document resources.",
       datePublished: "2025-11-01",
       dateModified: "2026-08-15",
       downloadUrl: "https://github.com/ivg-design/rive-animation-viewer/releases/latest",

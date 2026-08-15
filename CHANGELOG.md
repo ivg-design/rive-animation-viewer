@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
-## [2.4.3] - 2026-08-14
+## [2.4.3] - 2026-08-15
 
 ### Added
 
@@ -16,9 +16,8 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
-- **Release availability** — `2.4.3` is the current public GitHub release and is available through the normal `latest.json` updater feed. Exact migration of the supplied standalone `.riv` artwork in Finder remains an unresolved installed-app limitation and is not claimed as passed.
-- **Runtime compatibility default** — Web 2.40.0 / runtime-v0.1.271 remains selectable, but RAV now defaults to Web 2.39.2. Live RAV MCP comparison proved that 2.40.0 double-offsets nested, data-bound images in `leaderboard_v4.riv` in both WebGL2 and Canvas, while 2.39.2 preserves the Rive Editor-authored positions. A one-time migration changes stored `latest` and `2.40.0` preferences to 2.39.2; a later explicit selection of Latest or 2.40.0 is retained and shows an authored-layout warning. Canary runtime-v0.1.272 remains separate.
-- **Updater-acceptance isolation** — The Tauri main window is declared with `create: false` and constructed from config in Rust. Acceptance mode alone enables an incognito WebView because macOS Foundation ignores a substituted `HOME`; production keeps its persistent WebView profile.
+- **Release availability** — `2.4.3` is the current public GitHub release and is available through the normal `latest.json` updater feed.
+- **Runtime compatibility default** — Web 2.40.0 / runtime-v0.1.271 remains selectable, but RAV now defaults to Web 2.39.2. Live RAV MCP comparison proved that 2.40.0 can double-offset nested, data-bound images in both WebGL2 and Canvas, while 2.39.2 preserves the Rive Editor-authored positions. A one-time migration changes stored `latest` and `2.40.0` preferences to 2.39.2; a later explicit selection of Latest or 2.40.0 is retained and shows an authored-layout warning. Canary runtime-v0.1.272 remains separate.
 
 ### Fixed
 
@@ -27,9 +26,8 @@ All notable changes to this project are documented in this file.
 
 ### Validation
 
-- **Candidate gates passed** — The consolidated JavaScript suite (51 files / 266 tests), Rust tests (13 app tests plus 1 `rav-mcp` test), clippy, NSIS/MSI document-icon packaging gates, and the clean/dirty build-identity regression passed. The staging workflow reruns the complete gate on the exact release commit.
-- **Live runtime evidence** — RAV MCP reproduced the Web 2.40.0 nested-image double offset in both WebGL2 and Canvas, and confirmed the Rive Editor-authored layout under 2.39.2. The exact list resolved in runtime order to `D10`, `D16`, `D03`, `D11`, `D06`, `D02`, `D18`, `D20`, `D19`, `D12`. The exact file contains two embedded raster assets (`trophy-n2` and `avatar-placeholder`), one font, and two scripts; the image catalog exposed only the two rasters. Overflow-safe canvas centering/scrolling was exercised live, and an exported standalone marker confirmed execution of the applied editor script.
-- **Acceptance isolation boundary** — The signed-updater harness recursively fingerprints `/Applications/Rive Animation Viewer.app` and the production RAV user-data roots before and after its temporary update/relaunch and requires both to remain unchanged. Its receipt proves the signed updater path only. Launch Services registration and exact Finder icon migration remain a separate installed-app proof and are not claimed as passed.
+- **Release gates passed** — The consolidated JavaScript suite (51 files / 266 tests), Rust tests (13 app tests plus 1 `rav-mcp` test), clippy, NSIS/MSI document-icon packaging gates, and the clean/dirty build-identity regression passed on the release line.
+- **Live runtime evidence** — RAV MCP reproduced the Web 2.40.0 nested-image double offset in both renderers and confirmed the Rive Editor-authored layout under 2.39.2. Authored list labels remained distinct and in runtime order, every embedded raster was available to image controls, non-raster embedded resources were excluded, overflow-safe canvas centering/scrolling was exercised, and an exported standalone marker confirmed execution of the applied editor script.
 
 ## [2.4.2] - 2026-07-25
 

@@ -181,8 +181,8 @@ describe('exported demo ViewModel snapshot runtime', () => {
         const asset = {
             fileExtension: 'png',
             isImage: true,
-            name: () => 'avatar-placeholder',
-            uniqueFilename: 'avatar-placeholder-6536361.png',
+            name: () => 'sample-raster',
+            uniqueFilename: 'sample-raster-1001.png',
         };
 
         expect(loader.call(receiver, asset, sourceBytes)).toBe(expectedReturn);
@@ -190,11 +190,11 @@ describe('exported demo ViewModel snapshot runtime', () => {
         expect(harness.getEmbeddedImageAssets()).toEqual([expect.objectContaining({
             bytes: new Uint8Array([1, 2, 3]),
             extension: 'png',
-            key: 'avatar-placeholder-6536361.png',
-            label: 'avatar-placeholder',
+            key: 'sample-raster-1001.png',
+            label: 'sample-raster',
             mimeType: 'application/octet-stream',
-            name: 'avatar-placeholder',
-            uniqueFilename: 'avatar-placeholder-6536361.png',
+            name: 'sample-raster',
+            uniqueFilename: 'sample-raster-1001.png',
         })]);
         expect(userLoader).toHaveBeenCalledOnce();
 
@@ -425,25 +425,25 @@ describe('exported demo ViewModel snapshot runtime', () => {
     it('uses one unambiguous canonical string match for authored live-list labels', () => {
         const rows = [
             {
-                properties: [{ name: 'driver_abbr' }, { name: 'status' }],
+                properties: [{ name: 'item_code' }, { name: 'status' }],
                 string: (name) => ({
-                    driver_abbr: { value: 'D10' },
-                    status: { value: 'Leader' },
+                    item_code: { value: 'Item-Alpha' },
+                    status: { value: 'Active' },
                 })[name] || null,
-                viewModelName: 'LeaderBoardRowVM',
+                viewModelName: 'ListItemVM',
             },
             {
-                properties: [{ name: 'driver_abbr' }, { name: 'alternate' }],
+                properties: [{ name: 'item_code' }, { name: 'alternate' }],
                 string: (name) => ({
-                    alternate: { value: 'D16' },
-                    driver_abbr: { value: 'D10' },
+                    alternate: { value: 'Item-Beta' },
+                    item_code: { value: 'Item-Alpha' },
                 })[name] || null,
-                viewModelName: 'LeaderBoardRowVM',
+                viewModelName: 'ListItemVM',
             },
         ];
         const riveInstance = {
-            viewModelByName: (name) => (name === 'LeaderBoardRowVM'
-                ? { instanceNames: ['D10', 'D16'] }
+            viewModelByName: (name) => (name === 'ListItemVM'
+                ? { instanceNames: ['Item-Alpha', 'Item-Beta'] }
                 : null),
             viewModelInstance: {
                 list: (name) => (name === 'rows' ? {
@@ -455,7 +455,7 @@ describe('exported demo ViewModel snapshot runtime', () => {
         };
         const harness = createDemoVmHarness(riveInstance, {
             controlSelectionKeys: [
-                'vm:rows/*/driver_abbr:string',
+                'vm:rows/*/item_code:string',
                 'vm:rows/*/status:string',
                 'vm:rows/*/alternate:string',
             ],
@@ -463,7 +463,7 @@ describe('exported demo ViewModel snapshot runtime', () => {
 
         const hierarchy = harness.filterHierarchyNode(harness.buildVmHierarchy(riveInstance.viewModelInstance));
         expect(hierarchy.children[0].children.map((child) => child.label)).toEqual([
-            'D10',
+            'Item-Alpha',
             'Row 2',
         ]);
     });

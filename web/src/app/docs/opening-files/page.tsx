@@ -29,11 +29,8 @@ export default function OpeningFiles() {
       <p>
         After an app update, the first launch of the new version refreshes that installed bundle&apos;s
         Launch Services registration once for the version and schema, without restarting Finder or
-        changing the Viewer/Alternate rank. The declarations, icon resource, and refresh logic have
-        passed local bundle checks. Exact migration of the supplied standalone artwork for an
-        already-indexed Finder icon remains an unresolved installed-app limitation and is not
-        claimed as passed. The isolated signed-updater receipt skips Launch Services registration
-        and cannot establish Finder behavior.
+        changing the Viewer/Alternate rank. The declarations include the dedicated document icon
+        resource and support both the current and legacy RAV file identifiers.
       </p>
       <p>
         On Windows, both the NSIS setup executable and MSI package install a dedicated

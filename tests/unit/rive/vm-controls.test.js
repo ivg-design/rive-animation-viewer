@@ -193,21 +193,21 @@ describe('rive/vm-controls', () => {
 
     it('matches exactly one readable string value to canonical authored instance names', () => {
         const riveInstance = {
-            viewModelByName: vi.fn((name) => (name === 'LeaderBoardRowVM'
-                ? { instanceNames: ['D01', 'D02', 'D03'] }
+            viewModelByName: vi.fn((name) => (name === 'ListItemVM'
+                ? { instanceNames: ['Item-01', 'Item-02', 'Item-03'] }
                 : null)),
         };
         const createItem = (values) => ({
             properties: Object.keys(values).map((name) => ({ name })),
             string: (name) => (name in values ? { value: values[name] } : null),
-            viewModelName: 'LeaderBoardRowVM',
+            viewModelName: 'ListItemVM',
         });
 
-        const matchedItem = createItem({ driver_abbr: 'D01', status: 'Leader' });
-        expect(getVmListItemName(matchedItem, riveInstance)).toBe('D01');
-        expect(formatVmListItemLabel('rows', 0, matchedItem, riveInstance)).toBe('D01');
+        const matchedItem = createItem({ item_code: 'Item-01', status: 'Active' });
+        expect(getVmListItemName(matchedItem, riveInstance)).toBe('Item-01');
+        expect(formatVmListItemLabel('rows', 0, matchedItem, riveInstance)).toBe('Item-01');
 
-        const ambiguousItem = createItem({ driver_abbr: 'D01', alternate: 'D02' });
+        const ambiguousItem = createItem({ item_code: 'Item-01', alternate: 'Item-02' });
         expect(getVmListItemName(ambiguousItem, riveInstance)).toBeNull();
         expect(formatVmListItemLabel('rows', 4, ambiguousItem, riveInstance)).toBe('Row 5');
 
@@ -218,7 +218,7 @@ describe('rive/vm-controls', () => {
             } : null),
             properties: [{ name: 'rows' }],
         }, riveInstance);
-        expect(hierarchy.children[0].children[0].label).toBe('D01');
+        expect(hierarchy.children[0].children[0].label).toBe('Item-01');
     });
 
     it('resolves the VM root from the live instance or default view model', () => {
@@ -311,8 +311,8 @@ describe('rive/vm-controls', () => {
             descriptor: { kind: 'image', name: 'avatar', path: 'avatar' },
             documentRef: document,
             getEmbeddedImageAssets: () => [
-                { name: 'avatar-placeholder', bytes: new Uint8Array([1, 2]) },
-                { name: 'trophy-n2', bytes: new Uint8Array([3, 4]) },
+                { name: 'sample-raster-a', bytes: new Uint8Array([1, 2]) },
+                { name: 'sample-raster-b', bytes: new Uint8Array([3, 4]) },
             ],
             getLoadedRuntime: () => ({ decodeImage }),
             inputContainer: container,
@@ -330,8 +330,8 @@ describe('rive/vm-controls', () => {
         expect(container.querySelector('button')).toBeNull();
         expect(Array.from(assetSelect.options).map((option) => option.textContent)).toEqual([
             'Select image…',
-            'avatar-placeholder',
-            'trophy-n2',
+            'sample-raster-a',
+            'sample-raster-b',
             'Open file…',
             'Clear',
         ]);
