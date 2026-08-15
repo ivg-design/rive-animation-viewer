@@ -39,13 +39,13 @@ export default function Troubleshooting() {
       <ul>
         <li>The 2.4.3 UTI and icon declarations require the signed installed app to replace the older bundle and launch once</li>
         <li>A private draft is ignored by the normal public updater and cannot update an installed public build</li>
-        <li>Exact migration for an already-indexed <code>.riv</code> requires separate installed-app Launch Services/Finder verification; neither local bundle inspection nor the isolated signed-updater receipt proves that Finder refreshed it</li>
+        <li>Exact migration of the supplied standalone artwork for an already-indexed <code>.riv</code> remains an unresolved installed-app limitation and is not claimed as passed; neither local bundle inspection nor the isolated signed-updater receipt proves Finder behavior</li>
       </ul>
 
       <h2>The Windows .riv icon did not change</h2>
       <ul>
         <li>The original 2.4.3 draft pointed <code>Rive File\DefaultIcon</code> at the application executable; changing the default app could not produce the supplied document artwork</li>
-        <li>The corrected candidate bundles <code>RiveFileIcon.ico</code>, rewrites that value during NSIS install/update, and notifies Explorer</li>
+        <li>The 2.4.3 release bundles <code>RiveFileIcon.ico</code>, rewrites that value during NSIS install/update, and notifies Explorer</li>
         <li>Verify the installed icon path exists before clearing Explorer&apos;s icon cache; a normal public updater cannot install a private draft</li>
       </ul>
 

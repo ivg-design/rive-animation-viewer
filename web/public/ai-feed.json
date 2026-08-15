@@ -1,20 +1,20 @@
 {
   "version": "1.1",
-  "generatedAt": "2026-08-14",
+  "generatedAt": "2026-08-15",
   "project": "RAV",
   "canonical": "https://forge.mograph.life/apps/rav/",
   "releaseStatus": {
     "version": "2.4.3",
-    "status": "private-acceptance-candidate",
-    "public": false,
-    "note": "Public release and updater-feed publication remain blocked on isolated signed-updater acceptance and separate installed-app Launch Services/Finder verification."
+    "status": "current-public-release",
+    "public": true,
+    "note": "Available through the normal public updater feed. Exact migration of the supplied standalone Finder artwork remains an unresolved installed-app limitation and is not claimed as passed."
   },
   "entities": [
     {
       "name": "RAV",
       "type": "SoftwareApplication",
       "url": "https://forge.mograph.life/apps/rav/",
-      "description": "RAV desktop Rive animation viewer. The private 2.4.3 candidate uses direct or unique canonical-string ViewModel list labels; one full-width image-source select with embedded rasters, Open file, and Clear; overflow-safe canvas centering; safe runtime 2.39.2 by default; applied-editor-aware standalone export; a dedicated Windows .riv document icon; and event inspection."
+      "description": "RAV desktop Rive animation viewer. The public 2.4.3 release uses direct or unique canonical-string ViewModel list labels; one full-width image-source select with embedded rasters, Open file, and Clear; overflow-safe canvas centering; safe runtime 2.39.2 by default; applied-editor-aware standalone export; a dedicated Windows .riv document icon; and event inspection."
     },
     {
       "name": "IVG Design",

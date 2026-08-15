@@ -16,19 +16,20 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
-- **Private acceptance status** — `2.4.3` is a private GitHub draft candidate, not a public release. The public release and `latest.json` feed remain unchanged pending isolated signed-updater acceptance and separate installed-app Launch Services/Finder verification.
+- **Release availability** — `2.4.3` is the current public GitHub release and is available through the normal `latest.json` updater feed. Exact migration of the supplied standalone `.riv` artwork in Finder remains an unresolved installed-app limitation and is not claimed as passed.
 - **Safe runtime default** — Web 2.40.0 / runtime-v0.1.271 remains selectable, but live RAV MCP testing proved that it double-offsets nested, data-bound images in `leaderboard_v4.riv` in both WebGL2 and Canvas. RAV defaults to 2.39.2, where the authored layout is preserved. A one-time migration changes stored `latest` and `2.40.0` preferences to 2.39.2; explicitly choosing either again shows an authored-layout warning. Canary v0.1.272 remains separate.
 - **Updater-acceptance isolation** — The Tauri main window is declared with `create: false` and constructed from config in Rust. Acceptance mode alone enables an incognito WebView because macOS Foundation ignores a substituted `HOME`; production keeps its persistent WebView profile.
 
 ### Fixed
 
 - **Fixed-canvas centering and overflow** — Overflow-safe auto margins keep a fixed canvas centered while it fits, then collapse safely so oversized content scrolls from its authored top-left origin. The central scroller uses a styled 10px scrollbar track, thumb, and corner.
+- **Clean release build identity** — Distribution builds capture Git worktree state before creating the local build counter, preventing clean CI packages from self-reporting as `-dirty` while retaining the marker for genuinely modified checkouts.
 
 ### Validation
 
-- **Local candidate gates passed** — The full JavaScript suite (50 files / 265 tests), including the dedicated NSIS/MSI document-icon packaging gate, Rust tests (13 app tests plus 1 `rav-mcp` test), and clippy passed.
+- **Candidate gates passed** — The consolidated JavaScript suite (51 files / 266 tests), Rust tests (13 app tests plus 1 `rav-mcp` test), clippy, NSIS/MSI document-icon packaging gates, and the clean/dirty build-identity regression passed. The staging workflow reruns the complete gate on the exact release commit.
 - **Live fixture evidence** — RAV MCP reproduced the 2.40.0 layout regression in both renderers and confirmed the authored layout on 2.39.2. The exact list resolved to `D10`, `D16`, `D03`, `D11`, `D06`, `D02`, `D18`, `D20`, `D19`, `D12`. The exact file contains two embedded raster assets (`trophy-n2` and `avatar-placeholder`), one font, and two scripts; the image catalog exposed only the two rasters. Overflow-safe canvas centering/scrolling was exercised, and an exported standalone marker confirmed the applied editor script executed.
-- **Acceptance isolation boundary** — The signed-updater harness recursively fingerprints the installed `/Applications` bundle and production RAV user-data roots before and after its temporary update/relaunch and requires both to remain unchanged. Its receipt proves the signed updater path only; Launch Services registration and exact Finder icon migration remain a separate installed-app proof.
+- **Acceptance isolation boundary** — The signed-updater harness recursively fingerprints the installed `/Applications` bundle and production RAV user-data roots before and after its temporary update/relaunch and requires both to remain unchanged. Its receipt proves the signed updater path only; Launch Services registration and exact Finder icon migration remain a separate installed-app proof and are not claimed as passed.
 
 ## [2.4.2] - 2026-07-25
 

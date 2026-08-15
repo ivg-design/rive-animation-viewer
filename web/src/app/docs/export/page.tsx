@@ -103,7 +103,7 @@ export default function Export() {
       <p>
         Applied editor callbacks and non-toolbar config execute in the exported standalone page
         after its binding and snapshot-restore lifecycle. Changes still marked as an unapplied
-        draft remain out of the export. The 2.4.3 candidate was exercised with a live marker in
+        draft remain out of the export. The 2.4.3 release was exercised with a live marker in
         an exported page, confirming that the applied script executes outside RAV.
       </p>
 

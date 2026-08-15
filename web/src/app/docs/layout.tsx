@@ -90,12 +90,11 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
 
       {/* Content */}
       <main className="max-w-3xl mx-auto px-6 py-16 md:py-20">
-        <div className="mb-8 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-[var(--text-dim)]">
-          <strong className="text-amber-300">2.4.3 private acceptance candidate.</strong>{" "}
-          This documentation describes the signed candidate under test; it is not a public
-          release and does not advance the public <code>latest.json</code> feed. Isolated
-          signed-updater acceptance and installed-app Launch Services/Finder verification are
-          separate remaining gates.
+        <div className="mb-8 rounded-xl border border-[var(--neon)]/30 bg-[var(--neon-dim)] px-4 py-3 text-sm text-[var(--text-dim)]">
+          <strong className="text-[var(--neon)]">2.4.3 current public release.</strong>{" "}
+          This documentation describes the version available from GitHub and the normal public
+          updater feed. Exact migration of the supplied standalone <code>.riv</code> artwork in
+          Finder remains an unresolved installed-app limitation and is not claimed as passed.
         </div>
         <div className="docs-content">
           {children}

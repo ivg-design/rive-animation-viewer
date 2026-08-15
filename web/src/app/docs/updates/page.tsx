@@ -45,12 +45,10 @@ export default function Updates() {
         advance installed clients.
       </p>
       <p>
-        Version 2.4.3 is currently a private draft acceptance candidate. It is intentionally
-        invisible to normal installed clients and has not changed the public update feed.
-        Publication remains blocked on two distinct proofs: the isolated signed-updater
-        install/relaunch receipt, and separate installed-app Launch Services/Finder verification
-        for an already-indexed <code>.riv</code> file. The updater receipt does not prove Finder
-        migration.
+        Version 2.4.3 is published through the normal update feed. Release availability does not
+        establish exact macOS Finder icon migration: the supplied standalone <code>.riv</code>
+        artwork remains an unresolved installed-app limitation and is not claimed as passed.
+        Signed-updater-path evidence and Launch Services/Finder behavior are distinct checks.
       </p>
 
       <h2>Acceptance Isolation</h2>
@@ -64,8 +62,8 @@ export default function Updates() {
         Before and after the temporary update/relaunch, the harness recursively fingerprints the
         installed <code>/Applications/Rive Animation Viewer.app</code> tree and production RAV
         user-data roots, and requires both fingerprints to remain unchanged. Acceptance skips
-        Launch Services registration, so exact Finder icon migration is tested separately on an
-        installed signed candidate.
+        Launch Services registration, so exact Finder icon migration must be tested separately on
+        an installed signed release.
       </p>
 
       <h2>Two Trust Layers</h2>

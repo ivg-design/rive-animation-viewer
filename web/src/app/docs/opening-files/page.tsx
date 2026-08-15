@@ -19,7 +19,7 @@ export default function OpeningFiles() {
 
       <h2>Double-Click (Desktop)</h2>
       <p>
-        On macOS, the 2.4.3 candidate declares both the official
+        On macOS, the 2.4.3 release declares both the official
         <code>app.rive.editor.rive-file</code> UTI and the legacy
         <code>app.rive.animation.viewer.riv</code> compatibility UTI as alternate Viewer types,
         with the dedicated <code>RiveFileIcon.icns</code> assigned to both. Use Open With or an
@@ -30,9 +30,10 @@ export default function OpeningFiles() {
         After an app update, the first launch of the new version refreshes that installed bundle&apos;s
         Launch Services registration once for the version and schema, without restarting Finder or
         changing the Viewer/Alternate rank. The declarations, icon resource, and refresh logic have
-        passed local bundle checks. Exact migration of an already-indexed Finder icon is still pending
-        separate installed-app verification and is not established by the isolated signed-updater
-        receipt, which skips Launch Services registration.
+        passed local bundle checks. Exact migration of the supplied standalone artwork for an
+        already-indexed Finder icon remains an unresolved installed-app limitation and is not
+        claimed as passed. The isolated signed-updater receipt skips Launch Services registration
+        and cannot establish Finder behavior.
       </p>
       <p>
         On Windows, both the NSIS setup executable and MSI package install a dedicated

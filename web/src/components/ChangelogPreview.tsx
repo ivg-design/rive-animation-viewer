@@ -3,8 +3,6 @@ import { asset } from "@/lib/config";
 import { parseChangelog } from "@/lib/changelog";
 import { ChevronRight, Sparkles, Bug, Wrench, ShieldCheck } from "lucide-react";
 
-const PRIVATE_ACCEPTANCE_CANDIDATE_VERSION = "2.4.3";
-
 function CategoryBullets({ icon: Icon, title, items, color }: {
   icon: typeof Sparkles;
   title: string;
@@ -37,9 +35,7 @@ function CategoryBullets({ icon: Icon, title, items, color }: {
 export default function ChangelogPreview() {
   const entries = parseChangelog();
   const recent = entries.slice(0, 3);
-  const latestPublicVersion = entries.find(
-    (entry) => entry.version !== PRIVATE_ACCEPTANCE_CANDIDATE_VERSION,
-  )?.version;
+  const latestPublicVersion = entries[0]?.version;
 
   if (recent.length === 0) {
     return null;
@@ -64,9 +60,7 @@ export default function ChangelogPreview() {
           >
             {/* Timeline dot */}
             <div className={`absolute left-0 -translate-x-1/2 w-3 h-3 rounded-full border-[3px] border-[var(--bg-void)] ${
-              entry.version === PRIVATE_ACCEPTANCE_CANDIDATE_VERSION
-                ? 'bg-amber-400'
-                : entry.version === latestPublicVersion
+              entry.version === latestPublicVersion
                   ? 'bg-[var(--neon)]'
                   : 'bg-[var(--border-light)]'
             }`} />
@@ -76,11 +70,6 @@ export default function ChangelogPreview() {
                 <h3 className="font-mono text-lg font-bold text-[var(--text-white)]">
                   v{entry.version}
                 </h3>
-                {entry.version === PRIVATE_ACCEPTANCE_CANDIDATE_VERSION && (
-                  <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-400/10 text-amber-300">
-                    PRIVATE CANDIDATE
-                  </span>
-                )}
                 {entry.version === latestPublicVersion && (
                   <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[var(--neon-dim)] text-[var(--neon)]">
                     LATEST PUBLIC

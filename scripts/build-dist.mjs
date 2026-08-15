@@ -115,6 +115,7 @@ async function copyDir(src, dest) {
 }
 
 async function build() {
+  const gitWorktreeSuffix = getGitWorktreeSuffix();
   await fs.rm(distDir, { recursive: true, force: true });
   await ensureDir(distDir);
   const cliBuildNumber = parseCliBuildNumber(process.argv.slice(2));
@@ -128,7 +129,7 @@ async function build() {
       : 'auto-counter';
   const numberedPrefix = `b${buildNumber.padStart(4, '0')}`;
   const buildId = process.env.APP_BUILD_ID
-    || `${numberedPrefix}-${getBuildTimestamp()}-${getGitShortSha()}${getGitWorktreeSuffix()}`;
+    || `${numberedPrefix}-${getBuildTimestamp()}-${getGitShortSha()}${gitWorktreeSuffix}`;
 
   const filesToCopy = ['index.html', 'style.css', 'README.md', 'package.json'];
 
