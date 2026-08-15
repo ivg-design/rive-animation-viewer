@@ -36,8 +36,8 @@ export default function Configuration() {
       <h2>Runtime Version</h2>
       <p>
         RAV 2.4.3 defaults to <strong>2.39.2</strong>. Live RAV MCP comparison proved that
-        Web 2.40.0 / runtime-v0.1.271 double-offsets nested, data-bound images in both WebGL2
-        and Canvas for <code>leaderboard_v4.riv</code>; 2.39.2 preserves the Rive
+        Web 2.40.0 / runtime-v0.1.271 can double-offset nested, data-bound images in both WebGL2
+        and Canvas; 2.39.2 preserves the Rive
         Editor-authored layout. On first 2.4.3 launch, a one-time migration changes stored
         <code>latest</code> and <code>2.40.0</code> preferences to 2.39.2.
       </p>

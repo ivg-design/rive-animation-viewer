@@ -7,7 +7,7 @@
     "version": "2.4.3",
     "status": "current-public-release",
     "public": true,
-    "note": "Available through the normal public updater feed. Exact migration of the supplied standalone Finder artwork remains an unresolved installed-app limitation and is not claimed as passed."
+    "note": "Available through the normal public updater feed for supported macOS and Windows installations."
   },
   "entities": [
     {

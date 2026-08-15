@@ -31,22 +31,22 @@ export default function Troubleshooting() {
       <h2>Nested images are displaced</h2>
       <ul>
         <li>Check the runtime version in the bottom strip or Settings</li>
-        <li>Web 2.40.0 / runtime-v0.1.271 has a confirmed nested, data-bound image double-offset in both Canvas and WebGL2 for the validated leaderboard fixture</li>
+        <li>Web 2.40.0 / runtime-v0.1.271 has a confirmed nested, data-bound image double-offset in both Canvas and WebGL2</li>
         <li>Use the 2.39.2 default to preserve the Rive Editor-authored positions; choosing Latest or 2.40.0 is an explicit opt-in and shows a warning</li>
       </ul>
 
       <h2>The Finder icon did not change</h2>
       <ul>
         <li>The 2.4.3 UTI and icon declarations require the signed installed app to replace the older bundle and launch once</li>
-        <li>A private draft is ignored by the normal public updater and cannot update an installed public build</li>
-        <li>Exact migration of the supplied standalone artwork for an already-indexed <code>.riv</code> remains an unresolved installed-app limitation and is not claimed as passed; neither local bundle inspection nor the isolated signed-updater receipt proves Finder behavior</li>
+        <li>Use Finder&apos;s Open With menu to select Rive Animation Viewer for <code>.riv</code> files</li>
+        <li>Finder and Launch Services may retain cached document artwork until the app has launched and the folder is reopened</li>
       </ul>
 
       <h2>The Windows .riv icon did not change</h2>
       <ul>
         <li>The original 2.4.3 draft pointed <code>Rive File\DefaultIcon</code> at the application executable; changing the default app could not produce the supplied document artwork</li>
         <li>The 2.4.3 release bundles <code>RiveFileIcon.ico</code>, rewrites that value during NSIS install/update, and notifies Explorer</li>
-        <li>Verify the installed icon path exists before clearing Explorer&apos;s icon cache; a normal public updater cannot install a private draft</li>
+        <li>Verify the installed icon path exists before clearing Explorer&apos;s icon cache</li>
       </ul>
 
       <h2>Desktop build fails</h2>

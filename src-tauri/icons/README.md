@@ -7,6 +7,14 @@ Windows. The final user-supplied assets are tracked at:
 
 `src-tauri/icons/RiveFileIcon.ico`
 
+The reference artwork is retained in source form at:
+
+`src-tauri/icons/rive-file-icon/RIV-RAV-FILE-ICON-master-1024.png`
+
+The same folder contains standalone PNG references at 16, 20, 24, 32, 40,
+48, 64, 96, 128, 256, and 512 pixels. These files make the document artwork
+directly inspectable without extracting either packaged icon container.
+
 The Tauri resource map copies it into the macOS app bundle at
 `Contents/Resources/RiveFileIcon.icns`. Do not replace it with the application
 icon or a generated placeholder. Both the official
@@ -22,7 +30,8 @@ leaving an orphaned `Rive File` class. It contains mechanically resized 16, 20,
 1024 px master with:
 
 ```sh
-magick RIV-RAV-FILE-ICON.png -alpha on -background none \
+magick rive-file-icon/RIV-RAV-FILE-ICON-master-1024.png \
+  -alpha on -background none \
   -define icon:auto-resize=256,128,96,64,48,40,32,24,20,16 \
   RiveFileIcon.ico
 ```

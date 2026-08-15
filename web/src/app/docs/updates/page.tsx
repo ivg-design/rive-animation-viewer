@@ -45,25 +45,8 @@ export default function Updates() {
         advance installed clients.
       </p>
       <p>
-        Version 2.4.3 is published through the normal update feed. Release availability does not
-        establish exact macOS Finder icon migration: the supplied standalone <code>.riv</code>
-        artwork remains an unresolved installed-app limitation and is not claimed as passed.
-        Signed-updater-path evidence and Launch Services/Finder behavior are distinct checks.
-      </p>
-
-      <h2>Acceptance Isolation</h2>
-      <p>
-        The configured Tauri main window uses <code>create: false</code> and is constructed from
-        that config in Rust. Only the acceptance environment creates it with an incognito,
-        non-persistent WebView. This is necessary because macOS Foundation ignores a substituted
-        <code>HOME</code> for WebKit storage; normal production launches remain persistent.
-      </p>
-      <p>
-        Before and after the temporary update/relaunch, the harness recursively fingerprints the
-        installed <code>/Applications/Rive Animation Viewer.app</code> tree and production RAV
-        user-data roots, and requires both fingerprints to remain unchanged. Acceptance skips
-        Launch Services registration, so exact Finder icon migration must be tested separately on
-        an installed signed release.
+        Version 2.4.3 is published through the normal update feed for supported macOS and Windows
+        installations.
       </p>
 
       <h2>Two Trust Layers</h2>

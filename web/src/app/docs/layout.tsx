@@ -93,8 +93,7 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
         <div className="mb-8 rounded-xl border border-[var(--neon)]/30 bg-[var(--neon-dim)] px-4 py-3 text-sm text-[var(--text-dim)]">
           <strong className="text-[var(--neon)]">2.4.3 current public release.</strong>{" "}
           This documentation describes the version available from GitHub and the normal public
-          updater feed. Exact migration of the supplied standalone <code>.riv</code> artwork in
-          Finder remains an unresolved installed-app limitation and is not claimed as passed.
+          updater feed.
         </div>
         <div className="docs-content">
           {children}
