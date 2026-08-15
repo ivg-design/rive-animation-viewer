@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 
 const root = path.resolve(process.cwd());
 
-function run(cwd, command, args) {
-    return execFileSync(command, args, { cwd, encoding: 'utf8' });
+function run(cwd, command, args, env = process.env) {
+    return execFileSync(command, args, { cwd, encoding: 'utf8', env });
 }
 
 function buildIdFrom(output) {
@@ -14,7 +14,7 @@ function buildIdFrom(output) {
 }
 
 describe('static distribution build identity', () => {
-    it('ignores its own counter write but still marks a genuinely dirty checkout', () => {
+    it('marks local dirtiness and blocks dirty CI builds with exact status', () => {
         const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'rav-build-dist-'));
 
         try {
@@ -39,8 +39,33 @@ describe('static distribution build identity', () => {
             expect(fs.existsSync(path.join(fixture, '.cache', 'build-counter.txt'))).toBe(true);
 
             fs.writeFileSync(path.join(fixture, 'genuinely-dirty.txt'), 'dirty\n');
-            const dirtyId = buildIdFrom(run(fixture, process.execPath, ['scripts/build-dist.mjs']));
+            const localEnv = { ...process.env, CI: '', GITHUB_ACTIONS: '' };
+            const dirtyId = buildIdFrom(run(
+                fixture,
+                process.execPath,
+                ['scripts/build-dist.mjs'],
+                localEnv,
+            ));
             expect(dirtyId).toContain('-dirty');
+
+            const blocked = spawnSync(process.execPath, ['scripts/build-dist.mjs'], {
+                cwd: fixture,
+                encoding: 'utf8',
+                env: { ...process.env, CI: 'true' },
+            });
+            expect(blocked.status).not.toBe(0);
+            expect(blocked.stderr).toContain('Refusing CI distribution build from a dirty Git checkout:');
+            expect(blocked.stderr).toContain('genuinely-dirty.txt');
+
+            fs.renameSync(path.join(fixture, '.git'), path.join(fixture, '.git-unavailable'));
+            const statusUnavailable = spawnSync(process.execPath, ['scripts/build-dist.mjs'], {
+                cwd: fixture,
+                encoding: 'utf8',
+                env: { ...process.env, CI: 'true' },
+            });
+            expect(statusUnavailable.status).not.toBe(0);
+            expect(statusUnavailable.stderr)
+                .toContain('Unable to collect Git worktree status for a CI distribution build.');
         } finally {
             fs.rmSync(fixture, { recursive: true, force: true });
         }
