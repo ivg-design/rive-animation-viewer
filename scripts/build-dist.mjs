@@ -8,6 +8,10 @@ const distDir = path.join(root, 'dist');
 const buildCounterFile = path.join(root, '.cache', 'build-counter.txt');
 const pkg = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
 
+function isCiBuild() {
+  return process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+}
+
 function getGitShortSha() {
   try {
     return execSync('git rev-parse --short HEAD', {
@@ -20,15 +24,19 @@ function getGitShortSha() {
   }
 }
 
-function getGitWorktreeSuffix() {
+function getGitWorktreeStatus() {
   try {
-    const status = execSync('git status --porcelain --untracked-files=all', {
+    return execSync('git status --porcelain=v2 --untracked-files=all', {
       cwd: root,
       stdio: ['ignore', 'pipe', 'ignore'],
       encoding: 'utf8',
     }).trim();
-    return status ? '-dirty' : '';
-  } catch {
+  } catch (error) {
+    if (isCiBuild()) {
+      console.error('Unable to collect Git worktree status for a CI distribution build.');
+      throw new Error('CI distribution builds require readable Git status.', { cause: error });
+    }
+    console.warn('Unable to collect Git worktree status; local build cleanliness is unknown.');
     return '';
   }
 }
@@ -115,7 +123,13 @@ async function copyDir(src, dest) {
 }
 
 async function build() {
-  const gitWorktreeSuffix = getGitWorktreeSuffix();
+  const gitWorktreeStatus = getGitWorktreeStatus();
+  if (gitWorktreeStatus && isCiBuild()) {
+    console.error('Refusing CI distribution build from a dirty Git checkout:');
+    console.error(gitWorktreeStatus);
+    throw new Error('CI distribution builds require a clean Git checkout.');
+  }
+  const gitWorktreeSuffix = gitWorktreeStatus ? '-dirty' : '';
   await fs.rm(distDir, { recursive: true, force: true });
   await ensureDir(distDir);
   const cliBuildNumber = parseCliBuildNumber(process.argv.slice(2));
