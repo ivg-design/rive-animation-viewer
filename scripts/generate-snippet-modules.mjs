@@ -80,7 +80,17 @@ function extractBraceBlock(source, marker) {
 
 async function writeModule(filePath, content) {
     await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, `${content.trimEnd()}\n`, 'utf8');
+    let lineEnding = '\n';
+    try {
+        if ((await fs.readFile(filePath, 'utf8')).includes('\r\n')) lineEnding = '\r\n';
+    } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+    }
+    const normalized = content
+        .trimEnd()
+        .replace(/\r\n?/g, '\n')
+        .replace(/\n/g, lineEnding);
+    await fs.writeFile(filePath, `${normalized}${lineEnding}`, 'utf8');
 }
 
 async function main() {
