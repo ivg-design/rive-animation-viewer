@@ -115,12 +115,16 @@ describe('updater acceptance provenance', () => {
     });
 
     it('limits destructive cleanup to executables inside the isolated app bundle', () => {
-        const appPath = '/private/tmp/rav-acceptance/Rive Animation Viewer.app';
+        const appPath = path.join(os.tmpdir(), 'rav-acceptance', 'Rive Animation Viewer.app');
+        const acceptanceExecutable = path.join(appPath, 'Contents', 'MacOS', 'rive-animation-viewer');
         expect(processCommandBelongsToApp(
-            `${appPath}/Contents/MacOS/rive-animation-viewer --acceptance`,
+            `${acceptanceExecutable} --acceptance`,
             appPath,
         )).toBe(true);
-        expect(processCommandBelongsToApp('/Applications/Other.app/Contents/MacOS/other', appPath)).toBe(false);
+        expect(processCommandBelongsToApp(
+            path.join(os.tmpdir(), 'Other.app', 'Contents', 'MacOS', 'other'),
+            appPath,
+        )).toBe(false);
     });
 
     it('creates and re-verifies a byte-exact signed private-draft ledger', async () => {
