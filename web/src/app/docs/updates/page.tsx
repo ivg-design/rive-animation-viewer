@@ -45,10 +45,10 @@ export default function Updates() {
         advance installed clients.
       </p>
       <p>
-        Version 2.4.3 is published through the normal update feed. Release availability does not
-        establish exact macOS Finder icon migration: the supplied standalone <code>.riv</code>
-        artwork remains an unresolved installed-app limitation and is not claimed as passed.
-        Signed-updater-path evidence and Launch Services/Finder behavior are distinct checks.
+        Version 2.4.4 is published through the normal update feed. Its macOS promotion gate installs
+        the exact signed Apple Silicon candidate with Rive Editor and Rive Early Access registered,
+        then checks existing and newly created <code>.riv</code> files through Finder and NSWorkspace.
+        Signed-updater-path evidence and Launch Services/Finder behavior remain distinct checks.
       </p>
 
       <h2>Acceptance Isolation</h2>

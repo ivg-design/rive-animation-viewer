@@ -4,9 +4,9 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.4.3` (signed staging and public promotion pending; the distribution details below describe the intended final public state)
-- Distribution: GitHub release `v2.4.3` and the normal public `latest.json` updater feed.
-- Release source: the verified `v2.4.3` commit on `main`. macOS downloads and updater apps are Developer ID signed, notarized, and stapled; every updater payload also retains its separate Tauri signature. Exact migration of the supplied standalone `.riv` artwork in Finder remains an unresolved installed-app limitation and is not claimed as passed.
+- Current release: `2.4.4`
+- Distribution: GitHub release `v2.4.4` and the normal public `latest.json` updater feed.
+- Release source: the verified `v2.4.4` commit on `main`. macOS downloads and updater apps are Developer ID signed, notarized, and stapled; every updater payload also retains its separate Tauri signature.
 
 ## Regression Gates
 
@@ -20,6 +20,12 @@ The repo now has explicit prebuild guards for the surfaces that were regressing 
 - `cargo check --manifest-path src-tauri/Cargo.toml` validates the native Tauri layer
 
 These gates materially reduce regression risk, but they are still code- and DOM-contract tests, not full visual snapshot coverage. If we want pixel-level guarantees from this point forward, the next step is adding screenshot-based desktop smoke tests for the packaged app window.
+
+## 2.4.4 Highlights
+
+- **RAV-owned macOS `.riv` type**: RAV exports one canonical `app.rive.animation.viewer.riv` UTI for `.riv`, conforms it directly to `public.data` and `public.content`, and claims the document as Viewer/Owner rather than importing the Editor UTI as an alternate handler.
+- **Exact document icon contract**: Both the exported UTI and document declaration point to the supplied `RiveFileIcon.icns`. The first 2.4.4 launch advances the registration schema and refreshes the installed bundle with Launch Services.
+- **Signed coexistence gate**: Public promotion requires the exact signed Apple Silicon candidate to pass existing-file and fresh-file Finder/NSWorkspace icon checks while Rive Editor and Rive Early Access are registered.
 
 ## 2.4.3 Highlights
 
