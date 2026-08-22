@@ -19,7 +19,7 @@ All notable released changes to this project are documented in this file.
 
 ### Performance
 
-- **Recorded large-file comparison** — In two 60 FPS recordings of the same Rive asset exposing 999 live control paths and 10 embedded runtime script assets, the earlier single-WebView run held visible transition frames for 4–16 captured frames (about 67–267 ms); the later dedicated-surface run held them for 1–2 frames (about 17–33 ms). The worst observed hold was approximately 8× shorter. Because the recordings used different runtime and viewport settings, these figures describe the observed test runs rather than a controlled or universal performance guarantee.
+- **Recorded large-file comparison** — In two 60 FPS recordings of the same Rive asset exposing 999 live control paths and 10 embedded runtime script assets, the earlier single-WebView run held visible transition frames for 4–16 captured frames (about 67–267 ms); the later dedicated-surface run held them for 1–2 frames (about 17–33 ms). The worst observed hold was approximately 8× shorter, and the median per-transition maximum was approximately 3× shorter (100 ms versus 33 ms). Because build profiles, runtime and viewport settings, transition sequences, and capture setups differed, these figures describe the observed runs rather than a controlled or universal performance guarantee.
 
 ### Fixed
 
