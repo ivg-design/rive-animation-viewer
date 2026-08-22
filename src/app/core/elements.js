@@ -81,7 +81,6 @@ export function getElements(documentRef = document) {
         settingsButton: documentRef.getElementById('settings-btn'),
         settingsPopover: documentRef.getElementById('settings-popover'),
         installCounterEnabledButton: documentRef.getElementById('install-counter-enabled-btn'),
-        installCounterPrivacyButton: documentRef.getElementById('install-counter-privacy-btn'),
         installCounterNotice: documentRef.getElementById('install-counter-notice'),
         installCounterNoticePrivacyButton: documentRef.getElementById('install-counter-notice-privacy-btn'),
         installCounterNoticeDismissButton: documentRef.getElementById('install-counter-notice-dismiss-btn'),

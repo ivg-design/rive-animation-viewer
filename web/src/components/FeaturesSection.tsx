@@ -49,7 +49,7 @@ const secondaryFeatures = [
   { icon: Layers, title: "Artboard switching", desc: "Switch artboards and playback targets from dropdowns. VM controls repopulate per target." },
   { icon: Terminal, title: "Dual consoles", desc: "Event log and JavaScript REPL with timestamps, follow mode, level filters, and copy." },
   { icon: Code2, title: "Script editor", desc: "CodeMirror 6 with live source indication. Apply configuration without losing artboard state; standalone exports preserve and execute it." },
-  { icon: MonitorCog, title: "Renderer + runtime", desc: "Canvas or WebGL2 with safe 2.39.2 default. Latest, 2.40.0, and custom semver remain explicit choices; known authored-layout risk is labeled." },
+  { icon: MonitorCog, title: "Renderer + runtime", desc: "Canvas or WebGL2 with Latest (auto) by default. Concrete and custom semver pins remain available, with the known 2.40.0 authored-layout risk labeled." },
   { icon: Maximize, title: "Canvas sizing", desc: "Auto or fixed pixel dimensions with aspect lock. Overflow-safe auto margins center fixed canvases until styled scrolling is needed." },
   { icon: RotateCcw, title: "State preservation", desc: "Reset and reload preserve artboard, playback, and control values across re-instantiation." },
   { icon: Download, title: "Auto updates", desc: "Tauri-authenticated updates, with Developer ID signing and notarization on macOS." },

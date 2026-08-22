@@ -9,26 +9,6 @@ import {
     RUNTIME_VERSION_PREF_STORAGE_KEY,
 } from '../../core/constants.js';
 
-export const RUNTIME_LAYOUT_COMPATIBILITY_MIGRATION_ID = 'authored-layout-default-2.39.2-v1';
-export const RUNTIME_LAYOUT_COMPATIBILITY_MIGRATION_STORAGE_KEY = 'ravRuntimeLayoutCompatibilityMigration';
-const UNSAFE_PERSISTED_RUNTIME_TOKENS = new Set(['latest', '2.40.0']);
-
-function isRuntimeLayoutCompatibilityMigrationComplete(storage) {
-    try {
-        const raw = storage.getItem(RUNTIME_LAYOUT_COMPATIBILITY_MIGRATION_STORAGE_KEY);
-        if (raw === RUNTIME_LAYOUT_COMPATIBILITY_MIGRATION_ID) {
-            return true;
-        }
-        return JSON.parse(raw || 'null')?.id === RUNTIME_LAYOUT_COMPATIBILITY_MIGRATION_ID;
-    } catch {
-        return false;
-    }
-}
-
-function isUnsafePersistedRuntimeToken(value) {
-    return UNSAFE_PERSISTED_RUNTIME_TOKENS.has(String(value || '').trim().toLowerCase());
-}
-
 export function getRuntimePackageName(runtimeName) {
     return RUNTIME_PACKAGE_NAMES[runtimeName] || RUNTIME_PACKAGE_NAMES.webgl2;
 }
@@ -111,62 +91,6 @@ export function loadRuntimeVersionByFile(storage = globalThis.localStorage) {
     } catch {
         return {};
     }
-}
-
-export function migrateRuntimeLayoutCompatibilityPreferences(storage = globalThis.localStorage) {
-    const migrationComplete = isRuntimeLayoutCompatibilityMigrationComplete(storage);
-    let runtimeVersionToken = loadRuntimeVersionPreference(storage);
-    const runtimeVersionByFile = loadRuntimeVersionByFile(storage);
-    if (migrationComplete) {
-        return {
-            completed: true,
-            migrated: false,
-            migratedFileCount: 0,
-            migratedGlobal: false,
-            runtimeVersionByFile,
-            runtimeVersionToken,
-        };
-    }
-
-    const migratedGlobal = isUnsafePersistedRuntimeToken(runtimeVersionToken);
-    if (migratedGlobal) {
-        runtimeVersionToken = DEFAULT_RUNTIME_VERSION_TOKEN;
-    }
-    let migratedFileCount = 0;
-    Object.entries(runtimeVersionByFile).forEach(([prefId, token]) => {
-        if (isUnsafePersistedRuntimeToken(token)) {
-            runtimeVersionByFile[prefId] = DEFAULT_RUNTIME_VERSION_TOKEN;
-            migratedFileCount += 1;
-        }
-    });
-
-    const audit = {
-        id: RUNTIME_LAYOUT_COMPATIBILITY_MIGRATION_ID,
-        migratedFileCount,
-        migratedGlobal,
-        safeRuntimeVersion: DEFAULT_RUNTIME_VERSION,
-    };
-    let completed = false;
-    try {
-        if (migratedGlobal) {
-            storage.setItem(RUNTIME_VERSION_PREF_STORAGE_KEY, runtimeVersionToken);
-        }
-        if (migratedFileCount > 0) {
-            storage.setItem(RUNTIME_FILE_VERSION_PREFS_STORAGE_KEY, JSON.stringify(runtimeVersionByFile));
-        }
-        storage.setItem(RUNTIME_LAYOUT_COMPATIBILITY_MIGRATION_STORAGE_KEY, JSON.stringify(audit));
-        completed = true;
-    } catch {
-        /* The sanitized in-memory preferences below still protect this session. */
-    }
-
-    return {
-        ...audit,
-        completed,
-        migrated: migratedGlobal || migratedFileCount > 0,
-        runtimeVersionByFile,
-        runtimeVersionToken,
-    };
 }
 
 export function loadRuntimeMeta(storage = globalThis.localStorage) {

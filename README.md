@@ -5,8 +5,8 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 ## Release
 
 - Current public release: `2.4.3`, available through GitHub Releases and the normal public `latest.json` updater feed.
-- Prepared release candidate: `2.4.4` (2026-08-21; not published yet).
-- Distribution after approval: GitHub release `v2.4.4` and the normal public `latest.json` updater feed. The verified `v2.4.4` commit on `main` is the release source after promotion. macOS downloads and updater apps are Developer ID signed, notarized, and stapled; every updater payload also retains its separate Tauri signature.
+- Prepared release candidate: `2.5.0` (2026-08-22; not published yet).
+- Distribution after approval: GitHub release `v2.5.0` and the normal public `latest.json` updater feed. The verified `v2.5.0` commit on `main` is the release source after promotion. macOS downloads and updater apps are Developer ID signed, notarized, and stapled; every updater payload also retains its separate Tauri signature.
 
 ## Regression Gates
 
@@ -21,9 +21,10 @@ The repo now has explicit prebuild guards for the surfaces that were regressing 
 
 These gates materially reduce regression risk, but they are still code- and DOM-contract tests, not full visual snapshot coverage. If we want pixel-level guarantees from this point forward, the next step is adding screenshot-based desktop smoke tests for the packaged app window.
 
-## 2.4.4 Highlights
+## 2.5.0 Highlights
 
 - **Dedicated playback WebView**: Packaged RAV places the Rive canvas in a child WebView and keeps controls, drawers, editor, export, MCP, and diagnostics in the main WebView. The two surfaces communicate through a narrow typed protocol, reducing contention with playback.
+- **Automatic current runtime**: New installs default to `Latest (auto)` and resolve the current npm runtime before playback. Explicit global and per-file pins remain intact; 2.39.2 is only the fallback when version discovery is unavailable.
 - **Reactive and bounded UI synchronization**: List topology responds to mutations, visible scalar controls update on an independent UI cadence, and hidden/collapsed controls do no scalar sampling work.
 - **Opaque desktop compositor path**: Stale whole-window transparency and click-through code is gone. `No BG` still controls the canvas and transparent standalone exports; the desktop window itself remains opaque.
 - **Hidden-log performance**: Event and JavaScript console history buffers while closed without rebuilding hidden DOM, then flushes when reopened.

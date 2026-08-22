@@ -59,7 +59,10 @@ Set these repository variables:
 
 - `APPLE_API_KEY_ID` — App Store Connect Team key ID;
 - `APPLE_API_ISSUER` — App Store Connect issuer UUID;
-- `APPLE_TEAM_ID` — Apple Developer Team ID.
+- `APPLE_TEAM_ID` — Apple Developer Team ID;
+- `RAV_COUNTER_ENDPOINT` — credential-free HTTPS URL ending exactly in
+  `/v1/event`. The release workflow verifies its `/v1/health` route before it
+  creates or reuses a draft.
 
 The existing repository secrets must remain:
 
@@ -131,7 +134,10 @@ reviewer rules before the first release.
    cargo test --manifest-path src-tauri/Cargo.toml
    ```
 
-7. Commit the complete release with the exact subject:
+7. Complete the anonymous callback acceptance below against an isolated test
+   Worker/D1 and retain its aggregate-only receipt.
+
+8. Commit the complete release with the exact subject:
 
    ```bash
    git commit -m "chore(release): vX.Y.Z"
@@ -140,6 +146,42 @@ reviewer rules before the first release.
    Land that exact commit as the tip of `main`. If using a pull request, use a
    squash merge with this exact subject; a differently titled merge commit will
    not start the release.
+
+## Anonymous callback acceptance
+
+Run this gate before every public release that changes the callback client,
+Worker, build configuration, or release version. It does not require publishing
+RAV or writing synthetic rows to the production counter.
+
+1. With Wrangler `4.125.0`, create a fresh temporary local D1 persistence root,
+   apply `telemetry/worker/schema.sql`, and run the checked-in Worker with a
+   temporary 32-byte-or-longer `TOKEN_PEPPER`.
+2. Expose that local Worker through an ephemeral Cloudflare Quick Tunnel. Verify
+   the trusted HTTPS `/v1/health` returns `204` and `/v1/stats` begins at zero.
+3. Build the exact release-profile source with `RAV_OFFICIAL_RELEASE=1`, the
+   tunnel's HTTPS `/v1/event` URL, `APP_BUILD_CHANNEL=dev`, and a unique test-only
+   Tauri identifier. This exercises the production Rust sender without sharing
+   application state with an installed RAV build.
+4. On a fresh launch, verify the aggregate remains zero through the first-run
+   notice, then reaches exactly one after the notice completes and the additional
+   30-second send delay. Confirm client state records `installReported: true` and
+   clears its pending install token.
+5. After the further 60-second delay, query only aggregate D1 values and confirm
+   one `monthly_active` row for the current UTC month. Query token lengths, not
+   token values, to confirm stored digests are 64 hexadecimal characters.
+6. Relaunch the same test identity for a complete report cycle and prove both
+   aggregate totals remain exactly one. Unit/native gates must also prove that
+   opting out creates the durable marker, removes pending/linkable client
+   secrets, and prevents reporting.
+7. Stop the app and tunnel and remove the isolated test profile and temporary D1
+   data. The final production endpoint still requires its own health/stats smoke
+   test before setting the repository variable.
+
+The 2026-08-22 `2.5.0` pre-release run passed this path with DEV build `b0177`:
+health `204`, installations `0 → 1`, monthly active `0 → 1`, stored release
+`2.5.0`, 64-character HMAC digests, and both totals unchanged after relaunch.
+Repeat the gate on the final clean release commit if any callback-related source
+or build wiring changes afterward.
 
 ## CI release sequence
 
@@ -376,7 +418,7 @@ fixture, the pre-RAV ProgID is `Rive Animation`:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\verify-windows-document-icon.ps1 `
-  -ExpectedVersion 2.4.4 `
+  -ExpectedVersion 2.5.0 `
   -ExpectedBundleType NSS `
   -ExpectedPreviousProgId 'Rive Animation' `
   -ExpectedIconSha256 13e12927439f4c98db3250516389822d706e4d1b7fdf3e2b2dad0fc6cff785fb `

@@ -2,6 +2,7 @@ import {
     buildFallbackRuntimeVersionOptions,
     DEFAULT_CANVAS_COLOR,
     DEFAULT_LAYOUT_FIT,
+    DEFAULT_RUNTIME_VERSION_TOKEN,
     FALLBACK_RUNTIME_VERSION_OPTIONS,
     LAYOUT_FITS,
     OPEN_FILE_POLL_INTERVAL_MS,
@@ -16,6 +17,7 @@ describe('core/constants', () => {
         expect(DEFAULT_LAYOUT_FIT).toBe('contain');
         expect(VM_TOPOLOGY_SYNC_INTERVAL_MS).toBe(1000);
         expect(OPEN_FILE_POLL_INTERVAL_MS).toBe(900);
+        expect(DEFAULT_RUNTIME_VERSION_TOKEN).toBe('latest');
         expect(FALLBACK_RUNTIME_VERSION_OPTIONS).toEqual(['2.39.2', '2.39.1', '2.39.0']);
     });
 

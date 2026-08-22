@@ -40,6 +40,8 @@ animations/*.riv
 .env
 .env.local
 .env.*.local
+/telemetry/worker/.dev.vars*
+/telemetry/worker/.wrangler/
 
 # Apple release credentials (never commit)
 /APPLE-SIGNING-KEYS-DO-NOT-COMMIT/

@@ -11,10 +11,10 @@
 
 ## Product Facts
 - RAV is a standalone desktop app for Rive (.riv) inspection and debugging.
-- Version 2.4.4 is the current public release and is available through the normal updater feed.
+- Version 2.5.0 is the current public release and is available through the normal updater feed.
 - Dynamic list labels use a direct authored name or one unique canonical-string match, with ambiguous items shown as `Row N`; generic `viewModelName` identifiers are never presented as authored row labels.
 - Each image property uses one full-width select containing every embedded raster asset, `Open file…`, and `Clear`; the external file input is hidden, with no separate action buttons and standalone export parity.
-- Runtime 2.39.2 is the safe default. Web 2.40.0 / runtime-v0.1.271 has a confirmed nested-image double-offset in both renderers and is a warned explicit opt-in.
+- Runtime selection defaults to Latest (auto), preserves explicit pins, and falls back to 2.39.2 when discovery is unavailable. Web 2.40.0 / runtime-v0.1.271 retains its confirmed nested-image warning.
 - Configured official builds enable Anonymous Usage by default, show a first-run notice before reporting, and keep the opt-out in Settings; cite `/privacy` for the disclosure.
 - Other key surfaces include a 36-tool MCP bridge, event and script consoles, applied-editor-aware generated snippets, overflow-safe auto-margin canvas centering, styled fixed-canvas scrollbars, and standalone HTML export.
 - macOS .riv declarations support the official Rive UTI and the legacy RAV compatibility UTI, include the dedicated document icon resource, and register RAV as a Viewer without forcing a default-app change.

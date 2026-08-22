@@ -125,7 +125,7 @@ const jsonLd = {
         "Bundled native rav-mcp sidecar with one-click setup for supported AI clients",
         "Developer ID signed and notarized macOS releases with Tauri-authenticated auto updates",
         "Tauri v2 desktop app with official and legacy macOS .riv UTI declarations, dedicated macOS and Windows document icons, upgrade-aware Windows registration, and single-instance forwarding",
-        "Canvas and WebGL2 dual renderer with safe 2.39.2 default, warned 2.40.0 opt-in, and live semver switching",
+        "Canvas and WebGL2 dual renderer with Latest auto-selection, warned 2.40.0 pin, and live semver switching",
         "Overflow-safe auto-margin centering and styled 10px scrollbars for fixed-size central canvases",
         "State preservation across refresh, reload, and export flows",
       ],

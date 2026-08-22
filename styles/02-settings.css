@@ -162,37 +162,6 @@
     font-weight: 600;
 }
 
-.settings-row-counter-note {
-    align-items: flex-start;
-}
-
-.settings-counter-privacy {
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-end;
-    gap: 8px;
-    max-width: 340px;
-    text-align: right;
-}
-
-.settings-link-button {
-    flex: 0 0 auto;
-    border: 0;
-    background: transparent;
-    color: var(--neon);
-    cursor: pointer;
-    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.3px;
-}
-
-.settings-link-button:hover,
-.settings-link-button:focus-visible {
-    text-decoration: underline;
-    text-underline-offset: 2px;
-}
-
 .color-input.is-transparent {
     border-color: #c4f82a66;
     box-shadow: inset 0 0 0 1px #c4f82a44;

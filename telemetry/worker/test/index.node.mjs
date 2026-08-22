@@ -67,11 +67,11 @@ describe('payload validation', () => {
       schema: 1,
       event: 'install',
       token: INSTALL_TOKEN,
-      release: '2.4.4',
+      release: '2.5.0',
     }, NOW), {
       event: 'install',
       period: '',
-      release: '2.4.4',
+      release: '2.5.0',
       token: INSTALL_TOKEN,
     });
 
@@ -79,7 +79,7 @@ describe('payload validation', () => {
       schema: 1,
       event: 'monthly_active',
       token: ACTIVE_TOKEN,
-      release: '2.4.4',
+      release: '2.5.0',
       period: '2026-08',
     }, NOW).period, '2026-08');
   });
@@ -104,7 +104,7 @@ describe('privacy-preserving storage', () => {
       schema: 1,
       event: 'monthly_active',
       token: ACTIVE_TOKEN,
-      release: '2.4.4',
+      release: '2.5.0',
       period: '2026-08',
     }, {
       headers: {
@@ -120,7 +120,7 @@ describe('privacy-preserving storage', () => {
     assert.equal(values[0], 'monthly_active');
     assert.equal(values[1], '2026-08');
     assert.match(values[2], /^[0-9a-f]{64}$/);
-    assert.equal(values[3], '2.4.4');
+    assert.equal(values[3], '2.5.0');
     assert.equal(values[4], NOW.toISOString());
     assert.ok(!values.includes(ACTIVE_TOKEN));
     assert.ok(!values.includes('203.0.113.10'));
@@ -182,7 +182,7 @@ describe('HTTP boundary', () => {
       schema: 1,
       event: 'install',
       token: INSTALL_TOKEN,
-      release: '2.4.4',
+      release: '2.5.0',
     }), environment(database, { rateLimitAllows: false }), { now: () => NOW });
 
     assert.equal(result.status, 429);
@@ -217,7 +217,7 @@ describe('HTTP boundary', () => {
       schema: 1,
       event: 'install',
       token: INSTALL_TOKEN,
-      release: '2.4.4',
+      release: '2.5.0',
     }), environment(database), { now: () => NOW });
 
     assert.equal(result.status, 503);

@@ -14,11 +14,9 @@ import {
     loadRuntimeMeta,
     loadRuntimeVersionByFile,
     loadRuntimeVersionPreference,
-    migrateRuntimeLayoutCompatibilityPreferences,
     normalizeFileRuntimePreferenceId,
     normalizeRuntimeVersionToken,
     parseSemverParts,
-    RUNTIME_LAYOUT_COMPATIBILITY_MIGRATION_STORAGE_KEY,
 } from '../../../src/app/platform/runtime/runtime-utils.js';
 
 describe('platform/runtime-utils', () => {
@@ -49,6 +47,8 @@ describe('platform/runtime-utils', () => {
         };
 
         expect(loadRuntimeVersionPreference(storage)).toBe(DEFAULT_RUNTIME_VERSION_TOKEN);
+        storage.getItem.mockReturnValue(null);
+        expect(loadRuntimeVersionPreference(storage)).toBe('latest');
 
         storage.getItem.mockImplementation(() => {
             throw new Error('storage unavailable');
@@ -102,67 +102,23 @@ describe('platform/runtime-utils', () => {
         expect(loadRuntimeVersionByFile(storage)).toEqual({});
     });
 
-    it('migrates unsafe persisted layout runtimes once and preserves later explicit opt-in', () => {
+    it('preserves explicit global and file-scoped runtime selections', () => {
         const values = new Map([
-            ['riveRuntimeVersionPreference', 'latest'],
+            ['riveRuntimeVersionPreference', '2.39.2'],
             ['riveRuntimeVersionPreferencesByFile', JSON.stringify({
                 'path:/tmp/one.riv': '2.40.0',
-                'path:/tmp/two.riv': '2.39.2',
+                'path:/tmp/two.riv': 'latest',
             })],
         ]);
         const storage = {
             getItem: vi.fn((key) => values.get(key) ?? null),
-            setItem: vi.fn((key, value) => values.set(key, value)),
         };
 
-        const migrated = migrateRuntimeLayoutCompatibilityPreferences(storage);
-
-        expect(migrated).toEqual(expect.objectContaining({
-            completed: true,
-            migrated: true,
-            migratedFileCount: 1,
-            migratedGlobal: true,
-            runtimeVersionToken: DEFAULT_RUNTIME_VERSION,
-            runtimeVersionByFile: {
-                'path:/tmp/one.riv': DEFAULT_RUNTIME_VERSION,
-                'path:/tmp/two.riv': '2.39.2',
-            },
-        }));
-        expect(values.get(RUNTIME_LAYOUT_COMPATIBILITY_MIGRATION_STORAGE_KEY)).toContain(
-            'authored-layout-default-2.39.2-v1',
-        );
-
-        values.set('riveRuntimeVersionPreference', 'latest');
-        values.set('riveRuntimeVersionPreferencesByFile', JSON.stringify({
+        expect(loadRuntimeVersionPreference(storage)).toBe('2.39.2');
+        expect(loadRuntimeVersionByFile(storage)).toEqual({
             'path:/tmp/one.riv': '2.40.0',
-        }));
-        const explicitOptIn = migrateRuntimeLayoutCompatibilityPreferences(storage);
-
-        expect(explicitOptIn.migrated).toBe(false);
-        expect(explicitOptIn.runtimeVersionToken).toBe('latest');
-        expect(explicitOptIn.runtimeVersionByFile).toEqual({
-            'path:/tmp/one.riv': '2.40.0',
+            'path:/tmp/two.riv': 'latest',
         });
-    });
-
-    it('keeps unsafe runtime preferences safe in memory when migration storage is unavailable', () => {
-        const values = new Map([
-            ['riveRuntimeVersionPreference', '2.40.0'],
-            ['riveRuntimeVersionPreferencesByFile', JSON.stringify({ demo: 'latest' })],
-        ]);
-        const storage = {
-            getItem: vi.fn((key) => values.get(key) ?? null),
-            setItem: vi.fn(() => {
-                throw new Error('read-only storage');
-            }),
-        };
-
-        expect(migrateRuntimeLayoutCompatibilityPreferences(storage)).toEqual(expect.objectContaining({
-            completed: false,
-            migrated: true,
-            runtimeVersionToken: DEFAULT_RUNTIME_VERSION,
-            runtimeVersionByFile: { demo: DEFAULT_RUNTIME_VERSION },
-        }));
     });
 
     it('loads cached runtime metadata from storage', () => {

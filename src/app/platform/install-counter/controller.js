@@ -17,7 +17,6 @@ export function createInstallCounterController({
     const notice = elements?.installCounterNotice;
     const noticePrivacyButton = elements?.installCounterNoticePrivacyButton;
     const noticeDismissButton = elements?.installCounterNoticeDismissButton;
-    const settingsPrivacyButton = elements?.installCounterPrivacyButton;
     let disposed = false;
     let busy = false;
     let currentStatus = { available: false, enabled: false, noticeRequired: false };
@@ -187,7 +186,6 @@ export function createInstallCounterController({
     function attachListeners() {
         button?.addEventListener('click', onSettingsClick);
         noticePrivacyButton?.addEventListener('click', openPrivacyDetails);
-        settingsPrivacyButton?.addEventListener('click', openPrivacyDetails);
         noticeDismissButton?.addEventListener('click', completeNotice);
         notice?.addEventListener('mouseenter', onPointerEnter);
         notice?.addEventListener('mouseleave', onPointerLeave);
@@ -225,7 +223,6 @@ export function createInstallCounterController({
         if (hideTimer !== null) windowRef.clearTimeout(hideTimer);
         button?.removeEventListener('click', onSettingsClick);
         noticePrivacyButton?.removeEventListener('click', openPrivacyDetails);
-        settingsPrivacyButton?.removeEventListener('click', openPrivacyDetails);
         noticeDismissButton?.removeEventListener('click', completeNotice);
         notice?.removeEventListener('mouseenter', onPointerEnter);
         notice?.removeEventListener('mouseleave', onPointerLeave);

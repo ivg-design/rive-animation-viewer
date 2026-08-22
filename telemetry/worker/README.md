@@ -23,13 +23,13 @@ These are best-effort product metrics, not an authentication or billing ledger. 
 Install:
 
 ```json
-{"schema":1,"event":"install","token":"Abcdefghijklmnopqrstu_","release":"2.4.4"}
+{"schema":1,"event":"install","token":"Abcdefghijklmnopqrstu_","release":"2.5.0"}
 ```
 
 Monthly activity:
 
 ```json
-{"schema":1,"event":"monthly_active","token":"Zbcdefghijklmnopqrstu-","release":"2.4.4","period":"2026-08"}
+{"schema":1,"event":"monthly_active","token":"Zbcdefghijklmnopqrstu-","release":"2.5.0","period":"2026-08"}
 ```
 
 Tokens are exactly 22 unpadded base64url characters (128 bits). `monthly_active.period` must be a valid UTC month within one month of the Worker's current UTC month. Unknown fields are rejected.

@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
-## [2.4.4] - 2026-08-21
+## [2.5.0] - 2026-08-22
 
 ### Added
 
@@ -19,6 +19,8 @@ All notable changes to this project are documented in this file.
 - **Hybrid ViewModel synchronization** — Visible scalar controls are sampled on an independent 120 ms UI cadence so RAV does not inject value callbacks into Rive's runtime-advance path. List membership remains reactive and coalesces mutations into one topology rebuild; hidden and collapsed controls create no scalar work.
 - **Background console capture** — Console history now buffers without rebuilding hidden fallback/Eruda DOM and flushes when the JavaScript Console reopens, avoiding log-driven frame drops while playback is visible.
 - **Development build stamp** — Debug/local builds show an explicit `DEV` channel beside the generated build ID in both the About dialog and code-editor information panel; production releases retain their release identity.
+- **Concise privacy controls** — `Anonymous Usage` now sits immediately above About in Settings without an extra explanatory row. The Privacy Policy remains available from the first-run notice and is included in About's compact two-row Links panel, which stays equal in height to Build Matrix.
+- **Automatic runtime default** — Fresh or unset runtime preferences now select `Latest (auto)` instead of pinning 2.39.2. Explicit global and per-file selections remain unchanged, and 2.39.2 remains the fallback only when current-version discovery is unavailable.
 
 ### Fixed
 

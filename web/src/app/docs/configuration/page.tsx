@@ -10,15 +10,16 @@ export default function Configuration() {
 
       <h2>Settings Panel</h2>
 
-      <Image src={asset("/docs/settings-popover.webp")} alt="Settings panel showing runtime version picker, BG color, canvas sizing with AUTO/FIXED toggle, pixel dimensions with aspect lock, and About button" width={500} height={320} className="rounded-xl border border-[var(--border-dark)] my-4" />
+      <Image src={asset("/docs/settings-popover.webp")} alt="Settings panel showing runtime version, background color, canvas sizing, Anonymous Usage, and About controls" width={500} height={320} className="rounded-xl border border-[var(--border-dark)] my-4" />
 
       <p>The Settings gear in the toolbar opens the configuration panel with:</p>
       <ol>
-        <li><strong>Runtime Ver</strong> &mdash; use the safe 2.39.2 default, or explicitly select Latest, another pinned version, or Custom semver</li>
+        <li><strong>Runtime Ver</strong> &mdash; defaults to Latest (auto), with concrete versions and Custom semver available as explicit pins</li>
         <li><strong>BG Color</strong> &mdash; canvas background color picker with NO BG reset</li>
         <li><strong>Canvas Size</strong> &mdash; AUTO (fills viewport) or FIXED (explicit pixels)</li>
         <li><strong>Pixels</strong> &mdash; width and height inputs with aspect-ratio LOCK</li>
-        <li><strong>About</strong> &mdash; opens the About window with build metadata and credits</li>
+        <li><strong>Anonymous Usage</strong> &mdash; enables or disables anonymous installed-version reporting</li>
+        <li><strong>About</strong> &mdash; opens build metadata, credits, dependencies, product links, and the Privacy Policy</li>
       </ol>
 
       <p className="text-sm text-[var(--text-dim)]">
@@ -35,17 +36,16 @@ export default function Configuration() {
 
       <h2>Runtime Version</h2>
       <p>
-        RAV 2.4.4 defaults to <strong>2.39.2</strong>. Live RAV MCP comparison proved that
-        Web 2.40.0 / runtime-v0.1.271 can double-offset nested, data-bound images in both WebGL2
-        and Canvas; 2.39.2 preserves the Rive
-        Editor-authored layout. A one-time migration changes stored
-        <code>latest</code> and <code>2.40.0</code> preferences to 2.39.2.
+        RAV 2.5.0 defaults to <strong>Latest (auto)</strong> and resolves the current npm runtime
+        before playback. If version discovery is unavailable, 2.39.2 is the fallback.
+        Live RAV MCP comparison previously proved that Web 2.40.0 / runtime-v0.1.271 can
+        double-offset nested, data-bound images in both WebGL2 and Canvas, so that exact version
+        remains labeled with an authored-layout warning.
       </p>
       <p>
-        You can explicitly choose <strong>Latest (auto)</strong>, one of the concrete versions,
-        or <strong>Custom</strong> for manual semver input. Latest and 2.40.0 are marked with an
-        authored-layout risk warning; selecting either after migration is treated as deliberate
-        opt-in and remains persisted per file and embedded in exports.
+        You can choose one of the concrete versions or <strong>Custom</strong> for a manual semver
+        pin. Explicit global and per-file selections remain persisted and are embedded as the
+        resolved concrete runtime version in exports.
       </p>
 
       <h2>Layout</h2>

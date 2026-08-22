@@ -3,6 +3,7 @@ import { createAboutDialogController } from '../../../src/app/ui/about/about-dia
 describe('ui/about/about-dialog', () => {
     it('injects an About row into settings and opens a populated dialog', async () => {
         document.body.innerHTML = '<div id="settings-popover"></div>';
+        const openExternalUrl = vi.fn();
 
         const controller = createAboutDialogController({
             callbacks: {
@@ -10,7 +11,7 @@ describe('ui/about/about-dialog', () => {
                 getAppVersionLabel: () => '2.0.5',
                 getCurrentRuntime: () => 'webgl2',
                 getCurrentRuntimeVersion: () => '2.36.0',
-                getOpenExternalUrl: () => vi.fn(),
+                getOpenExternalUrl: () => openExternalUrl,
             },
             fetchImpl: vi.fn(async () => ({
                 ok: true,
@@ -44,6 +45,13 @@ describe('ui/about/about-dialog', () => {
         expect(dialog.textContent).toContain('Rive Docs');
         expect(dialog.textContent).toContain('Rive Community');
         expect(dialog.textContent).toContain('mograph.life');
+        expect(dialog.textContent).toContain('Privacy Policy');
+        expect(dialog.querySelectorAll('.about-dialog-link-btn')).toHaveLength(7);
+
+        const privacyPolicyButton = [...dialog.querySelectorAll('.about-dialog-link-btn')]
+            .find((button) => button.textContent === 'Privacy Policy');
+        privacyPolicyButton.click();
+        await vi.waitFor(() => expect(openExternalUrl).toHaveBeenCalledWith('https://forge.mograph.life/apps/rav/privacy'));
     });
 
     it('opens from the tauri about menu event', async () => {

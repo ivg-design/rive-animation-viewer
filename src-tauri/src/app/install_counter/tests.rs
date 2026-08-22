@@ -62,7 +62,7 @@ fn payload_contains_only_the_public_counter_schema() {
         schema: 1,
         event: "monthly_active",
         token: "opaque".to_string(),
-        release: "2.4.4".to_string(),
+        release: "2.5.0".to_string(),
         period: Some("2026-08".to_string()),
     };
     let value = serde_json::to_value(payload).unwrap();

@@ -32,7 +32,7 @@ export default function Troubleshooting() {
       <ul>
         <li>Check the runtime version in the bottom strip or Settings</li>
         <li>Web 2.40.0 / runtime-v0.1.271 has a confirmed nested, data-bound image double-offset in both Canvas and WebGL2</li>
-        <li>Use the 2.39.2 default to preserve the Rive Editor-authored positions; choosing Latest or 2.40.0 is an explicit opt-in and shows a warning</li>
+        <li>Latest (auto) is the default. If a particular runtime shifts authored positions, pin 2.39.2; the known 2.40.0 layout risk remains labeled</li>
       </ul>
 
       <h2>The Finder icon did not change</h2>

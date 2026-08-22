@@ -14,6 +14,7 @@ export const ABOUT_LINKS = [
     { label: 'Documentation', url: 'https://forge.mograph.life/apps/rav/docs' },
     { label: 'RAV Site', url: 'https://forge.mograph.life/apps/rav' },
     { label: 'GitHub', url: 'https://github.com/ivg-design/rive-animation-viewer' },
+    { label: 'Privacy Policy', url: 'https://forge.mograph.life/apps/rav/privacy' },
     { label: 'Rive Docs', url: 'https://rive.app/docs' },
     { label: 'Rive Community', url: 'https://community.rive.app' },
     { label: 'mograph.life', url: 'https://mograph.life' },

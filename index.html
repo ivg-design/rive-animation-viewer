@@ -132,11 +132,6 @@
                                     <button type="button" id="canvas-color-reset-btn" class="settings-toggle">NO BG</button>
                                 </div>
                             </div>
-                            <div class="settings-row">
-                                <label class="settings-label" for="install-counter-enabled-btn" title="Counts this installation once and sends a different anonymous activity token each month. No files, hardware identifier, account, or license data.">Anonymous Usage</label>
-                                <div class="settings-controls"><button type="button" id="install-counter-enabled-btn" class="settings-toggle" aria-pressed="false" aria-describedby="install-counter-privacy-note" title="Enable or disable anonymous installation and monthly-active counts" disabled>UNAVAILABLE</button></div>
-                            </div>
-                            <div class="settings-row settings-row-counter-note"><span class="settings-label">Privacy</span><div class="settings-counter-privacy"><span class="settings-note" id="install-counter-privacy-note">On by default in official releases. Random install/monthly tokens + RAV version only. No files, paths, hardware ID, account, or license data.</span><button type="button" id="install-counter-privacy-btn" class="settings-link-button">DETAILS</button></div></div>
                             <div class="settings-row settings-row-canvas-size">
                                 <label class="settings-label" for="canvas-size-width-input">Canvas Size</label>
                                 <div class="settings-controls settings-controls-canvas-size">
@@ -177,6 +172,10 @@
                                     <span id="canvas-size-aspect-value" class="settings-note settings-note-value">16:9</span>
                                     <span class="settings-note" id="canvas-size-mode-note">Canvas follows the viewer size.</span>
                                 </div>
+                            </div>
+                            <div class="settings-row">
+                                <label class="settings-label" for="install-counter-enabled-btn">Anonymous Usage</label>
+                                <div class="settings-controls"><button type="button" id="install-counter-enabled-btn" class="settings-toggle" aria-pressed="false" title="Enable or disable anonymous usage" disabled>UNAVAILABLE</button></div>
                             </div>
                             </div>
                         </div>

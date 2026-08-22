@@ -124,6 +124,28 @@ describe('ui regression smoke', () => {
         expect(html.indexOf('id="mcp-setup-btn"')).toBeLessThan(html.indexOf('id="demo-bundle-btn"'));
     });
 
+    it('keeps anonymous usage concise and immediately before the dynamic About row', () => {
+        const html = readFileSync(path.join(repoRoot, 'index.html'), 'utf8');
+        const aboutController = readFileSync(path.join(repoRoot, 'src', 'app', 'ui', 'about', 'about-dialog.js'), 'utf8');
+
+        expect(html).not.toContain('install-counter-privacy-note');
+        expect(html).not.toContain('install-counter-privacy-btn');
+        expect(html.indexOf('id="install-counter-enabled-btn"')).toBeGreaterThan(html.indexOf('id="canvas-size-aspect-value"'));
+        expect(aboutController).toContain('popover.append(row);');
+    });
+
+    it('keeps the About build and links cards equal-height with two link rows', () => {
+        const aboutCss = readFileSync(path.join(repoRoot, 'styles', '10-about-dialog.css'), 'utf8');
+        const bodyRule = aboutCss.match(/\.about-dialog-body\s*\{([^}]*)\}/)?.[1] || '';
+        const topCardRule = aboutCss.match(/\.about-dialog-card-build,\s*\.about-dialog-card-links\s*\{([^}]*)\}/)?.[1] || '';
+        const linksRule = aboutCss.match(/\.about-dialog-links\s*\{([^}]*)\}/)?.[1] || '';
+
+        expect(bodyRule).toContain('align-items: stretch;');
+        expect(topCardRule).toContain('align-self: stretch;');
+        expect(topCardRule).toContain('height: 100%;');
+        expect(linksRule).toContain('grid-template-columns: repeat(4, minmax(0, 1fr));');
+    });
+
     it('keeps the Tauri window capability wired for drag, minimize, maximize, and close', () => {
         const tauriConfig = JSON.parse(readFileSync(path.join(repoRoot, 'src-tauri', 'tauri.conf.json'), 'utf8'));
         const tauriWindowsConfig = JSON.parse(readFileSync(path.join(repoRoot, 'src-tauri', 'tauri.windows.conf.json'), 'utf8'));

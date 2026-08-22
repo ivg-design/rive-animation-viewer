@@ -8,7 +8,6 @@ describe('platform/install-counter/controller', () => {
     } = {}) {
         document.body.innerHTML = `
             <button id="install-counter-enabled-btn" disabled>UNAVAILABLE</button>
-            <button id="install-counter-privacy-btn">DETAILS</button>
             <aside id="install-counter-notice" tabindex="-1" hidden>
                 <button id="install-counter-notice-privacy-btn">PRIVACY POLICY</button>
                 <button id="install-counter-notice-dismiss-btn">×</button>
@@ -16,7 +15,6 @@ describe('platform/install-counter/controller', () => {
         `;
         const elements = {
             installCounterEnabledButton: document.getElementById('install-counter-enabled-btn'),
-            installCounterPrivacyButton: document.getElementById('install-counter-privacy-btn'),
             installCounterNotice: document.getElementById('install-counter-notice'),
             installCounterNoticePrivacyButton: document.getElementById('install-counter-notice-privacy-btn'),
             installCounterNoticeDismissButton: document.getElementById('install-counter-notice-dismiss-btn'),
