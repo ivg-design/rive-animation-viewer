@@ -4,6 +4,7 @@ import AnswerSection from "@/components/AnswerSection";
 import FeaturesSection from "@/components/FeaturesSection";
 import GallerySection from "@/components/GallerySection";
 import DownloadSection from "@/components/DownloadSection";
+import UsageCounter from "@/components/UsageCounter";
 import ChangelogPreview from "@/components/ChangelogPreview";
 import Footer from "@/components/Footer";
 
@@ -16,6 +17,7 @@ export default function Home() {
       <FeaturesSection />
       <GallerySection />
       <DownloadSection />
+      <UsageCounter />
       <ChangelogPreview />
       <Footer />
     </main>

@@ -10,7 +10,8 @@ All notable changes to this project are documented in this file.
 
 - **Dedicated playback WebView** — Packaged RAV now runs the Rive canvas in a child WebView while the main WebView owns controls, drawers, editor, export, MCP, and diagnostics. A narrow typed protocol carries file/configuration and UI changes across the boundary, keeping ordinary RAV plumbing off the playback document's main thread.
 - **Isolated playback comparison** — The export surface can open the current file in a minimal independent playback window for direct performance comparison without rebuilding a standalone file.
-- **Privacy-minimal installation counter** — Official release builds expose an opt-in `Anonymous Usage` setting. Rust sends one random installation token and one independently derived monthly-active token with the release number; development, test, and unconfigured builds cannot send. No animation/file data, hardware identifier, account, or license data is included.
+- **Privacy-minimal installation counter** — Configured official release builds enable `Anonymous Usage` by default, show a first-run 15-second opt-out toast, and retain an on/off control in Settings. Reporting remains locked until the toast completes or is explicitly dismissed, followed by a further 30-second delay; development, test, and unconfigured builds cannot send. Rust sends one random installation token and one independently derived monthly-active token with the release number. No animation/file data, path, hardware identifier, account, or license data is included.
+- **Public installation counter** — The RAV website mirrors RWPP's split-flap counter above the changelog and reads only a one-minute-cached aggregate installation total from the counter Worker.
 
 ### Changed
 
@@ -21,12 +22,13 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- **macOS custom title bar** — The opaque main window keeps native macOS rounding and shadow while explicitly hiding its standard red/yellow/green buttons through AppKit, replacing the unreliable off-screen-position hack without restoring whole-window transparency.
 - **Concrete export control counts** — Standalone export summaries and branch badges count the concrete values that will be serialized while retaining compact wildcard selectors for repeated list fields. A 129-key TrackMap selection therefore reports its actual 999 exported controls.
 - **Collapsed-drawer access** — Left/right reveal buttons live in the main WebView runtime strip, so the child playback surface cannot cover the controls needed to reopen either drawer.
 
 ### Privacy
 
-- **Counter boundary** — Counting is off until the user opts in. The server immediately HMACs incoming random tokens, never stores raw tokens or request metadata, applies a fail-closed per-location write cap, retains deduplication digests for 90 days, and keeps only identifier-free aggregate totals thereafter. Network infrastructure necessarily processes IP addresses transiently for delivery, but RAV does not read or persist them. Counts are best-effort product metrics rather than an authentication or billing ledger.
+- **Counter boundary** — Counting is default-on with a first-run notice and immediate opt-out in configured official builds. The server immediately HMACs incoming random tokens, never stores raw tokens or request metadata, applies a fail-closed per-location write cap, retains deduplication digests for 90 days, and keeps only identifier-free aggregate totals thereafter. Network infrastructure necessarily processes IP addresses transiently for delivery, but RAV does not read or persist them. Counts are best-effort product metrics rather than an authentication or billing ledger.
 
 ## [2.4.3] - 2026-08-15
 

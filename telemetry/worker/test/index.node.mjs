@@ -23,7 +23,7 @@ function jsonRequest(payload, options = {}) {
   });
 }
 
-function fakeDatabase({ fail = false } = {}) {
+function fakeDatabase({ fail = false, installTotal = 0 } = {}) {
   const calls = [];
   return {
     calls,
@@ -32,6 +32,7 @@ function fakeDatabase({ fail = false } = {}) {
         async first() {
           calls.push({ sql, values: [] });
           if (fail) throw new Error('private database error');
+          if (sql.includes("event_type = 'install'")) return { total: installTotal };
           return { total: 0 };
         },
         bind(...values) {
@@ -154,6 +155,25 @@ describe('HTTP boundary', () => {
     );
     assert.equal(unavailable.status, 503);
     assert.equal(unavailable.headers.get('cache-control'), 'no-store');
+  });
+
+  it('publishes only the aggregate installation count with a one-minute cache', async () => {
+    const result = await handleRequest(
+      new Request('https://counter.example/v1/stats'),
+      environment(fakeDatabase({ installTotal: 821 })),
+    );
+    assert.equal(result.status, 200);
+    assert.equal(result.headers.get('access-control-allow-origin'), '*');
+    assert.match(result.headers.get('cache-control'), /max-age=60/);
+    assert.doesNotMatch(result.headers.get('cache-control'), /stale-while-revalidate/);
+    assert.deepEqual(await result.json(), { schema: 1, installations: 821 });
+
+    const wrongMethod = await handleRequest(
+      new Request('https://counter.example/v1/stats', { method: 'POST' }),
+      environment(),
+    );
+    assert.equal(wrongMethod.status, 405);
+    assert.equal(wrongMethod.headers.get('allow'), 'GET');
   });
 
   it('fails closed before D1 writes when the global write budget is exhausted', async () => {

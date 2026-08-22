@@ -1,5 +1,6 @@
 const EVENT_PATH = '/v1/event';
 const HEALTH_PATH = '/v1/health';
+const STATS_PATH = '/v1/stats';
 const MAX_BODY_BYTES = 2_048;
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{22}$/;
 const RELEASE_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?(?:\+[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?$/;
@@ -17,6 +18,11 @@ const DELETE_EXPIRED_DIGESTS_SQL = `
 `;
 const DIGEST_RETENTION_DAYS = 90;
 const HEALTH_SQL = 'SELECT COUNT(*) AS total FROM anonymous_counts';
+const INSTALL_TOTAL_SQL = `
+  SELECT COALESCE(SUM(total), 0) AS total
+  FROM anonymous_counts
+  WHERE event_type = 'install'
+`;
 const GLOBAL_WRITE_LIMIT_KEY = 'rav-counter:v1:global';
 
 class RequestError extends Error {
@@ -35,6 +41,20 @@ function response(status, body = null, extraHeaders = {}) {
     headers.set('content-type', 'text/plain; charset=utf-8');
   }
   return new Response(body, { status, headers });
+}
+
+function jsonResponse(status, value, extraHeaders = {}) {
+  return new Response(JSON.stringify(value), {
+    status,
+    headers: new Headers({
+      'access-control-allow-origin': '*',
+      'cache-control': status === 200
+        ? 'public, max-age=60, s-maxage=60'
+        : 'no-store',
+      'content-type': 'application/json; charset=utf-8',
+      ...extraHeaders,
+    }),
+  });
 }
 
 function exactKeys(value, expected) {
@@ -200,6 +220,18 @@ async function storageIsHealthy(env) {
   return Number.isInteger(result?.total) && result.total >= 0;
 }
 
+async function readPublicStats(env) {
+  if (!env?.DB?.prepare) {
+    throw new Error('counter storage is unavailable');
+  }
+  const result = await env.DB.prepare(INSTALL_TOTAL_SQL).first();
+  const installations = Number(result?.total ?? 0);
+  if (!Number.isSafeInteger(installations) || installations < 0) {
+    throw new Error('counter storage is unavailable');
+  }
+  return { schema: 1, installations };
+}
+
 async function writeIsAllowed(env) {
   if (typeof env?.WRITE_RATE_LIMITER?.limit !== 'function') {
     throw new Error('counter rate limit is unavailable');
@@ -219,6 +251,12 @@ export async function handleRequest(request, env, {
         return response(405, 'method not allowed', { allow: 'GET' });
       }
       return (await storageIsHealthy(env)) ? response(204) : response(503, 'service unavailable');
+    }
+    if (url.pathname === STATS_PATH && url.search === '') {
+      if (request.method !== 'GET') {
+        return response(405, 'method not allowed', { allow: 'GET' });
+      }
+      return jsonResponse(200, await readPublicStats(env));
     }
     if (url.pathname !== EVENT_PATH || url.search !== '') {
       return response(404, 'not found');

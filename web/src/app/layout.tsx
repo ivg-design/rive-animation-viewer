@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Space_Mono } from "next/font/google";
 import WebVitalsReporter from "@/components/WebVitalsReporter";
+import { getLatestRelease } from "@/lib/github";
 import { CANONICAL_HOST, toCanonicalUrl } from "@/lib/seo";
 import "./globals.css";
 
@@ -91,14 +92,11 @@ const jsonLd = {
       name: "RAV - Rive Animation Viewer",
       alternateName: "RAV",
       description:
-        "Free desktop player for inspecting, debugging, and testing Rive (.riv) animations offline. Documentation covers the 2.4.4 dual-WebView performance release.",
+        "Free desktop player for inspecting, debugging, and testing Rive (.riv) animations offline.",
       url: siteUrl,
       applicationCategory: "DeveloperApplication",
       operatingSystem: "macOS, Windows",
-      softwareVersion: "2.4.4",
-      releaseNotes: "Version 2.4.4 isolates playback in a dedicated child WebView, makes ViewModel synchronization reactive and bounded, corrects concrete export counts, removes stale transparent-window plumbing, and adds an opt-in privacy-minimal installation counter.",
       datePublished: "2025-11-01",
-      dateModified: "2026-08-21",
       downloadUrl: "https://github.com/ivg-design/rive-animation-viewer/releases/latest",
       installUrl: "https://github.com/ivg-design/rive-animation-viewer/releases/latest",
       screenshot: toCanonicalUrl("/media/screenshots/open-panels_sm.webp"),
@@ -186,17 +184,28 @@ const jsonLd = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const latestPublicRelease = await getLatestRelease();
+  const currentJsonLd = latestPublicRelease ? {
+    ...jsonLd,
+    "@graph": jsonLd["@graph"].map((entry, index) => index === 0 ? {
+      ...entry,
+      softwareVersion: latestPublicRelease.version,
+      releaseNotes: toCanonicalUrl("/changelog"),
+      dateModified: latestPublicRelease.date,
+    } : entry),
+  } : jsonLd;
+
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(currentJsonLd) }}
         />
       </head>
       <body

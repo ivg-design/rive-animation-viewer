@@ -123,6 +123,188 @@ body {
   animation: pulse-glow 3s ease-in-out infinite;
 }
 
+/* Mechanical installation counter — adapted from the RWPP split-flap display. */
+.usage-counter-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  padding: clamp(3.5rem, 7vw, 6rem) 2rem 1.5rem;
+}
+
+.usage-counter {
+  display: flex;
+  align-items: center;
+  min-width: 248px;
+  min-height: 104px;
+  padding: 12px;
+  border: 1px solid var(--border-dark);
+  border-radius: 12px;
+  background: #0c0d0b;
+  box-shadow: 0 18px 45px rgb(0 0 0 / 38%), inset 0 1px 0 rgb(255 255 255 / 4%);
+  perspective: 600px;
+}
+
+.usage-counter-skeleton {
+  justify-content: center;
+  gap: 6px;
+}
+
+.usage-counter.is-stale {
+  opacity: 0.72;
+}
+
+.usage-counter-skeleton > span {
+  width: 52px;
+  height: 80px;
+  border-radius: 6px;
+  background: linear-gradient(to bottom, #171914 49%, #050505 49%, #050505 51%, #20231d 51%);
+  opacity: 0.42;
+}
+
+.usage-digit {
+  position: relative;
+  display: block;
+  width: 52px;
+  height: 80px;
+  margin: 0 3px;
+  color: #eef4e8;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 60px;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 55%);
+}
+
+.usage-digit::after {
+  content: "";
+  position: absolute;
+  z-index: 10;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #050505;
+  transform: translateY(-1px);
+}
+
+.usage-digit-half {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  overflow: hidden;
+  backface-visibility: hidden;
+}
+
+.usage-digit-half > span {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 200%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.usage-digit-upper,
+.usage-digit-flip-up {
+  top: 0;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(to bottom, #171914, #22251e);
+}
+
+.usage-digit-upper > span,
+.usage-digit-flip-up > span {
+  top: 0;
+}
+
+.usage-digit-lower,
+.usage-digit-flip-down {
+  bottom: 0;
+  border-bottom: 1px solid #3c4136;
+  border-radius: 0 0 6px 6px;
+  background: linear-gradient(to bottom, #2b2f27, #20231d);
+}
+
+.usage-digit-lower > span,
+.usage-digit-flip-down > span {
+  bottom: 0;
+}
+
+.usage-digit-flip-up {
+  z-index: 3;
+  transform-origin: bottom center;
+}
+
+.usage-digit-flip-down {
+  z-index: 2;
+  transform: rotateX(90deg);
+  transform-origin: top center;
+}
+
+.usage-digit-flip-up.is-flipping {
+  animation: usage-flip-up 0.5s ease-in forwards;
+}
+
+.usage-digit-flip-down.is-flipping {
+  animation: usage-flip-down 0.5s ease-out 0.25s forwards;
+}
+
+.usage-counter-label {
+  color: var(--text-dim);
+  font-family: "Space Mono", monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.usage-counter-note {
+  margin-top: -0.45rem;
+  color: var(--text-ghost);
+  font-size: 0.72rem;
+}
+
+@keyframes usage-flip-up {
+  to { transform: rotateX(-90deg); }
+}
+
+@keyframes usage-flip-down {
+  to { transform: rotateX(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .usage-digit-flip-up.is-flipping,
+  .usage-digit-flip-down.is-flipping {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
+}
+
+@media (max-width: 420px) {
+  .usage-counter-section {
+    padding-inline: 0.75rem;
+  }
+
+  .usage-counter {
+    min-width: 0;
+    padding: 10px;
+  }
+
+  .usage-digit,
+  .usage-counter-skeleton > span {
+    width: clamp(32px, 10vw, 44px);
+    height: 68px;
+  }
+
+  .usage-digit {
+    margin-inline: 2px;
+    font-size: 48px;
+  }
+}
+
 /* Staggered delays */
 .delay-100 { animation-delay: 100ms; }
 .delay-200 { animation-delay: 200ms; }

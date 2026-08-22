@@ -1,17 +1,18 @@
 # RAV anonymous installation counter
 
-This directory is a minimal public reference endpoint for RAV's opt-in installation counter. It accepts only the Rust client's `install` and `monthly_active` payloads at `POST /v1/event`.
+This directory is the minimal public endpoint for RAV's opt-out installation counter. It accepts only the Rust client's `install` and `monthly_active` payloads at `POST /v1/event` and publishes only the aggregate installation total at `GET /v1/stats`.
 
 The Worker:
 
 - caps request bodies at 2 KiB and validates exact fields and formats;
 - transforms the random client token with domain-separated HMAC-SHA-256 before D1 storage;
 - stores only event type, month where applicable, HMAC digest, release, and receipt time;
-- does not read or persist IP addresses, user agents, headers, or raw request bodies;
+- inspects only content type/length and the bounded, allowlisted JSON payload, without persisting raw bodies or request metadata;
 - contains no `console` logging and disables Worker observability and invocation logs in `wrangler.jsonc`;
 - responds identically to a new event and a duplicate (`204`) because D1 uses `INSERT OR IGNORE`;
 - applies a fail-closed, per-Cloudflare-location write cap before D1 and exposes a read-only `GET /v1/health` deployment probe;
 - increments identifier-free aggregate counters through a SQLite trigger and deletes event-token digests after 90 days; aggregate counts remain.
+- returns the installation aggregate through the enabled 60-second Worker cache; it never exposes release cohorts or row-level digests.
 
 Cloudflare necessarily processes connection metadata to deliver the request. Confirm that account-level Logpush, Tail Workers, WAF/security-event retention, and any external tracing are disabled or configured consistently; the Worker configuration controls Workers observability, not every account-level Cloudflare product.
 
@@ -66,7 +67,7 @@ These commands are documentation only; this repository does not deploy automatic
    openssl rand -base64 48 | npx wrangler@4 secret put TOKEN_PEPPER
    ```
 
-4. Confirm that `namespace_id` under `ratelimits` is unique within the Cloudflare account. The checked-in binding caps accepted writes at 120 per minute in each Cloudflare location and requires Wrangler 4.36.0 or later.
+4. Confirm that `namespace_id` under `ratelimits` is unique within the Cloudflare account. The checked-in binding caps accepted writes at 120 per minute in each Cloudflare location. The checked-in Worker cache protects the aggregate D1 read path; use a current Wrangler 4 release (validated with 4.125.0).
 
 5. Review account-level logging controls, then deploy. The default `workers.dev` endpoint is enabled for the fastest setup; a custom route can replace it later without changing the protocol:
 
@@ -81,11 +82,19 @@ These commands are documentation only; this repository does not deploy automatic
      https://YOUR-WORKER.workers.dev/v1/health
    ```
 
+   Then verify the public aggregate route returns only `schema` and `installations`:
+
+   ```bash
+   curl --fail --silent --show-error \
+     https://YOUR-WORKER.workers.dev/v1/stats
+   ```
+
 7. Create an account budget alert and, if available for the chosen hostname and plan, an additional account-level WAF rule. Budget alerts notify; they do not stop usage. Then set the GitHub repository variable `RAV_COUNTER_ENDPOINT` to the credential-free HTTPS `.../v1/event` URL. The release workflow probes `/v1/health` before it creates a draft and passes that one canonical endpoint to every platform build.
 
 Cloudflare's current Worker configuration and D1 binding references are:
 
 - <https://developers.cloudflare.com/workers/wrangler/configuration/>
+- <https://developers.cloudflare.com/workers/cache/configuration/>
 - <https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/>
 - <https://developers.cloudflare.com/d1/worker-api/>
 - <https://developers.cloudflare.com/workers/runtime-apis/web-crypto/>
@@ -128,4 +137,4 @@ npx wrangler@4 d1 execute rav-anonymous-counter --remote \
   --command="SELECT period, SUM(total) AS active_installations FROM anonymous_counts WHERE event_type = 'monthly_active' GROUP BY period ORDER BY period DESC;"
 ```
 
-These are approximate counts of consenting app installations, not people, accounts, or physical devices. Avoid publishing small release cohorts; aggregate or suppress low-count groups before sharing results.
+These are approximate counts of reporting app installations, not people, accounts, or physical devices. The public endpoint exposes only the total installation aggregate; avoid publishing small release cohorts from manual database queries.

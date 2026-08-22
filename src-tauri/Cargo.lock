@@ -54,6 +54,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "futures-util",
+ "objc2-app-kit",
  "raw-window-handle",
  "reqwest",
  "rfd",

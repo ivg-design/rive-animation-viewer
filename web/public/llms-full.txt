@@ -19,6 +19,7 @@ RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.
 - Home: https://forge.mograph.life/apps/rav/
 - Documentation: https://forge.mograph.life/apps/rav/docs
 - Changelog: https://forge.mograph.life/apps/rav/changelog
+- Privacy and anonymous usage counting: https://forge.mograph.life/apps/rav/privacy
 
 ## 4) Feature Facts with Evidence
 - Auto-generated ViewModel controls: https://forge.mograph.life/apps/rav/docs#viewmodel-controls

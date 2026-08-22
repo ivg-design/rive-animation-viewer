@@ -19,6 +19,7 @@ export default function Footer() {
         { label: "Screenshots", href: "#screenshots" },
         { label: "Downloads", href: "#downloads" },
         { label: "Changelog", href: "/changelog" },
+        { label: "Privacy", href: "/privacy" },
         { label: "Documentation", href: "/docs" },
       ],
     },

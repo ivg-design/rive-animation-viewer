@@ -152,7 +152,7 @@ describe('ui regression smoke', () => {
         expect(mainWindow.backgroundColor).toBe('#0A0A0AFF');
         expect(mainWindow.transparent).toBe(false);
         expect(mainWindow.titleBarStyle).toBe('Overlay');
-        expect(mainWindow.trafficLightPosition).toEqual({ x: -120, y: -120 });
+        expect(mainWindow.trafficLightPosition).toBeUndefined();
         expect(mainWindow.hiddenTitle).toBe(true);
         expect(windowsMainWindow.decorations).toBe(false);
         expect(windowsMainWindow.label).toBe('main');
@@ -162,6 +162,7 @@ describe('ui regression smoke', () => {
         expect(windowsMainWindow.trafficLightPosition).toBeNull();
         expect(windowsMainWindow.hiddenTitle).toBe(false);
         expect(mainRs).not.toContain('set_decorations(false)');
+        expect(mainRs).toContain('hide_macos_traffic_lights(&_window)');
         expect(mainRs).toContain('WebviewWindowBuilder::from_config');
         expect(mainRs).toContain('.incognito(true)');
         expect(mainRs).toContain('window.__RAV_UPDATER_ACCEPTANCE__ = true;');
@@ -172,6 +173,10 @@ describe('ui regression smoke', () => {
         expect(mainRs).toContain('apply_windows_corner_preference(&_window)');
         expect(windowControls).toContain('DwmSetWindowAttribute');
         expect(windowControls).toContain('DWMWA_WINDOW_CORNER_PREFERENCE');
+        expect(windowControls).toContain('NSWindowButton::CloseButton');
+        expect(windowControls).toContain('NSWindowButton::MiniaturizeButton');
+        expect(windowControls).toContain('NSWindowButton::ZoomButton');
+        expect(windowControls).toContain('button.setHidden(true)');
         expect(cargoToml).toContain("[target.'cfg(target_os = \"windows\")'.dependencies]");
         expect(cargoToml).toContain('windows-sys');
         expect(capability.identifier).toBe('main-capability');

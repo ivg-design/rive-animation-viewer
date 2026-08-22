@@ -14,6 +14,7 @@ RAV is a standalone desktop app for inspecting, debugging, and testing Rive (.ri
 - Home: https://forge.mograph.life/apps/rav/
 - Documentation: https://forge.mograph.life/apps/rav/docs
 - Changelog: https://forge.mograph.life/apps/rav/changelog
+- Privacy and anonymous usage counting: https://forge.mograph.life/apps/rav/privacy
 
 ## Core Feature Anchors
 - ViewModel controls: https://forge.mograph.life/apps/rav/docs#viewmodel-controls

@@ -7,6 +7,7 @@
 1. https://forge.mograph.life/apps/rav
 2. https://forge.mograph.life/apps/rav/docs
 3. https://forge.mograph.life/apps/rav/changelog
+4. https://forge.mograph.life/apps/rav/privacy
 
 ## Product Facts
 - RAV is a standalone desktop app for Rive (.riv) inspection and debugging.

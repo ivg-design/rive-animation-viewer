@@ -443,8 +443,11 @@ vercel deploy --prebuilt --prod --yes --scope ivgs-projects
 Always run the explicit `vercel link` step on a fresh checkout; otherwise Vercel
 can create a new project from the `web/` directory name instead of selecting
 `ivgs-projects/rav`. Keep
-`NEXT_PUBLIC_SITE_URL=https://forge.mograph.life/apps/rav/`, then verify the
-direct Vercel deployment and the public Forge URL.
+`NEXT_PUBLIC_SITE_URL=https://forge.mograph.life/apps/rav/` and set the server-only
+`RAV_COUNTER_STATS_URL` to the credential-free HTTPS `.../v1/stats` endpoint.
+Then verify the direct Vercel deployment, the public Forge URL, the Privacy page,
+and that a foreground homepage reload reaches the Worker aggregate within the
+documented few-minute cache window. Do not claim a strict 60-second guarantee.
 
 ## Post-release verification
 

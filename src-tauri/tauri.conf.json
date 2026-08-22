@@ -33,10 +33,6 @@
         "backgroundColor": "#0A0A0AFF",
         "transparent": false,
         "titleBarStyle": "Overlay",
-        "trafficLightPosition": {
-          "x": -120,
-          "y": -120
-        },
         "hiddenTitle": true,
         "theme": "Dark",
         "fullscreen": false

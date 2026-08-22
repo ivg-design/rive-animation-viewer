@@ -1,6 +1,6 @@
 {
   "version": "1.1",
-  "generatedAt": "2026-08-15",
+  "generatedAt": "2026-08-22",
   "project": "RAV",
   "canonical": "https://forge.mograph.life/apps/rav/",
   "releaseStatus": {
@@ -34,6 +34,10 @@
     {
       "kind": "changelog",
       "url": "https://forge.mograph.life/apps/rav/changelog"
+    },
+    {
+      "kind": "privacy",
+      "url": "https://forge.mograph.life/apps/rav/privacy"
     },
     {
       "kind": "llms",

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { asset } from "@/lib/config";
 import { parseChangelog } from "@/lib/changelog";
+import { getLatestRelease } from "@/lib/github";
 import { ChevronRight, Sparkles, Bug, Wrench, ShieldCheck } from "lucide-react";
 
 function CategoryBullets({ icon: Icon, title, items, color }: {
@@ -32,10 +33,10 @@ function CategoryBullets({ icon: Icon, title, items, color }: {
   );
 }
 
-export default function ChangelogPreview() {
+export default async function ChangelogPreview() {
   const entries = parseChangelog();
   const recent = entries.slice(0, 3);
-  const latestPublicVersion = entries[0]?.version;
+  const latestPublicVersion = (await getLatestRelease())?.version;
 
   if (recent.length === 0) {
     return null;
@@ -53,7 +54,7 @@ export default function ChangelogPreview() {
       </div>
 
       <div className="flex flex-col gap-6 max-w-[700px] w-full">
-        {recent.map((entry) => (
+        {recent.map((entry, index) => (
           <div
             key={entry.version}
             className="relative pl-8 border-l border-[var(--border-dark)]"
@@ -73,6 +74,11 @@ export default function ChangelogPreview() {
                 {entry.version === latestPublicVersion && (
                   <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[var(--neon-dim)] text-[var(--neon)]">
                     LATEST PUBLIC
+                  </span>
+                )}
+                {index === 0 && latestPublicVersion && entry.version !== latestPublicVersion && (
+                  <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-400/10 text-amber-300">
+                    RELEASE CANDIDATE
                   </span>
                 )}
               </div>

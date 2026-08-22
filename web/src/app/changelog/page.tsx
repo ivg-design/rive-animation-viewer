@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ChevronLeft, Sparkles, Bug, Wrench, ShieldCheck } from "lucide-react";
 import { asset } from "@/lib/config";
 import { parseChangelog } from "@/lib/changelog";
+import { getLatestRelease } from "@/lib/github";
 import { toCanonicalUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -45,8 +46,7 @@ function CategorySection({
   );
 }
 
-function VersionSidebar({ versions }: { versions: string[] }) {
-  const latestPublicVersion = versions[0];
+function VersionSidebar({ versions, latestPublicVersion }: { versions: string[]; latestPublicVersion?: string }) {
   return (
     <nav className="hidden lg:block fixed left-8 top-1/2 -translate-y-1/2 z-30">
       <div className="flex flex-col gap-1 p-3 rounded-xl bg-[var(--bg-zinc)]/80 backdrop-blur-sm border border-[var(--border-light)] max-h-[70vh] overflow-y-auto">
@@ -71,14 +71,14 @@ function VersionSidebar({ versions }: { versions: string[] }) {
   );
 }
 
-export default function ChangelogPage() {
+export default async function ChangelogPage() {
   const entries = parseChangelog();
   const versionList = entries.map(e => e.version);
-  const latestPublicVersion = entries[0]?.version;
+  const latestPublicVersion = (await getLatestRelease())?.version;
 
   return (
     <main className="min-h-screen bg-[var(--bg-void)]">
-      <VersionSidebar versions={versionList} />
+      <VersionSidebar versions={versionList} latestPublicVersion={latestPublicVersion} />
 
       {/* Header */}
       <header className="sticky top-0 z-40 bg-[var(--bg-void)]/90 backdrop-blur-sm border-b border-[var(--border-dark)]">
@@ -151,6 +151,11 @@ export default function ChangelogPage() {
                         {entry.version === latestPublicVersion && (
                           <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-[var(--neon-dim)] text-[var(--neon)]">
                             Latest public
+                          </span>
+                        )}
+                        {index === 0 && latestPublicVersion && entry.version !== latestPublicVersion && (
+                          <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-400/10 text-amber-300">
+                            Release candidate — not published
                           </span>
                         )}
                       </div>

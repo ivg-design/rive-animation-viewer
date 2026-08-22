@@ -23,6 +23,111 @@
     transform: translateY(0);
 }
 
+/* ── First-run anonymous usage notice ────────────────────── */
+
+.install-counter-notice {
+    position: fixed;
+    top: 68px;
+    right: 16px;
+    z-index: 3900;
+    width: min(430px, calc(100vw - 32px));
+    padding: 16px;
+    border: 1px solid #c4f82a55;
+    border-radius: 10px;
+    background: #171914f2;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+    color: var(--text-dim);
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.install-counter-notice[hidden] {
+    display: none !important;
+}
+
+.install-counter-notice.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.install-counter-notice-kicker {
+    margin-bottom: 5px;
+    color: var(--neon);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+}
+
+.install-counter-notice-title {
+    padding-right: 28px;
+    color: var(--text-white);
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.install-counter-notice p {
+    margin-top: 7px;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.install-counter-notice-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.install-counter-notice-button {
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--border-bright);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.25px;
+}
+
+.install-counter-notice-button:hover,
+.install-counter-notice-button:focus-visible {
+    border-color: #c4f82a66;
+    color: var(--text-white);
+}
+
+.install-counter-notice-button.is-opt-out {
+    border-color: #fa541c66;
+    color: #ff9a78;
+}
+
+.install-counter-notice-button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.install-counter-notice-dismiss {
+    position: absolute;
+    top: 9px;
+    right: 10px;
+    width: 26px;
+    height: 26px;
+    border: 0;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+}
+
+.install-counter-notice-dismiss:hover,
+.install-counter-notice-dismiss:focus-visible {
+    color: var(--text-white);
+}
+
 .demo-button--disabled {
     opacity: 0.5;
     pointer-events: none;

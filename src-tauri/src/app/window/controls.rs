@@ -15,6 +15,9 @@ use windows_sys::Win32::Graphics::Dwm::{
     DWM_WINDOW_CORNER_PREFERENCE,
 };
 
+#[cfg(target_os = "macos")]
+use objc2_app_kit::{NSWindow, NSWindowButton};
+
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
@@ -77,6 +80,30 @@ pub fn pick_riv_file() -> Option<String> {
         .add_filter("Rive Animation", &["riv"])
         .pick_file()
         .map(|path| path.to_string_lossy().to_string())
+}
+
+#[cfg(target_os = "macos")]
+pub fn hide_macos_traffic_lights(window: &WebviewWindow) -> Result<(), String> {
+    window
+        .with_webview(|webview| unsafe {
+            let native_window: &NSWindow = &*webview.ns_window().cast();
+            for button_kind in [
+                NSWindowButton::CloseButton,
+                NSWindowButton::MiniaturizeButton,
+                NSWindowButton::ZoomButton,
+            ] {
+                if let Some(button) = native_window.standardWindowButton(button_kind) {
+                    button.setHidden(true);
+                }
+            }
+        })
+        .map_err(|error| format!("failed to access native macOS window: {error}"))
+}
+
+#[cfg(not(target_os = "macos"))]
+#[allow(dead_code)]
+pub fn hide_macos_traffic_lights(_window: &WebviewWindow) -> Result<(), String> {
+    Ok(())
 }
 
 #[cfg(target_os = "windows")]

@@ -10,7 +10,8 @@ All notable changes to this project are documented in this file.
 
 - **Dedicated playback WebView** — Packaged RAV isolates the Rive canvas in a child WebView while controls, drawers, editor, export, MCP, and diagnostics remain in the main WebView.
 - **Isolated playback comparison** — The current animation can open in a minimal independent playback window for direct performance comparison.
-- **Opt-in anonymous installation counts** — Official releases can send one random install token and a separately rotated monthly-active token plus the release number. No file, animation, hardware, account, or license data is included.
+- **Default-on anonymous installation counts** — Configured official releases show a first-run 15-second opt-out toast. Reporting remains locked until the toast completes or is explicitly dismissed, then waits another 30 seconds before sending one random install token and a separately rotated monthly-active token plus the release number. The same setting remains available afterward. No file, animation, path, hardware, account, or license data is included.
+- **Public installation counter** — A RWPP-style split-flap display above the homepage changelog shows accepted anonymous installation reports, checks about once per minute while active, and refreshes when revisited.
 
 ### Changed
 
@@ -21,12 +22,13 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- **macOS custom title bar** — The opaque main window keeps native macOS rounding and shadow while explicitly hiding its standard red/yellow/green buttons through AppKit, replacing the unreliable off-screen-position hack without restoring whole-window transparency.
 - **Concrete export control counts** — Standalone export summaries and branch badges count concrete serialized values while retaining compact wildcard selectors for repeated list fields.
 - **Collapsed drawer controls** — Drawer reveal buttons remain in the UI WebView and cannot be covered by the dedicated playback surface.
 
 ### Privacy
 
-- **Minimal, bounded data** — Counting is off until opt-in. Raw tokens and request metadata are not stored; a fail-closed per-location write cap protects D1, token digests expire after 90 days, and only aggregate counts remain. Counts are best-effort product metrics rather than an authentication or billing ledger.
+- **Minimal, bounded data** — Counting is default-on with an immediate opt-out in configured official builds. Raw tokens and request metadata are not stored; a fail-closed per-location write cap protects D1, token digests expire after 90 days, and only aggregate counts remain. Counts are best-effort product metrics rather than an authentication or billing ledger.
 
 ## [2.4.3] - 2026-08-15
 

@@ -30,17 +30,17 @@ These gates materially reduce regression risk, but they are still code- and DOM-
 - **Correct export counts**: Export selection summaries count concrete serialized values, so the TrackMap test case reports 999 exported controls rather than 129 wildcard keys.
 - **Accessible collapsed drawers**: Reveal controls stay in the UI WebView runtime strip instead of being covered by the child playback surface.
 - **Visible dev identity**: Every local/debug build shows `DEV` plus its generated build ID in both About and the code-editor information panel.
-- **Opt-in installation counting**: Official builds can report an anonymous install count and monthly-active count. The client sends only random/rotating tokens and the release number; it never sends Rive data, paths, hardware identifiers, accounts, or license data.
+- **Opt-out installation counting**: Official builds report an anonymous install count and monthly-active count by default. A first-run notice appears before the first possible report, and Settings can turn it off at any time. The client sends only random/rotating tokens and the release number; it never sends Rive data, paths, hardware identifiers, accounts, or license data.
 
 ## Anonymous installation counting
 
-Anonymous counting is **off by default** and can be enabled or disabled under Settings → Anonymous Usage. It is compiled only into explicitly configured official release builds; development, test, updater-acceptance, and ordinary local release builds cannot send.
+Anonymous counting is **on by default only in explicitly configured official release builds**. A non-blocking first-run notice remains visible for 15 seconds unless explicitly dismissed and offers an immediate `TURN OFF` action. Reporting stays locked until the notice completes or is dismissed, then waits another 30 seconds before the first attempt. The same control remains under Settings → Anonymous Usage. Development, test, updater-acceptance, and ordinary local release builds cannot send.
 
-When enabled, RAV sends one random installation token and then one independently derived token per UTC month, together with the app release number. Clearing application data can make the same installation count again; these best-effort metrics represent consenting app-data installations, not exact people or physical devices.
+When enabled, RAV sends one random installation token and then one independently derived token per UTC month, together with the app release number. Clearing application data can make the same installation count again; these best-effort metrics represent reporting app-data installations, not exact people or physical devices.
 
-The endpoint HMACs tokens before storage, applies a fail-closed write-rate limit, retains deduplication digests for 90 days, and preserves only identifier-free aggregate counts afterward. It does not read or persist IP addresses, user agents, request headers/bodies, file data, paths, hardware identifiers, account IDs, or license IDs. Cloudflare necessarily processes connection metadata transiently to deliver requests. Turning the setting off deletes pending client tokens and the activity secret; already aggregated counts cannot identify or delete an individual installation.
+The endpoint HMACs tokens before storage, applies a fail-closed write-rate limit, retains deduplication digests for 90 days, and preserves only identifier-free aggregate counts afterward. It inspects content type and length, then parses only the bounded, allowlisted JSON payload; it does not persist raw bodies, request metadata, file data, paths, hardware identifiers, account IDs, or license IDs. Cloudflare necessarily processes connection metadata transiently to deliver requests. Turning the setting off deletes pending client tokens and the activity secret; already aggregated counts cannot identify or delete an individual installation. A request already in flight may finish, but no later report starts while the setting is off.
 
-The public protocol, server implementation, retention behavior, and deployment guide live in [`telemetry/worker`](telemetry/worker/README.md).
+The public protocol, server implementation, retention behavior, and deployment guide live in [`telemetry/worker`](telemetry/worker/README.md). The website publishes only the aggregate installation total, checks about once per minute while active, and refreshes when revisited; layered caches mean a new count will typically appear within a few minutes. The full notice is available at `/privacy` on the RAV website.
 
 ## 2.4.3 Highlights
 

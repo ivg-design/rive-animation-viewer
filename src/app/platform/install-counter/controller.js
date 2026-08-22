@@ -1,67 +1,248 @@
-const CONSENT_COMMAND = 'set_install_counter_consent';
+const ENABLED_COMMAND = 'set_install_counter_enabled';
 const STATUS_COMMAND = 'get_install_counter_status';
+const ACKNOWLEDGE_NOTICE_COMMAND = 'acknowledge_install_counter_notice';
+const OPEN_EXTERNAL_COMMAND = 'open_external_url';
+const PRIVACY_URL = 'https://forge.mograph.life/apps/rav/privacy';
+const NOTICE_DURATION_MS = 15_000;
 
 export function createInstallCounterController({
     elements,
     getTauriInvoker = () => null,
     isTauriEnvironment = () => false,
     logEvent = () => {},
+    documentRef = globalThis.document,
+    windowRef = globalThis.window,
 } = {}) {
-    const button = elements?.installCounterConsentButton;
+    const button = elements?.installCounterEnabledButton;
+    const notice = elements?.installCounterNotice;
+    const noticeOptOutButton = elements?.installCounterNoticeOptOutButton;
+    const noticePrivacyButton = elements?.installCounterNoticePrivacyButton;
+    const noticeDismissButton = elements?.installCounterNoticeDismissButton;
+    const settingsPrivacyButton = elements?.installCounterPrivacyButton;
     let disposed = false;
     let busy = false;
-    let currentStatus = { available: false, consented: false };
+    let currentStatus = { available: false, enabled: false, noticeRequired: false };
+    let noticeTimer = null;
+    let hideTimer = null;
+    let timerStartedAt = 0;
+    let remainingNoticeMs = NOTICE_DURATION_MS;
+    let focusBeforeNotice = null;
+    const pauseReasons = new Set();
 
-    function render({ available, consented } = currentStatus) {
-        if (!button) return;
-        currentStatus = { available: Boolean(available), consented: Boolean(consented) };
-        button.disabled = busy || !currentStatus.available;
-        button.setAttribute('aria-pressed', currentStatus.consented ? 'true' : 'false');
-        button.textContent = !currentStatus.available ? 'UNAVAILABLE' : (currentStatus.consented ? 'ON' : 'OFF');
-        button.classList.toggle('is-active', currentStatus.available && currentStatus.consented);
+    function normalizeStatus(status = {}) {
+        return {
+            available: Boolean(status.available),
+            enabled: Boolean(status.enabled ?? status.consented),
+            noticeRequired: Boolean(status.noticeRequired),
+        };
     }
 
-    async function setup() {
-        if (!button) return;
-        if (!isTauriEnvironment()) {
-            render({ available: false, consented: false });
-            return;
+    function render(status = currentStatus) {
+        currentStatus = normalizeStatus(status);
+        if (button) {
+            button.disabled = busy || !currentStatus.available;
+            button.setAttribute('aria-pressed', currentStatus.enabled ? 'true' : 'false');
+            button.textContent = !currentStatus.available ? 'UNAVAILABLE' : (currentStatus.enabled ? 'ON' : 'OFF');
+            button.classList.toggle('is-active', currentStatus.available && currentStatus.enabled);
         }
+        if (noticeOptOutButton) {
+            noticeOptOutButton.disabled = busy || !currentStatus.available || !currentStatus.enabled;
+        }
+    }
+
+    function clearNoticeTimer() {
+        if (noticeTimer !== null) {
+            windowRef.clearTimeout(noticeTimer);
+            noticeTimer = null;
+        }
+    }
+
+    function scheduleNoticeTimer() {
+        clearNoticeTimer();
+        if (!notice || notice.hidden || pauseReasons.size > 0 || remainingNoticeMs <= 0) return;
+        timerStartedAt = Date.now();
+        noticeTimer = windowRef.setTimeout(() => completeNotice(), remainingNoticeMs);
+    }
+
+    function pauseNoticeTimer(reason) {
+        if (pauseReasons.has(reason)) return;
+        pauseReasons.add(reason);
+        if (noticeTimer !== null) {
+            remainingNoticeMs = Math.max(0, remainingNoticeMs - (Date.now() - timerStartedAt));
+            clearNoticeTimer();
+        }
+    }
+
+    function resumeNoticeTimer(reason) {
+        pauseReasons.delete(reason);
+        scheduleNoticeTimer();
+    }
+
+    function hideNotice() {
+        clearNoticeTimer();
+        if (!notice || notice.hidden) return;
+        const restoreFocus = notice.contains(documentRef?.activeElement);
+        notice.classList.remove('is-visible');
+        if (hideTimer !== null) windowRef.clearTimeout(hideTimer);
+        hideTimer = windowRef.setTimeout(() => {
+            if (notice) notice.hidden = true;
+            if (restoreFocus && focusBeforeNotice?.isConnected) {
+                focusBeforeNotice.focus?.({ preventScroll: true });
+            }
+            hideTimer = null;
+        }, 180);
+    }
+
+    async function acknowledgeNotice() {
         const invoke = getTauriInvoker();
-        if (typeof invoke !== 'function') {
-            render({ available: false, consented: false });
-            return;
-        }
+        if (typeof invoke !== 'function') return;
         try {
-            const status = await invoke(STATUS_COMMAND, {});
-            render({ available: Boolean(status?.available), consented: Boolean(status?.consented) });
+            const status = await invoke(ACKNOWLEDGE_NOTICE_COMMAND, {});
+            render(status);
         } catch (error) {
-            render({ available: false, consented: false });
-            logEvent('ui', 'install-counter-status-failed', 'Anonymous usage status unavailable.', error);
+            logEvent('ui', 'install-counter-notice-failed', 'Anonymous usage notice could not be recorded.', error);
         }
-        button.addEventListener('click', onClick);
     }
 
-    async function onClick() {
-        if (disposed || busy || button.disabled) return;
-        const next = button.getAttribute('aria-pressed') !== 'true';
+    function completeNotice() {
+        hideNotice();
+        void acknowledgeNotice();
+    }
+
+    function showNotice() {
+        if (!notice || !currentStatus.available || !currentStatus.enabled || !currentStatus.noticeRequired) return;
+        remainingNoticeMs = NOTICE_DURATION_MS;
+        pauseReasons.clear();
+        notice.hidden = false;
+        void notice.offsetWidth;
+        notice.classList.add('is-visible');
+        focusBeforeNotice = documentRef?.activeElement;
+        notice.focus?.({ preventScroll: true });
+        scheduleNoticeTimer();
+    }
+
+    async function setEnabled(enabled) {
+        if (disposed || busy || !currentStatus.available) return false;
         const invoke = getTauriInvoker();
+        if (typeof invoke !== 'function') return false;
         busy = true;
         render(currentStatus);
         try {
-            const status = await invoke(CONSENT_COMMAND, { consented: next });
-            render({ available: Boolean(status?.available), consented: Boolean(status?.consented) });
+            const status = await invoke(ENABLED_COMMAND, { enabled });
+            render(status);
+            if (!currentStatus.enabled) hideNotice();
+            return currentStatus.enabled === enabled;
         } catch (error) {
-            logEvent('ui', 'install-counter-consent-failed', 'Unable to update anonymous usage preference.', error);
+            logEvent('ui', 'install-counter-preference-failed', 'Unable to update anonymous usage preference.', error);
+            return false;
         } finally {
             busy = false;
             if (!disposed) render(currentStatus);
         }
     }
 
+    async function onSettingsClick() {
+        if (button?.disabled) return;
+        await setEnabled(button.getAttribute('aria-pressed') !== 'true');
+    }
+
+    async function onNoticeOptOut() {
+        if (await setEnabled(false)) hideNotice();
+    }
+
+    async function openPrivacyDetails() {
+        const invoke = getTauriInvoker();
+        try {
+            if (isTauriEnvironment() && typeof invoke === 'function') {
+                await invoke(OPEN_EXTERNAL_COMMAND, { url: PRIVACY_URL });
+            } else {
+                windowRef?.open?.(PRIVACY_URL, '_blank', 'noopener,noreferrer');
+            }
+        } catch (error) {
+            logEvent('ui', 'install-counter-privacy-open-failed', 'Unable to open anonymous usage details.', error);
+        }
+    }
+
+    function onFocusOut() {
+        windowRef.setTimeout(() => {
+            if (!notice?.contains(documentRef?.activeElement)) resumeNoticeTimer('focus');
+        }, 0);
+    }
+
+    function onVisibilityChange() {
+        if (documentRef?.hidden) pauseNoticeTimer('visibility');
+        else resumeNoticeTimer('visibility');
+    }
+
+    function onPointerEnter() {
+        pauseNoticeTimer('pointer');
+    }
+
+    function onPointerLeave() {
+        resumeNoticeTimer('pointer');
+    }
+
+    function onFocusIn(event) {
+        if (event.target !== notice) pauseNoticeTimer('focus');
+    }
+
+    function onNoticeKeyDown(event) {
+        if (event.key !== 'Escape') return;
+        event.preventDefault();
+        completeNotice();
+    }
+
+    function attachListeners() {
+        button?.addEventListener('click', onSettingsClick);
+        noticeOptOutButton?.addEventListener('click', onNoticeOptOut);
+        noticePrivacyButton?.addEventListener('click', openPrivacyDetails);
+        settingsPrivacyButton?.addEventListener('click', openPrivacyDetails);
+        noticeDismissButton?.addEventListener('click', completeNotice);
+        notice?.addEventListener('mouseenter', onPointerEnter);
+        notice?.addEventListener('mouseleave', onPointerLeave);
+        notice?.addEventListener('focusin', onFocusIn);
+        notice?.addEventListener('focusout', onFocusOut);
+        notice?.addEventListener('keydown', onNoticeKeyDown);
+        documentRef?.addEventListener('visibilitychange', onVisibilityChange);
+    }
+
+    async function setup() {
+        if (!button) return;
+        attachListeners();
+        if (!isTauriEnvironment()) {
+            render({ available: false, enabled: false });
+            return;
+        }
+        const invoke = getTauriInvoker();
+        if (typeof invoke !== 'function') {
+            render({ available: false, enabled: false });
+            return;
+        }
+        try {
+            const status = await invoke(STATUS_COMMAND, {});
+            render(status);
+            showNotice();
+        } catch (error) {
+            render({ available: false, enabled: false });
+            logEvent('ui', 'install-counter-status-failed', 'Anonymous usage status unavailable.', error);
+        }
+    }
+
     function dispose() {
         disposed = true;
-        button?.removeEventListener('click', onClick);
+        clearNoticeTimer();
+        if (hideTimer !== null) windowRef.clearTimeout(hideTimer);
+        button?.removeEventListener('click', onSettingsClick);
+        noticeOptOutButton?.removeEventListener('click', onNoticeOptOut);
+        noticePrivacyButton?.removeEventListener('click', openPrivacyDetails);
+        settingsPrivacyButton?.removeEventListener('click', openPrivacyDetails);
+        noticeDismissButton?.removeEventListener('click', completeNotice);
+        notice?.removeEventListener('mouseenter', onPointerEnter);
+        notice?.removeEventListener('mouseleave', onPointerLeave);
+        notice?.removeEventListener('focusin', onFocusIn);
+        notice?.removeEventListener('focusout', onFocusOut);
+        notice?.removeEventListener('keydown', onNoticeKeyDown);
+        documentRef?.removeEventListener('visibilitychange', onVisibilityChange);
     }
 
     return { setup, dispose };

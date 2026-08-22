@@ -23,6 +23,8 @@ use crate::app::support::{
 };
 #[cfg(target_os = "windows")]
 use crate::app::window::controls::apply_windows_corner_preference;
+#[cfg(target_os = "macos")]
+use crate::app::window::controls::hide_macos_traffic_lights;
 use crate::app::window::controls::open_external_url;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -102,6 +104,12 @@ fn main() {
             }
 
             if let Some(_window) = app.get_webview_window("main") {
+                #[cfg(target_os = "macos")]
+                {
+                    if let Err(error) = hide_macos_traffic_lights(&_window) {
+                        eprintln!("[rav-app] failed to hide macOS traffic lights: {error}");
+                    }
+                }
                 #[cfg(target_os = "windows")]
                 {
                     if let Err(error) = apply_windows_corner_preference(&_window) {
@@ -136,7 +144,8 @@ fn main() {
             app::demo_bundle::make_demo_bundle_to_path,
             app::isolated_playback::open_isolated_playback,
             app::install_counter::get_install_counter_status,
-            app::install_counter::set_install_counter_consent,
+            app::install_counter::set_install_counter_enabled,
+            app::install_counter::acknowledge_install_counter_notice,
             app::mcp::commands::get_mcp_server_path,
             app::mcp::commands::get_mcp_port,
             app::mcp::commands::set_mcp_port,

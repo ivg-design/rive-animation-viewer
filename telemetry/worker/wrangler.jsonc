@@ -5,6 +5,9 @@
   "workers_dev": true,
   "preview_urls": false,
   "send_metrics": false,
+  "cache": {
+    "enabled": true
+  },
   "observability": {
     "enabled": false,
     "logs": {
@@ -25,7 +28,7 @@
     {
       "binding": "DB",
       "database_name": "rav-anonymous-counter",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+      "database_id": "d9fbd1ec-3971-4c96-9592-e264f16a3a11"
     }
   ]
 }
