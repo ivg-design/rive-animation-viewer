@@ -5,7 +5,6 @@
   "fixtures": [
     {
       "findingId": "RIVE-271-0002",
-      "path": "/Users/ivg/Documents/Codex/2026-08-14/new-chat/work/20260814T192047Z/worktrees/rfp/rfParser-01-26/corpus/riv-files/runtime-tests/runtime-v0.1.272/focus_bounds_moving_host.riv",
       "sha256": "eb10db89909e33d0327166be15b8f3794791e0ff29e89afe3c9c41b3ad4dbb47",
       "renderers": ["webgl2", "canvas"],
       "runtimeVersion": "2.40.0",

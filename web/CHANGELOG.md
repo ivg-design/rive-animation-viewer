@@ -8,27 +8,27 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
-- **Dedicated playback WebView** — Packaged RAV isolates the Rive canvas in a child WebView while controls, drawers, editor, export, MCP, and diagnostics remain in the main WebView.
-- **Isolated playback comparison** — The current animation can open in a minimal independent playback window for direct performance comparison.
-- **Default-on anonymous installation counts** — Configured official releases show a first-run 15-second opt-out toast. Reporting remains locked until the toast completes or is explicitly dismissed, then waits another 30 seconds before sending one random install token and a separately rotated monthly-active token plus the release number. The same setting remains available afterward. No file, animation, path, hardware, account, or license data is included.
-- **Public installation counter** — A RWPP-style split-flap display above the homepage changelog shows accepted anonymous installation reports, checks about once per minute while active, and refreshes when revisited.
+- **Dedicated playback WebView** — Packaged RAV now runs the Rive canvas in a child WebView while the main WebView owns controls, drawers, editor, export, MCP, and diagnostics. A narrow typed protocol carries file/configuration and UI changes across the boundary, keeping ordinary RAV plumbing off the playback document's main thread.
+- **Isolated playback comparison** — The export surface can open the current file in a minimal independent playback window for direct performance comparison without rebuilding a standalone file.
+- **Privacy-minimal installation counter** — Configured official release builds enable `Anonymous Usage` by default, show a first-run 15-second notice with Privacy Policy and close actions, and retain the on/off control in Settings. Reporting remains locked until the notice completes or is explicitly dismissed, followed by a further 30-second delay; development, test, and unconfigured builds cannot send. Rust sends one random installation token and one independently derived monthly-active token with the release number. No animation/file data, path, hardware identifier, account, or license data is included.
+- **Public installation counter** — The RAV website mirrors RWPP's split-flap counter above the changelog and reads only a one-minute-cached aggregate installation total from the counter Worker.
 
 ### Changed
 
 - **Opaque desktop window cleanup** — Retired the unused whole-window transparency and click-through surface, removed the full-app rounded clip layer, and reapplied the selected canvas background after each runtime canvas is mounted. RAV keeps the explicit `No BG` transparent *canvas* option and transparent standalone exports, while packaged desktop windows use an opaque compositing path for steadier playback.
-- **Hybrid ViewModel synchronization** — Visible scalar controls are sampled on an independent 120 ms UI cadence, while list membership stays reactive and coalesces mutations into one topology rebuild. Hidden and collapsed controls create no scalar work.
-- **Background console capture** — Console history buffers without rebuilding hidden fallback/Eruda DOM and flushes when the JavaScript Console reopens, avoiding log-driven frame drops while playback is visible.
-- **Development build stamp** — Debug/local builds show an explicit `DEV` channel beside the generated build ID in both the About dialog and code-editor information panel.
+- **Hybrid ViewModel synchronization** — Visible scalar controls are sampled on an independent 120 ms UI cadence so RAV does not inject value callbacks into Rive's runtime-advance path. List membership remains reactive and coalesces mutations into one topology rebuild; hidden and collapsed controls create no scalar work.
+- **Background console capture** — Console history now buffers without rebuilding hidden fallback/Eruda DOM and flushes when the JavaScript Console reopens, avoiding log-driven frame drops while playback is visible.
+- **Development build stamp** — Debug/local builds show an explicit `DEV` channel beside the generated build ID in both the About dialog and code-editor information panel; production releases retain their release identity.
 
 ### Fixed
 
 - **macOS custom title bar** — The opaque main window keeps native macOS rounding and shadow while explicitly hiding its standard red/yellow/green buttons through AppKit, replacing the unreliable off-screen-position hack without restoring whole-window transparency.
-- **Concrete export control counts** — Standalone export summaries and branch badges count concrete serialized values while retaining compact wildcard selectors for repeated list fields.
-- **Collapsed drawer controls** — Drawer reveal buttons remain in the UI WebView and cannot be covered by the dedicated playback surface.
+- **Concrete export control counts** — Standalone export summaries and branch badges count the concrete values that will be serialized while retaining compact wildcard selectors for repeated list fields. A 129-key TrackMap selection therefore reports its actual 999 exported controls.
+- **Collapsed-drawer access** — Left/right reveal buttons live in the main WebView runtime strip, so the child playback surface cannot cover the controls needed to reopen either drawer.
 
 ### Privacy
 
-- **Minimal, bounded data** — Counting is default-on with an immediate opt-out in configured official builds. Raw tokens and request metadata are not stored; a fail-closed per-location write cap protects D1, token digests expire after 90 days, and only aggregate counts remain. Counts are best-effort product metrics rather than an authentication or billing ledger.
+- **Counter boundary** — Counting is default-on with a first-run notice and a persistent Settings opt-out in configured official builds. The server immediately HMACs incoming random tokens, never stores raw tokens or request metadata, applies a fail-closed per-location write cap, retains deduplication digests for 90 days, and keeps only identifier-free aggregate totals thereafter. Network infrastructure necessarily processes IP addresses transiently for delivery, but RAV does not read or persist them. Counts are best-effort product metrics rather than an authentication or billing ledger.
 
 ## [2.4.3] - 2026-08-15
 

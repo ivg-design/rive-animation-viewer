@@ -91,7 +91,7 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
       {/* Content */}
       <main className="max-w-3xl mx-auto px-6 py-16 md:py-20">
         <div className="mb-8 rounded-xl border border-[var(--neon)]/30 bg-[var(--neon-dim)] px-4 py-3 text-sm text-[var(--text-dim)]">
-          <strong className="text-[var(--neon)]">2.4.3 current public release.</strong>{" "}
+          <strong className="text-[var(--neon)]">2.4.4 current public release.</strong>{" "}
           This documentation describes the version available from GitHub and the normal public
           updater feed.
         </div>

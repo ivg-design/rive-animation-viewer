@@ -8,7 +8,7 @@ This repo needs enforced structural discipline. The goal is not just "clean code
 
 - Hand-written runtime source files have a hard default ceiling of `400` lines.
 - New source files may not exceed `400` lines.
-- Existing oversized files are grandfathered temporarily and are locked by budget in [architecture-budget.json](/Users/ivg/github/rive-animation-viewer-audit-20260401/architecture-budget.json).
+- Existing oversized files are grandfathered temporarily and are locked by budget in [architecture-budget.json](architecture-budget.json).
 - Grandfathered files may not grow. Any increase fails the architecture check.
 
 ### 2. Folder fan-out
@@ -154,9 +154,9 @@ Before adding code to an existing file, apply these checks:
 
 Architecture enforcement is automated by:
 
-- [architecture-budget.json](/Users/ivg/github/rive-animation-viewer-audit-20260401/architecture-budget.json)
-- [scripts/check-architecture.mjs](/Users/ivg/github/rive-animation-viewer-audit-20260401/scripts/check-architecture.mjs)
-- [.dependency-cruiser.cjs](/Users/ivg/github/rive-animation-viewer-audit-20260401/.dependency-cruiser.cjs)
+- [architecture-budget.json](architecture-budget.json)
+- [scripts/check-architecture.mjs](scripts/check-architecture.mjs)
+- [.dependency-cruiser.cjs](.dependency-cruiser.cjs)
 
 The checks are part of `npm run test`, so they run in local development and in builds.
 

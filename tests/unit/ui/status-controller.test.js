@@ -41,7 +41,7 @@ describe('ui/status-controller', () => {
         const controller = createStatusController({
             callbacks: {
                 getCurrentFileName: () => '<demo>.riv',
-                getCurrentFileSourcePath: () => '/Users/ivg/demo/<demo>.riv',
+                getCurrentFileSourcePath: () => '/Users/test/demo/<demo>.riv',
                 getCurrentFileSizeBytes: () => 2048,
                 getCurrentRuntime: () => 'webgl2',
                 getCurrentRuntimeSource: () => 'bundle',
@@ -65,10 +65,10 @@ describe('ui/status-controller', () => {
         controller.updateInfo('Ready');
 
         expect(elements.runtimeStripRuntime.textContent).toBe('RT: WEBGL2 v1.2.3');
-        expect(elements.headerFileMeta.textContent).toContain('/Users/ivg/demo/');
+        expect(elements.headerFileMeta.textContent).toContain('/Users/test/demo/');
         expect(elements.headerFileMeta.textContent).toContain('<demo>.riv');
         expect(elements.headerFileMeta.textContent).toContain('2.0 KB');
-        expect(elements.headerFileMeta.querySelector('.header-file-meta-directory')?.textContent).toBe('/Users/ivg/demo/');
+        expect(elements.headerFileMeta.querySelector('.header-file-meta-directory')?.textContent).toBe('/Users/test/demo/');
         expect(elements.headerFileMeta.querySelector('.header-file-meta-file')?.textContent).toBe('<demo>.riv');
         expect(elements.headerFileMeta.querySelector('.header-file-meta-size')?.textContent).toBe('2.0 KB');
         expect(elements.versionInfo.innerHTML).toContain('Release: v3.4.5');

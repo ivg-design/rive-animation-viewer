@@ -1,7 +1,6 @@
 # RAV Codebase Audit
 
 Date: 2026-04-01
-Branch: `codex/rav-codebase-audit`
 Commit audited: `cfc5982`
 
 ## Executive Summary

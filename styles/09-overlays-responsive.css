@@ -99,11 +99,6 @@
     color: var(--text-white);
 }
 
-.install-counter-notice-button.is-opt-out {
-    border-color: #fa541c66;
-    color: #ff9a78;
-}
-
 .install-counter-notice-button:disabled {
     opacity: 0.45;
     cursor: not-allowed;

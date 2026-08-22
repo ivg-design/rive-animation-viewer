@@ -19,7 +19,7 @@ export default function OpeningFiles() {
 
       <h2>Double-Click (Desktop)</h2>
       <p>
-        On macOS, the 2.4.3 release declares both the official
+        On macOS, current RAV releases declare both the official
         <code>app.rive.editor.rive-file</code> UTI and the legacy
         <code>app.rive.animation.viewer.riv</code> compatibility UTI as alternate Viewer types,
         with the dedicated <code>RiveFileIcon.icns</code> assigned to both. Use Open With or an

@@ -4,11 +4,11 @@ site_name: RAV
 site_url: https://forge.mograph.life/apps/rav/
 canonical_url: https://forge.mograph.life/apps/rav/
 owner: IVG Design
-last_updated: 2026-08-15
+last_updated: 2026-08-22
 language: en
 
 ## Purpose
-RAV is a standalone desktop app for inspecting, debugging, and testing Rive (.riv) files offline. Version 2.4.3 is the current public release and is available through the normal updater feed.
+RAV is a standalone desktop app for inspecting, debugging, and testing Rive (.riv) files offline. Version 2.4.4 is the current public release and is available through the normal updater feed.
 
 ## Canonical Sources
 - Home: https://forge.mograph.life/apps/rav/
@@ -29,6 +29,7 @@ RAV is a standalone desktop app for inspecting, debugging, and testing Rive (.ri
 - Windows NSIS and MSI packages ship a dedicated multi-resolution .riv icon; installs and updates own the matching document-icon value, while uninstall cleanup preserves the association that preceded RAV: https://forge.mograph.life/apps/rav/docs/opening-files
 - RAV defaults to runtime 2.39.2 because 2.40.0 has a confirmed nested-image double-offset in both Canvas and WebGL2; Latest/2.40.0 remain warned explicit opt-ins: https://forge.mograph.life/apps/rav/docs/configuration
 - Fixed canvases use overflow-safe auto margins to stay centered while they fit and preserve authored-origin scrolling when oversized: https://forge.mograph.life/apps/rav/docs/ui-layout
+- Configured official builds enable anonymous installation and monthly-active counts by default, show a first-run notice before reporting, and keep the opt-out in Settings: https://forge.mograph.life/apps/rav/privacy
 
 ## Entity Facts
 - Product: RAV (Rive Animation Viewer)

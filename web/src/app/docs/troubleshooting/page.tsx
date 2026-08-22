@@ -37,7 +37,7 @@ export default function Troubleshooting() {
 
       <h2>The Finder icon did not change</h2>
       <ul>
-        <li>The 2.4.3 UTI and icon declarations require the signed installed app to replace the older bundle and launch once</li>
+        <li>The current UTI and icon declarations require the signed installed app to replace the older bundle and launch once</li>
         <li>Use Finder&apos;s Open With menu to select Rive Animation Viewer for <code>.riv</code> files</li>
         <li>Finder and Launch Services may retain cached document artwork until the app has launched and the folder is reopened</li>
       </ul>
@@ -45,7 +45,7 @@ export default function Troubleshooting() {
       <h2>The Windows .riv icon did not change</h2>
       <ul>
         <li>Older Windows installs may point <code>Rive File\DefaultIcon</code> at the application executable instead of the dedicated document icon</li>
-        <li>The 2.4.3 release bundles <code>RiveFileIcon.ico</code>, rewrites that value during NSIS install/update, and notifies Explorer</li>
+        <li>Current releases bundle <code>RiveFileIcon.ico</code>, rewrite that value during NSIS install/update, and notify Explorer</li>
         <li>Verify the installed icon path exists before clearing Explorer&apos;s icon cache</li>
       </ul>
 

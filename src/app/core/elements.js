@@ -83,7 +83,6 @@ export function getElements(documentRef = document) {
         installCounterEnabledButton: documentRef.getElementById('install-counter-enabled-btn'),
         installCounterPrivacyButton: documentRef.getElementById('install-counter-privacy-btn'),
         installCounterNotice: documentRef.getElementById('install-counter-notice'),
-        installCounterNoticeOptOutButton: documentRef.getElementById('install-counter-notice-opt-out-btn'),
         installCounterNoticePrivacyButton: documentRef.getElementById('install-counter-notice-privacy-btn'),
         installCounterNoticeDismissButton: documentRef.getElementById('install-counter-notice-dismiss-btn'),
         mcpPortInput: documentRef.getElementById('mcp-port-input'),

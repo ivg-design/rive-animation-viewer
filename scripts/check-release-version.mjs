@@ -39,6 +39,20 @@ function matchVersion(content, pattern, label) {
   return version;
 }
 
+function requireDynamicWebsiteMetadata(content) {
+  const requiredFragments = [
+    'const latestPublicRelease = await getLatestRelease();',
+    'softwareVersion: latestPublicRelease.version',
+    'dateModified: latestPublicRelease.date',
+  ];
+  const missing = requiredFragments.filter((fragment) => !content.includes(fragment));
+  if (missing.length > 0) {
+    throw new Error(
+      `Website JSON-LD must derive release metadata from GitHub's latest public release; missing: ${missing.join(', ')}`,
+    );
+  }
+}
+
 export function collectVersions() {
   const packageJson = readJson('package.json');
   const packageLock = readJson('package-lock.json');
@@ -46,6 +60,7 @@ export function collectVersions() {
   const cargoToml = read('src-tauri/Cargo.toml');
   const cargoLock = read('src-tauri/Cargo.lock');
   const websiteLayout = read('web/src/app/layout.tsx');
+  requireDynamicWebsiteMetadata(websiteLayout);
 
   return {
     'package.json': packageJson.version,
@@ -62,26 +77,21 @@ export function collectVersions() {
       /\[\[package\]\]\nname = "app"\nversion = "([^"]+)"/,
       'src-tauri/Cargo.lock app package version',
     ),
-    'web/src/app/layout.tsx': matchVersion(
-      websiteLayout,
-      /softwareVersion: "([^"]+)"/,
-      'website softwareVersion',
-    ),
   };
 }
 
 function requireReleaseContent(version) {
   const escapedVersion = version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const changelogHeading = new RegExp(`^## \\[${escapedVersion}\\](?: - .+)?$`, 'm');
-  const readmeCurrentRelease = new RegExp(
-    `^- Current release: \`${escapedVersion}\`(?: \\(.+\\))?$`,
+  const readmeReleaseStatus = new RegExp(
+    `^- (?:Current public release|Prepared release candidate): \`${escapedVersion}\`(?: \\(.+\\))?\\.?$`,
     'm',
   );
 
   const checks = [
     ['CHANGELOG.md', changelogHeading],
     ['web/CHANGELOG.md', changelogHeading],
-    ['README.md current release', readmeCurrentRelease, read('README.md')],
+    ['README.md release status', readmeReleaseStatus, read('README.md')],
   ];
 
   const missing = checks

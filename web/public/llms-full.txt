@@ -2,12 +2,12 @@
 
 canonical_url: https://forge.mograph.life/apps/rav/
 owner: IVG Design
-last_updated: 2026-08-15
+last_updated: 2026-08-22
 language: en
 site_type: product-marketing + technical documentation
 
 ## 1) Product Definition
-RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.riv) animations outside the Rive editor. Version 2.4.3 is the current public release and is available through the normal public updater feed.
+RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.riv) animations outside the Rive editor. Version 2.4.4 is the current public release and is available through the normal public updater feed.
 
 ## 2) Primary Entities
 - RAV: SoftwareApplication / DeveloperApplication
@@ -34,12 +34,14 @@ RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.
 - Windows NSIS and MSI packages ship a dedicated ten-resolution `RiveFileIcon.ico`. NSIS rewrites the generated `Rive File` document-icon value on install/update, preserves the association that preceded RAV for uninstall, and notifies Explorer; MSI owns the equivalent value as an upgrade-aware removable component: https://forge.mograph.life/apps/rav/docs/opening-files
 - Web 2.40.0 / runtime-v0.1.271 has a proven nested, data-bound image double-offset in both WebGL2 and Canvas. RAV defaults to 2.39.2, migrates stored `latest`/2.40.0 preferences once, and warns when either is explicitly selected again. runtime-v0.1.272 remains a separate canary: https://forge.mograph.life/apps/rav/docs/configuration
 - Fixed-size central canvases use overflow-safe auto margins to stay centered while they fit; the margins collapse safely to preserve authored top-left scrolling with styled 10px scrollbars when oversized: https://forge.mograph.life/apps/rav/docs/ui-layout
+- RAV 2.4.4 places playback in a dedicated child WebView while controls and diagnostics remain in the main WebView, reducing ordinary UI contention with playback: https://forge.mograph.life/apps/rav/changelog
+- Configured official builds enable Anonymous Usage by default, show a first-run notice before reporting, and keep the opt-out in Settings: https://forge.mograph.life/apps/rav/privacy
 - Configuration, renderer, and layout controls: https://forge.mograph.life/apps/rav/docs#configuration
 - MCP bridge health and recent-command activity states: https://forge.mograph.life/apps/rav/docs/mcp
 - Keyboard shortcut reference: https://forge.mograph.life/apps/rav/docs#keyboard-shortcuts
 
 ## 5) Platform and Distribution Signals
-- 2.4.3 status: current public release; published through the normal public updater feed.
+- 2.4.4 status: current public release; published through the normal public updater feed.
 - Product + downloads context: https://forge.mograph.life/apps/rav/
 - Release downloads endpoint: https://github.com/ivg-design/rive-animation-viewer/releases/latest
 - Source repository references:

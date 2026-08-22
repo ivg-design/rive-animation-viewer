@@ -10,8 +10,7 @@ describe('platform/install-counter/controller', () => {
             <button id="install-counter-enabled-btn" disabled>UNAVAILABLE</button>
             <button id="install-counter-privacy-btn">DETAILS</button>
             <aside id="install-counter-notice" tabindex="-1" hidden>
-                <button id="install-counter-notice-opt-out-btn">TURN OFF</button>
-                <button id="install-counter-notice-privacy-btn">PRIVACY DETAILS</button>
+                <button id="install-counter-notice-privacy-btn">PRIVACY POLICY</button>
                 <button id="install-counter-notice-dismiss-btn">×</button>
             </aside>
         `;
@@ -19,7 +18,6 @@ describe('platform/install-counter/controller', () => {
             installCounterEnabledButton: document.getElementById('install-counter-enabled-btn'),
             installCounterPrivacyButton: document.getElementById('install-counter-privacy-btn'),
             installCounterNotice: document.getElementById('install-counter-notice'),
-            installCounterNoticeOptOutButton: document.getElementById('install-counter-notice-opt-out-btn'),
             installCounterNoticePrivacyButton: document.getElementById('install-counter-notice-privacy-btn'),
             installCounterNoticeDismissButton: document.getElementById('install-counter-notice-dismiss-btn'),
         };
@@ -63,7 +61,7 @@ describe('platform/install-counter/controller', () => {
         expect(elements.installCounterEnabledButton.getAttribute('aria-pressed')).toBe('false');
     });
 
-    it('shows the first-run notice without recording completion before an immediate opt-out', async () => {
+    it('shows the first-run notice with a privacy link and no immediate opt-out action', async () => {
         const { elements, controller, invoke } = harness({
             status: { available: true, enabled: true, noticeRequired: true },
         });
@@ -74,9 +72,13 @@ describe('platform/install-counter/controller', () => {
         expect(document.activeElement).toBe(elements.installCounterNotice);
         expect(invoke).not.toHaveBeenCalledWith('acknowledge_install_counter_notice', {});
 
-        elements.installCounterNoticeOptOutButton.click();
-        await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith('set_install_counter_enabled', { enabled: false }));
-        expect(elements.installCounterEnabledButton.textContent).toBe('OFF');
+        elements.installCounterNoticePrivacyButton.click();
+        await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith('open_external_url', {
+            url: 'https://forge.mograph.life/apps/rav/privacy',
+        }));
+        expect(elements.installCounterNotice.hidden).toBe(false);
+        expect(elements.installCounterEnabledButton.textContent).toBe('ON');
+        expect(invoke).not.toHaveBeenCalledWith('set_install_counter_enabled', { enabled: false });
         expect(invoke).not.toHaveBeenCalledWith('acknowledge_install_counter_notice', {});
     });
 

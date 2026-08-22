@@ -376,7 +376,7 @@ fixture, the pre-RAV ProgID is `Rive Animation`:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\verify-windows-document-icon.ps1 `
-  -ExpectedVersion 2.4.3 `
+  -ExpectedVersion 2.4.4 `
   -ExpectedBundleType NSS `
   -ExpectedPreviousProgId 'Rive Animation' `
   -ExpectedIconSha256 13e12927439f4c98db3250516389822d706e4d1b7fdf3e2b2dad0fc6cff785fb `

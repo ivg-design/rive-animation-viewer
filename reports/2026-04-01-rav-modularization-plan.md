@@ -1,7 +1,6 @@
 # RAV Modularization Plan
 
 Date: 2026-04-01
-Branch: `codex/rav-codebase-audit`
 
 ## Goals
 

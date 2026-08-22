@@ -88,29 +88,21 @@ async function updateCargoToml(newVersion) {
   console.log(`✓ Updated Cargo.lock app package: ${newVersion}`);
 }
 
-async function updateWebsiteMetadata(newVersion) {
+async function verifyDynamicWebsiteMetadata() {
   const layoutPath = path.join(root, 'web', 'src', 'app', 'layout.tsx');
-  let content = await fs.readFile(layoutPath, 'utf8');
-  const now = new Date();
-  const releaseDate = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-  ].join('-');
-  content = replaceExactlyOnce(
-    content,
-    /softwareVersion: "[^"]+"/,
-    `softwareVersion: "${newVersion}"`,
-    'website softwareVersion',
-  );
-  content = replaceExactlyOnce(
-    content,
-    /dateModified: "[^"]+"/,
-    `dateModified: "${releaseDate}"`,
-    'website dateModified',
-  );
-  await fs.writeFile(layoutPath, content);
-  console.log(`✓ Updated website software metadata: ${newVersion} (${releaseDate})`);
+  const content = await fs.readFile(layoutPath, 'utf8');
+  const requiredFragments = [
+    'const latestPublicRelease = await getLatestRelease();',
+    'softwareVersion: latestPublicRelease.version',
+    'dateModified: latestPublicRelease.date',
+  ];
+  const missing = requiredFragments.filter((fragment) => !content.includes(fragment));
+  if (missing.length > 0) {
+    throw new Error(
+      `Website JSON-LD must dynamically derive public release metadata; missing: ${missing.join(', ')}`,
+    );
+  }
+  console.log('✓ Website software metadata dynamically follows GitHub\'s latest public release');
 }
 
 async function getCurrentVersion() {
@@ -135,7 +127,7 @@ async function main() {
   await updatePackageJson(newVersion);
   await updateTauriConfig(newVersion);
   await updateCargoToml(newVersion);
-  await updateWebsiteMetadata(newVersion);
+  await verifyDynamicWebsiteMetadata();
 
   console.log(`\n✓ Product version metadata updated to ${newVersion}`);
   console.log('  Add matching CHANGELOG and README release content before publishing.');

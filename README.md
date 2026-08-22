@@ -4,9 +4,9 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current release: `2.4.4` (release candidate prepared 2026-08-21; not published yet)
-- Distribution after approval: GitHub release `v2.4.4` and the normal public `latest.json` updater feed.
-- Release source: the verified `v2.4.4` commit on `main` after promotion. macOS downloads and updater apps are Developer ID signed, notarized, and stapled; every updater payload also retains its separate Tauri signature.
+- Current public release: `2.4.3`, available through GitHub Releases and the normal public `latest.json` updater feed.
+- Prepared release candidate: `2.4.4` (2026-08-21; not published yet).
+- Distribution after approval: GitHub release `v2.4.4` and the normal public `latest.json` updater feed. The verified `v2.4.4` commit on `main` is the release source after promotion. macOS downloads and updater apps are Developer ID signed, notarized, and stapled; every updater payload also retains its separate Tauri signature.
 
 ## Regression Gates
 
@@ -34,7 +34,7 @@ These gates materially reduce regression risk, but they are still code- and DOM-
 
 ## Anonymous installation counting
 
-Anonymous counting is **on by default only in explicitly configured official release builds**. A non-blocking first-run notice remains visible for 15 seconds unless explicitly dismissed and offers an immediate `TURN OFF` action. Reporting stays locked until the notice completes or is dismissed, then waits another 30 seconds before the first attempt. The same control remains under Settings → Anonymous Usage. Development, test, updater-acceptance, and ordinary local release builds cannot send.
+Anonymous counting is **on by default only in explicitly configured official release builds**. A non-blocking first-run notice remains visible for 15 seconds unless explicitly dismissed and offers Privacy Policy and close actions. Reporting stays locked until the notice completes or is dismissed, then waits another 30 seconds before the first attempt. The on/off control remains under Settings → Anonymous Usage. Development, test, updater-acceptance, and ordinary local release builds cannot send.
 
 When enabled, RAV sends one random installation token and then one independently derived token per UTC month, together with the app release number. Clearing application data can make the same installation count again; these best-effort metrics represent reporting app-data installations, not exact people or physical devices.
 
@@ -255,8 +255,8 @@ RAV includes a built-in MCP (Model Context Protocol) sidecar that lets Claude Co
 
 Runtime source structure is now enforced by an architecture budget:
 
-- [ARCHITECTURE.md](/Users/ivg/github/rive-animation-viewer-audit-20260401/ARCHITECTURE.md) defines module and folder rules
-- [architecture-budget.json](/Users/ivg/github/rive-animation-viewer-audit-20260401/architecture-budget.json) locks current oversized files so they cannot keep growing
+- [ARCHITECTURE.md](ARCHITECTURE.md) defines module and folder rules
+- [architecture-budget.json](architecture-budget.json) locks current oversized files so they cannot keep growing
 - `.dependency-cruiser.cjs` enforces layer boundaries and cycle bans
 - `npm run check:architecture` and `npm run check:deps` run automatically as part of `npm run test`
 

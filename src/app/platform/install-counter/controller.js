@@ -15,7 +15,6 @@ export function createInstallCounterController({
 } = {}) {
     const button = elements?.installCounterEnabledButton;
     const notice = elements?.installCounterNotice;
-    const noticeOptOutButton = elements?.installCounterNoticeOptOutButton;
     const noticePrivacyButton = elements?.installCounterNoticePrivacyButton;
     const noticeDismissButton = elements?.installCounterNoticeDismissButton;
     const settingsPrivacyButton = elements?.installCounterPrivacyButton;
@@ -44,9 +43,6 @@ export function createInstallCounterController({
             button.setAttribute('aria-pressed', currentStatus.enabled ? 'true' : 'false');
             button.textContent = !currentStatus.available ? 'UNAVAILABLE' : (currentStatus.enabled ? 'ON' : 'OFF');
             button.classList.toggle('is-active', currentStatus.available && currentStatus.enabled);
-        }
-        if (noticeOptOutButton) {
-            noticeOptOutButton.disabled = busy || !currentStatus.available || !currentStatus.enabled;
         }
     }
 
@@ -146,10 +142,6 @@ export function createInstallCounterController({
         await setEnabled(button.getAttribute('aria-pressed') !== 'true');
     }
 
-    async function onNoticeOptOut() {
-        if (await setEnabled(false)) hideNotice();
-    }
-
     async function openPrivacyDetails() {
         const invoke = getTauriInvoker();
         try {
@@ -194,7 +186,6 @@ export function createInstallCounterController({
 
     function attachListeners() {
         button?.addEventListener('click', onSettingsClick);
-        noticeOptOutButton?.addEventListener('click', onNoticeOptOut);
         noticePrivacyButton?.addEventListener('click', openPrivacyDetails);
         settingsPrivacyButton?.addEventListener('click', openPrivacyDetails);
         noticeDismissButton?.addEventListener('click', completeNotice);
@@ -233,7 +224,6 @@ export function createInstallCounterController({
         clearNoticeTimer();
         if (hideTimer !== null) windowRef.clearTimeout(hideTimer);
         button?.removeEventListener('click', onSettingsClick);
-        noticeOptOutButton?.removeEventListener('click', onNoticeOptOut);
         noticePrivacyButton?.removeEventListener('click', openPrivacyDetails);
         settingsPrivacyButton?.removeEventListener('click', openPrivacyDetails);
         noticeDismissButton?.removeEventListener('click', completeNotice);
