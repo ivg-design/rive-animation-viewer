@@ -4,9 +4,9 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current public release: `2.4.3`, available through GitHub Releases and the normal public `latest.json` updater feed.
-- Prepared release candidate: `2.5.0` (2026-08-22; not published yet).
-- Distribution after approval: GitHub release `v2.5.0` and the normal public `latest.json` updater feed. The verified `v2.5.0` commit on `main` is the release source after promotion. macOS downloads and updater apps are Developer ID signed, notarized, and stapled; every updater payload also retains its separate Tauri signature.
+- Current public release: `2.5.0`, available through GitHub Releases and the normal public `latest.json` updater feed.
+- The verified `v2.5.0` commit on `main` is the release source.
+- macOS downloads and updater apps are Developer ID signed, notarized, and stapled; updater payloads retain their separate update signatures.
 
 ## Regression Gates
 
@@ -23,36 +23,30 @@ These gates materially reduce regression risk, but they are still code- and DOM-
 
 ## 2.5.0 Highlights
 
-- **Dedicated playback WebView**: Packaged RAV places the Rive canvas in a child WebView and keeps controls, drawers, editor, export, MCP, and diagnostics in the main WebView. The two surfaces communicate through a narrow typed protocol, reducing contention with playback.
-- **Automatic current runtime**: New installs default to `Latest (auto)` and resolve the current npm runtime before playback. Explicit global and per-file pins remain intact; 2.39.2 is only the fallback when version discovery is unavailable.
-- **Reactive and bounded UI synchronization**: List topology responds to mutations, visible scalar controls update on an independent UI cadence, and hidden/collapsed controls do no scalar sampling work.
-- **Opaque desktop compositor path**: Stale whole-window transparency and click-through code is gone. `No BG` still controls the canvas and transparent standalone exports; the desktop window itself remains opaque.
-- **Hidden-log performance**: Event and JavaScript console history buffers while closed without rebuilding hidden DOM, then flushes when reopened.
-- **Correct export counts**: Export selection summaries count concrete serialized values, so the TrackMap test case reports 999 exported controls rather than 129 wildcard keys.
-- **Accessible collapsed drawers**: Reveal controls stay in the UI WebView runtime strip instead of being covered by the child playback surface.
-- **Visible dev identity**: Every local/debug build shows `DEV` plus its generated build ID in both About and the code-editor information panel.
-- **Opt-out installation counting**: Official builds report an anonymous install count and monthly-active count by default. A first-run notice appears before the first possible report, and Settings can turn it off at any time. The client sends only random/rotating tokens and the release number; it never sends Rive data, paths, hardware identifiers, accounts, or license data.
+- **Dedicated desktop playback surface**: Packaged desktop builds place visible Rive playback in a child WebView while the main WebView keeps the controls, drawers, code editor, export, MCP, and diagnostics. The playback surface receives synchronized state, separating its visible render loop from most interface DOM and control work.
+- **Measured transition improvement**: In 60 FPS recordings of the same large Rive asset with 999 live control paths and 10 embedded runtime script assets, transition holds fell from 4–16 captured frames to 1–2; the worst observed hold was approximately 8× shorter.
+- **Bounded interface updates**: Visible scalar controls update on a separate interface cadence, list controls rebuild only when membership changes, hidden or collapsed controls skip scalar syncing, and closed consoles stop rebuilding invisible rows.
+- **Automatic runtime selection**: Fresh or unset runtime preferences use `Latest (auto)`, while existing explicit runtime choices remain unchanged.
+- **Accurate export counts**: Export summaries report the actual number of serialized controls, including controls generated from repeated lists.
+- **Drawer reveal controls**: The left and right drawer buttons now live in the main interface strip so they remain accessible beside the separate playback surface.
+- **Anonymous Usage controls**: Official releases can report anonymous installation and monthly usage counts. A first-run notice, a Settings toggle, and Privacy Policy links were added with the feature.
 
 ## Anonymous installation counting
 
-Anonymous counting is **on by default only in explicitly configured official release builds**. A non-blocking first-run notice remains visible for 15 seconds unless explicitly dismissed and offers Privacy Policy and close actions. Reporting stays locked until the notice completes or is dismissed, then waits another 30 seconds before the first attempt. The on/off control remains under Settings → Anonymous Usage. Development, test, updater-acceptance, and ordinary local release builds cannot send.
+Anonymous counting is on by default in official releases. A first-run notice appears before the first report, and the feature can be disabled at any time under Settings → Anonymous Usage.
 
-When enabled, RAV sends one random installation token and then one independently derived token per UTC month, together with the app release number. Clearing application data can make the same installation count again; these best-effort metrics represent reporting app-data installations, not exact people or physical devices.
-
-The endpoint HMACs tokens before storage, applies a fail-closed write-rate limit, retains deduplication digests for 90 days, and preserves only identifier-free aggregate counts afterward. It inspects content type and length, then parses only the bounded, allowlisted JSON payload; it does not persist raw bodies, request metadata, file data, paths, hardware identifiers, account IDs, or license IDs. Cloudflare necessarily processes connection metadata transiently to deliver requests. Turning the setting off deletes pending client tokens and the activity secret; already aggregated counts cannot identify or delete an individual installation. A request already in flight may finish, but no later report starts while the setting is off.
-
-The public protocol, server implementation, retention behavior, and deployment guide live in [`telemetry/worker`](telemetry/worker/README.md). The website publishes only the aggregate installation total, checks about once per minute while active, and refreshes when revisited; layered caches mean a new count will typically appear within a few minutes. The full notice is available at `/privacy` on the RAV website.
+RAV reports only anonymous installation and monthly usage tokens with the release number. It does not send Rive data, files, paths, hardware identifiers, accounts, or license information. The website displays only an aggregate total; updates usually appear within a few minutes. More information is available in the RAV website's Privacy Policy.
 
 ## 2.4.3 Highlights
 
 - **Exact ViewModel list labels**: A row uses its direct authored instance name when available. When the Web wrapper exposes only the ViewModel definition name, RAV accepts a unique match between the definition's canonical instance-name set and a readable string property; ambiguous or missing matches become `Row N`. It never presents `viewModelName` as an authored row label.
 - **Embedded image controls**: Each image property now uses one full-width select containing every embedded raster asset followed by `Open file…` and `Clear`; `Open file…` invokes a hidden file input, with no separate folder or clear button and no `Embedded image…` placeholder. Entries use `uniqueFilename` identity, magic-byte MIME detection, and numbered labels when display names repeat. Non-raster embedded resources stay out of the image catalog. The same catalog and control carry into standalone exports, while decoded image objects remain excluded from JSON snapshots.
-- **Standalone editor-config preservation**: Applied editor JavaScript/config and lifecycle callbacks are embedded in standalone exports and executed in editor source mode after RAV binding and snapshot restoration; unsaved drafts remain inactive. A live exported marker test confirmed that the applied script executes in the standalone file.
+- **Standalone editor-config preservation**: Applied editor configuration and lifecycle callbacks are preserved and run in standalone exports; unsaved drafts remain inactive.
 - **Fixed-canvas centering and overflow**: A fixed canvas uses overflow-safe auto margins: it remains centered while it fits, then the margins collapse safely and scrolling begins at the authored top-left origin when it exceeds the viewport. The central scroller uses the shared styled 10px track, thumb, and corner.
-- **Clean build provenance**: Debug/local builds carry a visible `DEV` channel plus their generated build ID in About and the code-editor info panel. Release builds capture Git status before creating their counter, while genuinely modified builds remain labeled `dirty`.
+- **Clean build provenance**: Release builds capture Git status before generating their build identifier, so clean signed artifacts do not report a false `dirty` suffix while genuinely modified builds remain labeled.
 - **macOS `.riv` opening and file identity**: Double-click/open-with and warm single-instance opens route through the native queue and `open-file` bridge. The bundle declares both the official `app.rive.editor.rive-file` UTI and the pre-2.4.3 `app.rive.animation.viewer.riv` compatibility UTI as Viewer types and includes the dedicated `RiveFileIcon.icns` document resource. A version-and-schema-gated post-update launch refreshes the installed bundle registration without restarting Finder or taking over the default handler.
 - **Windows `.riv` document icon**: NSIS and MSI packages ship a dedicated ten-resolution `RiveFileIcon.ico` derived mechanically from the supplied 1024 px master. NSIS repairs Tauri's generated `Rive File\\DefaultIcon` after every install/update and refreshes Explorer; MSI owns the corresponding `Rive Animation Viewer.riv\\DefaultIcon` registry value as an upgrade-aware component that is removed on uninstall.
-- **Runtime compatibility evidence**: Web 2.40.0 / runtime-v0.1.271 can load affected files in WebGL2 and Canvas, but live RAV MCP comparison proved that it can double-offset nested, data-bound images in both renderers. RAV defaults to 2.39.2, where the Rive Editor-authored layout is preserved. A one-time migration moves stored `latest` and `2.40.0` preferences to 2.39.2; choosing Latest or 2.40.0 again is an explicit opt-in and surfaces an authored-layout warning. Canary v0.1.272 remains separate.
+- **Runtime compatibility**: RAV protects authored layouts when a selected runtime has known compatibility problems and keeps explicit runtime choices available.
 
 ## 2.4.2 Highlights
 

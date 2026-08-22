@@ -1,36 +1,29 @@
 # Changelog
 
-All notable changes to this project are documented in this file.
-
-## [Unreleased]
+All notable released changes to this project are documented in this file.
 
 ## [2.5.0] - 2026-08-22
 
 ### Added
 
-- **Dedicated playback WebView** — Packaged RAV now runs the Rive canvas in a child WebView while the main WebView owns controls, drawers, editor, export, MCP, and diagnostics. A narrow typed protocol carries file/configuration and UI changes across the boundary, keeping ordinary RAV plumbing off the playback document's main thread.
-- **Isolated playback comparison** — The export surface can open the current file in a minimal independent playback window for direct performance comparison without rebuilding a standalone file.
-- **Privacy-minimal installation counter** — Configured official release builds enable `Anonymous Usage` by default, show a first-run 15-second notice with Privacy Policy and close actions, and retain the on/off control in Settings. Reporting remains locked until the notice completes or is explicitly dismissed, followed by a further 30-second delay; development, test, and unconfigured builds cannot send. Rust sends one random installation token and one independently derived monthly-active token with the release number. No animation/file data, path, hardware identifier, account, or license data is included.
-- **Public installation counter** — The RAV website mirrors RWPP's split-flap counter above the changelog and reads only a one-minute-cached aggregate installation total from the counter Worker.
+- **Dedicated desktop playback surface** — Packaged desktop builds now place visible Rive playback in a dedicated child WebView. The main WebView keeps the controls, drawers, code editor, export, MCP, and diagnostics, while the playback surface receives synchronized file, runtime, layout, playback, and control state. This separates the visible animation's render loop from most interface DOM and control work without removing RAV features.
+- **Anonymous Usage reporting** — Official 2.5.0 builds anonymously count installations and monthly active installations by default. A first-run notice appears before reporting, and the feature can be turned off in Settings. Privacy Policy links are available from the notice and About.
+- **Public installation counter** — The RAV website now displays the aggregate anonymous installation count above the changelog.
 
 ### Changed
 
-- **Opaque desktop window cleanup** — Retired the unused whole-window transparency and click-through surface, removed the full-app rounded clip layer, and reapplied the selected canvas background after each runtime canvas is mounted. RAV keeps the explicit `No BG` transparent *canvas* option and transparent standalone exports, while packaged desktop windows use an opaque compositing path for steadier playback.
-- **Hybrid ViewModel synchronization** — Visible scalar controls are sampled on an independent 120 ms UI cadence so RAV does not inject value callbacks into Rive's runtime-advance path. List membership remains reactive and coalesces mutations into one topology rebuild; hidden and collapsed controls create no scalar work.
-- **Background console capture** — Console history now buffers without rebuilding hidden fallback/Eruda DOM and flushes when the JavaScript Console reopens, avoiding log-driven frame drops while playback is visible.
-- **Development build stamp** — Debug/local builds show an explicit `DEV` channel beside the generated build ID in both the About dialog and code-editor information panel; production releases retain their release identity.
-- **Concise privacy controls** — `Anonymous Usage` now sits immediately above About in Settings without an extra explanatory row. The Privacy Policy remains available from the first-run notice and is included in About's compact two-row Links panel, which stays equal in height to Build Matrix.
-- **Automatic runtime default** — Fresh or unset runtime preferences now select `Latest (auto)` instead of pinning 2.39.2. Explicit global and per-file selections remain unchanged, and 2.39.2 remains the fallback only when current-version discovery is unavailable.
+- **ViewModel control updates** — Visible scalar controls update on a separate interface cadence, list controls rebuild only when list membership changes, and scalar syncing is skipped for hidden or collapsed controls.
+- **Hidden console rendering** — Event and JavaScript console history remains available while closed or collapsed without repeatedly rebuilding invisible rows.
+- **Automatic runtime selection** — Fresh or unset runtime preferences now use `Latest (auto)`. Existing explicit runtime choices remain unchanged.
+- **Drawer reveal controls** — The left and right drawer buttons now live in the main interface strip so they remain accessible beside the separate playback surface.
+
+### Performance
+
+- **Large-file transition benchmark** — In 60 FPS recordings of the same Rive asset exposing 999 live control paths and 10 embedded runtime script assets, the prior single-WebView build held visible transition frames for 4–16 captured frames (about 67–267 ms). The dedicated playback surface reduced those holds to 1–2 frames (about 17–33 ms), making the worst observed hold approximately 8× shorter.
 
 ### Fixed
 
-- **macOS custom title bar** — The opaque main window keeps native macOS rounding and shadow while explicitly hiding its standard red/yellow/green buttons through AppKit, replacing the unreliable off-screen-position hack without restoring whole-window transparency.
-- **Concrete export control counts** — Standalone export summaries and branch badges count the concrete values that will be serialized while retaining compact wildcard selectors for repeated list fields. A 129-key TrackMap selection therefore reports its actual 999 exported controls.
-- **Collapsed-drawer access** — Left/right reveal buttons live in the main WebView runtime strip, so the child playback surface cannot cover the controls needed to reopen either drawer.
-
-### Privacy
-
-- **Counter boundary** — Counting is default-on with a first-run notice and a persistent Settings opt-out in configured official builds. The server immediately HMACs incoming random tokens, never stores raw tokens or request metadata, applies a fail-closed per-location write cap, retains deduplication digests for 90 days, and keeps only identifier-free aggregate totals thereafter. Network infrastructure necessarily processes IP addresses transiently for delivery, but RAV does not read or persist them. Counts are best-effort product metrics rather than an authentication or billing ledger.
+- **Accurate export counts** — Export summaries now report the actual number of serialized controls, including controls generated from repeated lists.
 
 ## [2.4.3] - 2026-08-15
 
