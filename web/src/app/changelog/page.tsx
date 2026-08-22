@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, Sparkles, Bug, Wrench, ShieldCheck } from "lucide-react";
+import { ChevronLeft, Sparkles, Bug, Wrench, ShieldCheck, Gauge } from "lucide-react";
 import { asset } from "@/lib/config";
 import { parseChangelog } from "@/lib/changelog";
 import { getLatestRelease } from "@/lib/github";
@@ -128,6 +128,7 @@ export default async function ChangelogPage() {
                 const hasContent = entry.added.length > 0
                   || entry.fixed.length > 0
                   || entry.changed.length > 0
+                  || entry.performance.length > 0
                   || entry.validation.length > 0;
                 return (
                   <div
@@ -172,6 +173,7 @@ export default async function ChangelogPage() {
                       <div className="p-6 rounded-xl bg-[var(--bg-zinc)] border border-[var(--border-dark)]">
                         <CategorySection icon={Sparkles} title="Added" items={entry.added} color="text-green-400" />
                         <CategorySection icon={Wrench} title="Changed" items={entry.changed} color="text-amber-400" />
+                        <CategorySection icon={Gauge} title="Performance" items={entry.performance} color="text-violet-400" />
                         <CategorySection icon={Bug} title="Fixed" items={entry.fixed} color="text-blue-400" />
                         <CategorySection icon={ShieldCheck} title="Validation" items={entry.validation} color="text-cyan-400" />
                       </div>

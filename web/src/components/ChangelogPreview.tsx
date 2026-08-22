@@ -2,7 +2,7 @@ import Link from "next/link";
 import { asset } from "@/lib/config";
 import { parseChangelog } from "@/lib/changelog";
 import { getLatestRelease } from "@/lib/github";
-import { ChevronRight, Sparkles, Bug, Wrench, ShieldCheck } from "lucide-react";
+import { ChevronRight, Sparkles, Bug, Wrench, ShieldCheck, Gauge } from "lucide-react";
 
 function CategoryBullets({ icon: Icon, title, items, color }: {
   icon: typeof Sparkles;
@@ -93,6 +93,7 @@ export default async function ChangelogPreview() {
               <div className="flex flex-col gap-4 p-5 rounded-xl bg-[var(--bg-zinc)] border border-[var(--border-dark)]">
                 <CategoryBullets icon={Sparkles} title="Added" items={entry.added} color="text-green-400" />
                 <CategoryBullets icon={Wrench} title="Changed" items={entry.changed} color="text-amber-400" />
+                <CategoryBullets icon={Gauge} title="Performance" items={entry.performance} color="text-violet-400" />
                 <CategoryBullets icon={Bug} title="Fixed" items={entry.fixed} color="text-blue-400" />
                 <CategoryBullets icon={ShieldCheck} title="Validation" items={entry.validation} color="text-cyan-400" />
               </div>

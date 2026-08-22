@@ -24,7 +24,7 @@ These gates materially reduce regression risk, but they are still code- and DOM-
 ## 2.5.0 Highlights
 
 - **Dedicated desktop playback surface**: Packaged desktop builds place visible Rive playback in a child WebView while the main WebView keeps the controls, drawers, code editor, export, MCP, and diagnostics. The playback surface receives synchronized state, separating its visible render loop from most interface DOM and control work.
-- **Measured transition improvement**: In 60 FPS recordings of the same large Rive asset with 999 live control paths and 10 embedded runtime script assets, transition holds fell from 4–16 captured frames to 1–2; the worst observed hold was approximately 8× shorter.
+- **Recorded transition comparison**: In two 60 FPS recordings of the same large Rive asset with 999 live control paths and 10 embedded runtime script assets, observed transition holds were 4–16 captured frames in the earlier single-WebView run and 1–2 in the later dedicated-surface run. The runtime and viewport settings differed, so the approximately 8× shorter worst hold is an observed test result, not a universal performance guarantee.
 - **Bounded interface updates**: Visible scalar controls update on a separate interface cadence, list controls rebuild only when membership changes, hidden or collapsed controls skip scalar syncing, and closed consoles stop rebuilding invisible rows.
 - **Automatic runtime selection**: Fresh or unset runtime preferences use `Latest (auto)`, while existing explicit runtime choices remain unchanged.
 - **Accurate export counts**: Export summaries report the actual number of serialized controls, including controls generated from repeated lists.
