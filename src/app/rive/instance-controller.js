@@ -5,6 +5,7 @@ import {
 } from '../core/canvas-sizing.js';
 import { resolveRiveAlignment, resolveRiveFit } from '../core/rive-layout.js';
 import { composeEmbeddedImageAssetLoader } from './assets/embedded-image-assets.js';
+import { dispatchAnimationLoaded } from './control-events.js';
 import { runUserOnLoadWithVmRestore } from './instance/load-hooks.js';
 import { buildPlaybackContext, buildPlaybackStatusLabel } from './playback-status.js';
 export function safelyInvokeUserCallback(callback, event, callbackName) {
@@ -17,7 +18,6 @@ export function safelyInvokeUserCallback(callback, event, callbackName) {
         console.warn(`Error in user ${callbackName}:`, error);
     }
 }
-
 export function createRiveInstanceController({
     callbacks = {},
     embeddedImageAssetCatalog = null,
@@ -31,11 +31,11 @@ export function createRiveInstanceController({
     windowRef = globalThis.window,
 } = {}) {
     const {
-        cleanupTransparencyRuntime = async () => {},
+        applyCanvasBackground = () => {},
         detectDefaultStateMachineName = async () => null,
         ensureRuntime = async () => null,
         hideError = () => {},
-        isCanvasEffectivelyTransparent = () => false,
+        isCanvasBackgroundTransparent = () => false,
         logEvent = () => {},
         populateArtboardSwitcher = () => {},
         refreshInfoStrip = () => {},
@@ -176,12 +176,11 @@ export function createRiveInstanceController({
     function cleanupInstance() {
         clearRiveEventListeners();
         resetPlaybackChips();
+        // Detach ViewModel observers while their native accessors are still valid.
+        resetVmInputControls('No animation loaded.');
         if (elements.artboardSwitcher) {
             elements.artboardSwitcher.hidden = true;
         }
-        cleanupTransparencyRuntime().catch(() => {
-            /* noop */
-        });
         if (riveInstance?.cleanup) {
             try {
                 riveInstance.cleanup();
@@ -191,7 +190,6 @@ export function createRiveInstanceController({
         }
         riveInstance = null;
         windowRef.riveInst = null;
-        resetVmInputControls('No animation loaded.');
     }
 
     async function loadRiveAnimation(fileUrl, fileName, options = {}) {
@@ -252,6 +250,7 @@ export function createRiveInstanceController({
             const canvas = windowRef.document.createElement('canvas');
             canvas.id = 'rive-canvas';
             container.appendChild(canvas);
+            applyCanvasBackground(canvas);
             const userConfig = getEditorConfig();
             resizeCanvas(canvas, userConfig);
 
@@ -297,7 +296,7 @@ export function createRiveInstanceController({
                 alignment: resolveRiveAlignment(runtime, getCurrentLayoutAlignment()),
                 ...otherLayoutProps,
             });
-            if (isCanvasEffectivelyTransparent() && getCurrentRuntime() !== 'canvas' && typeof config.useOffscreenRenderer === 'undefined') {
+            if (isCanvasBackgroundTransparent() && getCurrentRuntime() !== 'canvas' && typeof config.useOffscreenRenderer === 'undefined') {
                 config.useOffscreenRenderer = true;
             }
 
@@ -336,6 +335,10 @@ export function createRiveInstanceController({
                 renderVmInputControls();
                 setVmControlBaselineSnapshot();
                 populateArtboardSwitcher();
+                dispatchAnimationLoaded(windowRef.document, {
+                    fileName,
+                    runtime: getCurrentRuntime(),
+                });
                 notifyLoadSuccess();
             };
 
@@ -387,7 +390,6 @@ export function createRiveInstanceController({
             throw error;
         }
     }
-
     return {
         cleanupInstance,
         getRiveInstance,

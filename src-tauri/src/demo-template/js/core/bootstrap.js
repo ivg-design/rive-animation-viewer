@@ -1,6 +1,16 @@
         init();
 
         function init() {
+            if (isRenderSurfaceMode) {
+                document.body.classList.add('render-surface-mode');
+                setupCanvasSize();
+                setupCanvasResizeObserver();
+                updateCanvasBackground();
+                setupRenderSurfaceBridge();
+                window.addEventListener('resize', handleResize);
+                loadAnimation();
+                return;
+            }
             initLucideIcons();
             setupCanvasSize();
             setupCanvasResizeObserver();
@@ -15,11 +25,104 @@
             setupLayoutSelect();
             setupAlignmentSelect();
             setupCanvasColor();
-            setupTransparencyControls();
             setupEventLog();
             setupFullscreen();
             window.addEventListener('resize', handleResize);
             loadAnimation();
+        }
+
+        function setupRenderSurfaceBridge() {
+            var events = window.__TAURI__ && window.__TAURI__.event;
+            if (!events || typeof events.listen !== 'function') return;
+
+            var emitToMain = function (eventName, payload) {
+                if (typeof events.emitTo !== 'function') return;
+                var eventPayload = Object.assign(
+                    { sessionId: renderSurfaceSessionId },
+                    payload && typeof payload === 'object' ? payload : {},
+                );
+                Promise.resolve(events.emitTo('main', eventName, eventPayload)).catch(function () { /* noop */ });
+            };
+            window.__ravRenderSurfaceEmit = emitToMain;
+
+            events.listen('render-surface:command', function (event) {
+                var command = event && event.payload && typeof event.payload === 'object' ? event.payload : {};
+                try {
+                    handleRenderSurfaceCommand(command, emitToMain);
+                } catch (error) {
+                    emitToMain('render-surface:error', {
+                        command: command.type || command.command || null,
+                        message: String((error && error.message) || error),
+                    });
+                }
+            }).catch(function (error) {
+                emitToMain('render-surface:error', { phase: 'listen', message: String((error && error.message) || error) });
+            });
+
+            emitToMain('render-surface:ready', { protocol: 1 });
+        }
+
+        function renderSurfaceCommandPayload(command) {
+            return command && command.payload && typeof command.payload === 'object'
+                ? command.payload
+                : command || {};
+        }
+
+        function setRenderSurfaceAccessorValue(accessor, kind, value) {
+            if (!accessor) throw new Error('Control is unavailable.');
+            if (kind === 'trigger') {
+                if (typeof accessor.trigger === 'function') accessor.trigger();
+                else if (typeof accessor.fire === 'function') accessor.fire();
+                else throw new Error('Control is not a trigger.');
+                return;
+            }
+            if (!('value' in accessor)) throw new Error('Control does not expose a value.');
+            accessor.value = value;
+        }
+
+        function handleRenderSurfaceCommand(command, emitToMain) {
+            if (command.sessionId && renderSurfaceSessionId && command.sessionId !== renderSurfaceSessionId) {
+                return;
+            }
+            var type = String(command.type || command.command || '').toLowerCase();
+            var payload = renderSurfaceCommandPayload(command);
+            if (type === 'snapshot') {
+                var snapshot = Array.isArray(payload.snapshot) ? payload.snapshot : (Array.isArray(command.snapshot) ? command.snapshot : []);
+                var applied = applyControlSnapshot(snapshot);
+                emitToMain('render-surface:loaded', { command: 'snapshot', applied: applied });
+                return;
+            }
+            if (type === 'vm-set' || type === 'vm-fire') {
+                var vmDescriptor = payload.descriptor && typeof payload.descriptor === 'object' ? payload.descriptor : payload;
+                var vmKind = type === 'vm-fire' ? 'trigger' : vmDescriptor.kind;
+                var vmAccessor = resolveLiveAccessor(vmDescriptor.path, vmKind);
+                setRenderSurfaceAccessorValue(vmAccessor, vmKind, vmDescriptor.value);
+                return;
+            }
+            if (type === 'sm-set' || type === 'sm-fire') {
+                var smDescriptor = payload.descriptor && typeof payload.descriptor === 'object' ? payload.descriptor : payload;
+                var smKind = type === 'sm-fire' ? 'trigger' : smDescriptor.kind;
+                var smAccessor = resolveStateMachineInputAccessor(smDescriptor.stateMachineName, smDescriptor.name, smKind);
+                setRenderSurfaceAccessorValue(smAccessor, smKind, smDescriptor.value);
+                return;
+            }
+            if (type === 'play') {
+                if (riveInstance && typeof riveInstance.play === 'function') riveInstance.play();
+                return;
+            }
+            if (type === 'pause') {
+                if (riveInstance && typeof riveInstance.pause === 'function') riveInstance.pause();
+                return;
+            }
+            if (type === 'reset') {
+                if (riveInstance && typeof riveInstance.reset === 'function') riveInstance.reset();
+                return;
+            }
+            if (type === 'resize') {
+                handleResize();
+                return;
+            }
+            throw new Error('Unsupported render-surface command: ' + (type || '(empty)'));
         }
 
         function parseCssPixels(value, fallback) {
@@ -39,17 +142,6 @@
             return currentCanvasColor === TRANSPARENT_CANVAS_COLOR;
         }
 
-        function isCanvasEffectivelyTransparent() {
-            return isTransparencyModeEnabled || isCanvasBackgroundTransparent();
-        }
-
-        function updateSettingToggle(button, active) {
-            if (!button) return;
-            button.classList.toggle('is-active', active);
-            button.setAttribute('aria-pressed', String(active));
-            button.textContent = active ? 'ON' : 'OFF';
-        }
-
         function syncCanvasColorControls() {
             var input = els.canvasColorInput;
             var resetBtn = els.canvasColorResetBtn;
@@ -62,17 +154,6 @@
             input.classList.toggle('is-transparent', isCanvasBackgroundTransparent());
             resetBtn.classList.toggle('is-active', isCanvasBackgroundTransparent());
             resetBtn.setAttribute('aria-pressed', String(isCanvasBackgroundTransparent()));
-        }
-
-        function syncTransparencyControls() {
-            updateSettingToggle(els.transparencyModeToggle, isTransparencyModeEnabled);
-            if (els.transparencyModeToggle) {
-                els.transparencyModeToggle.disabled = !DEMO_TRANSPARENCY_TOGGLE_ENABLED;
-                els.transparencyModeToggle.setAttribute('aria-disabled', String(!DEMO_TRANSPARENCY_TOGGLE_ENABLED));
-                els.transparencyModeToggle.title = DEMO_TRANSPARENCY_TOGGLE_ENABLED
-                    ? 'Toggle transparency mode'
-                    : 'Transparency mode is not available in exported demos';
-            }
         }
 
         function applyPersistedLayoutState() {
@@ -90,10 +171,7 @@
                 setEventLogCollapsed(collapsedEventLog);
             }
 
-            document.documentElement.classList.toggle('transparency-mode', isTransparencyModeEnabled);
-            document.body.classList.toggle('transparency-mode', isTransparencyModeEnabled);
             syncCanvasColorControls();
-            syncTransparencyControls();
         }
 
         function initLucideIcons() {
@@ -180,7 +258,7 @@
         /* ── Canvas background ───────────────────────────────── */
 
         function updateCanvasBackground() {
-            var canvasBackground = isCanvasEffectivelyTransparent() ? 'transparent' : currentCanvasColor;
+            var canvasBackground = isCanvasBackgroundTransparent() ? 'transparent' : currentCanvasColor;
             document.documentElement.style.setProperty('--canvas-color', canvasBackground);
 
             if (els.canvasContainer) {

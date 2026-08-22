@@ -4,6 +4,30 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.4.4] - 2026-08-21
+
+### Added
+
+- **Dedicated playback WebView** — Packaged RAV isolates the Rive canvas in a child WebView while controls, drawers, editor, export, MCP, and diagnostics remain in the main WebView.
+- **Isolated playback comparison** — The current animation can open in a minimal independent playback window for direct performance comparison.
+- **Opt-in anonymous installation counts** — Official releases can send one random install token and a separately rotated monthly-active token plus the release number. No file, animation, hardware, account, or license data is included.
+
+### Changed
+
+- **Opaque desktop window cleanup** — Retired the unused whole-window transparency and click-through surface, removed the full-app rounded clip layer, and reapplied the selected canvas background after each runtime canvas is mounted. RAV keeps the explicit `No BG` transparent *canvas* option and transparent standalone exports, while packaged desktop windows use an opaque compositing path for steadier playback.
+- **Hybrid ViewModel synchronization** — Visible scalar controls are sampled on an independent 120 ms UI cadence, while list membership stays reactive and coalesces mutations into one topology rebuild. Hidden and collapsed controls create no scalar work.
+- **Background console capture** — Console history buffers without rebuilding hidden fallback/Eruda DOM and flushes when the JavaScript Console reopens, avoiding log-driven frame drops while playback is visible.
+- **Development build stamp** — Debug/local builds show an explicit `DEV` channel beside the generated build ID in both the About dialog and code-editor information panel.
+
+### Fixed
+
+- **Concrete export control counts** — Standalone export summaries and branch badges count concrete serialized values while retaining compact wildcard selectors for repeated list fields.
+- **Collapsed drawer controls** — Drawer reveal buttons remain in the UI WebView and cannot be covered by the dedicated playback surface.
+
+### Privacy
+
+- **Minimal, bounded data** — Counting is off until opt-in. Raw tokens and request metadata are not stored; a fail-closed per-location write cap protects D1, token digests expire after 90 days, and only aggregate counts remain. Counts are best-effort product metrics rather than an authentication or billing ledger.
+
 ## [2.4.3] - 2026-08-15
 
 ### Added

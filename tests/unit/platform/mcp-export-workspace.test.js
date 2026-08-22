@@ -5,6 +5,23 @@ describe('platform/mcp/export-workspace', () => {
         document.body.replaceChildren();
     });
 
+    it('opens isolated playback without requiring an export path or save dialog', async () => {
+        const openIsolatedPlayback = vi.fn().mockResolvedValue({
+            htmlPath: '/tmp/rav/current-demo.html',
+            windowLabel: 'isolated-playback-1',
+        });
+        const commands = createExportWorkspaceCommands({
+            documentRef: document,
+            windowRef: { _mcpOpenIsolatedPlayback: openIsolatedPlayback },
+        });
+
+        await expect(commands.rav_open_isolated_playback()).resolves.toEqual({
+            htmlPath: '/tmp/rav/current-demo.html',
+            windowLabel: 'isolated-playback-1',
+        });
+        expect(openIsolatedPlayback).toHaveBeenCalledWith();
+    });
+
     it('applies explicit selections against the live rerendered control tree', async () => {
         const keys = [
             'vm:scrollScale:number',

@@ -63,12 +63,6 @@ impl McpBridgeManager {
 pub struct PendingAppUpdate(pub Mutex<Option<Update>>);
 
 #[derive(Serialize)]
-pub struct WindowCursorPosition {
-    pub x: f64,
-    pub y: f64,
-}
-
-#[derive(Serialize)]
 pub struct NodeRuntimeStatus {
     pub installed: bool,
     pub path: Option<String>,

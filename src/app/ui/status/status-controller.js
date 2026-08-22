@@ -73,6 +73,7 @@ export function createStatusController({
     const {
         appBuild = '__APP_BUILD__',
         appBuildPlaceholder = '__APP' + '_BUILD__',
+        appChannel = '__APP_CHANNEL__',
         appVersion = '__APP_VERSION__',
         appVersionPlaceholder = '__APP' + '_VERSION__',
     } = placeholders;
@@ -82,6 +83,7 @@ export function createStatusController({
     let persistentInfoMessage = '';
     let resolvedAppVersion = appVersion;
     let resolvedAppBuild = appBuild;
+    const resolvedAppChannel = appChannel;
     const INFO_RESTORE_DELAY_MS = 2200;
 
     function clearInfoRestoreTimeout() {
@@ -120,6 +122,15 @@ export function createStatusController({
             return resolvedAppVersion;
         }
         return 'dev';
+    }
+
+    function getBuildChannelLabel() {
+        return resolvedAppChannel === 'release' ? 'release' : 'dev';
+    }
+
+    function getBuildStampLabel() {
+        const buildId = getBuildIdLabel();
+        return getBuildChannelLabel() === 'dev' ? `DEV · ${buildId}` : buildId;
     }
 
     function getBuildNumberLabel() {
@@ -261,7 +272,8 @@ export function createStatusController({
 
         const appVersionLabel = resolvedAppVersion || 'dev';
         const currentRuntime = getCurrentRuntime();
-        const releaseLine = `Release: v${appVersionLabel} · Build: ${getBuildIdLabel()}`;
+        const channelStamp = getBuildChannelLabel() === 'dev' ? 'DEV · ' : '';
+        const releaseLine = `Release: v${appVersionLabel} · ${channelStamp}Build: ${getBuildIdLabel()}`;
         const footer = '<div class="version-footer">© 2026 IVG Design · MIT License · Runtime © Rive</div>';
 
         if (statusMessage) {
@@ -329,7 +341,9 @@ export function createStatusController({
 
     return {
         getBuildIdLabel,
+        getBuildChannelLabel,
         getBuildNumberLabel,
+        getBuildStampLabel,
         getResolvedAppVersion,
         getShortBuildIdLabel,
         hideError,

@@ -95,8 +95,10 @@ describe('ui regression smoke', () => {
 
     it('keeps the main app header on the custom titlebar contract', () => {
         const html = readFileSync(path.join(repoRoot, 'index.html'), 'utf8');
+        const baseCss = readFileSync(path.join(repoRoot, 'styles', '00-base.css'), 'utf8');
         const windowChromeCss = readFileSync(path.join(repoRoot, 'styles', '01-window-chrome.css'), 'utf8');
         const headerMetaCss = readFileSync(path.join(repoRoot, 'styles', '01-header-meta.css'), 'utf8');
+        const desktopShellRule = windowChromeCss.match(/body\.is-tauri-window \.app-shell\s*\{([^}]*)\}/)?.[1] || '';
 
         expect(html).toContain('id="window-titlebar"');
         expect(html).toContain('id="header-file-meta"');
@@ -111,7 +113,11 @@ describe('ui regression smoke', () => {
         expect(windowChromeCss).toContain('.titlebar-row');
         expect(windowChromeCss).toContain('grid-template-columns: max-content minmax(0, 1fr) max-content;');
         expect(windowChromeCss).toContain('body.is-tauri-window .app-shell');
-        expect(windowChromeCss).toContain('border-radius: 18px;');
+        expect(baseCss).toMatch(/html\.is-tauri-window,\s*body\.is-tauri-window\s*\{[^}]*background:\s*var\(--bg-void\)/);
+        expect(windowChromeCss).toMatch(/body\.is-tauri-window\s*\{[^}]*background:\s*#101116/);
+        expect(desktopShellRule).not.toContain('border-radius:');
+        expect(desktopShellRule).not.toContain('overflow: hidden;');
+        expect(desktopShellRule).not.toContain('box-shadow:');
         expect(windowChromeCss).not.toContain('app-region: drag;');
         expect(headerMetaCss).toContain('grid-template-columns: minmax(0, 1fr) auto auto;');
         expect(html.indexOf('id="settings-btn"')).toBeLessThan(html.indexOf('id="demo-bundle-btn"'));
@@ -133,7 +139,7 @@ describe('ui regression smoke', () => {
         const windowsMainWindow = tauriWindowsConfig.app.windows[0];
 
         expect(tauriConfig.app.security.capabilities).toContain('main-capability');
-        expect(tauriConfig.app.macOSPrivateApi).toBe(true);
+        expect(tauriConfig.app.macOSPrivateApi).toBe(false);
         expect(tauriConfig.bundle.macOS.hardenedRuntime).toBe(true);
         expect(tauriConfig.bundle.macOS.signingIdentity).toBeUndefined();
         expect(tauriConfig.bundle.resources).toEqual({
@@ -143,7 +149,8 @@ describe('ui regression smoke', () => {
         expect(mainWindow.label).toBe('main');
         expect(mainWindow.create).toBe(false);
         expect(mainWindow.decorations).toBe(true);
-        expect(mainWindow.transparent).toBe(true);
+        expect(mainWindow.backgroundColor).toBe('#0A0A0AFF');
+        expect(mainWindow.transparent).toBe(false);
         expect(mainWindow.titleBarStyle).toBe('Overlay');
         expect(mainWindow.trafficLightPosition).toEqual({ x: -120, y: -120 });
         expect(mainWindow.hiddenTitle).toBe(true);
@@ -175,6 +182,34 @@ describe('ui regression smoke', () => {
             'core:window:allow-start-dragging',
             'core:window:allow-toggle-maximize',
         ]));
+    });
+
+    it('does not retain whole-window transparency or click-through implementation symbols', () => {
+        const appSourceRoots = [
+            path.join(repoRoot, 'src', 'app'),
+            path.join(repoRoot, 'src-tauri', 'src'),
+            path.join(repoRoot, 'styles'),
+        ];
+        const staleSymbols = [
+            'createTransparencyController',
+            'set_window_transparency_mode',
+            'set_window_click_through',
+            'get_window_cursor_position',
+            'transparency-mode-toggle',
+            'click-through-toggle',
+            'transparency-mode',
+        ];
+        const source = appSourceRoots
+            .flatMap((root) => walkFiles(root))
+            .filter((filePath) => /\.(?:js|rs|css)$/.test(filePath))
+            .map((filePath) => readFileSync(filePath, 'utf8'))
+            .join('\n');
+
+        for (const symbol of staleSymbols) {
+            expect(source).not.toContain(symbol);
+        }
+        expect(readdirSync(path.join(repoRoot, 'src', 'app', 'platform'))).toContain('canvas-background-controller.js');
+        expect(readdirSync(path.join(repoRoot, 'src', 'app', 'platform'))).not.toContain('transparency-controller.js');
     });
 
     it('resolves the bundled MCP sidecar beside the running executable', () => {
@@ -226,5 +261,7 @@ describe('ui regression smoke', () => {
         expect(bootstrap).toContain('scheduleCanvasViewportAlignment');
         expect(bootstrap).toContain('container.scrollLeft = offsets.left;');
         expect(bootstrap).toContain('container.scrollTop = offsets.top;');
+        expect(bootstrap).not.toContain('setupTransparencyControls');
+        expect(preamble).not.toContain('DEMO_TRANSPARENCY_TOGGLE_ENABLED');
     });
 });

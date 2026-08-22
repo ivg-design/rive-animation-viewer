@@ -1,4 +1,7 @@
-import { controlSelectionKeyForDescriptor } from '../../rive/vm-controls.js';
+import {
+    controlSelectionKeyForDescriptor,
+    isControlDescriptorSelected,
+} from '../../rive/vm-controls.js';
 
 export function collectNodeInputKeys(node, keys = new Set()) {
     if (!node) {
@@ -23,13 +26,29 @@ export function sanitizeSelection(selection, availableKeys) {
     return nextSelection;
 }
 
-function countSelectedKeys(node, selectedKeys) {
-    const keys = collectNodeInputKeys(node);
+export function countConcreteControls(node, selectedKeys = new Set()) {
+    if (!node) {
+        return { selected: 0, total: 0 };
+    }
+
     let selected = 0;
-    keys.forEach((key) => {
-        if (selectedKeys.has(key)) selected += 1;
+    let total = 0;
+    (node.inputs || []).forEach((input) => {
+        const descriptor = input?.descriptor;
+        if (!controlSelectionKeyForDescriptor(descriptor)) {
+            return;
+        }
+        total += 1;
+        if (isControlDescriptorSelected(descriptor, selectedKeys)) {
+            selected += 1;
+        }
     });
-    return { selected, total: keys.size };
+    (node.children || []).forEach((child) => {
+        const childCounts = countConcreteControls(child, selectedKeys);
+        selected += childCounts.selected;
+        total += childCounts.total;
+    });
+    return { selected, total };
 }
 
 function getTreeNodeKey(node, parentKey = '') {
@@ -81,7 +100,7 @@ function createTreeNode({
     const wrapper = documentRef.createElement('div');
     wrapper.className = 'instantiation-tree-node';
     wrapper.style.setProperty('--tree-depth', String(depth));
-    const counts = countSelectedKeys(node, selectedKeys);
+    const counts = countConcreteControls(node, selectedKeys);
     const branchKeys = collectNodeInputKeys(node);
 
     const details = documentRef.createElement('details');

@@ -7,6 +7,13 @@ export function createExportWorkspaceCommands({
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, Math.max(0, ms || 0)));
 
     return {
+        async rav_open_isolated_playback() {
+            if (typeof windowRef._mcpOpenIsolatedPlayback !== 'function') {
+                throw new Error('Isolated playback is not available');
+            }
+            return windowRef._mcpOpenIsolatedPlayback();
+        },
+
         async rav_export_demo({ output_path } = {}) {
             if (output_path && typeof windowRef._mcpExportDemoToPath === 'function') {
                 return { ok: true, path: await windowRef._mcpExportDemoToPath(output_path) };

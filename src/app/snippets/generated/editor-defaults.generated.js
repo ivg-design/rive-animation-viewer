@@ -14,7 +14,7 @@ export const DEFAULT_EDITOR_CODE = `// Rive instantiation config — riveInst is
   // layout: { fit: "contain", alignment: "center" },
   //   fit options: contain, cover, fill, fitWidth, fitHeight, scaleDown, none, layout
   //   alignment: center, topLeft, topCenter, topRight, etc.
-  // useOffscreenRenderer: true, // recommended for transparent overlays with glows/shadows
+  // useOffscreenRenderer: true, // optional for transparent canvas backgrounds with glows/shadows
 
   onLoad: () => {
     riveInst.resizeDrawingSurfaceToCanvas();

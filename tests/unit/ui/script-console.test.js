@@ -298,6 +298,34 @@ describe('ui/script-console', () => {
         expect(window.console.log).not.toBe(wrappedLog);
     });
 
+    it('buffers console output while closed and flushes it only when reopened', async () => {
+        const elements = renderShell();
+        const { eruda, tool } = createFakeEruda();
+        window.eruda = eruda;
+        const controller = track(createScriptConsoleController({
+            elements,
+            setTimeoutFn: immediateSetTimeout,
+        }));
+
+        controller.installCapture();
+        controller.setup();
+        console.info('buffered before open');
+
+        expect(controller.readCaptured(5).entries.at(-1).args).toEqual(['buffered before open']);
+        expect(elements.scriptConsoleLogList.textContent).not.toContain('buffered before open');
+        expect(tool.info).not.toHaveBeenCalled();
+
+        await controller.open();
+        expect(tool.info).toHaveBeenCalledWith('buffered before open');
+
+        controller.close();
+        console.warn('buffered while closed');
+        expect(tool.warn).not.toHaveBeenCalledWith('buffered while closed');
+
+        await controller.open();
+        expect(tool.warn).toHaveBeenCalledWith('buffered while closed');
+    });
+
     it('opens in javascript-console mode, executes code, and keeps native Eruda order', async () => {
         const elements = renderShell();
         const renderEventLog = vi.fn();
@@ -315,6 +343,7 @@ describe('ui/script-console', () => {
         controller.setup();
 
         await controller.open();
+        expect(renderEventLog).toHaveBeenCalledTimes(1);
         console.info('mirrored output');
         await controller.exec('1 + 1');
 
@@ -330,7 +359,7 @@ describe('ui/script-console', () => {
         expect(controller.isOpen()).toBe(false);
         expect(elements.eventConsoleTab.classList.contains('is-active')).toBe(true);
         expect(elements.scriptConsoleTab.classList.contains('is-active')).toBe(false);
-        expect(renderEventLog).toHaveBeenCalled();
+        expect(renderEventLog).toHaveBeenCalledTimes(2);
     });
 
     it('captures one transcript entry per overridden console call after Eruda loads', async () => {

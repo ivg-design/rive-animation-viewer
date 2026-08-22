@@ -4,6 +4,7 @@ import {
     getVmListLength,
     safeVmMethodCall,
 } from '../../../rive/view-model/accessors.js';
+import { dispatchVmControlMutation } from '../../../rive/control-events.js';
 
 const VALUE_KINDS = new Set(['number', 'boolean', 'string', 'enum', 'color']);
 const LIST_INDEX_PATTERN = /^(0|[1-9]\d*)$/;
@@ -35,6 +36,7 @@ function parseListIndex(segment, listName, path) {
 
 export function createViewModelCommands({
     buildViewModelSnapshot,
+    documentRef = globalThis.document,
     windowRef = globalThis.window,
 } = {}) {
     function getLiveRootVm() {
@@ -143,6 +145,16 @@ export function createViewModelCommands({
             } catch {
                 // Some runtime accessors are write-only; preserve the requested value in the response.
             }
+            dispatchVmControlMutation(documentRef, {
+                descriptor: {
+                    kind: resolved.kind,
+                    name: resolved.propertyName,
+                    path: resolved.path,
+                    source: 'view-model',
+                },
+                kind: resolved.kind,
+                value: appliedValue,
+            });
             return {
                 ok: true,
                 path: resolved.path,
@@ -165,6 +177,16 @@ export function createViewModelCommands({
             } else {
                 throw new Error(`Trigger "${resolved.path}" cannot be fired`);
             }
+            dispatchVmControlMutation(documentRef, {
+                action: 'fire',
+                descriptor: {
+                    kind: 'trigger',
+                    name: resolved.propertyName,
+                    path: resolved.path,
+                    source: 'view-model',
+                },
+                kind: 'trigger',
+            });
             return { ok: true, path: resolved.path, kind: resolved.kind };
         },
     };

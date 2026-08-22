@@ -11,7 +11,7 @@ export function createMcpCommandHandlers({
 } = {}) {
     return {
         ...createStatusPlaybackCommands({ buildViewModelSnapshot, documentRef, windowRef }),
-        ...createViewModelCommands({ buildViewModelSnapshot, windowRef }),
+        ...createViewModelCommands({ buildViewModelSnapshot, documentRef, windowRef }),
         ...createEditorConsoleCommands({ assertMcpScriptAccess, documentRef, windowRef }),
         ...createExportWorkspaceCommands({ documentRef, windowRef }),
     };

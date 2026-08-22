@@ -7,13 +7,8 @@ import {
 import { shouldResumePlaybackForTrigger } from './accessors.js';
 import { countAllInputs } from './hierarchy.js';
 import { appendVmImageControl } from './image-control.js';
-function updateStringInputRows(input, value) {
-    if (!input || typeof input.rows !== 'number') {
-        return;
-    }
-    const text = typeof value === 'string' ? value : '';
-    input.rows = /\r\n|\r|\n/.test(text) ? 2 : 1;
-}
+import { dispatchVmControlMutation } from '../control-events.js';
+import { updateStringInputRows } from './ui/binding-sync.js';
 
 export function createVmControlRowFactory({
     documentRef,
@@ -57,6 +52,7 @@ export function createVmControlRowFactory({
                     liveAccessor.value = nextValue;
                     const source = descriptor.source === 'state-machine' ? 'sm-number' : 'vm-number';
                     logEvent('ui', source, `Set ${descriptor.path} = ${nextValue}`);
+                    dispatchVmControlMutation(documentRef, { descriptor, kind: 'number', value: nextValue });
                 }
             });
             registerVmControlBinding(descriptor, { input: numberInput, kind: 'number' });
@@ -72,6 +68,7 @@ export function createVmControlRowFactory({
                     liveAccessor.value = checkbox.checked;
                     const source = descriptor.source === 'state-machine' ? 'sm-boolean' : 'vm-boolean';
                     logEvent('ui', source, `Set ${descriptor.path} = ${checkbox.checked}`);
+                    dispatchVmControlMutation(documentRef, { descriptor, kind: 'boolean', value: checkbox.checked });
                 }
             });
             registerVmControlBinding(descriptor, { input: checkbox, kind: 'boolean' });
@@ -89,6 +86,7 @@ export function createVmControlRowFactory({
                 if (liveAccessor) {
                     liveAccessor.value = textInput.value;
                     logEvent('ui', 'vm-string', `Set ${descriptor.path} = ${textInput.value}`);
+                    dispatchVmControlMutation(documentRef, { descriptor, kind: 'string', value: textInput.value });
                 }
             });
             registerVmControlBinding(descriptor, { input: textInput, kind: 'string' });
@@ -117,6 +115,7 @@ export function createVmControlRowFactory({
                 if (liveAccessor) {
                     liveAccessor.value = select.value;
                     logEvent('ui', 'vm-enum', `Set ${descriptor.path} = ${select.value}`);
+                    dispatchVmControlMutation(documentRef, { descriptor, kind: 'enum', value: select.value });
                 }
             });
             registerVmControlBinding(descriptor, { input: select, kind: 'enum' });
@@ -151,10 +150,17 @@ export function createVmControlRowFactory({
                 if (typeof liveAccessor.argb === 'function') {
                     liveAccessor.argb(alpha, rgb.r, rgb.g, rgb.b);
                     logEvent('ui', 'vm-color', `Set ${descriptor.path} color to ${colorInput.value} (${alphaPercent}%).`);
+                    dispatchVmControlMutation(documentRef, {
+                        descriptor,
+                        kind: 'color',
+                        value: rgbAlphaToArgb(rgb.r, rgb.g, rgb.b, alpha),
+                    });
                     return;
                 }
-                liveAccessor.value = rgbAlphaToArgb(rgb.r, rgb.g, rgb.b, alpha);
+                const colorValue = rgbAlphaToArgb(rgb.r, rgb.g, rgb.b, alpha);
+                liveAccessor.value = colorValue;
                 logEvent('ui', 'vm-color', `Set ${descriptor.path} color to ${colorInput.value} (${alphaPercent}%).`);
+                dispatchVmControlMutation(documentRef, { descriptor, kind: 'color', value: colorValue });
             };
 
             colorInput.addEventListener('input', applyColor);
@@ -208,6 +214,11 @@ export function createVmControlRowFactory({
                     const suffix = firedStateMachineCount > 0 ? ` (+${firedStateMachineCount} state machine trigger matches)` : '';
                     const source = descriptor.source === 'state-machine' ? 'sm-trigger' : 'vm-trigger';
                     logEvent('ui', source, `Fired trigger ${descriptor.path}${suffix}`);
+                    dispatchVmControlMutation(documentRef, {
+                        action: 'fire',
+                        descriptor,
+                        kind: 'trigger',
+                    });
                 } else {
                     const source = descriptor.source === 'state-machine' ? 'sm-trigger-miss' : 'vm-trigger-miss';
                     logEvent('ui', source, `No trigger accessor or state machine trigger matched ${descriptor.path}`);
@@ -287,113 +298,4 @@ export function createVmSectionElementFactory({
         section.appendChild(body);
         return section;
     };
-}
-
-export function syncVmBindings(bindings, resolveControlAccessor, documentRef, force = false, getLoadedRuntime = () => null) {
-    const isEditingControl = (element) => documentRef.activeElement === element;
-
-    bindings.forEach((binding) => {
-        const accessor = resolveControlAccessor(binding.descriptor);
-        const canEdit = Boolean(accessor);
-
-        if (binding.input) {
-            binding.input.disabled = !canEdit
-                || (binding.kind === 'image' && typeof getLoadedRuntime()?.decodeImage !== 'function');
-        }
-        if (binding.colorInput) {
-            binding.colorInput.disabled = !canEdit;
-        }
-        if (binding.alphaInput) {
-            binding.alphaInput.disabled = !canEdit;
-        }
-        if (binding.clearButton) {
-            binding.clearButton.disabled = !canEdit;
-        }
-        if (binding.browseButton) {
-            binding.browseButton.disabled = !canEdit || typeof getLoadedRuntime()?.decodeImage !== 'function';
-        }
-        if (binding.assetSelect) {
-            const canDecodeImage = typeof getLoadedRuntime()?.decodeImage === 'function';
-            binding.assetSelect.disabled = !canEdit;
-            Array.from(binding.assetSelect.options).forEach((option) => {
-                if (option.value === '__open__' || option.value.startsWith('embedded:')) {
-                    option.disabled = !canDecodeImage;
-                }
-            });
-        }
-        if (!canEdit) {
-            return;
-        }
-
-        if (binding.kind === 'number') {
-            const value = Number(accessor.value);
-            if (!Number.isFinite(value)) {
-                return;
-            }
-            if (!force && isEditingControl(binding.input)) {
-                return;
-            }
-            const nextValue = String(value);
-            if (binding.input.value !== nextValue) {
-                binding.input.value = nextValue;
-            }
-            return;
-        }
-
-        if (binding.kind === 'boolean') {
-            const nextValue = Boolean(accessor.value);
-            if (binding.input.checked !== nextValue) {
-                binding.input.checked = nextValue;
-            }
-            return;
-        }
-
-        if (binding.kind === 'string') {
-            const nextValue = typeof accessor.value === 'string' ? accessor.value : '';
-            if (!force && isEditingControl(binding.input)) {
-                updateStringInputRows(binding.input, binding.input.value);
-                return;
-            }
-            if (binding.input.value !== nextValue) {
-                binding.input.value = nextValue;
-            }
-            updateStringInputRows(binding.input, nextValue);
-            return;
-        }
-
-        if (binding.kind === 'enum') {
-            const nextValue = typeof accessor.value === 'string' ? accessor.value : '';
-            if (binding.input.value !== nextValue) {
-                binding.input.value = nextValue;
-            }
-            return;
-        }
-
-        if (binding.kind === 'color') {
-            const meta = argbToColorMeta(accessor.value);
-            if (!force && (isEditingControl(binding.colorInput) || isEditingControl(binding.alphaInput))) {
-                return;
-            }
-            if (binding.colorInput.value !== meta.hex) {
-                binding.colorInput.value = meta.hex;
-            }
-            const nextAlpha = String(meta.alphaPercent);
-            if (binding.alphaInput.value !== nextAlpha) {
-                binding.alphaInput.value = nextAlpha;
-            }
-        }
-    });
-}
-
-export function resetVmInputControls(elements, message = 'No bound ViewModel inputs detected.') {
-    const count = elements.vmControlsCount;
-    const empty = elements.vmControlsEmpty;
-    const tree = elements.vmControlsTree;
-    if (!count || !empty || !tree) {
-        return;
-    }
-    tree.innerHTML = '';
-    count.textContent = '0';
-    empty.hidden = false;
-    empty.textContent = message;
 }

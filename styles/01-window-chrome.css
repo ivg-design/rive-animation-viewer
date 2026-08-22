@@ -14,16 +14,12 @@
 
 body.is-tauri-window {
     overflow: hidden;
-    background: transparent;
+    background: #101116;
 }
 
 body.is-tauri-window .app-shell {
     height: 100%;
     background: #101116;
-    border: 1px solid rgba(93, 100, 120, 0.32);
-    border-radius: 18px;
-    overflow: hidden;
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
 }
 
 .titlebar-row,
@@ -40,8 +36,6 @@ body.is-tauri-window .app-shell {
     padding: 6px 8px 0;
     grid-template-columns: max-content minmax(0, 1fr) max-content;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.018) 0%, rgba(255, 255, 255, 0) 100%);
-    border-top-left-radius: 18px;
-    border-top-right-radius: 18px;
 }
 
 .toolbar-row {

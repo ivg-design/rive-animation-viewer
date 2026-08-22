@@ -12,7 +12,6 @@ export function createAppLifecycle({
         applyVmControlSnapshot,
         captureVmControlSnapshot,
         cleanupInstance,
-        cleanupTransparencyRuntime,
         codeEditorController,
         consoleModeController,
         createDemoBundle,
@@ -32,16 +31,18 @@ export function createAppLifecycle({
         getLiveConfigState,
         getRiveInstance,
         getTauriInvoker,
-        getTransparencyStateSnapshot,
+        getCanvasBackgroundStateSnapshot,
         handleResize,
         initLucideIcons,
         injectCodeSnippet,
         instantiationControlsDialogController,
+        installCounterController,
         loadRiveAnimation,
         logEvent,
         pause,
         play,
         refreshInfoStrip,
+        renderSurfaceController,
         resolveAppVersion,
         reset,
         resetEventLog,
@@ -52,7 +53,6 @@ export function createAppLifecycle({
         setupCanvasColor,
         setupEventLog,
         setupRuntimeVersionPicker,
-        setupTransparencyControls,
         shellController,
         showError,
         showMcpSetup,
@@ -79,7 +79,7 @@ export function createAppLifecycle({
             runtimeName: getCurrentRuntime(),
             runtimeVersion: getCurrentRuntimeVersion(),
             sourceMode: liveConfigState.sourceMode,
-            transparencyState: getTransparencyStateSnapshot(),
+            canvasBackgroundState: getCanvasBackgroundStateSnapshot(),
         });
     }
 
@@ -165,6 +165,8 @@ export function createAppLifecycle({
     async function initApp() {
         console.log('[rive-viewer] init start');
         await ensureTauriBridge();
+        await renderSurfaceController?.setup?.();
+        await installCounterController?.setup?.();
         await syncMcpPortFromDesktop();
         windowRef._mcpBridge?.reconnect?.();
         windowRef.buildLiveInstantiationDescriptor = buildLiveInstantiationDescriptor;
@@ -203,7 +205,6 @@ export function createAppLifecycle({
         fileSessionController.setupFileInput();
         fileSessionController.updateFileTriggerButton('empty');
         setupCanvasColor();
-        setupTransparencyControls();
         setupEventLog();
         instantiationControlsDialogController?.setup();
         scriptConsoleController.setup();
@@ -229,17 +230,12 @@ export function createAppLifecycle({
             scriptConsoleController.destroy();
             shellController?.dispose();
             fileSessionController?.dispose();
+            renderSurfaceController?.dispose?.();
+            installCounterController?.dispose?.();
             windowChromeController?.dispose?.();
         };
-        const cleanupTransparency = () => {
-            cleanupTransparencyRuntime().catch(() => {
-                /* noop */
-            });
-        };
-        windowRef.addEventListener('pagehide', cleanupTransparency);
         windowRef.addEventListener('beforeunload', () => {
             teardownAppShell();
-            cleanupTransparency();
         });
         console.log('[rive-viewer] setup complete, loading runtime...');
         updaterController?.checkForUpdatesOnLaunch().catch((error) => {

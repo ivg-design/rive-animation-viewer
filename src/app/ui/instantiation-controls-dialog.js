@@ -1,6 +1,7 @@
 import { controlSelectionKeyForDescriptor } from '../rive/vm-controls.js';
 import {
     collectNodeInputKeys,
+    countConcreteControls,
     renderControlHierarchyTree,
     sanitizeSelection,
 } from './export/control-tree.js';
@@ -85,17 +86,24 @@ export function createInstantiationControlsDialogController({
             return;
         }
 
-        const totalControls = currentAvailableKeys.size;
-        const selectedCount = selectedControlKeys instanceof Set ? selectedControlKeys.size : 0;
+        const { selected: selectedCount, total: totalControls } = countConcreteControls(
+            currentHierarchy,
+            selectedControlKeys instanceof Set ? selectedControlKeys : new Set(),
+        );
+        const selectedFieldCount = selectedControlKeys instanceof Set ? selectedControlKeys.size : 0;
+        const totalFieldCount = currentAvailableKeys.size;
+        const fieldDetail = selectedFieldCount === selectedCount && totalFieldCount === totalControls
+            ? ''
+            : ` (${selectedFieldCount} of ${totalFieldCount} reusable field selectors).`;
         if (!totalControls) {
             elements.instantiationSelectionSummary.textContent = 'No bound controls available for serialization.';
             return;
         }
         if (!selectedCount) {
-            elements.instantiationSelectionSummary.textContent = `0 of ${totalControls} controls selected. Export will not restore bound values.`;
+            elements.instantiationSelectionSummary.textContent = `0 of ${totalControls} concrete controls selected${fieldDetail} Export will not restore bound values.`;
             return;
         }
-        elements.instantiationSelectionSummary.textContent = `${selectedCount} of ${totalControls} controls selected for snippet/export.`;
+        elements.instantiationSelectionSummary.textContent = `${selectedCount} of ${totalControls} concrete controls selected for snippet/export${fieldDetail}`;
     }
 
     function setSelection(nextSelection) {

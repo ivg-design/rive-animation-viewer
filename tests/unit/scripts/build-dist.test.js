@@ -37,7 +37,10 @@ describe('static distribution build identity', () => {
                 path.join(fixture, 'scripts', 'build-dist.mjs'),
             );
             fs.writeFileSync(path.join(fixture, 'package.json'), '{"version":"1.0.0"}\n');
-            fs.writeFileSync(path.join(fixture, 'src', 'app', 'main-entry.js'), '__APP_BUILD__\n');
+            fs.writeFileSync(
+                path.join(fixture, 'src', 'app', 'main-entry.js'),
+                '__APP_BUILD__\n__APP_CHANNEL__\n',
+            );
             fs.writeFileSync(path.join(fixture, '.gitignore'), '.cache/\ndist/\n');
             fs.writeFileSync(path.join(fixture, '.gitattributes'), 'eol-equivalent.txt text\n');
             fs.writeFileSync(path.join(fixture, 'eol-equivalent.txt'), 'same\n');
@@ -49,9 +52,29 @@ describe('static distribution build identity', () => {
             run(fixture, 'git', ['add', '.']);
             run(fixture, 'git', ['commit', '-qm', 'fixture']);
 
-            const cleanId = buildIdFrom(run(fixture, process.execPath, ['scripts/build-dist.mjs']));
+            const localEnv = {
+                ...process.env,
+                CI: '',
+                GITHUB_ACTIONS: '',
+                TAURI_ENV_DEBUG: 'true',
+            };
+            const cleanId = buildIdFrom(run(
+                fixture,
+                process.execPath,
+                ['scripts/build-dist.mjs'],
+                localEnv,
+            ));
             expect(cleanId).not.toContain('-dirty');
             expect(fs.existsSync(path.join(fixture, '.cache', 'build-counter.txt'))).toBe(true);
+            expect(fs.readFileSync(path.join(fixture, 'dist', 'src', 'app', 'main-entry.js'), 'utf8'))
+                .toContain('\ndev\n');
+
+            run(fixture, process.execPath, ['scripts/build-dist.mjs'], {
+                ...localEnv,
+                TAURI_ENV_DEBUG: 'false',
+            });
+            expect(fs.readFileSync(path.join(fixture, 'dist', 'src', 'app', 'main-entry.js'), 'utf8'))
+                .toContain('\nrelease\n');
 
             fs.writeFileSync(path.join(fixture, 'eol-equivalent.txt'), 'same\r\n');
             expect(spawnSync('git', ['diff', '--quiet', '--', 'eol-equivalent.txt'], {
@@ -61,6 +84,7 @@ describe('static distribution build identity', () => {
                 fixture,
                 process.execPath,
                 ['scripts/build-dist.mjs'],
+                localEnv,
             ));
             expect(normalizedId).not.toContain('-dirty');
 
@@ -89,7 +113,6 @@ describe('static distribution build identity', () => {
             run(fixture, 'git', ['reset', '-q', 'HEAD', '--', 'tracked.txt']);
             run(fixture, 'git', ['checkout', '--', 'tracked.txt']);
             fs.writeFileSync(path.join(fixture, 'genuinely-dirty.txt'), 'dirty\n');
-            const localEnv = { ...process.env, CI: '', GITHUB_ACTIONS: '' };
             const dirtyId = buildIdFrom(run(
                 fixture,
                 process.execPath,

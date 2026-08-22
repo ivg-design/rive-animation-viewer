@@ -132,6 +132,87 @@ describe('ui/event-log', () => {
         expect(navigator.clipboard.writeText).toHaveBeenCalled();
     });
 
+    it('retains and filters entries without building row DOM while collapsed', () => {
+        const controller = createEventLogController({
+            elements: buildElements(),
+            handleResize: vi.fn(),
+        });
+
+        controller.setupEventLog();
+        controller.logEvent('native', 'load', 'Native load');
+        controller.setCollapsed(true);
+        controller.logEvent('mcp', 'recv', 'MCP command');
+
+        expect(controller.getEntriesSnapshot()).toHaveLength(2);
+        expect(document.getElementById('event-log-count').textContent).toBe('2');
+        expect(document.getElementById('event-log-list').childElementCount).toBe(0);
+
+        document.getElementById('event-filter-mcp').click();
+        expect(document.getElementById('event-log-count').textContent).toBe('1');
+        expect(document.getElementById('event-log-list').childElementCount).toBe(0);
+
+        controller.setCollapsed(false);
+        const rows = document.querySelectorAll('#event-log-list .event-log-row');
+        expect(rows).toHaveLength(1);
+        expect(rows[0].textContent).toContain('Native load');
+        expect(document.getElementById('event-log-list').textContent).not.toContain('MCP command');
+    });
+
+    it('keeps the hidden events view DOM-free until it becomes visible again', () => {
+        const elements = buildElements();
+        const controller = createEventLogController({
+            elements,
+            handleResize: vi.fn(),
+        });
+
+        controller.setupEventLog();
+        controller.logEvent('ui', 'ready', 'Viewer ready');
+        expect(elements.eventLogList.querySelectorAll('.event-log-row')).toHaveLength(1);
+
+        elements.eventLogList.hidden = true;
+        elements.eventLogPanel.classList.add('script-console-mode');
+        controller.renderEventLog();
+        controller.logEvent('ui', 'next', 'Buffered behind script console');
+
+        expect(controller.getEntriesSnapshot()).toHaveLength(2);
+        expect(elements.eventLogCount.textContent).toBe('2');
+        expect(elements.eventLogList.childElementCount).toBe(0);
+
+        elements.eventLogList.hidden = false;
+        elements.eventLogPanel.classList.remove('script-console-mode');
+        controller.renderEventLog();
+        expect(elements.eventLogList.querySelectorAll('.event-log-row')).toHaveLength(2);
+        expect(elements.eventLogList.textContent).toContain('Buffered behind script console');
+    });
+
+    it('resets retained entries without creating collapsed DOM and follows on reopen', () => {
+        const elements = buildElements();
+        const controller = createEventLogController({
+            elements,
+            handleResize: vi.fn(),
+        });
+
+        controller.setupEventLog();
+        const body = elements.eventLogBody;
+        Object.defineProperty(body, 'clientHeight', { configurable: true, value: 140 });
+        Object.defineProperty(body, 'scrollHeight', { configurable: true, value: 440 });
+        controller.setCollapsed(true);
+        controller.logEvent('ui', 'ready', 'Viewer ready');
+        body.scrollTop = 17;
+        controller.resetEventLog();
+        controller.logEvent('ui', 'next', 'Latest retained entry');
+
+        expect(controller.getEntriesSnapshot()).toHaveLength(1);
+        expect(elements.eventLogCount.textContent).toBe('1');
+        expect(elements.eventLogList.childElementCount).toBe(0);
+        expect(body.scrollTop).toBe(17);
+
+        controller.setCollapsed(false);
+        expect(elements.eventLogList.querySelectorAll('.event-log-row')).toHaveLength(1);
+        expect(elements.eventLogList.textContent).toContain('Latest retained entry');
+        expect(body.scrollTop).toBe(300);
+    });
+
     it('turns follow off when scrolled away from the bottom and back on when toggled', () => {
         const controller = createEventLogController({
             elements: buildElements(),

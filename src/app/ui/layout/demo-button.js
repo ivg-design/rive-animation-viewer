@@ -8,7 +8,6 @@ export function createDemoButtonController({
 } = {}) {
     const {
         getTauriInvoker = () => null,
-        syncTransparencyControls = () => {},
     } = callbacks;
 
     let intervalId = null;
@@ -27,7 +26,6 @@ export function createDemoButtonController({
 
         const refreshState = () => {
             setButtonState(Boolean(getTauriInvoker()));
-            syncTransparencyControls();
         };
 
         refreshState();

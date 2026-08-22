@@ -121,20 +121,17 @@ export function createControllerStack({
         getRuntimeVersion,
         setupRuntimeVersionPicker,
     } = runtimeLoaderController;
-    const transparencyController = runtimeStack.transparencyController;
+    const canvasBackgroundController = runtimeStack.canvasBackgroundController;
     const {
-        cleanupTransparencyRuntime,
-        getStateSnapshot: getTransparencyStateSnapshot,
-        isCanvasEffectivelyTransparent,
+        applyCanvasBackground,
+        getStateSnapshot: getCanvasBackgroundStateSnapshot,
+        isCanvasBackgroundTransparent,
         setupCanvasColor,
-        setupTransparencyControls,
-        syncTransparencyControls,
-    } = transparencyController;
+    } = canvasBackgroundController;
 
     const riveStack = createRiveStack({
         elements,
         callbacks: {
-            cleanupTransparencyRuntime,
             ensureRuntime,
             getCurrentFileBuffer,
             getCurrentFileName,
@@ -148,7 +145,8 @@ export function createControllerStack({
             getRiveInstance,
             hideError,
             initLucideIcons,
-            isCanvasEffectivelyTransparent,
+            applyCanvasBackground,
+            isCanvasBackgroundTransparent,
             loadRiveAnimation,
             logEvent: uiStack.logEvent,
             refreshInfoStrip: callbacks.refreshInfoStrip,
@@ -199,8 +197,9 @@ export function createControllerStack({
             getSidebarVisibility: () => platformStack.shellController?.getSidebarVisibility?.() ?? { left: false, right: true },
             getTauriEventListener,
             getTauriInvoker,
-            getTransparencyStateSnapshot,
+            getCanvasBackgroundStateSnapshot,
             getVmExplorerSnippetState: uiStack.getVmExplorerSnippetState,
+            getVmSyncDiagnostics: riveStack.getVmSyncDiagnostics,
             handleFileButtonClick: () => platformStack.fileSessionController?.handleFileButtonClick(),
             handleResize,
             hideError,
@@ -233,7 +232,6 @@ export function createControllerStack({
             showError,
             showMcpSetup: uiStack.showMcpSetup,
             switchArtboard: riveStack.switchArtboard,
-            syncTransparencyControls,
             toggleInstantiationControlsDialog: (action) => platformStack.instantiationControlsDialogController?.toggleDialog(action),
             toggleLiveConfigSource: uiStack.toggleLiveConfigSource,
             updateInfo,
@@ -249,7 +247,6 @@ export function createControllerStack({
         ...riveStack,
         ...platformStack,
         applyRuntimeVersionToken,
-        cleanupTransparencyRuntime,
         ensureRuntime,
         getCurrentRuntimeSource,
         getCurrentRuntimeVersion,
@@ -258,11 +255,8 @@ export function createControllerStack({
         getRuntimeAsset,
         getRuntimeSourceText,
         getRuntimeVersion,
-        getTransparencyStateSnapshot,
-        isCanvasEffectivelyTransparent,
+        getCanvasBackgroundStateSnapshot,
         setupCanvasColor,
         setupRuntimeVersionPicker,
-        setupTransparencyControls,
-        syncTransparencyControls,
     };
 }

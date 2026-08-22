@@ -1,8 +1,11 @@
 pub mod constants;
 pub mod demo_bundle;
+pub mod install_counter;
+pub mod isolated_playback;
 pub mod launch_services;
 pub mod mcp;
 pub mod node_runtime;
+pub mod render_surface;
 pub mod state;
 pub mod support;
 pub mod updater;

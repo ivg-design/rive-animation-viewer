@@ -17,16 +17,30 @@ import {
     rgbAlphaToArgb,
     shouldResumePlaybackForTrigger,
 } from '../../../src/app/rive/vm-controls.js';
+import {
+    VM_CONTROL_SYNC_INTERVAL_MS,
+    VM_TOPOLOGY_SYNC_INTERVAL_MS,
+} from '../../../src/app/core/constants.js';
 import { appendVmImageControl } from '../../../src/app/rive/view-model/image-control.js';
+
+const VM_TOPOLOGY_SYNC_TICKS = Math.ceil(VM_TOPOLOGY_SYNC_INTERVAL_MS / VM_CONTROL_SYNC_INTERVAL_MS);
+
+function runVmSyncTicks(intervals, count = VM_TOPOLOGY_SYNC_TICKS) {
+    for (let index = 0; index < count; index += 1) {
+        intervals[0].callback();
+    }
+}
 
 function createVmElements() {
     document.body.innerHTML = `
+        <div id="main-grid"></div>
         <span id="vm-controls-count"></span>
         <p id="vm-controls-empty"></p>
         <div id="vm-controls-tree"></div>
     `;
 
     return {
+        mainGrid: document.getElementById('main-grid'),
         vmControlsCount: document.getElementById('vm-controls-count'),
         vmControlsEmpty: document.getElementById('vm-controls-empty'),
         vmControlsTree: document.getElementById('vm-controls-tree'),
@@ -636,18 +650,50 @@ describe('rive/vm-controls', () => {
         expect(harness.intervals).toHaveLength(1);
 
         harness.list.items.splice(0, harness.list.items.length);
-        harness.intervals[0].callback();
+        runVmSyncTicks(harness.intervals);
 
         expect(harness.elements.vmControlsCount.textContent).toBe('8');
         expect(harness.elements.vmControlsTree.textContent).not.toContain('items [');
         expect(harness.intervals).toHaveLength(1);
 
         harness.list.items.push(harness.list.createItem(7));
-        harness.intervals[0].callback();
+        runVmSyncTicks(harness.intervals);
 
         expect(harness.elements.vmControlsCount.textContent).toBe('9');
         expect(harness.elements.vmControlsTree.textContent).toContain('items [1]');
         expect(findNumberInput('items/0/speed').value).toBe('7');
+    });
+
+    it('pauses polling with the properties panel hidden and skips collapsed sections', () => {
+        const harness = createVmHarness();
+        harness.controller.renderVmInputControls();
+
+        const rows = Array.from(harness.elements.vmControlsTree.querySelectorAll('.vm-control-row'));
+        const countInput = rows
+            .find((row) => row.querySelector('.vm-control-label')?.title === 'count')
+            ?.querySelector('input[type="number"]');
+        const childInput = rows
+            .find((row) => row.querySelector('.vm-control-label')?.title === 'child/enabled')
+            ?.querySelector('input[type="checkbox"]');
+
+        harness.elements.mainGrid.classList.add('right-hidden');
+        harness.accessors.rootNumber.value = 41;
+        harness.intervals[0].callback();
+        expect(countInput.value).toBe('3');
+
+        harness.elements.mainGrid.classList.remove('right-hidden');
+        harness.intervals[0].callback();
+        expect(countInput.value).toBe('41');
+
+        harness.accessors.childBoolean.value = true;
+        harness.intervals[0].callback();
+        expect(childInput.checked).toBe(false);
+
+        const childSection = childInput.closest('details.vm-section');
+        childSection.open = true;
+        childSection.dispatchEvent(new Event('toggle'));
+        harness.intervals[0].callback();
+        expect(childInput.checked).toBe(true);
     });
 
     it('polls an empty list with no scalar bindings and discovers items as they become available', () => {
@@ -696,7 +742,7 @@ describe('rive/vm-controls', () => {
         expect(clearIntervalFn).not.toHaveBeenCalled();
 
         listLength = 1;
-        intervals[0].callback();
+        runVmSyncTicks(intervals);
         expect(elements.vmControlsCount.textContent).toBe('0');
         expect(intervals).toHaveLength(1);
 
@@ -706,7 +752,7 @@ describe('rive/vm-controls', () => {
             },
             properties: [{ name: 'value' }],
         });
-        intervals[0].callback();
+        runVmSyncTicks(intervals);
 
         expect(elements.vmControlsCount.textContent).toBe('1');
         expect(elements.vmControlsEmpty.hidden).toBe(true);
@@ -716,7 +762,7 @@ describe('rive/vm-controls', () => {
 
         listItems.length = 0;
         listLength = 0;
-        intervals[0].callback();
+        runVmSyncTicks(intervals);
 
         expect(elements.vmControlsCount.textContent).toBe('0');
         expect(elements.vmControlsEmpty.hidden).toBe(false);
@@ -729,7 +775,7 @@ describe('rive/vm-controls', () => {
             properties: [{ name: 'label' }],
         });
         listLength = 1;
-        intervals[0].callback();
+        runVmSyncTicks(intervals);
 
         expect(elements.vmControlsCount.textContent).toBe('1');
         expect(elements.vmControlsTree.textContent).toContain('label (string)');
@@ -758,7 +804,7 @@ describe('rive/vm-controls', () => {
 
         const delayedItem = harness.list.createItem(0);
         harness.list.items.push(delayedItem);
-        harness.intervals[0].callback();
+        runVmSyncTicks(harness.intervals);
 
         expect(delayedItem.number('speed').value).toBe(88);
         expect(harness.controller.getChangedVmControlSnapshot()).toEqual([

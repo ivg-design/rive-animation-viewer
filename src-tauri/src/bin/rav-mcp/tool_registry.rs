@@ -167,7 +167,7 @@ pub fn tools_list() -> Value {
         },
         {
             "name": "rav_set_canvas_color",
-            "description": "Set the canvas background color. Use \"transparent\" for transparency mode.",
+            "description": "Set the canvas background color. Use \"transparent\" for a transparent canvas background.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -190,6 +190,11 @@ pub fn tools_list() -> Value {
                 },
                 "additionalProperties": false
             }
+        },
+        {
+            "name": "rav_open_isolated_playback",
+            "description": "Open the current animation in a separate, ordinary opaque Tauri webview using the exact self-contained standalone-export payload. This is an in-app A/B diagnostic surface for comparing RAV plumbing against isolated playback; it does not save a file or change the main RAV window.",
+            "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
         },
         {
             "name": "rav_export_demo",

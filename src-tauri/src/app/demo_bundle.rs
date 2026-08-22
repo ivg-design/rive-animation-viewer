@@ -1,5 +1,8 @@
 use base64::{engine::general_purpose::STANDARD, Engine};
-use std::fs;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use crate::app::state::DemoBundlePayload;
 
@@ -96,6 +99,7 @@ pub fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json
         .unwrap_or_else(|| json!({}));
 
     let config = json!({
+      "fileName": payload.file_name,
       "runtimeName": payload.runtime_name,
       "runtimeVersion": payload.runtime_version,
       "animationBase64": payload.animation_base64,
@@ -184,6 +188,43 @@ pub fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json
         .replace("__RUNTIME_VERSION__", runtime_version);
 
     Ok(html)
+}
+
+pub(crate) fn write_demo_html_atomically(
+    payload: &DemoBundlePayload,
+    html_path: &Path,
+) -> Result<PathBuf, String> {
+    let parent = html_path
+        .parent()
+        .ok_or_else(|| "Demo HTML path has no parent directory".to_string())?;
+    fs::create_dir_all(parent).map_err(|error| {
+        format!(
+            "Failed to create demo cache directory {}: {error}",
+            parent.display()
+        )
+    })?;
+
+    let html = build_demo_html(payload).map_err(|error| error.to_string())?;
+    let file_name = html_path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("current-demo.html");
+    let temporary_path = parent.join(format!(".{file_name}.tmp-{}", uuid::Uuid::new_v4()));
+    fs::write(&temporary_path, html).map_err(|error| {
+        format!(
+            "Failed to write demo HTML {}: {error}",
+            temporary_path.display()
+        )
+    })?;
+    fs::rename(&temporary_path, html_path).map_err(|error| {
+        let _ = fs::remove_file(&temporary_path);
+        format!(
+            "Failed to finalize demo HTML {}: {error}",
+            html_path.display()
+        )
+    })?;
+
+    Ok(html_path.to_path_buf())
 }
 
 pub fn escape_embedded_script_json(raw: &str) -> String {

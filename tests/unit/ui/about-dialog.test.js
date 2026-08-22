@@ -6,7 +6,7 @@ describe('ui/about/about-dialog', () => {
 
         const controller = createAboutDialogController({
             callbacks: {
-                getAppBuildLabel: () => 'b0123-test',
+                getAppBuildLabel: () => 'DEV · b0123-test',
                 getAppVersionLabel: () => '2.0.5',
                 getCurrentRuntime: () => 'webgl2',
                 getCurrentRuntimeVersion: () => '2.36.0',
@@ -36,6 +36,8 @@ describe('ui/about/about-dialog', () => {
         expect(dialog).toBeTruthy();
         expect(dialog.open).toBe(true);
         expect(dialog.textContent).toContain('Rive Animation Viewer');
+        expect(dialog.querySelector('[data-about-build]')?.textContent).toBe('DEV · b0123-test');
+        expect(dialog.querySelector('[data-about-build-detail]')?.textContent).toBe('DEV · b0123-test');
         expect(dialog.textContent).toContain('2 deps');
         expect(dialog.textContent).toContain('codemirror');
         expect(dialog.textContent).toContain('vitest');

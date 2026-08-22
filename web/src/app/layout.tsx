@@ -91,14 +91,14 @@ const jsonLd = {
       name: "RAV - Rive Animation Viewer",
       alternateName: "RAV",
       description:
-        "Free desktop player for inspecting, debugging, and testing Rive (.riv) animations offline. Documentation covers the current public 2.4.3 release.",
+        "Free desktop player for inspecting, debugging, and testing Rive (.riv) animations offline. Documentation covers the 2.4.4 dual-WebView performance release.",
       url: siteUrl,
       applicationCategory: "DeveloperApplication",
       operatingSystem: "macOS, Windows",
-      softwareVersion: "2.4.3",
-      releaseNotes: "Version 2.4.3 is the current public release with authored ViewModel list labels, embedded-image controls, standalone editor-config preservation, fixed-canvas centering, and dedicated .riv document resources.",
+      softwareVersion: "2.4.4",
+      releaseNotes: "Version 2.4.4 isolates playback in a dedicated child WebView, makes ViewModel synchronization reactive and bounded, corrects concrete export counts, removes stale transparent-window plumbing, and adds an opt-in privacy-minimal installation counter.",
       datePublished: "2025-11-01",
-      dateModified: "2026-08-15",
+      dateModified: "2026-08-21",
       downloadUrl: "https://github.com/ivg-design/rive-animation-viewer/releases/latest",
       installUrl: "https://github.com/ivg-design/rive-animation-viewer/releases/latest",
       screenshot: toCanonicalUrl("/media/screenshots/open-panels_sm.webp"),
@@ -121,7 +121,7 @@ const jsonLd = {
         "Unified Event Console and JavaScript Console with timestamps, search, follow mode, and copy tools",
         "Self-contained HTML demo export that preserves and executes applied editor config and lifecycle callbacks",
         "Snippet and export dialog for selecting exactly which live control values are serialized",
-        "Transparency overlay mode with cursor-synced desktop click-through",
+        "Solid or transparent canvas backgrounds, preserved in standalone exports",
         "CodeMirror 6 script editor with live-source indication and APPLY refresh",
         "VM Explorer console commands for deep runtime inspection",
         "Bundled native rav-mcp sidecar with one-click setup for supported AI clients",
@@ -140,7 +140,7 @@ const jsonLd = {
           name: "What is RAV - Rive Animation Viewer?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "RAV is a free, open-source desktop application for inspecting, debugging, and testing Rive (.riv) animation files offline. It provides ViewModel controls, unified event and JavaScript consoles, MCP integration, transparency overlay mode, and self-contained HTML/snippet export. It runs on macOS (Apple Silicon and Intel) and Windows.",
+            text: "RAV is a free, open-source desktop application for inspecting, debugging, and testing Rive (.riv) animation files offline. It provides ViewModel controls, unified event and JavaScript consoles, MCP integration, configurable canvas backgrounds, and self-contained HTML/snippet export. It runs on macOS (Apple Silicon and Intel) and Windows.",
           },
         },
         {
@@ -148,7 +148,7 @@ const jsonLd = {
           name: "Is there a desktop viewer for Rive animations?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Yes. RAV (Rive Animation Viewer) is the only standalone desktop player for Rive animations. It reads .riv files and generates interactive ViewModel controls, logs runtime events, supports transparency overlay, and can export self-contained HTML demos. No equivalent tool exists from Rive or any third party.",
+            text: "Yes. RAV (Rive Animation Viewer) is a standalone desktop player for Rive animations. It reads .riv files, generates interactive ViewModel controls, logs runtime events, supports configurable canvas backgrounds, and exports self-contained HTML demos.",
           },
         },
         {

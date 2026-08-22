@@ -132,6 +132,16 @@
                                     <button type="button" id="canvas-color-reset-btn" class="settings-toggle">NO BG</button>
                                 </div>
                             </div>
+                            <div class="settings-row">
+                                <label class="settings-label" for="install-counter-consent-btn" title="Counts this installation once and sends a different anonymous activity token each month. No files, hardware identifier, account, or license data.">Anonymous Usage</label>
+                                <div class="settings-controls">
+                                    <button type="button" id="install-counter-consent-btn" class="settings-toggle" aria-pressed="false" aria-describedby="install-counter-privacy-note" title="Opt in to privacy-minimal installation and monthly-active counts" disabled>UNAVAILABLE</button>
+                                </div>
+                            </div>
+                            <div class="settings-row settings-row-counter-note">
+                                <span class="settings-label">Privacy</span>
+                                <span class="settings-note" id="install-counter-privacy-note">No files, hardware ID, account, or license data.</span>
+                            </div>
                             <div class="settings-row settings-row-canvas-size">
                                 <label class="settings-label" for="canvas-size-width-input">Canvas Size</label>
                                 <div class="settings-controls settings-controls-canvas-size">
@@ -222,10 +232,6 @@
             </aside>
 
             <div class="panel-resizer" id="left-resizer" aria-hidden="true"></div>
-            <button type="button" id="show-left-panel-btn" class="workspace-edge-toggle workspace-edge-toggle-left" title="Show Script Panel" aria-label="Show Script Panel" hidden>
-                <i data-lucide="chevron-right" class="lucide-14"></i>
-            </button>
-
             <section class="panel center-panel" id="center-panel">
                 <div id="canvas-container" class="canvas-drop-target" aria-label="Rive canvas drop zone">
                     <div class="placeholder">
@@ -238,6 +244,9 @@
 
                 <div class="runtime-strip" id="runtime-strip">
                     <div class="runtime-strip-left">
+                        <button type="button" id="show-left-panel-btn" class="workspace-edge-toggle workspace-edge-toggle-left" title="Show Script Panel" aria-label="Show Script Panel" hidden>
+                            <i data-lucide="chevron-right" class="lucide-14"></i>
+                        </button>
                         <button type="button" class="runtime-chip runtime-chip-mcp" id="mcp-status-chip" data-mcp-state="waiting" title="MCP: connecting to the bridge (click to disable)">
                             <span class="mcp-dot" aria-hidden="true"></span>MCP
                         </button>
@@ -251,6 +260,9 @@
                     <div class="runtime-strip-right">
                         <button type="button" class="runtime-chip runtime-chip-update" id="update-chip" hidden>UPDATE</button>
                         <span class="runtime-chip runtime-chip-status" id="info">Ready to load animation</span>
+                        <button type="button" id="show-right-panel-btn" class="workspace-edge-toggle workspace-edge-toggle-right" title="Show Properties Panel" aria-label="Show Properties Panel" hidden>
+                            <i data-lucide="chevron-left" class="lucide-14"></i>
+                        </button>
                     </div>
                 </div>
 
@@ -325,9 +337,6 @@
                 </div>
             </section>
 
-            <button type="button" id="show-right-panel-btn" class="workspace-edge-toggle workspace-edge-toggle-right" title="Show Properties Panel" aria-label="Show Properties Panel" hidden>
-                <i data-lucide="chevron-left" class="lucide-14"></i>
-            </button>
             <div class="panel-resizer" id="right-resizer" aria-hidden="true"></div>
 
             <aside class="panel properties-panel" id="right-panel">

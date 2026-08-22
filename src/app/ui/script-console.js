@@ -235,9 +235,15 @@ export function createScriptConsoleController({
     async function openConsole() {
         state.isOpen = true;
         syncUi();
+        renderEventLog();
         onOpenChange(true);
         try {
             await loadEruda();
+            if (state.erudaReady && getConsoleTool()?.config?.set) {
+                captureController.restoreConsoleMethods();
+                getConsoleTool().config.set('overrideConsole', true);
+            }
+            captureController.flushToEruda();
         } catch (error) {
             logEvent('ui', 'console-init-failed', error.message);
             renderConsoleEntries();
@@ -247,6 +253,10 @@ export function createScriptConsoleController({
     }
     function closeConsole() {
         state.isOpen = false;
+        if (state.erudaReady && getConsoleTool()?.config?.set) {
+            getConsoleTool().config.set('overrideConsole', false);
+            captureController.installCapture();
+        }
         syncUi();
         renderEventLog();
         onOpenChange(false);

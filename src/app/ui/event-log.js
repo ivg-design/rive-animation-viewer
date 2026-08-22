@@ -165,6 +165,7 @@ export function createEventLogController({
         if (elements.showEventLogButton) {
             elements.showEventLogButton.hidden = true;
         }
+        renderEventLog();
         handleResize();
         setTimeoutFn(handleResize, 300);
         onCollapsedChange(nextCollapsed);
@@ -217,6 +218,15 @@ export function createEventLogController({
         const filtered = getVisibleEntries();
 
         count.textContent = String(filtered.length);
+        const listIsVisible = !isCollapsed()
+            && !list.hidden
+            && !elements.eventLogPanel?.classList.contains('script-console-mode');
+        if (!listIsVisible) {
+            if (list.childElementCount) {
+                list.replaceChildren();
+            }
+            return;
+        }
         const scrollContainer = getScrollContainer();
         const previousTop = scrollContainer?.scrollTop || 0;
         list.innerHTML = '';

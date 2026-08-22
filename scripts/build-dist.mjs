@@ -12,6 +12,21 @@ function isCiBuild() {
   return process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 }
 
+function getBuildChannel() {
+  const explicitChannel = String(process.env.APP_BUILD_CHANNEL || '').trim().toLowerCase();
+  if (explicitChannel === 'dev' || explicitChannel === 'release') {
+    return explicitChannel;
+  }
+  const tauriDebug = String(process.env.TAURI_ENV_DEBUG || '').trim().toLowerCase();
+  if (tauriDebug === 'true') {
+    return 'dev';
+  }
+  if (tauriDebug === 'false') {
+    return 'release';
+  }
+  return isCiBuild() ? 'release' : 'dev';
+}
+
 function getGitShortSha() {
   try {
     return execSync('git rev-parse --short HEAD', {
@@ -187,6 +202,7 @@ async function build() {
   const numberedPrefix = `b${buildNumber.padStart(4, '0')}`;
   const buildId = process.env.APP_BUILD_ID
     || `${numberedPrefix}-${getBuildTimestamp()}-${getGitShortSha()}${gitWorktreeSuffix}`;
+  const buildChannel = getBuildChannel();
 
   const filesToCopy = ['index.html', 'style.css', 'README.md', 'package.json'];
 
@@ -221,9 +237,11 @@ async function build() {
   let mainEntryContent = await fs.readFile(mainEntryPath, 'utf8');
   mainEntryContent = mainEntryContent.replace(/__APP_VERSION__/g, pkg.version);
   mainEntryContent = mainEntryContent.replace(/__APP_BUILD__/g, buildId);
+  mainEntryContent = mainEntryContent.replace(/__APP_CHANNEL__/g, buildChannel);
   await fs.writeFile(mainEntryPath, mainEntryContent, 'utf8');
 
   console.log(`Built static bundle in ${distDir} (build ${buildId})`);
+  console.log(`Build channel: ${buildChannel}`);
   console.log(`Build number source: ${buildNumberSource} -> ${buildNumber}`);
 }
 

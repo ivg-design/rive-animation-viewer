@@ -134,7 +134,7 @@ export function createUiStack({
 
     const aboutDialogController = createAboutDialogController({
         callbacks: {
-            getAppBuildLabel: () => statusController?.getBuildIdLabel?.() || 'dev',
+            getAppBuildLabel: () => statusController?.getBuildStampLabel?.() || 'DEV · dev',
             getAppVersionLabel: () => statusController?.getResolvedAppVersion?.() || 'dev',
             getCurrentRuntime,
             getCurrentRuntimeVersion: () => getCurrentRuntimeVersion() || 'latest',

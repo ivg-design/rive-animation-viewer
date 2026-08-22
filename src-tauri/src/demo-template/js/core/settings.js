@@ -161,25 +161,4 @@
             });
         }
 
-        function setupTransparencyControls() {
-            var toggle = els.transparencyModeToggle;
-            if (!toggle) return;
-
-            isTransparencyModeEnabled = false;
-            syncTransparencyControls();
-            document.documentElement.classList.toggle('transparency-mode', isTransparencyModeEnabled);
-            document.body.classList.toggle('transparency-mode', isTransparencyModeEnabled);
-            if (!DEMO_TRANSPARENCY_TOGGLE_ENABLED) {
-                return;
-            }
-            toggle.addEventListener('click', function () {
-                isTransparencyModeEnabled = !isTransparencyModeEnabled;
-                document.documentElement.classList.toggle('transparency-mode', isTransparencyModeEnabled);
-                document.body.classList.toggle('transparency-mode', isTransparencyModeEnabled);
-                syncTransparencyControls();
-                updateCanvasBackground();
-                logEvent('ui', 'transparency-mode', 'Transparency mode ' + (isTransparencyModeEnabled ? 'enabled' : 'disabled') + '.');
-            });
-        }
-
         /* ── Fullscreen ──────────────────────────────────────── */

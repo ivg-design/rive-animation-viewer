@@ -33,6 +33,7 @@ jobs:
     outputs:
       version: ${{ steps.meta.outputs.version }}
       tag: ${{ steps.meta.outputs.tag }}
+      counter_endpoint: ${{ steps.counter.outputs.endpoint }}
       release_id: ${{ steps.draft.outputs.release_id }}
     steps:
       - name: Checkout repository
@@ -82,6 +83,40 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
           echo "Preparing complete release $version"
+
+      - name: Validate the canonical anonymous counter endpoint
+        id: counter
+        shell: bash
+        env:
+          RAV_COUNTER_ENDPOINT: ${{ vars.RAV_COUNTER_ENDPOINT }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          (async () => {
+            const endpoint = new URL(process.env.RAV_COUNTER_ENDPOINT || '');
+            if (endpoint.protocol !== 'https:' || endpoint.pathname !== '/v1/event'
+                || endpoint.search || endpoint.hash || endpoint.username || endpoint.password) {
+              throw new Error('RAV_COUNTER_ENDPOINT must be a credential-free HTTPS /v1/event URL');
+            }
+
+            const healthUrl = new URL('/v1/health', endpoint);
+            const response = await fetch(healthUrl, {
+              headers: { accept: 'text/plain' },
+              redirect: 'error',
+              signal: AbortSignal.timeout(10_000),
+            });
+            if (response.status !== 204) {
+              throw new Error(`Anonymous counter health check returned ${response.status}`);
+            }
+
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `endpoint=${endpoint.href}\n`);
+            console.log(`Anonymous counter is healthy at ${healthUrl.origin}/v1/health`);
+          })().catch((error) => {
+            console.error(error);
+            process.exitCode = 1;
+          });
+          NODE
 
       - name: Extract release notes from changelog
         id: notes
@@ -319,6 +354,8 @@ jobs:
           APPLE_API_KEY: ${{ vars.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ vars.APPLE_API_ISSUER }}
           APPLE_API_KEY_PATH: ${{ steps.apple.outputs.api_key_path }}
+          RAV_COUNTER_ENDPOINT: ${{ needs.prepare-release.outputs.counter_endpoint }}
+          RAV_OFFICIAL_RELEASE: "1"
         with:
           tauriScript: npm run tauri
           releaseId: ${{ needs.prepare-release.outputs.release_id }}
@@ -431,6 +468,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          RAV_COUNTER_ENDPOINT: ${{ needs.prepare-release.outputs.counter_endpoint }}
+          RAV_OFFICIAL_RELEASE: "1"
         with:
           tauriScript: npm run tauri
           releaseId: ${{ needs.prepare-release.outputs.release_id }}

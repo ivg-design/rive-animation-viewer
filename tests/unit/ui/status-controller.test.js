@@ -54,6 +54,7 @@ describe('ui/status-controller', () => {
             placeholders: {
                 appBuild: 'b0100-20260401-abcdef',
                 appBuildPlaceholder: '__APP_BUILD__',
+                appChannel: 'release',
                 appVersion: '3.4.5',
                 appVersionPlaceholder: '__APP_VERSION__',
             },
@@ -71,6 +72,8 @@ describe('ui/status-controller', () => {
         expect(elements.headerFileMeta.querySelector('.header-file-meta-file')?.textContent).toBe('<demo>.riv');
         expect(elements.headerFileMeta.querySelector('.header-file-meta-size')?.textContent).toBe('2.0 KB');
         expect(elements.versionInfo.innerHTML).toContain('Release: v3.4.5');
+        expect(elements.versionInfo.innerHTML).toContain('Build: b0100-20260401-abcdef');
+        expect(elements.versionInfo.innerHTML).not.toContain('DEV');
         expect(elements.versionInfo.innerHTML).toContain('Source: bundle');
         expect(elements.versionInfo.innerHTML).toContain('© 2026 IVG Design');
         expect(elements.info.textContent).toBe('Ready');
@@ -92,6 +95,7 @@ describe('ui/status-controller', () => {
             placeholders: {
                 appBuild: '__APP_BUILD__',
                 appBuildPlaceholder: '__APP_BUILD__',
+                appChannel: 'dev',
                 appVersion: '__APP_VERSION__',
                 appVersionPlaceholder: '__APP_VERSION__',
             },
@@ -110,6 +114,7 @@ describe('ui/status-controller', () => {
 
         await controller.resolveAppVersion();
         expect(elements.versionInfo.innerHTML).toContain('Release: v9.9.9');
+        expect(elements.versionInfo.innerHTML).toContain('DEV · Build: dev');
     });
 
     it('covers dev build labels, explicit status messages, and fallback app-version resolution', async () => {
@@ -132,6 +137,7 @@ describe('ui/status-controller', () => {
             placeholders: {
                 appBuild: 'build-20260401-abcdef123456',
                 appBuildPlaceholder: '__APP_BUILD__',
+                appChannel: 'dev',
                 appVersion: '__APP_VERSION__',
                 appVersionPlaceholder: '__APP_VERSION__',
             },
@@ -139,6 +145,8 @@ describe('ui/status-controller', () => {
         });
 
         expect(controller.getBuildIdLabel()).toBe('build-20260401-abcdef123456');
+        expect(controller.getBuildChannelLabel()).toBe('dev');
+        expect(controller.getBuildStampLabel()).toBe('DEV · build-20260401-abcdef123456');
         expect(controller.getBuildNumberLabel()).toBe('');
         expect(controller.getShortBuildIdLabel()).toBe('abcdef123456');
 
@@ -156,7 +164,7 @@ describe('ui/status-controller', () => {
 
         await controller.resolveAppVersion();
         controller.updateVersionInfo();
-        expect(elements.versionInfo.innerHTML).toContain('Release: vdev');
+        expect(elements.versionInfo.innerHTML).toContain('Release: vdev · DEV · Build: build-20260401-abcdef123456');
 
         const noFetchController = createStatusController({
             callbacks: {
@@ -168,6 +176,7 @@ describe('ui/status-controller', () => {
             placeholders: {
                 appBuild: '__APP_BUILD__',
                 appBuildPlaceholder: '__APP_BUILD__',
+                appChannel: 'dev',
                 appVersion: '__APP_VERSION__',
                 appVersionPlaceholder: '__APP_VERSION__',
             },
@@ -191,6 +200,7 @@ describe('ui/status-controller', () => {
             placeholders: {
                 appBuild: 'b0101-20260403-abcdef',
                 appBuildPlaceholder: '__APP_BUILD__',
+                appChannel: 'release',
                 appVersion: '2.0.5',
                 appVersionPlaceholder: '__APP_VERSION__',
             },

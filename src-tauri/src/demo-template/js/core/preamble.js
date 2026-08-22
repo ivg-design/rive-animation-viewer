@@ -14,10 +14,15 @@
             : {};
         const DEFAULT_CANVAS_COLOR = '__CANVAS_COLOR__' || '#0d1117';
         const TRANSPARENT_CANVAS_COLOR = 'transparent';
-        const DEMO_TRANSPARENCY_TOGGLE_ENABLED = false;
         const LAYOUT_STATE = (CONFIG.layoutState && typeof CONFIG.layoutState === 'object')
             ? CONFIG.layoutState
             : {};
+        // The normal export remains a complete interactive demo. The embedded
+        // renderer activates only when its native host explicitly adds this
+        // query flag, so exported HTML opened in any browser is unchanged.
+        const renderSurfaceParams = new URLSearchParams(window.location.search);
+        const isRenderSurfaceMode = renderSurfaceParams.get('renderSurface') === '1';
+        const renderSurfaceSessionId = renderSurfaceParams.get('renderSession') || null;
 
         const LAYOUT_FITS = ['cover', 'contain', 'fill', 'fitWidth', 'fitHeight', 'scaleDown', 'none', 'layout'];
         const LAYOUT_ALIGNMENTS = ['topLeft', 'topCenter', 'topRight', 'centerLeft', 'center', 'centerRight', 'bottomLeft', 'bottomCenter', 'bottomRight'];
@@ -48,7 +53,6 @@
         let currentCanvasSizing = normalizeCanvasSizingState(CONFIG.canvasSizing, DEFAULT_CANVAS_SIZING);
         let lastSolidCanvasColor = normalizeCanvasColor(CONFIG.canvasColor) || DEFAULT_CANVAS_COLOR;
         let currentCanvasColor = CONFIG.canvasTransparent ? TRANSPARENT_CANVAS_COLOR : lastSolidCanvasColor;
-        let isTransparencyModeEnabled = false;
         let isRightPanelVisible = typeof LAYOUT_STATE.rightPanelVisible === 'boolean'
             ? LAYOUT_STATE.rightPanelVisible
             : true;
@@ -260,7 +264,6 @@
             alignmentSelect: document.getElementById('alignment-select'),
             canvasColorInput: document.getElementById('canvas-color-input'),
             canvasColorResetBtn: document.getElementById('canvas-color-reset-btn'),
-            transparencyModeToggle: document.getElementById('transparency-mode-toggle'),
             btnPlay: document.getElementById('btn-play'),
             btnPause: document.getElementById('btn-pause'),
             btnReset: document.getElementById('btn-reset'),

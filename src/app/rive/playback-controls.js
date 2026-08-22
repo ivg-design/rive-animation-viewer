@@ -1,4 +1,5 @@
 import { buildPlaybackContext, buildPlaybackStatusLabel } from './playback-status.js';
+import { dispatchPlaybackCommand } from './control-events.js';
 
 export function createPlaybackController({
     callbacks = {},
@@ -22,11 +23,14 @@ export function createPlaybackController({
     let lastFpsUpdate = 0;
 
     function updatePlaybackChips() {
+        const fpsChip = documentRef.getElementById('fps-chip');
+        if (fpsChip?.dataset.renderSurfaceActive === 'true') {
+            return;
+        }
         frameCount += 1;
         const currentTime = now();
         if (currentTime - lastFpsUpdate >= 1000) {
             const fps = Math.round((frameCount * 1000) / (currentTime - lastFpsUpdate));
-            const fpsChip = documentRef.getElementById('fps-chip');
             if (fpsChip) {
                 fpsChip.innerHTML = `<span class="dot"></span>${fps} FPS`;
             }
@@ -39,6 +43,9 @@ export function createPlaybackController({
         frameCount = 0;
         lastFpsUpdate = now();
         const fpsChip = documentRef.getElementById('fps-chip');
+        if (fpsChip?.dataset.renderSurfaceActive === 'true') {
+            return;
+        }
         if (fpsChip) {
             fpsChip.innerHTML = '<span class="dot"></span>-- FPS';
         }
@@ -64,6 +71,7 @@ export function createPlaybackController({
             riveInstance,
         }), 'Playing'));
         logEvent('ui', 'play', 'Playback started from UI.');
+        dispatchPlaybackCommand(documentRef, 'play');
     }
 
     function pause() {
@@ -78,6 +86,7 @@ export function createPlaybackController({
             riveInstance,
         }), 'Paused'));
         logEvent('ui', 'pause', 'Playback paused from UI.');
+        dispatchPlaybackCommand(documentRef, 'pause');
     }
 
     async function reset() {

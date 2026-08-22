@@ -1,6 +1,6 @@
 {
   "name": "rive-animation-viewer",
-  "version": "2.4.3",
+  "version": "2.4.4",
   "description": "Desktop and web viewer for .riv files with ViewModel controls, artboard/animation switching, script editor, event console, standalone export, and MCP remote control",
   "main": "index.html",
   "scripts": {
@@ -10,7 +10,8 @@
     "generate:snippets": "node scripts/generate-snippet-modules.mjs",
     "check:architecture": "node scripts/check-architecture.mjs",
     "check:deps": "depcruise --config .dependency-cruiser.cjs mcp-server/index.js src/app",
-    "test": "npm run generate:snippets && npm run check:architecture && npm run check:deps && vitest run",
+    "test": "npm run generate:snippets && npm run check:architecture && npm run check:deps && vitest run && npm run test:counter",
+    "test:counter": "npm --prefix telemetry/worker test",
     "test:unit": "vitest run tests/unit",
     "test:smoke": "vitest run tests/smoke",
     "test:ui": "npm run test:coverage && node scripts/prepare-vitest-ui-theme.mjs && vitest --ui --coverage.enabled --api.port 51204 --api.host 127.0.0.1 --api.strictPort",

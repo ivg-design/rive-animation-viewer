@@ -40,6 +40,7 @@ describe('platform/global-bindings', () => {
         const applyCodeAndReload = vi.fn();
         const createDemoBundle = vi.fn().mockResolvedValue('/tmp/demo');
         const exportDemoToPath = vi.fn().mockResolvedValue('/tmp/out');
+        const openIsolatedPlayback = vi.fn().mockResolvedValue({ windowLabel: 'isolated-playback-1' });
         const generateWebInstantiationCode = vi.fn().mockResolvedValue({ code: '<script></script>' });
         const handleFileButtonClick = vi.fn();
         const injectCodeSnippet = vi.fn();
@@ -75,6 +76,7 @@ describe('platform/global-bindings', () => {
                 createDemoBundle,
                 ensureEditorReady,
                 exportDemoToPath,
+                openIsolatedPlayback,
                 getArtboardStateSnapshot: () => ({ currentArtboard: 'Main' }),
                 getCurrentCanvasSizing: () => ({ mode: 'fixed', width: 1280, height: 720, lockAspectRatio: true }),
                 getCurrentFileBuffer: () => Uint8Array.from([1]).buffer,
@@ -88,6 +90,7 @@ describe('platform/global-bindings', () => {
                 getScriptConsoleEntries: (limit) => ({ total: 2, returned: limit, entries: [{ method: 'log' }] }),
                 getRuntimeSourceText: () => 'runtime();',
                 getRuntimeVersion: () => '1.2.3',
+                getVmSyncDiagnostics: () => ({ timerActive: false }),
                 handleFileButtonClick,
                 injectCodeSnippet,
                 loadRiveAnimation,
@@ -123,6 +126,7 @@ describe('platform/global-bindings', () => {
         expect(windowRef.__riveAnimationCache.getBuffer()).toBeInstanceOf(ArrayBuffer);
         expect(windowRef.__riveAnimationCache.getName()).toBe('demo.riv');
         expect(windowRef.__riveAnimationCache.getMimeType()).toBe('application/octet-stream');
+        expect(windowRef.ravVmSyncDiagnostics()).toEqual({ timerActive: false });
         await expect(windowRef._mcpGetEditorCode()).resolves.toBe('({ autoplay: true })');
         expect(ensureEditorReady).toHaveBeenCalledTimes(1);
         await expect(windowRef._mcpSetEditorCode('({ autoplay: false })')).resolves.toBe(true);
@@ -145,6 +149,8 @@ describe('platform/global-bindings', () => {
 
         await windowRef.applyCodeAndReload();
         await windowRef.createDemoBundle();
+        await expect(windowRef.openIsolatedPlayback()).resolves.toEqual({ windowLabel: 'isolated-playback-1' });
+        await expect(windowRef._mcpOpenIsolatedPlayback()).resolves.toEqual({ windowLabel: 'isolated-playback-1' });
         await windowRef.injectCodeSnippet();
         windowRef.handleFileButtonClick();
         windowRef.refreshVmInputControls();
@@ -251,6 +257,7 @@ describe('platform/global-bindings', () => {
         expect(windowRef._mcpGetCanvasSizing()).toBeNull();
         expect(windowRef._mcpSetCanvasSizing({ mode: 'fixed' })).toEqual({ mode: 'fixed' });
         expect(windowRef._mcpGetLiveConfigState()).toEqual({ draftDirty: false, sourceMode: 'internal' });
+        expect(windowRef.ravVmSyncDiagnostics()).toBeNull();
         await expect(windowRef._mcpToggleInstantiationControlsDialog('toggle')).resolves.toEqual({ open: false });
         await expect(windowRef._mcpToggleLiveConfigSource()).resolves.toBeUndefined();
         windowRef.showMcpSetup();

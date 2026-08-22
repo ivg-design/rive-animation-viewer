@@ -32,12 +32,6 @@ export function createShellController({
         getCurrentRuntime = () => 'webgl2',
         getEventLogFilterState = () => ({}),
         getTauriInvoker = () => null,
-        getTransparencyStateSnapshot = () => ({
-            canvasColor: '#000000',
-            canvasTransparent: false,
-            clickThroughMode: 'off',
-            transparencyMode: 'opaque',
-        }),
         handleResize = () => {},
         loadRiveAnimation = async () => {},
         logEvent = () => {},
@@ -48,7 +42,6 @@ export function createShellController({
         setCurrentLayoutFit = () => {},
         setCurrentRuntime = () => {},
         showError = () => {},
-        syncTransparencyControls = () => {},
         updateInfo = () => {},
         updateVersionInfo = () => {},
     } = callbacks;
@@ -137,7 +130,6 @@ export function createShellController({
     const demoButtonController = createDemoButtonController({
         callbacks: {
             getTauriInvoker,
-            syncTransparencyControls,
         },
         clearIntervalFn,
         documentRef,
@@ -312,7 +304,6 @@ export function createShellController({
     }
 
     function captureLayoutStateForExport() {
-        const transparencyState = getTransparencyStateSnapshot();
         const grid = elements.mainGrid;
         const centerPanel = elements.centerPanel;
         const eventLogPanel = elements.eventLogPanel;
@@ -337,8 +328,6 @@ export function createShellController({
             eventFilters: {
                 ...getEventLogFilterState(),
             },
-            transparencyMode: transparencyState.transparencyMode,
-            clickThroughMode: transparencyState.clickThroughMode,
         };
     }
 

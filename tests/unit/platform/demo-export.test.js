@@ -38,7 +38,7 @@ describe('platform/demo-export', () => {
             runtimeScript: 'runtime();',
             runtimeVersion: '2.0.0',
             stateMachines: ['main-sm'],
-            transparencyState: {
+            canvasBackgroundState: {
                 canvasColor: '#112233',
                 canvasTransparent: false,
             },
@@ -104,6 +104,10 @@ describe('platform/demo-export', () => {
                 expect(snippets.local).toContain('bindRavViewModelInstance(riveInst, "Board");');
                 return '/tmp/out';
             }
+            if (command === 'open_isolated_playback') {
+                expect(payload.payload.file_name).toBe('demo.riv');
+                return { htmlPath: '/tmp/rav-cache/current-demo.html', windowLabel: 'isolated-playback-1' };
+            }
             return null;
         });
         const controller = createDemoExportController({
@@ -143,7 +147,7 @@ describe('platform/demo-export', () => {
             getRuntimeAsset: () => ({ text: 'runtime();', version: '2.0.0' }),
             getRuntimeVersionToken: () => 'latest',
             getSelectedControlKeys: () => ['vm:progress:number'],
-            getTransparencyStateSnapshot: () => ({
+            getCanvasBackgroundStateSnapshot: () => ({
                 canvasColor: '#abcdef',
                 canvasTransparent: false,
             }),
@@ -156,6 +160,13 @@ describe('platform/demo-export', () => {
             packageSource: 'local',
             snippetMode: 'scaffold',
         })).resolves.toBe('/tmp/out');
+        await expect(controller.openIsolatedPlayback()).resolves.toEqual({
+            htmlPath: '/tmp/rav-cache/current-demo.html',
+            windowLabel: 'isolated-playback-1',
+        });
+        const renderSurfaceContext = await controller.buildRenderSurfaceContext();
+        expect(renderSurfaceContext.payload.control_selection_keys).toBeNull();
+        expect(JSON.parse(renderSurfaceContext.payload.control_snapshot)).toEqual(fullSnapshot);
         const instantiationResult = await controller.generateWebInstantiationCode({ packageSource: 'cdn' });
         expect(instantiationResult).toEqual(expect.objectContaining({
             helperApi: expect.objectContaining({
@@ -169,7 +180,7 @@ describe('platform/demo-export', () => {
         expect(instantiationResult.code).toContain('canvas.width = 1440;');
         expect(instantiationResult.code).toContain('fit: rive.Fit.Contain');
         expect(instantiationResult.code).toContain('alignment: rive.Alignment.Center');
-        expect(invoke).toHaveBeenCalledTimes(2);
+        expect(invoke).toHaveBeenCalledTimes(3);
     });
 
     it('expands a selected list field across every current row and serializes its family key', async () => {
@@ -252,6 +263,7 @@ describe('platform/demo-export', () => {
         });
 
         await expect(controller.exportDemoToPath('/tmp/out')).rejects.toThrow('Export requires the Tauri desktop app');
+        await expect(controller.openIsolatedPlayback()).rejects.toThrow('Isolated playback requires the Tauri desktop app');
     });
 
     it('builds export context, falls back to detected state machines, and reports invoke failures', async () => {
@@ -288,7 +300,7 @@ describe('platform/demo-export', () => {
             getRiveInstance: () => ({ stateMachineNames: ['fallback-sm'] }),
             getRuntimeAsset: () => ({ text: 'runtime();', version: '' }),
             getRuntimeVersionToken: () => 'latest',
-            getTransparencyStateSnapshot: () => ({
+            getCanvasBackgroundStateSnapshot: () => ({
                 canvasColor: '#000000',
                 canvasTransparent: true,
             }),

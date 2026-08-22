@@ -65,11 +65,16 @@
 }
 
 .workspace-edge-toggle-left {
-    left: 8px;
+    position: static;
+    flex: 0 0 24px;
+    transform: none;
 }
 
 .workspace-edge-toggle-right {
-    right: 8px;
+    position: static;
+    flex: 0 0 24px;
+    margin-left: 8px;
+    transform: none;
 }
 
 .workspace-edge-toggle-bottom {

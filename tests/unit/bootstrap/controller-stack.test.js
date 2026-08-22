@@ -72,13 +72,10 @@ describe('bootstrap/controller-stack', () => {
                 getRuntimeVersion: vi.fn(),
                 setupRuntimeVersionPicker: vi.fn(),
             },
-            transparencyController: {
-                cleanupTransparencyRuntime: vi.fn(),
+            canvasBackgroundController: {
                 getStateSnapshot: vi.fn(() => ({ canvasColor: '#000000', canvasTransparent: false })),
-                isCanvasEffectivelyTransparent: vi.fn(() => false),
+                isCanvasBackgroundTransparent: vi.fn(() => false),
                 setupCanvasColor: vi.fn(),
-                setupTransparencyControls: vi.fn(),
-                syncTransparencyControls: vi.fn(),
             },
         });
 

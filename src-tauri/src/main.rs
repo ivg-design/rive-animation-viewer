@@ -12,6 +12,7 @@ use tauri::menu::{PredefinedMenuItem, Submenu, WINDOW_SUBMENU_ID};
 use tauri::{Emitter, Manager};
 
 use crate::app::constants::{ABOUT_MENU_ID, DEFAULT_MCP_PORT, ONLINE_DOCS_MENU_ID, RAV_DOCS_URL};
+use crate::app::install_counter::InstallCounterManager;
 use crate::app::mcp::bridge::{
     initialize_mcp_bridge, kill_spawned_mcp_bridge, refresh_mcp_client_launcher_if_present,
 };
@@ -31,6 +32,10 @@ fn main() {
         .unwrap_or_else(|error| panic!("invalid updater acceptance configuration: {error}"));
 
     tauri::Builder::default()
+        .register_uri_scheme_protocol(
+            app::render_surface::RENDER_SURFACE_PROTOCOL,
+            app::render_surface::serve_render_surface_protocol,
+        )
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             for path in
@@ -58,6 +63,7 @@ fn main() {
             _ => {}
         })
         .manage(OpenedFiles(Mutex::new(VecDeque::from(opened_files))))
+        .manage(InstallCounterManager::default())
         .manage(McpBridgeManager::new(DEFAULT_MCP_PORT))
         .manage(PendingAppUpdate::default())
         .manage(updater_acceptance)
@@ -121,12 +127,16 @@ fn main() {
                 if let Err(error) = refresh_mcp_client_launcher_if_present(app.handle()) {
                     eprintln!("[rav-app] failed to refresh MCP client launcher: {error}");
                 }
+                app::install_counter::schedule_on_launch(app.handle());
             }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             app::demo_bundle::make_demo_bundle,
             app::demo_bundle::make_demo_bundle_to_path,
+            app::isolated_playback::open_isolated_playback,
+            app::install_counter::get_install_counter_status,
+            app::install_counter::set_install_counter_consent,
             app::mcp::commands::get_mcp_server_path,
             app::mcp::commands::get_mcp_port,
             app::mcp::commands::set_mcp_port,
@@ -135,16 +145,18 @@ fn main() {
             app::mcp::commands::install_mcp_client,
             app::mcp::commands::remove_mcp_client,
             app::node_runtime::detect_node_runtime,
+            app::render_surface::create_render_surface,
+            app::render_surface::set_render_surface_bounds,
+            app::render_surface::show_render_surface,
+            app::render_surface::hide_render_surface,
+            app::render_surface::close_render_surface,
+            app::render_surface::send_render_surface_message,
             app::updater::check_for_app_update,
             app::updater::get_updater_acceptance_config,
             app::updater::install_app_update,
             app::updater::relaunch_app,
             app::window::controls::open_devtools,
             app::window::controls::open_external_url,
-            app::window::controls::set_window_transparency_mode,
-            app::window::controls::set_window_click_through,
-            app::window::controls::set_window_click_through_mode,
-            app::window::controls::get_window_cursor_position,
             app::window::controls::pick_riv_file,
             get_opened_file,
             read_riv_file

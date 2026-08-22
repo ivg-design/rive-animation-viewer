@@ -171,7 +171,7 @@ describe('ui/instantiation-controls-dialog', () => {
         });
     });
 
-    it('treats repeated list-item controls as one dynamic field selection', async () => {
+    it('uses one dynamic field selection while counting every concrete list-item control', async () => {
         const elements = buildElements();
         const listInput = (index) => ({
             descriptor: {
@@ -216,10 +216,13 @@ describe('ui/instantiation-controls-dialog', () => {
         await controller.openDialog();
 
         expect(controller.getSelectedControlKeys()).toEqual(['vm:rows/*/introY:number']);
-        expect(elements.instantiationSelectionSummary.textContent).toContain('1 of 1');
+        expect(elements.instantiationSelectionSummary.textContent).toContain('2 of 2');
+        expect(elements.instantiationSelectionSummary.textContent).toContain('1 of 1 reusable field selectors');
         const itemCheckboxes = Array.from(elements.instantiationControlsTree.querySelectorAll('[data-control-key]'));
         expect(itemCheckboxes).toHaveLength(2);
         expect(itemCheckboxes.every((checkbox) => checkbox.checked)).toBe(true);
+        expect(Array.from(elements.instantiationControlsTree.querySelectorAll('.instantiation-tree-badge'))
+            .some((badge) => badge.textContent === '2/2')).toBe(true);
     });
 
     it('keeps nested branches open when toggling child checkboxes', async () => {

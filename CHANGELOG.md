@@ -4,6 +4,30 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [2.4.4] - 2026-08-21
+
+### Added
+
+- **Dedicated playback WebView** — Packaged RAV now runs the Rive canvas in a child WebView while the main WebView owns controls, drawers, editor, export, MCP, and diagnostics. A narrow typed protocol carries file/configuration and UI changes across the boundary, keeping ordinary RAV plumbing off the playback document's main thread.
+- **Isolated playback comparison** — The export surface can open the current file in a minimal independent playback window for direct performance comparison without rebuilding a standalone file.
+- **Privacy-minimal installation counter** — Official release builds expose an opt-in `Anonymous Usage` setting. Rust sends one random installation token and one independently derived monthly-active token with the release number; development, test, and unconfigured builds cannot send. No animation/file data, hardware identifier, account, or license data is included.
+
+### Changed
+
+- **Opaque desktop window cleanup** — Retired the unused whole-window transparency and click-through surface, removed the full-app rounded clip layer, and reapplied the selected canvas background after each runtime canvas is mounted. RAV keeps the explicit `No BG` transparent *canvas* option and transparent standalone exports, while packaged desktop windows use an opaque compositing path for steadier playback.
+- **Hybrid ViewModel synchronization** — Visible scalar controls are sampled on an independent 120 ms UI cadence so RAV does not inject value callbacks into Rive's runtime-advance path. List membership remains reactive and coalesces mutations into one topology rebuild; hidden and collapsed controls create no scalar work.
+- **Background console capture** — Console history now buffers without rebuilding hidden fallback/Eruda DOM and flushes when the JavaScript Console reopens, avoiding log-driven frame drops while playback is visible.
+- **Development build stamp** — Debug/local builds show an explicit `DEV` channel beside the generated build ID in both the About dialog and code-editor information panel; production releases retain their release identity.
+
+### Fixed
+
+- **Concrete export control counts** — Standalone export summaries and branch badges count the concrete values that will be serialized while retaining compact wildcard selectors for repeated list fields. A 129-key TrackMap selection therefore reports its actual 999 exported controls.
+- **Collapsed-drawer access** — Left/right reveal buttons live in the main WebView runtime strip, so the child playback surface cannot cover the controls needed to reopen either drawer.
+
+### Privacy
+
+- **Counter boundary** — Counting is off until the user opts in. The server immediately HMACs incoming random tokens, never stores raw tokens or request metadata, applies a fail-closed per-location write cap, retains deduplication digests for 90 days, and keeps only identifier-free aggregate totals thereafter. Network infrastructure necessarily processes IP addresses transiently for delivery, but RAV does not read or persist them. Counts are best-effort product metrics rather than an authentication or billing ledger.
+
 ## [2.4.3] - 2026-08-15
 
 ### Added

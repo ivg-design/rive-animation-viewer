@@ -79,7 +79,7 @@ export default function ScriptEditor() {
         <li><code>autoBind</code> &mdash; bind the default ViewModel instance automatically. Explicit VM selection uses <code>false</code>, then binds the selected instance before restoring controls</li>
         <li><code>layout</code> &mdash; <code>{`{ fit, alignment }`}</code>; both surfaced in the toolbar</li>
         <li><code>canvasSize</code> &mdash; <code>{`{ mode: "fixed" | "auto", width, height, lockAspectRatio }`}</code></li>
-        <li><code>useOffscreenRenderer</code> &mdash; improves glow / shadow quality for transparent overlays at a small perf cost</li>
+        <li><code>useOffscreenRenderer</code> &mdash; can improve glow / shadow quality when rendering to a transparent canvas, at a small performance cost</li>
         <li><code>onLoad</code>, <code>onPlay</code>, <code>onPause</code>, <code>onStop</code>, <code>onLoop</code>, <code>onAdvance</code>, <code>onStateChange</code> &mdash; lifecycle callbacks</li>
       </ul>
 

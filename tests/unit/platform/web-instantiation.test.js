@@ -58,7 +58,7 @@ describe('platform/web-instantiation', () => {
             runtimeName: 'webgl2',
             runtimeVersion: '2.40.0',
             sourceMode: 'editor',
-            transparencyState: {
+            canvasBackgroundState: {
                 canvasColor: '#112233',
                 canvasTransparent: false,
             },
@@ -180,7 +180,7 @@ describe('platform/web-instantiation', () => {
             runtimeName: 'canvas',
             runtimeVersion: '2.35.0',
             sourceMode: 'internal',
-            transparencyState: {
+            canvasBackgroundState: {
                 canvasColor: '#000000',
                 canvasTransparent: true,
             },

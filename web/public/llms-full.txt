@@ -26,7 +26,7 @@ RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.
 - Each image property uses one full-width select containing every embedded raster asset followed by `Open file…` and `Clear`; `Open file…` invokes a hidden file input, with no separate folder/Clear buttons and no `Embedded image…` placeholder. Catalog entries use `uniqueFilename` identity, magic-byte MIME detection, and numbered duplicate labels. Non-raster embedded resources stay outside the image catalog, and standalone exports preserve the same catalog and control: https://forge.mograph.life/apps/rav/docs/viewmodel-controls
 - Event log with source filtering: https://forge.mograph.life/apps/rav/docs#event-console
 - Script REPL and runtime inspection commands: https://forge.mograph.life/apps/rav/docs#script-console
-- Transparency overlay mode: https://forge.mograph.life/apps/rav/docs#transparency-mode
+- Canvas backgrounds and standalone export: https://forge.mograph.life/apps/rav/docs#configuration
 - Standalone self-contained export: https://forge.mograph.life/apps/rav/docs#standalone-export
 - Applied editor config and lifecycle callbacks are embedded and executed in standalone exports: https://forge.mograph.life/apps/rav/docs/script-editor
 - macOS .riv declarations cover UTI `app.rive.editor.rive-file` and compatibility UTI `app.rive.animation.viewer.riv`, both with the document-icon resource, Viewer role, Alternate rank, and version/schema-gated post-update Launch Services refresh without default takeover: https://forge.mograph.life/apps/rav/docs/opening-files

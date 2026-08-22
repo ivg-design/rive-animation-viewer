@@ -256,17 +256,6 @@
     background: var(--canvas-color, #0d1117);
 }
 
-body.transparency-mode .canvas-container {
-    background: transparent !important;
-}
-
-body.transparency-mode .runtime-strip,
-body.transparency-mode .event-log-panel,
-body.transparency-mode .event-log-body,
-body.transparency-mode .event-log-list {
-    background: transparent !important;
-}
-
 .canvas-container canvas {
     display: block;
     width: 100%;

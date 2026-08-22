@@ -55,7 +55,7 @@ export function buildEffectiveInstantiationDescriptor({
     runtimeName = 'webgl2',
     runtimeVersion = null,
     sourceMode = 'internal',
-    transparencyState = {},
+    canvasBackgroundState = {},
 } = {}) {
     const normalizedSourceMode = sourceMode === 'editor' ? 'editor' : 'internal';
     const effectiveEditorConfig = normalizedSourceMode === 'editor' && editorConfig && typeof editorConfig === 'object'
@@ -66,8 +66,8 @@ export function buildEffectiveInstantiationDescriptor({
         editorConfig: effectiveEditorConfig,
         detectedStateMachines,
     });
-    const canvasTransparent = Boolean(transparencyState.canvasTransparent);
-    const canvasColor = canvasTransparent ? null : (transparencyState.canvasColor || DEFAULT_CANVAS_COLOR);
+    const canvasTransparent = Boolean(canvasBackgroundState.canvasTransparent);
+    const canvasColor = canvasTransparent ? null : (canvasBackgroundState.canvasColor || DEFAULT_CANVAS_COLOR);
     const canvasSizing = normalizeCanvasSizingState(currentCanvasSizing || undefined);
     const packageName = getRuntimePackageName(runtimeName);
     const effectiveRuntimeVersion = String(runtimeVersion || '').trim() || 'latest';

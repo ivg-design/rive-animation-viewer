@@ -25,6 +25,7 @@ export function createGlobalBindingsController({
         createDemoBundle = async () => {},
         ensureEditorReady = async () => true,
         exportDemoToPath = async () => {},
+        openIsolatedPlayback = async () => {},
         getArtboardStateSnapshot = () => ({}),
         getCurrentCanvasSizing = () => null,
         getCurrentFileBuffer = () => null,
@@ -41,6 +42,7 @@ export function createGlobalBindingsController({
         getSidebarVisibility = () => ({ left: false, right: true }),
         getScriptConsoleEntries = () => ({ total: 0, returned: 0, entries: [] }),
         getVmExplorerSnippetState = () => ({ injected: false }),
+        getVmSyncDiagnostics = () => null,
         getRuntimeSourceText = () => '',
         getRuntimeVersion = () => '',
         handleFileButtonClick = () => {},
@@ -86,9 +88,11 @@ export function createGlobalBindingsController({
         windowRef.pause = pause;
         windowRef.reset = reset;
         windowRef.createDemoBundle = createDemoBundle;
+        windowRef.openIsolatedPlayback = openIsolatedPlayback;
         windowRef.injectCodeSnippet = injectCodeSnippet;
         windowRef.handleFileButtonClick = handleFileButtonClick;
         windowRef.refreshVmInputControls = refreshVmInputControls;
+        windowRef.ravVmSyncDiagnostics = getVmSyncDiagnostics;
         windowRef.__riveRuntimeCache = {
             getRuntimeSourceText: (runtimeName) => getRuntimeSourceText(runtimeName || getCurrentRuntime()),
             getRuntimeVersion: (runtimeName) => getRuntimeVersion(runtimeName || getCurrentRuntime()),
@@ -152,6 +156,7 @@ export function createGlobalBindingsController({
             windowRef._mcpBridge?.indicatorState || windowRef._mcpBridge?.state || 'off',
         );
         windowRef._mcpExportDemoToPath = async (outputPath, options) => exportDemoToPath(outputPath, options);
+        windowRef._mcpOpenIsolatedPlayback = async (options) => openIsolatedPlayback(options);
         windowRef._mcpGenerateWebInstantiationCode = async (packageSource, snippetMode) => getGenerateWebInstantiationCode(packageSource, snippetMode);
         windowRef._mcpSwitchArtboard = switchArtboard;
         windowRef._mcpResetArtboard = resetToDefaultArtboard;

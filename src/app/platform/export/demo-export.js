@@ -46,7 +46,7 @@ export function buildDemoBundlePayload({
     runtimeScript,
     runtimeVersion,
     stateMachines = [],
-    transparencyState = {},
+    canvasBackgroundState = {},
     vmHierarchy = null,
     instantiationCode = '',
     instantiationSourceMode = 'internal',
@@ -63,9 +63,9 @@ export function buildDemoBundlePayload({
         state_machines: stateMachines,
         animations: artboardState.currentPlaybackType === 'animation' && artboardState.currentPlaybackName ? [artboardState.currentPlaybackName] : [],
         artboard_name: artboardState.currentArtboard,
-        canvas_color: transparencyState.canvasTransparent ? null : transparencyState.canvasColor,
+        canvas_color: canvasBackgroundState.canvasTransparent ? null : canvasBackgroundState.canvasColor,
         canvas_sizing: currentCanvasSizing ? JSON.stringify(currentCanvasSizing) : null,
-        canvas_transparent: transparencyState.canvasTransparent,
+        canvas_transparent: canvasBackgroundState.canvasTransparent,
         control_selection_keys: JSON.stringify(controlSelectionKeys),
         control_snapshot: controlSnapshot ? JSON.stringify(controlSnapshot) : null,
         default_instantiation_package_source: defaultInstantiationPackageSource,
@@ -100,7 +100,7 @@ export function createDemoExportController({
     getRuntimeAsset = () => null,
     getRuntimeVersionToken = () => 'latest',
     getSelectedControlKeys = () => null,
-    getTransparencyStateSnapshot = () => ({}),
+    getCanvasBackgroundStateSnapshot = () => ({}),
     getChangedVmControlSnapshot = () => [],
     serializeVmHierarchy = () => null,
 } = {}) {
@@ -174,7 +174,7 @@ export function createDemoExportController({
             runtimeName,
             runtimeVersion: selectedRuntimeSemver,
             sourceMode: liveConfigState.sourceMode,
-            transparencyState: getTransparencyStateSnapshot(),
+            canvasBackgroundState: getCanvasBackgroundStateSnapshot(),
         });
 
         return {
@@ -222,7 +222,7 @@ export function createDemoExportController({
             runtimeName,
             runtimeVersion: selectedRuntimeSemver,
             sourceMode: getLiveConfigState().sourceMode,
-            transparencyState: getTransparencyStateSnapshot(),
+            canvasBackgroundState: getCanvasBackgroundStateSnapshot(),
         });
         const instantiationSnippets = {
             cdn: buildWebInstantiationResult(descriptor, {
@@ -268,7 +268,7 @@ export function createDemoExportController({
             runtimeScript: runtimeAsset.text,
             runtimeVersion: selectedRuntimeSemver,
             stateMachines: descriptor.stateMachines,
-            transparencyState: getTransparencyStateSnapshot(),
+            canvasBackgroundState: getCanvasBackgroundStateSnapshot(),
             vmHierarchy: serializeVmHierarchy(),
         });
 
@@ -279,6 +279,23 @@ export function createDemoExportController({
             payload,
             runtimeName,
             runtimeVersion: selectedRuntimeSemver,
+        };
+    }
+
+    async function buildRenderSurfaceContext() {
+        const context = await buildExportContext({
+            packageSource: 'cdn',
+            selectedControlKeys: [],
+            snippetMode: 'compact',
+        });
+        const controlSnapshot = resolveAllControlSnapshot();
+        return {
+            ...context,
+            payload: {
+                ...context.payload,
+                control_selection_keys: null,
+                control_snapshot: JSON.stringify(controlSnapshot),
+            },
         };
     }
 
@@ -341,6 +358,23 @@ export function createDemoExportController({
         return result;
     }
 
+    async function openIsolatedPlayback(options = {}) {
+        const invoke = getTauriInvoker();
+        if (!invoke) {
+            throw new Error('Isolated playback requires the Tauri desktop app');
+        }
+
+        const context = await buildExportContext(options);
+        logEvent(
+            'ui',
+            'isolated-playback-open',
+            `Opening isolated playback for ${context.currentFileName} (${context.runtimeName}@${context.runtimeVersion}).`,
+        );
+        const result = await invoke('open_isolated_playback', { payload: context.payload });
+        logEvent('ui', 'isolated-playback-opened', `Opened isolated playback: ${result?.windowLabel || 'window'}.`);
+        return result;
+    }
+
     async function generateWebInstantiationCode({ packageSource = 'cdn', selectedControlKeys, snippetMode = 'compact' } = {}) {
         const context = await buildInstantiationContext({ packageSource, selectedControlKeys, snippetMode });
         return context.result;
@@ -348,8 +382,10 @@ export function createDemoExportController({
 
     return {
         buildExportContext,
+        buildRenderSurfaceContext,
         createDemoBundle,
         exportDemoToPath,
         generateWebInstantiationCode,
+        openIsolatedPlayback,
     };
 }

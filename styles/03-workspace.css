@@ -343,18 +343,6 @@
     justify-content: flex-start;
 }
 
-body.transparency-mode .canvas-drop-target,
-body.transparency-mode #canvas-container {
-    background: transparent !important;
-}
-
-body.transparency-mode .runtime-strip,
-body.transparency-mode .event-log-panel,
-body.transparency-mode .event-log-body,
-body.transparency-mode .event-log-list {
-    background: transparent !important;
-}
-
 #rive-canvas {
     width: 100%;
     height: 100%;

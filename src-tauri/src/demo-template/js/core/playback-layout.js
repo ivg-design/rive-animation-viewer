@@ -148,6 +148,9 @@
                 if (els.fpsChip) {
                     els.fpsChip.innerHTML = '<span class="dot"></span>' + fps + ' FPS';
                 }
+                if (isRenderSurfaceMode && typeof window.__ravRenderSurfaceEmit === 'function') {
+                    window.__ravRenderSurfaceEmit('render-surface:metrics', { fps: fps });
+                }
                 frameCount = 0;
                 lastFpsUpdate = now;
             }

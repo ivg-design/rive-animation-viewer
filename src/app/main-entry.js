@@ -140,6 +140,7 @@ const controllerStack = createControllerStack({
     placeholders: {
         appBuild: '__APP_BUILD__',
         appBuildPlaceholder: '__APP' + '_BUILD__',
+        appChannel: '__APP_CHANNEL__',
         appVersion: '__APP_VERSION__',
         appVersionPlaceholder: '__APP' + '_VERSION__',
     },

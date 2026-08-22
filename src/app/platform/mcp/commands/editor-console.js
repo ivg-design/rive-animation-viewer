@@ -78,7 +78,7 @@ export function createEditorConsoleCommands({
                     button.click();
                     return { ok: true, color: 'transparent' };
                 }
-                throw new Error('Canvas transparency toggle not found');
+                throw new Error('Transparent canvas background control not found');
             }
             input.value = color;
             input.dispatchEvent(new Event('input', { bubbles: true }));

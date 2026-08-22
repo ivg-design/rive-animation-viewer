@@ -64,11 +64,13 @@ describe('rive/instance-controller', () => {
             }),
         };
         const callbacks = {
-            cleanupTransparencyRuntime: vi.fn().mockResolvedValue(undefined),
+            applyCanvasBackground: vi.fn((canvas) => {
+                canvas.style.background = '#0d1117';
+            }),
             detectDefaultStateMachineName: vi.fn().mockResolvedValue('DetectedSM'),
             ensureRuntime: vi.fn().mockResolvedValue(runtime),
             hideError: vi.fn(),
-            isCanvasEffectivelyTransparent: () => true,
+            isCanvasBackgroundTransparent: () => true,
             logEvent: vi.fn(),
             populateArtboardSwitcher: vi.fn(),
             refreshInfoStrip: vi.fn(),
@@ -117,6 +119,8 @@ describe('rive/instance-controller', () => {
             stateMachines: 'DetectedSM',
             useOffscreenRenderer: true,
         }));
+        expect(callbacks.applyCanvasBackground).toHaveBeenCalledWith(capturedConfig.canvas);
+        expect(capturedConfig.canvas.style.background).toBe('rgb(13, 17, 23)');
         expect(capturedConfig.layout).toEqual(expect.objectContaining({
             alignment: runtime.Alignment.TopLeft,
             fit: runtime.Fit.Contain,
@@ -173,12 +177,12 @@ describe('rive/instance-controller', () => {
 
     it('resizes and cleans up the active instance', async () => {
         const elements = createElements();
+        const cleanupOrder = [];
         Object.defineProperty(elements.canvasContainer, 'clientWidth', { configurable: true, value: 400 });
         Object.defineProperty(elements.canvasContainer, 'clientHeight', { configurable: true, value: 220 });
 
         let capturedConfig = null;
         const callbacks = {
-            cleanupTransparencyRuntime: vi.fn().mockResolvedValue(undefined),
             detectDefaultStateMachineName: vi.fn().mockResolvedValue(null),
             ensureRuntime: vi.fn().mockResolvedValue({
                 EventType: { RiveEvent: 'rive-event' },
@@ -190,7 +194,7 @@ describe('rive/instance-controller', () => {
                 Rive: vi.fn((config) => {
                     capturedConfig = config;
                     return {
-                        cleanup: vi.fn(),
+                        cleanup: vi.fn(() => cleanupOrder.push('rive-cleanup')),
                         off: vi.fn(),
                         on: vi.fn(),
                         resizeDrawingSurfaceToCanvas: vi.fn(),
@@ -204,7 +208,7 @@ describe('rive/instance-controller', () => {
             refreshInfoStrip: vi.fn(),
             renderVmInputControls: vi.fn(),
             resetPlaybackChips: vi.fn(),
-            resetVmInputControls: vi.fn(),
+            resetVmInputControls: vi.fn(() => cleanupOrder.push('vm-reset')),
             showError: vi.fn(),
             syncArtboardStateAfterLoad: vi.fn(),
             syncArtboardStateFromConfig: vi.fn(),
@@ -236,9 +240,9 @@ describe('rive/instance-controller', () => {
         expect(canvas.height).toBe(150);
 
         controller.cleanupInstance();
-        expect(callbacks.cleanupTransparencyRuntime).toHaveBeenCalled();
         expect(callbacks.resetPlaybackChips).toHaveBeenCalled();
         expect(callbacks.resetVmInputControls).toHaveBeenCalledWith('No animation loaded.');
+        expect(cleanupOrder.slice(-2)).toEqual(['vm-reset', 'rive-cleanup']);
         expect(controller.getRiveInstance()).toBeNull();
     });
 
@@ -257,7 +261,6 @@ describe('rive/instance-controller', () => {
             let capturedConfig = null;
             const controller = createRiveInstanceController({
                 callbacks: {
-                    cleanupTransparencyRuntime: vi.fn().mockResolvedValue(undefined),
                     detectDefaultStateMachineName: vi.fn().mockResolvedValue(null),
                     ensureRuntime: vi.fn().mockResolvedValue({
                         EventType: { RiveEvent: 'rive-event' },
@@ -331,7 +334,6 @@ describe('rive/instance-controller', () => {
         let capturedConfig = null;
         const controller = createRiveInstanceController({
             callbacks: {
-                cleanupTransparencyRuntime: vi.fn().mockResolvedValue(undefined),
                 detectDefaultStateMachineName: vi.fn().mockResolvedValue(null),
                 ensureRuntime: vi.fn()
                     .mockResolvedValueOnce(null)
@@ -354,7 +356,7 @@ describe('rive/instance-controller', () => {
                         }),
                     }),
                 hideError: vi.fn(),
-                isCanvasEffectivelyTransparent: () => false,
+                isCanvasBackgroundTransparent: () => false,
                 logEvent,
                 populateArtboardSwitcher: vi.fn(),
                 refreshInfoStrip: vi.fn(),

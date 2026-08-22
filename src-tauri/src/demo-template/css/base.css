@@ -45,18 +45,6 @@ body {
     overflow: hidden;
 }
 
-body.transparency-mode,
-html.transparency-mode,
-body.transparency-mode .app-shell {
-    background: transparent;
-}
-
-body.transparency-mode .workspace,
-body.transparency-mode #center-panel,
-body.transparency-mode .center-panel {
-    background: transparent !important;
-}
-
 body::-webkit-scrollbar,
 .event-log-body::-webkit-scrollbar,
 .properties-panel-body::-webkit-scrollbar {

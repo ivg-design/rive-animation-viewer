@@ -126,7 +126,7 @@
                         alignment: resolveRiveLayoutAlignment(rive, currentLayoutAlignment),
                     }, appliedLayoutProps));
                 }
-                if (isCanvasEffectivelyTransparent() && CONFIG.runtimeName !== 'canvas' && typeof riveConfig.useOffscreenRenderer === 'undefined') {
+                if (isCanvasBackgroundTransparent() && CONFIG.runtimeName !== 'canvas' && typeof riveConfig.useOffscreenRenderer === 'undefined') {
                     riveConfig.useOffscreenRenderer = true;
                 }
 
@@ -195,8 +195,17 @@
 
                     bindViewModelInstanceByKey(riveInstance, CONFIG.viewModelInstanceName);
                     applyControlSnapshot(currentControlSnapshot);
-                    // Render VM controls
-                    renderVmControls();
+                    // The dedicated child renderer retains the exact runtime,
+                    // config, asset loader and control snapshot but never
+                    // creates the standalone's DOM control tree.
+                    if (!isRenderSurfaceMode) renderVmControls();
+                    if (isRenderSurfaceMode && typeof window.__ravRenderSurfaceEmit === 'function') {
+                        window.__ravRenderSurfaceEmit('render-surface:loaded', {
+                            fileName: CONFIG.fileName || null,
+                            runtimeName: CONFIG.runtimeName || null,
+                            runtimeVersion: CONFIG.runtimeVersion || null,
+                        });
+                    }
                     invokeStandaloneEditorCallback(appliedEditorConfig.onLoad, riveInstance, callbackArgs, reportAppliedEditorCallbackError);
                 };
 
@@ -205,6 +214,12 @@
                     showError('Error loading animation: ' + errorMsg);
                     logEvent('native', 'loaderror', 'Load error: ' + errorMsg);
                     invokeStandaloneEditorCallback(appliedEditorConfig.onLoadError, riveInstance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
+                    if (isRenderSurfaceMode && typeof window.__ravRenderSurfaceEmit === 'function') {
+                        window.__ravRenderSurfaceEmit('render-surface:error', {
+                            phase: 'load',
+                            message: errorMsg,
+                        });
+                    }
                 };
 
                 riveConfig.onPlay = function (event) {

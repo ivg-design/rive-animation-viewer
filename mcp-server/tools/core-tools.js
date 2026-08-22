@@ -200,7 +200,7 @@ export const CORE_TOOLS = [
   {
     name: 'rav_set_canvas_color',
     description:
-      'Set the canvas background color. Use "transparent" for transparency mode.',
+      'Set the canvas background color. Use "transparent" for a transparent canvas background.',
     inputSchema: {
       type: 'object',
       properties: {

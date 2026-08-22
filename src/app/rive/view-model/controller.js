@@ -1,7 +1,4 @@
 import {
-    VM_CONTROL_SYNC_INTERVAL_MS,
-} from '../../core/constants.js';
-import {
     controlSnapshotKeyForDescriptor,
     getStateMachineInputKind,
     getVmAccessor,
@@ -17,10 +14,10 @@ import {
 import {
     createVmControlRowFactory,
     createVmSectionElementFactory,
-    resetVmInputControls,
-    syncVmBindings,
 } from './ui-render.js';
+import { resetVmInputControls, syncVmBindings } from './ui/binding-sync.js';
 import { createVmSnapshotController } from './snapshot.js';
+import { createVmSyncCoordinator } from './sync-coordinator.js';
 
 const VM_DEPTH_COLORS = [
     '#C4F82A',
@@ -40,7 +37,9 @@ export function createVmControlsController({
     getLoadedRuntime = () => null,
     getRiveInstance = () => null,
     clearIntervalFn = globalThis.clearInterval,
+    scheduleReactiveFlush,
     setIntervalFn = globalThis.setInterval,
+    syncMode = 'auto',
 } = {}) {
     const {
         initLucideIcons = () => {},
@@ -48,7 +47,7 @@ export function createVmControlsController({
     } = callbacks;
 
     let vmControlBindings = [];
-    let vmControlSyncTimer = null;
+    let vmListAccessors = [];
     let vmListTopologySignature = null;
     let isRenderingVmControls = false;
 
@@ -67,6 +66,7 @@ export function createVmControlsController({
         vmControlBindings.push({
             descriptor: { ...descriptor },
             ...binding,
+            accessor: binding.accessor || resolveControlAccessor(descriptor),
         });
     }
 
@@ -169,30 +169,16 @@ export function createVmControlsController({
         if (!vmControlBindings.length) {
             return;
         }
-        syncVmBindings(vmControlBindings, resolveControlAccessor, documentRef, force, () => getLoadedRuntime(getCurrentRuntime()));
+        const visibleBindings = force
+            ? vmControlBindings
+            : vmSyncCoordinator.filterVisibleBindings(vmControlBindings);
+        syncVmBindings(visibleBindings, resolveControlAccessor, documentRef, force, () => getLoadedRuntime(getCurrentRuntime()));
     }
 
     function currentVmListTopologySignature() {
         return buildVmListTopologySignature(resolveVmRootInstance(getRiveInstance()), getRiveInstance());
     }
 
-    function stopVmControlSync() {
-        if (vmControlSyncTimer) {
-            clearIntervalFn(vmControlSyncTimer);
-            vmControlSyncTimer = null;
-        }
-    }
-
-    function startVmControlSync() {
-        if (vmControlSyncTimer || (!vmControlBindings.length && vmListTopologySignature === null)) {
-            return;
-        }
-        vmControlSyncTimer = setIntervalFn(() => {
-            if (!syncVmControlTopology()) {
-                syncVmControlBindings(false);
-            }
-        }, VM_CONTROL_SYNC_INTERVAL_MS);
-    }
 
     function currentStateMachineHierarchy() {
         return buildStateMachineHierarchy(getRiveInstance(), getLoadedRuntime(getCurrentRuntime()));
@@ -224,9 +210,10 @@ export function createVmControlsController({
     });
 
     function resetControls(message = 'No bound ViewModel inputs detected.') {
+        vmSyncCoordinator.reset();
         resetVmInputControls(elements, message);
         clearVmControlBindings();
-        stopVmControlSync();
+        vmListAccessors = [];
         vmListTopologySignature = null;
         snapshotController.clearPendingVmControlSnapshot();
         snapshotController.setVmControlBaselineSnapshot([]);
@@ -246,26 +233,31 @@ export function createVmControlsController({
 
         isRenderingVmControls = true;
         try {
+            vmSyncCoordinator.stopReactive();
             tree.innerHTML = '';
             clearVmControlBindings();
+            vmListAccessors = [];
 
             const rootVm = resolveVmRootInstance(getRiveInstance());
             vmListTopologySignature = buildVmListTopologySignature(rootVm, getRiveInstance());
-            const vmHierarchy = rootVm ? buildVmHierarchy(rootVm, getRiveInstance()) : null;
+            const vmHierarchy = rootVm ? buildVmHierarchy(rootVm, getRiveInstance(), {
+                onListAccessor: (entry) => vmListAccessors.push(entry),
+            }) : null;
             const stateMachineHierarchy = currentStateMachineHierarchy();
 
             const vmTotal = vmHierarchy?.totalInputs || 0;
             const stateMachineTotal = stateMachineHierarchy?.totalInputs || 0;
             const totalControls = vmTotal + stateMachineTotal;
             count.textContent = String(totalControls);
+            vmSyncCoordinator.ensureUiListeners();
 
             if (!totalControls) {
                 empty.hidden = false;
                 empty.textContent = 'No writable ViewModel or state machine inputs were found.';
                 if (vmListTopologySignature === null) {
-                    stopVmControlSync();
+                    vmSyncCoordinator.stopPolling();
                 } else {
-                    startVmControlSync();
+                    vmSyncCoordinator.refresh();
                 }
                 return;
             }
@@ -282,17 +274,17 @@ export function createVmControlsController({
                 });
             }
 
-            startVmControlSync();
             syncVmControlBindings(true);
+            vmSyncCoordinator.refresh();
             initLucideIcons();
         } finally {
             isRenderingVmControls = false;
         }
     }
 
-    function syncVmControlTopology() {
+    function syncVmControlTopology(force = false) {
         const nextSignature = currentVmListTopologySignature();
-        if (nextSignature === vmListTopologySignature) {
+        if (!force && nextSignature === vmListTopologySignature) {
             return false;
         }
         renderVmInputControls();
@@ -305,17 +297,34 @@ export function createVmControlsController({
         return true;
     }
 
+    const vmSyncCoordinator = createVmSyncCoordinator({
+        clearIntervalFn,
+        documentRef,
+        elements,
+        getBindings: () => vmControlBindings,
+        getListAccessors: () => vmListAccessors,
+        getLoadedRuntime: () => getLoadedRuntime(getCurrentRuntime()),
+        hasListTopology: () => vmListTopologySignature !== null,
+        resolveControlAccessor,
+        scheduleReactiveFlush,
+        setIntervalFn,
+        syncAllBindings: syncVmControlBindings,
+        syncMode,
+        syncTopology: syncVmControlTopology,
+    });
+
     return {
         applyVmControlSnapshot: snapshotController.applyVmControlSnapshot,
         captureVmControlSnapshot: snapshotController.captureVmControlSnapshot,
         controlSnapshotKeyForDescriptor,
         getChangedVmControlSnapshot: snapshotController.getChangedVmControlSnapshot,
+        getVmSyncDiagnostics: vmSyncCoordinator.getDiagnostics,
         renderVmInputControls,
         resetVmInputControls: resetControls,
         serializeControlHierarchy: snapshotController.serializeControlHierarchy,
         serializeVmHierarchy: snapshotController.serializeVmHierarchy,
         setVmControlBaselineSnapshot: snapshotController.setVmControlBaselineSnapshot,
-        stopVmControlSync,
+        stopVmControlSync: vmSyncCoordinator.stopPolling,
         syncVmControlBindings,
         syncVmControlTopology,
     };

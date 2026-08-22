@@ -1,4 +1,5 @@
 import { getTauriInvoker } from '../bridge-port.js';
+import { dispatchVmControlMutation } from '../../../rive/control-events.js';
 
 export function createStatusPlaybackCommands({
     buildViewModelSnapshot,
@@ -197,8 +198,31 @@ export function createStatusPlaybackCommands({
                 if (input) {
                     if (value === 'fire' && typeof input.fire === 'function') {
                         input.fire();
+                        dispatchVmControlMutation(documentRef, {
+                            action: 'fire',
+                            descriptor: {
+                                kind: 'trigger',
+                                name,
+                                path: `${smName}/${name}`,
+                                source: 'state-machine',
+                                stateMachineName: smName,
+                            },
+                            kind: 'trigger',
+                        });
                     } else {
                         input.value = value;
+                        const kind = typeof value === 'boolean' ? 'boolean' : 'number';
+                        dispatchVmControlMutation(documentRef, {
+                            descriptor: {
+                                kind,
+                                name,
+                                path: `${smName}/${name}`,
+                                source: 'state-machine',
+                                stateMachineName: smName,
+                            },
+                            kind,
+                            value,
+                        });
                     }
                     return { ok: true, name, value };
                 }

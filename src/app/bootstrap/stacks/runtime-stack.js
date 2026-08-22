@@ -1,5 +1,5 @@
 import { createRuntimeLoaderController } from '../../platform/runtime/runtime-loader.js';
-import { createTransparencyController } from '../../platform/transparency-controller.js';
+import { createCanvasBackgroundController } from '../../platform/canvas-background-controller.js';
 
 export function createRuntimeStack({
     elements,
@@ -12,9 +12,6 @@ export function createRuntimeStack({
         getCurrentFilePreferenceId,
         getCurrentFileUrl,
         getCurrentRuntimeVersionToken,
-        getRiveInstance,
-        getTauriInvoker,
-        isTauriEnvironment,
         loadRiveAnimation,
         logEvent,
         refreshInfoStrip,
@@ -41,19 +38,15 @@ export function createRuntimeStack({
         },
     });
 
-    const transparencyController = createTransparencyController({
+    const canvasBackgroundController = createCanvasBackgroundController({
         callbacks: {
             logEvent,
         },
         elements,
-        getCurrentRuntime,
-        getRiveInstance,
-        getTauriInvoker,
-        isTauriEnvironment,
     });
 
     return {
+        canvasBackgroundController,
         runtimeLoaderController,
-        transparencyController,
     };
 }

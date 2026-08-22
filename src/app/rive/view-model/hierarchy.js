@@ -82,7 +82,9 @@ export function buildVmListTopologySignature(rootVm, riveInstance = null) {
     return topology.length ? JSON.stringify(topology) : null;
 }
 
-export function buildVmHierarchy(rootVm, riveInstance = null) {
+export function buildVmHierarchy(rootVm, riveInstance = null, {
+    onListAccessor = () => {},
+} = {}) {
     const seenInputPaths = new Set();
     const activeInstances = new WeakSet();
     let totalInputs = 0;
@@ -130,6 +132,18 @@ export function buildVmHierarchy(rootVm, riveInstance = null) {
             }
 
             const listAccessor = safeVmMethodCall(instance, 'list', name);
+            if (listAccessor) {
+                try {
+                    onListAccessor({
+                        accessor: listAccessor,
+                        instance,
+                        path: fullPath,
+                        propertyName: name,
+                    });
+                } catch {
+                    /* A diagnostic hook must not break hierarchy rendering. */
+                }
+            }
             const listLength = getVmListLength(listAccessor);
             if (listLength > 0) {
                 const listNode = {

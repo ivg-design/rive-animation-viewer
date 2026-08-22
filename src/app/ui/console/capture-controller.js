@@ -57,6 +57,10 @@ export function createConsoleCaptureController({
             state.erudaFlushCursor = Math.max(0, state.erudaFlushCursor - overflow);
         }
 
+        if (!state.isOpen) {
+            return;
+        }
+
         if (getErudaReady() && mirrorToEruda && mirrorEntryToEruda(entry)) {
             return;
         }
@@ -163,7 +167,9 @@ export function createConsoleCaptureController({
         } catch {
             /* noop */
         }
-        renderConsoleEntries();
+        if (state.isOpen) {
+            renderConsoleEntries();
+        }
     }
 
     function readCaptured(limit = 50) {

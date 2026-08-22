@@ -3,6 +3,8 @@ import { createFileSessionController } from '../../platform/session/file-session
 import { createGlobalBindingsController } from '../../platform/global-bindings.js';
 import { createShellController } from '../../ui/shell-controller.js';
 import { createInstantiationControlsDialogController } from '../../ui/instantiation-controls-dialog.js';
+import { createRenderSurfaceController } from '../../platform/render-surface/controller.js';
+import { createInstallCounterController } from '../../platform/install-counter/controller.js';
 
 export function createPlatformStack({
     elements,
@@ -45,8 +47,9 @@ export function createPlatformStack({
         getSidebarVisibility,
         getTauriEventListener,
         getTauriInvoker,
-        getTransparencyStateSnapshot,
+        getCanvasBackgroundStateSnapshot,
         getVmExplorerSnippetState,
+        getVmSyncDiagnostics,
         getEditorCode,
         handleFileButtonClick,
         handleResize,
@@ -80,7 +83,6 @@ export function createPlatformStack({
         showError,
         showMcpSetup,
         switchArtboard,
-        syncTransparencyControls,
         toggleInstantiationControlsDialog,
         toggleLiveConfigSource,
         updateInfo,
@@ -121,7 +123,6 @@ export function createPlatformStack({
             getCurrentRuntime,
             getEventLogFilterState,
             getTauriInvoker,
-            getTransparencyStateSnapshot,
             handleResize,
             loadRiveAnimation,
             logEvent,
@@ -133,7 +134,6 @@ export function createPlatformStack({
             setCurrentMcpPort,
             setCurrentRuntime,
             showError,
-            syncTransparencyControls,
             updateInfo,
             updateVersionInfo,
         },
@@ -164,9 +164,29 @@ export function createPlatformStack({
         getRuntimeAsset,
         getRuntimeVersionToken,
         getSelectedControlKeys,
-        getTransparencyStateSnapshot,
+        getCanvasBackgroundStateSnapshot,
         getChangedVmControlSnapshot,
         serializeVmHierarchy,
+    });
+
+    const renderSurfaceController = createRenderSurfaceController({
+        callbacks: {
+            getTauriEventListener,
+            getTauriInvoker,
+            isTauriEnvironment,
+            logEvent,
+            showError,
+            updateInfo,
+        },
+        demoExportController,
+        elements,
+    });
+
+    const installCounterController = createInstallCounterController({
+        elements,
+        getTauriInvoker,
+        isTauriEnvironment,
+        logEvent,
     });
 
     const instantiationControlsDialogController = createInstantiationControlsDialogController({
@@ -192,6 +212,7 @@ export function createPlatformStack({
             createDemoBundle,
             ensureEditorReady,
             exportDemoToPath: (outputPath, options) => demoExportController.exportDemoToPath(outputPath, options),
+            openIsolatedPlayback: (options) => demoExportController.openIsolatedPlayback(options),
             getArtboardStateSnapshot,
             getCurrentFileBuffer,
             getCurrentFileMimeType,
@@ -208,6 +229,7 @@ export function createPlatformStack({
             getSidebarVisibility,
             getCurrentCanvasSizing,
             getVmExplorerSnippetState,
+            getVmSyncDiagnostics,
             handleFileButtonClick,
             injectCodeSnippet,
             loadRiveAnimation,
@@ -256,6 +278,8 @@ export function createPlatformStack({
         fileSessionController,
         globalBindingsController,
         instantiationControlsDialogController,
+        installCounterController,
+        renderSurfaceController,
         shellController,
     };
 }

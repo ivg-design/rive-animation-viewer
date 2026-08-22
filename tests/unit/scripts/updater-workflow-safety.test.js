@@ -36,4 +36,15 @@ describe('updater release workflow safety', () => {
         expect(acceptanceConfig.plugins.updater.dangerousInsecureTransportProtocol).toBe(true);
         expect(repair).toContain('Updater repair is only allowed for an already-published release');
     });
+
+    it('validates one healthy counter endpoint before draft creation and shares it across builds', () => {
+        const healthGate = stage.indexOf('Validate the canonical anonymous counter endpoint');
+        const draftCreation = stage.indexOf('Create or validate the draft release');
+        expect(healthGate).toBeGreaterThan(-1);
+        expect(draftCreation).toBeGreaterThan(healthGate);
+        expect(stage).toContain("new URL('/v1/health', endpoint)");
+        expect(stage).toContain('counter_endpoint: ${{ steps.counter.outputs.endpoint }}');
+        expect(stage.match(/needs\.prepare-release\.outputs\.counter_endpoint/g)).toHaveLength(2);
+        expect(stage.match(/vars\.RAV_COUNTER_ENDPOINT/g)).toHaveLength(1);
+    });
 });

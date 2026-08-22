@@ -10,7 +10,7 @@ export function createRiveStack({
     callbacks,
 } = {}) {
     const {
-        cleanupTransparencyRuntime,
+        applyCanvasBackground,
         detectDefaultStateMachineNameOverride = detectDefaultStateMachineName,
         ensureRuntime,
         getCurrentFileBuffer,
@@ -25,7 +25,7 @@ export function createRiveStack({
         getRiveInstance,
         hideError,
         initLucideIcons,
-        isCanvasEffectivelyTransparent,
+        isCanvasBackgroundTransparent,
         loadRiveAnimation,
         logEvent,
         populateArtboardSwitcher,
@@ -57,6 +57,7 @@ export function createRiveStack({
         applyVmControlSnapshot,
         captureVmControlSnapshot,
         getChangedVmControlSnapshot,
+        getVmSyncDiagnostics,
         renderVmInputControls: renderVmInputs,
         resetVmInputControls: resetVmInputs,
         serializeControlHierarchy,
@@ -114,11 +115,11 @@ export function createRiveStack({
 
     const instanceController = createRiveInstanceController({
         callbacks: {
-            cleanupTransparencyRuntime,
+            applyCanvasBackground,
             detectDefaultStateMachineName: detectDefaultStateMachineNameOverride,
             ensureRuntime,
             hideError,
-            isCanvasEffectivelyTransparent,
+            isCanvasBackgroundTransparent,
             logEvent,
             populateArtboardSwitcher: populateArtboards,
             refreshInfoStrip,
@@ -148,6 +149,7 @@ export function createRiveStack({
         captureVmControlSnapshot,
         getArtboardStateSnapshot,
         getChangedVmControlSnapshot,
+        getVmSyncDiagnostics,
         instanceController,
         pause,
         play,

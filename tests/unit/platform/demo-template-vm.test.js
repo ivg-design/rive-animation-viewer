@@ -11,6 +11,8 @@ const riveLoaderSource = readTemplateSource('core/rive-loader.js');
 const editorConfigSource = readTemplateSource('core/editor-config.js');
 const controlsRenderSource = readTemplateSource('vm/controls-render.js');
 const syncSource = readTemplateSource('vm/sync.js');
+const bootstrapSource = readTemplateSource('core/bootstrap.js');
+const overlayStyles = readFileSync(path.resolve(process.cwd(), 'src-tauri/src/demo-template/css/overlays.css'), 'utf8');
 
 function createDemoVmHarness(riveInstance, { controlSelectionKeys = null, controlSnapshot = [], vmHierarchy = null } = {}) {
     const build = new Function('riveInstance', 'CONTROL_SELECTION_KEYS', 'CONTROL_SNAPSHOT', 'VM_HIERARCHY', `
@@ -147,6 +149,17 @@ function stripHierarchyDescriptors(node) {
 }
 
 describe('exported demo ViewModel snapshot runtime', () => {
+    it('keeps the render-surface bridge dormant for normal exports and uses existing control resolvers', () => {
+        expect(preambleSource).toContain("get('renderSurface') === '1'");
+        expect(bootstrapSource).toContain("events.listen('render-surface:command'");
+        expect(bootstrapSource).toContain("emitToMain('render-surface:ready'");
+        expect(bootstrapSource).toContain('resolveLiveAccessor(vmDescriptor.path, vmKind)');
+        expect(bootstrapSource).toContain('resolveStateMachineInputAccessor(smDescriptor.stateMachineName, smDescriptor.name, smKind)');
+        expect(bootstrapSource).toContain("type === 'snapshot'");
+        expect(overlayStyles).toContain('body.render-surface-mode #canvas-container');
+        expect(riveLoaderSource).toContain('if (!isRenderSurfaceMode) renderVmControls();');
+    });
+
     it('executes the distinctive applied editor callback from exported config', () => {
         const build = new Function(`${editorConfigSource}; return { resolveStandaloneEditorConfig, invokeStandaloneEditorCallback };`);
         const helpers = build();

@@ -131,10 +131,6 @@ describe('ui/shell-controller', () => {
                 getCurrentRuntime: () => currentRuntime,
                 getEventLogFilterState: () => ({ native: true }),
                 getTauriInvoker: () => vi.fn(),
-                getTransparencyStateSnapshot: () => ({
-                    clickThroughMode: 'passthrough',
-                    transparencyMode: 'transparent',
-                }),
                 handleResize,
                 reloadCurrentAnimation,
                 logEvent: vi.fn(),
@@ -143,7 +139,6 @@ describe('ui/shell-controller', () => {
                 setCurrentLayoutFit,
                 setCurrentRuntime,
                 showError: vi.fn(),
-                syncTransparencyControls: vi.fn(),
                 updateInfo: vi.fn(),
                 updateVersionInfo: vi.fn(),
             },
@@ -183,14 +178,12 @@ describe('ui/shell-controller', () => {
         expect(elements.mainGrid.classList.contains('right-hidden')).toBe(true);
         expect(handleResize).toHaveBeenCalled();
         expect(controller.captureLayoutStateForExport()).toEqual(expect.objectContaining({
-            clickThroughMode: 'passthrough',
             eventFilters: { native: true },
             eventLogHeight: 211,
             layoutAlignment: 'topLeft',
             layoutFit: 'cover',
             rightPanelVisible: false,
             rightPanelWidth: 388,
-            transparencyMode: 'transparent',
         }));
     });
 
@@ -222,7 +215,6 @@ describe('ui/shell-controller', () => {
                 refreshInfoStrip: vi.fn(),
                 setCurrentCanvasSizing,
                 showError: vi.fn(),
-                syncTransparencyControls: vi.fn(),
                 updateInfo: vi.fn(),
             },
             clearIntervalFn,
@@ -377,7 +369,6 @@ describe('ui/shell-controller', () => {
                 refreshInfoStrip,
                 setCurrentRuntime: vi.fn(),
                 showError,
-                syncTransparencyControls: vi.fn(),
                 updateInfo: vi.fn(),
                 updateVersionInfo,
             },
@@ -430,7 +421,6 @@ describe('ui/shell-controller', () => {
                 getCurrentLayoutFit: () => 'contain',
                 getCurrentRuntime: () => 'webgl2',
                 handleResize,
-                syncTransparencyControls: vi.fn(),
             },
             clearTimeoutFn,
             elements,
@@ -490,7 +480,6 @@ describe('ui/shell-controller', () => {
                 setCurrentLayoutAlignment: vi.fn(),
                 setCurrentLayoutFit: vi.fn(),
                 setCurrentRuntime: vi.fn(),
-                syncTransparencyControls: vi.fn(),
                 updateInfo: vi.fn(),
                 updateVersionInfo: vi.fn(),
             },
