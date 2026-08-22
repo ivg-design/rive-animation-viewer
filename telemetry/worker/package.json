@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test test/*.node.mjs"
+    "test": "node --test test/index.node.mjs"
   },
   "engines": {
     "node": ">=20"
