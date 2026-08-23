@@ -86,10 +86,22 @@ body.render-surface-mode #canvas-container {
     overflow: hidden;
 }
 
+body.render-surface-mode #canvas-container.canvas-container-fixed-size {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    overflow: auto;
+}
+
 body.render-surface-mode #rive-canvas {
     display: block;
     max-width: none;
     max-height: none;
+}
+
+body.render-surface-mode #rive-canvas.rive-canvas-fixed-size {
+    flex: none;
+    margin: auto;
 }
 
 /* ── Responsive ──────────────────────────────────────────── */

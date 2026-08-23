@@ -8,7 +8,7 @@ last_updated: 2026-08-22
 language: en
 
 ## Purpose
-RAV is a standalone desktop app for inspecting, debugging, and testing Rive (.riv) files offline. Version 2.5.0 is the current public release and is available through the normal updater feed.
+RAV is a standalone desktop app for inspecting, debugging, and testing Rive (.riv) files offline. Version 2.5.1 is the current public release and is available through the normal updater feed.
 
 ## Canonical Sources
 - Home: https://forge.mograph.life/apps/rav/
@@ -28,7 +28,7 @@ RAV is a standalone desktop app for inspecting, debugging, and testing Rive (.ri
 - macOS .riv declarations cover the official Rive UTI and legacy RAV compatibility UTI, include the dedicated document icon resource, and register RAV as a Viewer without default takeover: https://forge.mograph.life/apps/rav/docs/opening-files
 - Windows NSIS and MSI packages ship a dedicated multi-resolution .riv icon; installs and updates own the matching document-icon value, while uninstall cleanup preserves the association that preceded RAV: https://forge.mograph.life/apps/rav/docs/opening-files
 - RAV defaults to Latest (auto), preserves explicit runtime pins, and falls back to 2.39.2 if discovery is unavailable; the confirmed 2.40.0 nested-image risk remains labeled: https://forge.mograph.life/apps/rav/docs/configuration
-- Fixed canvases use overflow-safe auto margins to stay centered while they fit and preserve authored-origin scrolling when oversized: https://forge.mograph.life/apps/rav/docs/ui-layout
+- The 2.5.1 playback hotfix keeps controls synchronized after a file opens and restores Reset/Default playback in place. Fixed size is the canvas viewport, not the Rive artboard; with Contain, alignment only moves on an axis with unused canvas space: https://forge.mograph.life/apps/rav/docs/ui-layout
 - Configured official builds enable anonymous installation and monthly-active counts by default, show a first-run notice before reporting, and keep the opt-out in Settings: https://forge.mograph.life/apps/rav/privacy
 
 ## Entity Facts

@@ -6,6 +6,7 @@ import {
     setCanvasSizingMode,
     updateCanvasSizingDimension,
 } from '../../core/canvas-sizing.js';
+import { dispatchPresentationChanged } from '../../rive/control-events.js';
 
 export function createCanvasSizingControlsController({
     callbacks = {},
@@ -27,8 +28,13 @@ export function createCanvasSizingControlsController({
     function getViewportCanvasSizingState() {
         const canvas = getCurrentCanvasElement();
         const container = elements.canvasContainer;
-        const sourceWidth = Math.round(canvas?.width || canvas?.clientWidth || container?.clientWidth || 1280);
-        const sourceHeight = Math.round(canvas?.height || canvas?.clientHeight || container?.clientHeight || 720);
+        const canvasBounds = canvas?.getBoundingClientRect?.();
+        const sourceWidth = Math.round(
+            canvasBounds?.width || canvas?.clientWidth || container?.clientWidth || canvas?.width || 1280,
+        );
+        const sourceHeight = Math.round(
+            canvasBounds?.height || canvas?.clientHeight || container?.clientHeight || canvas?.height || 720,
+        );
         return buildCanvasSizingStateFromViewport(
             Math.max(1, sourceWidth),
             Math.max(1, sourceHeight),
@@ -72,6 +78,7 @@ export function createCanvasSizingControlsController({
         setCurrentCanvasSizing(normalized);
         syncCanvasSizingControls();
         handleResize();
+        dispatchPresentationChanged(documentRef, { canvasSizing: normalized });
         refreshInfoStrip();
         if (message) {
             updateInfo(message);

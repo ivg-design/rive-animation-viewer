@@ -121,6 +121,7 @@
                         ? Object.assign({}, appliedEditorConfig.layout)
                         : {};
                     delete appliedLayoutProps.fit;
+                    delete appliedLayoutProps.alignment;
                     riveConfig.layout = new rive.Layout(Object.assign({
                         fit: resolveRiveLayoutFit(rive, currentLayoutFit),
                         alignment: resolveRiveLayoutAlignment(rive, currentLayoutAlignment),

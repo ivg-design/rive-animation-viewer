@@ -2,6 +2,7 @@ import {
     createRiveInstanceController,
     safelyInvokeUserCallback,
 } from '../../../src/app/rive/instance-controller.js';
+import { RAV_ANIMATION_LOADED_EVENT } from '../../../src/app/rive/control-events.js';
 
 function createElements() {
     document.body.innerHTML = `
@@ -56,6 +57,7 @@ describe('rive/instance-controller', () => {
                     off: vi.fn(),
                     on: vi.fn(),
                     playingStateMachineNames: [],
+                    reset: vi.fn(() => config.onLoad()),
                     resizeDrawingSurfaceToCanvas: vi.fn(),
                     stateMachineNames: ['DetectedSM'],
                     viewModelInstance: { name: 'VM' },
@@ -97,10 +99,19 @@ describe('rive/instance-controller', () => {
             getCurrentRuntime: () => 'webgl2',
             getEditorConfig: () => ({
                 autoplay: false,
+                layout: {
+                    alignment: Symbol('editor-alignment-must-not-win'),
+                    fit: Symbol('editor-fit-must-not-win'),
+                    layoutScaleFactor: 2,
+                },
                 onLoad: userOnLoad,
             }),
             windowRef: window,
         });
+
+        const animationLoadedEvents = [];
+        const onAnimationLoaded = (event) => animationLoadedEvents.push(event.detail);
+        document.addEventListener(RAV_ANIMATION_LOADED_EVENT, onAnimationLoaded);
 
         await controller.loadRiveAnimation('blob:demo', 'demo.riv', {
             beforeUserOnLoad: () => {
@@ -124,6 +135,7 @@ describe('rive/instance-controller', () => {
         expect(capturedConfig.layout).toEqual(expect.objectContaining({
             alignment: runtime.Alignment.TopLeft,
             fit: runtime.Fit.Contain,
+            layoutScaleFactor: 2,
         }));
         expect(callbacks.syncArtboardStateFromConfig).toHaveBeenLastCalledWith({
             animations: null,
@@ -152,6 +164,17 @@ describe('rive/instance-controller', () => {
             'setVmControlBaselineSnapshot',
             'onLoaded',
         ]);
+        expect(animationLoadedEvents).toHaveLength(1);
+
+        const restoreAfterReset = vi.fn();
+        expect(controller.resetRiveInstance(
+            { autoplay: true, stateMachines: 'DetectedSM' },
+            { beforeUserOnLoad: restoreAfterReset },
+        )).toBe(true);
+        expect(instance.reset).toHaveBeenCalledWith({ autoplay: true, stateMachines: 'DetectedSM' });
+        expect(restoreAfterReset).toHaveBeenCalledTimes(1);
+        expect(animationLoadedEvents).toHaveLength(1);
+        document.removeEventListener(RAV_ANIMATION_LOADED_EVENT, onAnimationLoaded);
 
         const riveEventListener = instance.on.mock.calls[0][1];
         riveEventListener({ data: { name: 'ButtonPressed' } });

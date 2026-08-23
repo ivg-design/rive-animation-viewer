@@ -3,30 +3,22 @@ import {
     populatePlaybackSelectUi,
     populateVmInstanceSelectUi,
 } from './artboards/ui-population.js';
+import { parsePlaybackTarget } from './artboards/playback-target.js';
+import { createLatestSelectionScheduler } from './artboards/selection-scheduler.js';
 import {
     buildArtboardSelectionSummary,
     buildPlaybackContext,
     buildPlaybackStatusLabel,
 } from './playback-status.js';
 import { normalizeStateMachineSelection } from './default-state-machine.js';
+import { dispatchPlaybackCommand } from './control-events.js';
 import {
     AUTO_BOUND_VM_INSTANCE_KEY,
     buildViewModelInstanceLoadOverrides,
     loadAndBindViewModelInstance,
 } from './view-model/instances.js';
 
-export function parsePlaybackTarget(target) {
-    if (!target) {
-        return { type: null, name: null };
-    }
-    if (target.startsWith('sm:')) {
-        return { type: 'stateMachine', name: target.slice(3) };
-    }
-    if (target.startsWith('anim:')) {
-        return { type: 'animation', name: target.slice(5) };
-    }
-    return { type: 'stateMachine', name: target };
-}
+export { parsePlaybackTarget } from './artboards/playback-target.js';
 
 export function createArtboardSwitcherController({
     elements,
@@ -41,6 +33,7 @@ export function createArtboardSwitcherController({
         initLucideIcons = () => {},
         loadRiveAnimation = async () => {},
         logEvent = () => {},
+        resetRiveInstance = () => false,
         showError = () => {},
         updateInfo = () => {},
     } = callbacks;
@@ -52,7 +45,7 @@ export function createArtboardSwitcherController({
     let defaultArtboardName = null;
     let defaultPlaybackKey = null;
     let fileContentsCache = null;
-    let pendingSelectionTask = null;
+    const scheduleSelectionChange = createLatestSelectionScheduler(setTimeoutFn);
 
     function resetForNewFile() {
         currentArtboardName = null;
@@ -135,26 +128,6 @@ export function createArtboardSwitcherController({
 
         summaryElement.textContent = buildArtboardSelectionSummary(getStatusContext());
         summaryElement.hidden = false;
-    }
-
-    function scheduleSelectionChange(callback) {
-        if (pendingSelectionTask) {
-            pendingSelectionTask.cancelled = true;
-        }
-        const task = { cancelled: false };
-        pendingSelectionTask = task;
-        const run = () => {
-            if (task.cancelled) {
-                return;
-            }
-            pendingSelectionTask = null;
-            callback();
-        };
-        if (typeof setTimeoutFn === 'function') {
-            setTimeoutFn(run, 0);
-            return;
-        }
-        run();
     }
 
     function populateArtboardSwitcher() {
@@ -270,11 +243,37 @@ export function createArtboardSwitcherController({
             return;
         }
 
+        const playbackTarget = defaultPlaybackKey || null;
+        const { type: playbackType, name: playbackName } = parsePlaybackTarget(playbackTarget);
+        const resetParams = {
+            artboard: defaultArtboardName,
+            animations: playbackType === 'animation' ? playbackName || undefined : undefined,
+            stateMachines: playbackType === 'stateMachine' ? playbackName || undefined : undefined,
+            autoplay: true,
+            autoBind: true,
+        };
+        logEvent('ui', 'artboard-reset', `Reset to default artboard "${defaultArtboardName}".`);
+        try {
+            if (resetRiveInstance(resetParams)) {
+                currentArtboardName = defaultArtboardName;
+                currentPlaybackType = playbackType;
+                currentPlaybackName = playbackName;
+                currentVmInstanceName = null;
+                dispatchPlaybackCommand(documentRef, 'reset', {
+                    params: resetParams,
+                    snapshot: [],
+                });
+                updateSelectionSummary();
+                updateInfo(buildPlaybackStatusLabel(getStatusContext(), 'Loaded'));
+                return;
+            }
+        } catch (error) {
+            showError(`Failed to reset default artboard: ${error?.message || error}`);
+            return;
+        }
+
         currentPlaybackType = null;
         currentPlaybackName = null;
-
-        const playbackTarget = defaultPlaybackKey || null;
-        logEvent('ui', 'artboard-reset', `Reset to default artboard "${defaultArtboardName}".`);
         switchArtboard(defaultArtboardName, playbackTarget);
     }
 

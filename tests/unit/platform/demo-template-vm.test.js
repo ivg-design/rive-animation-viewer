@@ -248,10 +248,19 @@ describe('exported demo ViewModel snapshot runtime', () => {
         expect(riveLoaderSource).toContain('bindViewModelInstanceByKey(riveInstance, CONFIG.viewModelInstanceName)');
     });
 
-    it('preserves non-fit layout properties from applied editor configuration', () => {
+    it('preserves non-toolbar layout properties while keeping toolbar fit and alignment authoritative', () => {
         expect(riveLoaderSource).toContain('Object.assign({}, appliedEditorConfig.layout)');
         expect(riveLoaderSource).toContain('delete appliedLayoutProps.fit');
+        expect(riveLoaderSource).toContain('delete appliedLayoutProps.alignment');
         expect(riveLoaderSource).toContain('}, appliedLayoutProps)');
+    });
+
+    it('applies live render-surface presentation state without reloading the animation', () => {
+        expect(bootstrapSource).toContain("if (type === 'presentation')");
+        expect(bootstrapSource).toContain('function applyRenderSurfacePresentation(payload)');
+        expect(bootstrapSource).toContain('riveInstance.layout.copyWith(nextLayout)');
+        expect(bootstrapSource).toContain('currentCanvasSizing = normalizeCanvasSizingState');
+        expect(bootstrapSource).toContain('updateCanvasBackground()');
     });
 
     it('binds a configured ViewModel instance by name and falls back to index', () => {

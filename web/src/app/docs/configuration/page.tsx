@@ -36,7 +36,7 @@ export default function Configuration() {
 
       <h2>Runtime Version</h2>
       <p>
-        RAV 2.5.0 defaults to <strong>Latest (auto)</strong> and resolves the current npm runtime
+        RAV 2.5.1 defaults to <strong>Latest (auto)</strong> and resolves the current npm runtime
         before playback. If version discovery is unavailable, 2.39.2 is the fallback.
         Live RAV MCP comparison previously proved that Web 2.40.0 / runtime-v0.1.271 can
         double-offset nested, data-bound images in both WebGL2 and Canvas, so that exact version
@@ -72,6 +72,13 @@ export default function Configuration() {
         exports and snippets. Overflow-safe auto margins keep a fixed canvas centered while it
         fits; when it exceeds the viewport, the margins collapse and the canvas scrolls from the
         authored top-left origin with a styled 10px track, thumb, and corner.
+      </p>
+      <p>
+        A Fixed size defines the playback canvas viewport; it does not resize the authored Rive
+        artboard. With <code>contain</code>, one artboard dimension always reaches the matching
+        canvas edge, so alignment only moves visibly on the other axis when that axis has unused
+        space. For example, a 16:9 artboard in a taller 500 × 409 canvas fills the width, making
+        Top, Center, and Bottom visible while Left and Right have no horizontal space to use.
       </p>
     </>
   );

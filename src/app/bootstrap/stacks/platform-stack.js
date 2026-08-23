@@ -122,6 +122,7 @@ export function createPlatformStack({
             getCurrentMcpPort,
             getCurrentRuntime,
             getEventLogFilterState,
+            getRiveInstance,
             getTauriInvoker,
             handleResize,
             loadRiveAnimation,
@@ -171,6 +172,13 @@ export function createPlatformStack({
 
     const renderSurfaceController = createRenderSurfaceController({
         callbacks: {
+            getControlSnapshot: captureVmControlSnapshot,
+            getPresentationState: () => ({
+                ...getCanvasBackgroundStateSnapshot(),
+                canvasSizing: getCurrentCanvasSizing(),
+                layoutAlignment: getCurrentLayoutAlignment(),
+                layoutFit: getCurrentLayoutFit(),
+            }),
             getTauriEventListener,
             getTauriInvoker,
             isTauriEnvironment,
@@ -223,6 +231,7 @@ export function createPlatformStack({
                 demoExportController.generateWebInstantiationCode({ packageSource, snippetMode })
             ),
             getLiveConfigState,
+            getRenderSurfaceState: () => renderSurfaceController.getState(),
             getRuntimeSourceText,
             getRuntimeVersion,
             getScriptConsoleEntries: (limit) => scriptConsoleController.readCaptured(limit),

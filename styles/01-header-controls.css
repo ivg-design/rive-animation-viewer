@@ -208,8 +208,11 @@
 }
 
 .fps-chip {
+    box-sizing: border-box;
+    flex: 0 0 80px;
+    width: 80px;
     height: var(--header-control-h);
-    padding: 0 12px;
+    padding: 0 8px;
     border: 1px solid var(--border);
     border-radius: var(--radius-toolbar);
     background: var(--bg-void);
@@ -221,6 +224,11 @@
     color: var(--text-dim);
     font-size: 11px;
     font-weight: 500;
+}
+
+.fps-chip-pending-label {
+    font-size: 8px;
+    letter-spacing: -0.02em;
 }
 
 .dot {

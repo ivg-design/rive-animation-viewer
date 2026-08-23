@@ -6,6 +6,7 @@ import {
 import { resolveRiveAlignment, resolveRiveFit } from '../core/rive-layout.js';
 import { composeEmbeddedImageAssetLoader } from './assets/embedded-image-assets.js';
 import { dispatchAnimationLoaded } from './control-events.js';
+import { createRiveEventBridge } from './instance/event-bridge.js';
 import { runUserOnLoadWithVmRestore } from './instance/load-hooks.js';
 import { buildPlaybackContext, buildPlaybackStatusLabel } from './playback-status.js';
 export function safelyInvokeUserCallback(callback, event, callbackName) {
@@ -51,49 +52,12 @@ export function createRiveInstanceController({
         updatePlaybackChips = () => {},
     } = callbacks;
 
-    let riveEventUnsubscribers = [];
     let riveInstance = null;
+    let pendingInPlaceReset = null;
+    const riveEventBridge = createRiveEventBridge({ logEvent });
 
     function getRiveInstance() {
         return riveInstance;
-    }
-
-    function clearRiveEventListeners() {
-        riveEventUnsubscribers.forEach((unsubscribe) => {
-            try {
-                unsubscribe();
-            } catch {
-                /* noop */
-            }
-        });
-        riveEventUnsubscribers = [];
-    }
-
-    function attachRiveUserEventListeners(runtime, instance) {
-        clearRiveEventListeners();
-        if (!runtime?.EventType || !instance || typeof instance.on !== 'function') {
-            console.warn('[rive-viewer] cannot attach event listeners: missing EventType or .on() method');
-            return;
-        }
-
-        const eventType = runtime.EventType.RiveEvent;
-        if (!eventType) {
-            console.warn('[rive-viewer] runtime.EventType.RiveEvent is falsy');
-            return;
-        }
-
-        const listener = (event) => {
-            const payload = event?.data ?? event;
-            const eventName = payload?.name || event?.name || 'unknown';
-            logEvent('rive-user', eventName, '', payload);
-        };
-
-        instance.on(eventType, listener);
-        riveEventUnsubscribers.push(() => {
-            if (typeof instance.off === 'function') {
-                instance.off(eventType, listener);
-            }
-        });
     }
 
     function getEffectiveCanvasSizingState(editorConfig = {}) {
@@ -174,7 +138,8 @@ export function createRiveInstanceController({
     }
 
     function cleanupInstance() {
-        clearRiveEventListeners();
+        pendingInPlaceReset = null;
+        riveEventBridge.clear();
         resetPlaybackChips();
         // Detach ViewModel observers while their native accessors are still valid.
         resetVmInputControls('No animation loaded.');
@@ -190,6 +155,22 @@ export function createRiveInstanceController({
         }
         riveInstance = null;
         windowRef.riveInst = null;
+    }
+
+    function resetRiveInstance(params = {}, { beforeUserOnLoad = null } = {}) {
+        if (!riveInstance || typeof riveInstance.reset !== 'function') {
+            return false;
+        }
+        pendingInPlaceReset = {
+            beforeUserOnLoad: typeof beforeUserOnLoad === 'function' ? beforeUserOnLoad : null,
+        };
+        try {
+            riveInstance.reset(params);
+            return true;
+        } catch (error) {
+            pendingInPlaceReset = null;
+            throw error;
+        }
     }
 
     async function loadRiveAnimation(fileUrl, fileName, options = {}) {
@@ -290,7 +271,7 @@ export function createRiveInstanceController({
                 config.autoBind = true;
             }
             const layoutFromConfig = config.layout && typeof config.layout === 'object' ? config.layout : {};
-            const { fit: _ignoredFit, ...otherLayoutProps } = layoutFromConfig;
+            const { alignment: _ignoredAlignment, fit: _ignoredFit, ...otherLayoutProps } = layoutFromConfig;
             config.layout = new runtime.Layout({
                 fit: resolveRiveFit(runtime, getCurrentLayoutFit()),
                 alignment: resolveRiveAlignment(runtime, getCurrentLayoutAlignment()),
@@ -318,6 +299,8 @@ export function createRiveInstanceController({
             }
 
             config.onLoad = () => {
+                const inPlaceReset = pendingInPlaceReset;
+                pendingInPlaceReset = null;
                 hideError();
                 resizeCanvas(config.canvas, userConfig);
                 riveInstance?.resizeDrawingSurfaceToCanvas?.();
@@ -330,15 +313,21 @@ export function createRiveInstanceController({
                 })));
                 refreshInfoStrip();
 
-                runUserOnLoadWithVmRestore({ beforeUserOnLoad, riveInstance, userOnLoad });
+                runUserOnLoadWithVmRestore({
+                    beforeUserOnLoad: inPlaceReset ? inPlaceReset.beforeUserOnLoad : beforeUserOnLoad,
+                    riveInstance,
+                    userOnLoad,
+                });
 
                 renderVmInputControls();
                 setVmControlBaselineSnapshot();
                 populateArtboardSwitcher();
-                dispatchAnimationLoaded(windowRef.document, {
-                    fileName,
-                    runtime: getCurrentRuntime(),
-                });
+                if (!loadSettled) {
+                    dispatchAnimationLoaded(windowRef.document, {
+                        fileName,
+                        runtime: getCurrentRuntime(),
+                    });
+                }
                 notifyLoadSuccess();
             };
 
@@ -382,7 +371,7 @@ export function createRiveInstanceController({
 
             riveInstance = new runtime.Rive(config);
             windowRef.riveInst = riveInstance;
-            attachRiveUserEventListeners(runtime, riveInstance);
+            riveEventBridge.attach(runtime, riveInstance);
         } catch (error) {
             showError(`Error initializing Rive: ${error.message}`);
             logEvent('native', 'init-error', 'Error initializing runtime instance.', error);
@@ -395,5 +384,6 @@ export function createRiveInstanceController({
         getRiveInstance,
         handleResize,
         loadRiveAnimation,
+        resetRiveInstance,
     };
 }

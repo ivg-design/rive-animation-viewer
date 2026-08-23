@@ -4,8 +4,9 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current public release: `2.5.0`, available through GitHub Releases and the normal public `latest.json` updater feed.
-- The verified `v2.5.0` commit on `main` is the release source.
+- Current public release: `2.5.1`.
+- Release downloads are available through GitHub Releases and the normal public `latest.json` updater feed.
+- The verified `v2.5.1` commit on `main` is the release source.
 - macOS downloads and updater apps are Developer ID signed, notarized, and stapled; updater payloads retain their separate update signatures.
 
 ## Regression Gates
@@ -20,6 +21,18 @@ The repo now has explicit prebuild guards for the surfaces that were regressing 
 - `cargo check --manifest-path src-tauri/Cargo.toml` validates the native Tauri layer
 
 These gates materially reduce regression risk, but they are still code- and DOM-contract tests, not full visual snapshot coverage. If we want pixel-level guarantees from this point forward, the next step is adding screenshot-based desktop smoke tests for the packaged app window.
+
+## 2.5.1 Hotfix
+
+- **Playback controls stay connected**: The dedicated playback surface continues to receive Settings, toolbar, and Properties changes after loading, including background color, fit, alignment, canvas size, playback, and ViewModel controls. Main-interface overlays stay accessible above playback.
+- **Fixed canvas remains predictable**: Fixed uses logical CSS pixels, centers while it fits in the viewer, and scrolls from its authored origin when it is larger than the available space.
+- **Reset without a visible restart**: Toolbar Reset and Properties `DEFAULT` restore the current playback in place, without rebuilding the playback surface, flashing its readiness state, or moving adjacent controls.
+
+### Canvas size, fit, and alignment
+
+`Fixed` sets the size of the playback **canvas viewport**; it does not resize the authored Rive artboard. `Contain` scales the artboard until one dimension touches the canvas edge. As a result, alignment can only visibly move along the other axis—the axis that still has unused canvas space.
+
+For example, a 16:9 artboard inside a taller 500 × 409 canvas fills the full 500-pixel width, leaving vertical space. `Top`, `Center`, and `Bottom` visibly move the artboard; `Left`, `Center`, and `Right` do not, because there is no horizontal space left to move into. To test horizontal alignment with that artboard, use a canvas that is wider than 16:9 or choose a fit mode that leaves horizontal space.
 
 ## 2.5.0 Highlights
 
@@ -181,7 +194,7 @@ npm start  # Opens browser at http://localhost:1420
 - **Layout Options**: Fit and alignment are surfaced directly in the main toolbar next to playback controls
 - **Background Color**: Color picker with `No BG` reset for transparent canvas backgrounds
 - **Explicit Canvas Size**: Settings can pin the canvas to a specific width/height in pixels and optionally lock the aspect ratio
-- **Playback Controls**: Play, pause, and reset/restart (reset reloads animation with autoplay and restores control values)
+- **Playback Controls**: Play, pause, and reset/restart (reset restarts playback in place with autoplay and restores control values)
 - **Autoplay on Open**: Fresh file opens, drag/drop loads, open-with events, and MCP file opens all autoplay by default
 - **Event Console**: Source toggles (`Native`, `Rive User`, `UI`, `MCP`), text search, timestamps, newest-first ordering, and `FOLLOW`
 - **Console Actions**: Shared outlined SVG buttons for `FOLLOW`, `COPY`, and `CLEAR` across Event Console and JavaScript Console

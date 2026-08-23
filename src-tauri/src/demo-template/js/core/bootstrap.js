@@ -115,7 +115,20 @@
                 return;
             }
             if (type === 'reset') {
-                if (riveInstance && typeof riveInstance.reset === 'function') riveInstance.reset();
+                if (!riveInstance || typeof riveInstance.reset !== 'function') {
+                    throw new Error('Playback reset is unavailable.');
+                }
+                var resetSnapshot = Array.isArray(payload.snapshot) ? payload.snapshot : [];
+                var resetParams = payload.params && typeof payload.params === 'object'
+                    ? payload.params
+                    : { autoplay: true, autoBind: true };
+                currentControlSnapshot = JSON.parse(JSON.stringify(resetSnapshot));
+                riveInstance.reset(resetParams);
+                applyControlSnapshot(currentControlSnapshot);
+                return;
+            }
+            if (type === 'presentation') {
+                applyRenderSurfacePresentation(payload);
                 return;
             }
             if (type === 'resize') {
@@ -123,6 +136,35 @@
                 return;
             }
             throw new Error('Unsupported render-surface command: ' + (type || '(empty)'));
+        }
+
+        function applyRenderSurfacePresentation(payload) {
+            if (LAYOUT_FITS.indexOf(payload.layoutFit) >= 0) currentLayoutFit = payload.layoutFit;
+            if (LAYOUT_ALIGNMENTS.indexOf(payload.layoutAlignment) >= 0) currentLayoutAlignment = payload.layoutAlignment;
+            if (payload.canvasSizing && typeof payload.canvasSizing === 'object') {
+                currentCanvasSizing = normalizeCanvasSizingState(payload.canvasSizing, currentCanvasSizing);
+            }
+            if (payload.canvasTransparent === true) {
+                currentCanvasColor = TRANSPARENT_CANVAS_COLOR;
+            } else {
+                var solidColor = normalizeCanvasColor(payload.canvasColor);
+                if (solidColor) {
+                    lastSolidCanvasColor = solidColor;
+                    currentCanvasColor = solidColor;
+                }
+            }
+            updateCanvasBackground();
+            syncCanvasColorControls();
+            if (riveInstance && loadedRiveRuntime && loadedRiveRuntime.Layout) {
+                var nextLayout = {
+                    fit: resolveRiveLayoutFit(loadedRiveRuntime, currentLayoutFit),
+                    alignment: resolveRiveLayoutAlignment(loadedRiveRuntime, currentLayoutAlignment),
+                };
+                riveInstance.layout = typeof riveInstance.layout?.copyWith === 'function'
+                    ? riveInstance.layout.copyWith(nextLayout)
+                    : new loadedRiveRuntime.Layout(nextLayout);
+            }
+            handleResize();
         }
 
         function parseCssPixels(value, fallback) {

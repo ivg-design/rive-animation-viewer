@@ -15,6 +15,7 @@ export function createPlaybackController({
         captureVmControlSnapshot = () => [],
         loadRiveAnimation = async () => {},
         logEvent = () => {},
+        resetRiveInstance = () => false,
         showError = () => {},
         updateInfo = () => {},
     } = callbacks;
@@ -100,10 +101,41 @@ export function createPlaybackController({
 
         const viewModelSnapshot = captureVmControlSnapshot();
         let restoredControls = 0;
+        const playbackState = getPlaybackState();
+        const resetParams = {
+            artboard: playbackState.currentArtboard || undefined,
+            animations: playbackState.currentPlaybackType === 'animation'
+                ? playbackState.currentPlaybackName || undefined
+                : undefined,
+            stateMachines: playbackState.currentPlaybackType === 'stateMachine'
+                ? playbackState.currentPlaybackName || undefined
+                : undefined,
+            autoplay: true,
+            autoBind: true,
+        };
         updateInfo(`Restarting ${currentFileName}...`);
         logEvent('ui', 'reset', `Restarting animation with autoplay (${viewModelSnapshot.length} controls captured).`);
 
         try {
+            const resetInPlace = resetRiveInstance(resetParams, {
+                beforeUserOnLoad: () => {
+                    restoredControls = applyVmControlSnapshot(viewModelSnapshot);
+                },
+            });
+            if (resetInPlace) {
+                dispatchPlaybackCommand(documentRef, 'reset', {
+                    params: resetParams,
+                    snapshot: viewModelSnapshot,
+                });
+                updateInfo(`Restarted ${currentFileName}`);
+                logEvent(
+                    'ui',
+                    'reset-complete',
+                    `Animation restarted in place with autoplay (${restoredControls || viewModelSnapshot.length} controls restored).`,
+                );
+                return;
+            }
+
             await new Promise((resolve, reject) => {
                 let settled = false;
                 const resolveOnce = () => {

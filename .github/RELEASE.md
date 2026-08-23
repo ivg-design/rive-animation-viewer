@@ -134,10 +134,14 @@ reviewer rules before the first release.
    cargo test --manifest-path src-tauri/Cargo.toml
    ```
 
-7. Complete the anonymous callback acceptance below against an isolated test
+7. When a release changes the dual-WebView rendering path, complete the
+   [dual-WebView pre-release gate](#dual-webview-pre-release-gate) below and
+   retain its receipt.
+
+8. Complete the anonymous callback acceptance below against an isolated test
    Worker/D1 and retain its aggregate-only receipt.
 
-8. Commit the complete release with the exact subject:
+9. Commit the complete release with the exact subject:
 
    ```bash
    git commit -m "chore(release): vX.Y.Z"
@@ -146,6 +150,57 @@ reviewer rules before the first release.
    Land that exact commit as the tip of `main`. If using a pull request, use a
    squash merge with this exact subject; a differently titled merge commit will
    not start the release.
+
+## Dual-WebView pre-release gate
+
+Run this gate before a release that changes child-render-surface creation,
+controller/message relay, canvas sizing, presentation state, overlays, or reload
+behavior. Unit tests cover the contracts; they do **not** substitute for this
+actual desktop validation.
+
+1. Run the focused automated contract set:
+
+   ```bash
+   npm run test:dual-webview
+   ```
+
+2. Build and launch the actual Tauri app for the target platform. Connect a real
+   RAV MCP client and open a fixture that exposes ViewModel controls. Use the
+   same fixture for the first seven checks; use a distinct second `.riv` for the
+   final reload check.
+3. Record every assertion in a copy of
+   `.github/dual-webview-gate-receipt.template.json` (outside the tracked
+   template). The validation is complete only when its build stamp, platform,
+   fixture, validator, timestamp, automated result, and every assertion are
+   recorded as passed:
+
+   ```bash
+   npm run verify:dual-webview-receipt -- --receipt /path/to/receipt.json
+   ```
+
+4. In the actual Tauri window, with MCP-driven control changes where applicable,
+   verify and record:
+
+   - the child render WebView stays above the parent canvas after loading;
+   - switching Auto to a small Fixed canvas centers it;
+   - Auto to Fixed uses logical CSS pixels rather than DPR-scaled backing-store
+     pixels, and Rive art alignment still moves on an axis with available space;
+   - an oversized Fixed canvas opens at its authored top-left scroll origin
+     rather than a displaced viewport;
+   - background, fit, and alignment remain correct after playback starts;
+   - controls queued while a render surface reloads are applied once it loads;
+   - toolbar Reset restarts in place without changing the render-surface session
+     or returning the FPS badge to its `ISOLATED` readiness state;
+   - Properties `DEFAULT` resets in place with the same session/FPS behavior;
+   - both workspace drawers remain accessible;
+   - Settings, About, and export overlays are accessible above the render
+     surface and restore the child surface after closing; and
+   - opening a second `.riv` replaces the first child surface and remains
+     controllable through MCP.
+
+Do not mark this gate passed from browser-only, unit-test-only, screenshot-only,
+or synthetic WebView evidence. This receipt is an attestation of the actual
+Tauri + RAV MCP run; the script validates completeness, not visual behavior.
 
 ## Anonymous callback acceptance
 

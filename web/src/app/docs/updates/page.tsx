@@ -45,7 +45,7 @@ export default function Updates() {
         advance installed clients.
       </p>
       <p>
-        Version 2.5.0 is published through the normal update feed for supported macOS and Windows
+        Version 2.5.1 is published through the normal update feed for supported macOS and Windows
         installations.
       </p>
 

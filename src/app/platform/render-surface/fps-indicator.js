@@ -10,8 +10,10 @@ export function setRenderSurfaceFpsState(documentRef, active, fps = null) {
         return;
     }
     fpsChip.dataset.renderSurfaceActive = 'true';
-    fpsChip.title = 'Isolated renderer callback cadence; visual frame capture remains the performance acceptance test.';
+    fpsChip.title = 'Dedicated playback renderer FPS; visual frame capture remains the performance acceptance test.';
     const hasFps = fps !== null && fps !== undefined && Number.isFinite(Number(fps));
-    const label = hasFps ? `${Math.round(Number(fps))} FPS` : 'ISOLATED';
+    const label = hasFps
+        ? `${Math.round(Number(fps))} FPS`
+        : '<span class="fps-chip-pending-label">ISOLATED</span>';
     fpsChip.innerHTML = `<span class="dot"></span>${label}`;
 }

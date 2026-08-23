@@ -2,6 +2,18 @@
 
 All notable released changes to this project are documented in this file.
 
+## [2.5.1] - 2026-08-22
+
+### Fixed
+
+- **Playback-surface control synchronization** — The dedicated playback surface now continues to receive background, fit, alignment, canvas-size, playback, and ViewModel control changes after a file has opened. Settings and other main-interface overlays also remain usable above playback.
+- **Fixed-canvas presentation** — Switching between Auto and Fixed uses logical canvas pixels, keeps a fitting fixed canvas centered in the viewer, and preserves its selected fit and art alignment. Oversized canvases remain scrollable from their authored origin.
+- **In-place reset and default restore** — Toolbar Reset and Properties `DEFAULT` now reset the active playback in place. They no longer recreate the playback surface, flash its readiness state, or shift the toolbar while an animation resumes.
+
+### Documentation
+
+- **Canvas sizing and art alignment** — Fixed size defines the playback canvas viewport, not the Rive artboard. With `Contain`, one axis always fills the viewport, so alignment only has a visible effect on the axis with remaining space.
+
 ## [2.5.0] - 2026-08-22
 
 ### Added

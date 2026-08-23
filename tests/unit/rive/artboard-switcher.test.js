@@ -3,6 +3,7 @@ import {
     parsePlaybackTarget,
 } from '../../../src/app/rive/artboard-switcher.js';
 import { AUTO_BOUND_VM_INSTANCE_KEY } from '../../../src/app/rive/view-model/instances.js';
+import { RAV_PLAYBACK_COMMAND_EVENT } from '../../../src/app/rive/control-events.js';
 
 function createElements() {
     const artboardSwitcher = document.createElement('div');
@@ -128,6 +129,58 @@ describe('rive/artboard-switcher', () => {
             'Bounce',
         ]);
         expect(state.contents.artboards[1].name).toBe('Second');
+    });
+
+    it('resets DEFAULT in place and keeps the render-surface session alive', () => {
+        const elements = createElements();
+        const resetRiveInstance = vi.fn(() => true);
+        const harness = createHarness({
+            callbacks: { resetRiveInstance },
+            elements,
+        });
+        harness.setRiveInstance({
+            artboard: { name: 'First' },
+            contents: {
+                artboards: [
+                    { animations: ['Idle'], name: 'First', stateMachines: ['Boot'] },
+                    { animations: ['Bounce'], name: 'Second', stateMachines: ['Main'] },
+                ],
+            },
+            defaultViewModel: () => ({ instanceCount: 0 }),
+            viewModelInstance: null,
+        });
+        harness.controller.syncStateFromConfig({ artboard: 'First', configuredStateMachines: ['Boot'] });
+        harness.controller.populateArtboardSwitcher();
+        harness.controller.syncStateFromConfig({ artboard: 'Second', configuredStateMachines: ['Main'] });
+        const playbackCommands = [];
+        document.addEventListener(
+            RAV_PLAYBACK_COMMAND_EVENT,
+            (event) => playbackCommands.push(event.detail),
+            { once: true },
+        );
+
+        harness.controller.resetToDefaultArtboard();
+
+        expect(resetRiveInstance).toHaveBeenCalledWith({
+            animations: undefined,
+            artboard: 'First',
+            autoBind: true,
+            autoplay: true,
+            stateMachines: 'Boot',
+        });
+        expect(harness.callbacks.loadRiveAnimation).not.toHaveBeenCalled();
+        expect(playbackCommands.at(-1)).toEqual({
+            command: 'reset',
+            payload: {
+                params: expect.objectContaining({ artboard: 'First', stateMachines: 'Boot' }),
+                snapshot: [],
+            },
+        });
+        expect(harness.controller.getStateSnapshot()).toMatchObject({
+            currentArtboard: 'First',
+            currentPlaybackName: 'Boot',
+            currentPlaybackType: 'stateMachine',
+        });
     });
 
     it('switches artboards by reloading with runtime overrides', async () => {

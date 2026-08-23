@@ -1,9 +1,18 @@
 import {
     RAV_ANIMATION_LOADED_EVENT,
     RAV_PLAYBACK_COMMAND_EVENT,
+    RAV_PRESENTATION_CHANGED_EVENT,
     RAV_VM_CONTROL_MUTATED_EVENT,
 } from '../../rive/control-events.js';
+import { measureRenderSurfaceBounds, renderSurfaceBoundsKey } from './bounds.js';
+import { createRenderSurfaceCommandRelay } from './command-buffer.js';
 import { setRenderSurfaceFpsState } from './fps-indicator.js';
+import {
+    createRenderSurfaceVisibilityController,
+    observeBlockingMainUi,
+} from './visibility.js';
+
+export { measureRenderSurfaceBounds } from './bounds.js';
 
 const CHILD_COMMAND_EVENT = 'render-surface:command';
 const CHILD_READY_EVENT = 'render-surface:ready';
@@ -11,27 +20,6 @@ const CHILD_LOADED_EVENT = 'render-surface:loaded';
 const CHILD_ERROR_EVENT = 'render-surface:error';
 const CHILD_METRICS_EVENT = 'render-surface:metrics';
 const LOAD_TIMEOUT_MS = 15_000;
-
-export function measureRenderSurfaceBounds(element) {
-    const rect = element?.getBoundingClientRect?.();
-    if (!rect) {
-        return null;
-    }
-    const bounds = {
-        x: Math.round(rect.left),
-        y: Math.round(rect.top),
-        width: Math.round(rect.width),
-        height: Math.round(rect.height),
-    };
-    if (!Object.values(bounds).every(Number.isFinite) || bounds.width <= 0 || bounds.height <= 0) {
-        return null;
-    }
-    return bounds;
-}
-
-function boundsKey(bounds) {
-    return bounds ? `${bounds.x}:${bounds.y}:${bounds.width}:${bounds.height}` : null;
-}
 
 export function createRenderSurfaceController({
     callbacks = {},
@@ -43,6 +31,8 @@ export function createRenderSurfaceController({
     windowRef = globalThis.window,
 } = {}) {
     const {
+        getControlSnapshot = () => [],
+        getPresentationState = () => ({}),
         getTauriEventListener = async () => null,
         getTauriInvoker = () => null,
         isTauriEnvironment = () => false,
@@ -59,6 +49,7 @@ export function createRenderSurfaceController({
     let loadGeneration = 0;
     let loadTimeoutId = null;
     let mutationObserver = null;
+    let pendingPresentationState = {};
     let resizeObserver = null;
     let sessionSequence = 0;
     let surfaceCreated = false;
@@ -71,23 +62,6 @@ export function createRenderSurfaceController({
     const cancelFrame = typeof windowRef?.cancelAnimationFrame === 'function'
         ? windowRef.cancelAnimationFrame.bind(windowRef)
         : windowRef.clearTimeout.bind(windowRef);
-
-    function getMainCanvas() {
-        return elements.canvasContainer?.querySelector?.('#rive-canvas') || null;
-    }
-
-    function setMainCanvasVisible(visible) {
-        const canvas = getMainCanvas();
-        if (!canvas) {
-            return;
-        }
-        canvas.style.visibility = visible ? '' : 'hidden';
-        canvas.style.pointerEvents = visible ? '' : 'none';
-    }
-
-    function hasOpenDialog() {
-        return Boolean(documentRef?.querySelector?.('dialog[open]'));
-    }
 
     async function invokeQuietly(command, args = {}) {
         const invoke = getTauriInvoker();
@@ -102,20 +76,26 @@ export function createRenderSurfaceController({
         }
     }
 
-    async function syncNativeVisibility() {
-        if (!surfaceCreated || !isLoaded) {
-            setMainCanvasVisible(true);
-            setRenderSurfaceFpsState(documentRef, false);
-            return false;
+    const visibilityController = createRenderSurfaceVisibilityController({
+        documentRef,
+        elements,
+        invokeQuietly,
+        isActive: () => surfaceCreated && isLoaded && !disposed,
+    });
+    const { setMainCanvasVisible, sync: syncNativeVisibility } = visibilityController;
+    const commandRelay = createRenderSurfaceCommandRelay({
+        canSend: () => surfaceCreated && isLoaded,
+        send: sendCommand,
+    });
+
+    function readPresentationState(detail = {}) {
+        let current = {};
+        try {
+            current = getPresentationState() || {};
+        } catch {
+            /* retain the last valid presentation state */
         }
-        if (hasOpenDialog()) {
-            await invokeQuietly('hide_render_surface');
-            setMainCanvasVisible(true);
-            return false;
-        }
-        const shown = await invokeQuietly('show_render_surface');
-        setMainCanvasVisible(!shown);
-        return shown;
+        return { ...pendingPresentationState, ...current, ...detail };
     }
 
     function clearLoadTimeout() {
@@ -143,7 +123,7 @@ export function createRenderSurfaceController({
         if (!bounds) {
             return false;
         }
-        const nextKey = boundsKey(bounds);
+        const nextKey = renderSurfaceBoundsKey(bounds);
         if (!force && nextKey === lastBoundsKey) {
             return true;
         }
@@ -178,6 +158,8 @@ export function createRenderSurfaceController({
         const sessionId = `${Date.now().toString(36)}-${(++sessionSequence).toString(36)}`;
         surfaceSessionId = sessionId;
         isLoaded = false;
+        commandRelay.clear();
+        pendingPresentationState = readPresentationState();
         setMainCanvasVisible(true);
         setRenderSurfaceFpsState(documentRef, false);
         await invokeQuietly('hide_render_surface');
@@ -195,7 +177,7 @@ export function createRenderSurfaceController({
                 },
             });
             surfaceCreated = true;
-            lastBoundsKey = boundsKey(bounds);
+            lastBoundsKey = renderSurfaceBoundsKey(bounds);
             armLoadTimeout(sessionId);
             logEvent(
                 'native',
@@ -241,7 +223,7 @@ export function createRenderSurfaceController({
         const command = isStateMachine
             ? (isTrigger ? 'sm-fire' : 'sm-set')
             : (isTrigger ? 'vm-fire' : 'vm-set');
-        void sendCommand(command, {
+        commandRelay.relay(command, {
             ...descriptor,
             kind: detail.kind,
             value: detail.value,
@@ -251,7 +233,14 @@ export function createRenderSurfaceController({
     function handlePlaybackCommand(event) {
         const command = event?.detail?.command;
         if (command === 'play' || command === 'pause' || command === 'reset') {
-            void sendCommand(command);
+            commandRelay.relay(command, event?.detail?.payload || {});
+        }
+    }
+
+    function handlePresentationChange(event) {
+        pendingPresentationState = readPresentationState(event?.detail);
+        if (surfaceCreated && isLoaded) {
+            void sendCommand('presentation', pendingPresentationState);
         }
     }
 
@@ -267,6 +256,18 @@ export function createRenderSurfaceController({
         clearLoadTimeout();
         isLoaded = true;
         setRenderSurfaceFpsState(documentRef, true);
+        pendingPresentationState = readPresentationState();
+        let snapshot = [];
+        try {
+            snapshot = getControlSnapshot() || [];
+        } catch {
+            /* the queued mutations below remain authoritative */
+        }
+        if (Array.isArray(snapshot) && snapshot.length) {
+            await sendCommand('snapshot', { snapshot });
+        }
+        await sendCommand('presentation', pendingPresentationState);
+        await commandRelay.flush();
         const shown = await syncNativeVisibility();
         if (shown) {
             logEvent('native', 'render-surface-loaded', 'Isolated render surface is active.');
@@ -333,20 +334,19 @@ export function createRenderSurfaceController({
         documentRef?.addEventListener?.(RAV_ANIMATION_LOADED_EVENT, loadCurrentAnimation);
         documentRef?.addEventListener?.(RAV_VM_CONTROL_MUTATED_EVENT, handleControlMutation);
         documentRef?.addEventListener?.(RAV_PLAYBACK_COMMAND_EVENT, handlePlaybackCommand);
+        documentRef?.addEventListener?.(RAV_PRESENTATION_CHANGED_EVENT, handlePresentationChange);
         windowRef?.addEventListener?.('resize', scheduleBoundsSync);
 
         if (typeof ResizeObserverCtor === 'function' && elements.canvasContainer) {
             resizeObserver = new ResizeObserverCtor(scheduleBoundsSync);
             resizeObserver.observe(elements.canvasContainer);
         }
-        if (typeof MutationObserverCtor === 'function' && documentRef?.body) {
-            mutationObserver = new MutationObserverCtor(handleDialogMutation);
-            mutationObserver.observe(documentRef.body, {
-                attributeFilter: ['open'],
-                attributes: true,
-                subtree: true,
-            });
-        }
+        mutationObserver = observeBlockingMainUi({
+            documentRef,
+            elements,
+            MutationObserverCtor,
+            onChange: handleDialogMutation,
+        });
         return true;
     }
 
@@ -365,6 +365,7 @@ export function createRenderSurfaceController({
         documentRef?.removeEventListener?.(RAV_ANIMATION_LOADED_EVENT, loadCurrentAnimation);
         documentRef?.removeEventListener?.(RAV_VM_CONTROL_MUTATED_EVENT, handleControlMutation);
         documentRef?.removeEventListener?.(RAV_PLAYBACK_COMMAND_EVENT, handlePlaybackCommand);
+        documentRef?.removeEventListener?.(RAV_PRESENTATION_CHANGED_EVENT, handlePresentationChange);
         windowRef?.removeEventListener?.('resize', scheduleBoundsSync);
         unlistenCallbacks.splice(0).forEach((unlisten) => unlisten());
         setMainCanvasVisible(true);
@@ -376,6 +377,7 @@ export function createRenderSurfaceController({
         return {
             isLoaded,
             isSetup,
+            pendingCommands: commandRelay.size(),
             sessionId: surfaceSessionId,
             surfaceCreated,
         };

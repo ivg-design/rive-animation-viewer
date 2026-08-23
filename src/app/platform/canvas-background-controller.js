@@ -2,6 +2,7 @@ import {
     DEFAULT_CANVAS_COLOR,
     TRANSPARENT_CANVAS_COLOR,
 } from '../core/constants.js';
+import { dispatchPresentationChanged } from '../rive/control-events.js';
 
 export function normalizeCanvasColor(rawColor) {
     const value = String(rawColor || '').trim().toLowerCase();
@@ -56,6 +57,7 @@ export function createCanvasBackgroundController({
         currentCanvasColor = TRANSPARENT_CANVAS_COLOR;
         syncCanvasColorControls();
         updateCanvasBackground();
+        dispatchPresentationChanged(documentRef, getStateSnapshot());
         logEvent('ui', 'canvas-color', 'Canvas background reset to transparent.');
     }
 
@@ -75,6 +77,7 @@ export function createCanvasBackgroundController({
             currentCanvasColor = normalized;
             syncCanvasColorControls();
             updateCanvasBackground();
+            dispatchPresentationChanged(documentRef, getStateSnapshot());
             logEvent('ui', 'canvas-color', `Canvas color changed to ${currentCanvasColor}`);
         });
         resetButton.addEventListener('click', () => {

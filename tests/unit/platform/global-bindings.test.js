@@ -87,6 +87,7 @@ describe('platform/global-bindings', () => {
                 getEventLogEntries: () => [{ type: 'ui' }],
                 getGenerateWebInstantiationCode: generateWebInstantiationCode,
                 getLiveConfigState: () => ({ draftDirty: true, sourceMode: 'editor' }),
+                getRenderSurfaceState: () => ({ isLoaded: true, sessionId: 'surface-1', surfaceCreated: true }),
                 getScriptConsoleEntries: (limit) => ({ total: 2, returned: limit, entries: [{ method: 'log' }] }),
                 getRuntimeSourceText: () => 'runtime();',
                 getRuntimeVersion: () => '1.2.3',
@@ -200,6 +201,11 @@ describe('platform/global-bindings', () => {
         await expect(windowRef._mcpGenerateWebInstantiationCode('cdn')).resolves.toEqual({ code: '<script></script>' });
         expect(generateWebInstantiationCode).toHaveBeenCalledWith('cdn', undefined);
         expect(windowRef._mcpGetLiveConfigState()).toEqual({ draftDirty: true, sourceMode: 'editor' });
+        expect(windowRef._mcpGetRenderSurfaceState()).toEqual({
+            isLoaded: true,
+            sessionId: 'surface-1',
+            surfaceCreated: true,
+        });
         await expect(windowRef._mcpToggleInstantiationControlsDialog('toggle')).resolves.toEqual({ open: true });
         await expect(windowRef._mcpToggleLiveConfigSource()).resolves.toBeUndefined();
         expect(toggleInstantiationControlsDialog).toHaveBeenCalledWith('toggle');
@@ -257,6 +263,7 @@ describe('platform/global-bindings', () => {
         expect(windowRef._mcpGetCanvasSizing()).toBeNull();
         expect(windowRef._mcpSetCanvasSizing({ mode: 'fixed' })).toEqual({ mode: 'fixed' });
         expect(windowRef._mcpGetLiveConfigState()).toEqual({ draftDirty: false, sourceMode: 'internal' });
+        expect(windowRef._mcpGetRenderSurfaceState()).toBeNull();
         expect(windowRef.ravVmSyncDiagnostics()).toBeNull();
         await expect(windowRef._mcpToggleInstantiationControlsDialog('toggle')).resolves.toEqual({ open: false });
         await expect(windowRef._mcpToggleLiveConfigSource()).resolves.toBeUndefined();

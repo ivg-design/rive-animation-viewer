@@ -2,6 +2,7 @@ import {
     createCanvasBackgroundController,
     normalizeCanvasColor,
 } from '../../../src/app/platform/canvas-background-controller.js';
+import { RAV_PRESENTATION_CHANGED_EVENT } from '../../../src/app/rive/control-events.js';
 
 function createElements() {
     document.body.innerHTML = `
@@ -35,6 +36,8 @@ describe('platform/canvas-background-controller', () => {
         const elements = createElements();
         const canvas = mountCanvas();
         const logEvent = vi.fn();
+        const presentationChanges = [];
+        document.addEventListener(RAV_PRESENTATION_CHANGED_EVENT, (event) => presentationChanges.push(event.detail));
         const controller = createCanvasBackgroundController({ callbacks: { logEvent }, elements });
 
         controller.setupCanvasColor();
@@ -52,6 +55,10 @@ describe('platform/canvas-background-controller', () => {
         expect(canvas.style.background).toBe('transparent');
         expect(controller.getStateSnapshot()).toEqual({ canvasColor: 'transparent', canvasTransparent: true });
         expect(controller.isCanvasBackgroundTransparent()).toBe(true);
+        expect(presentationChanges).toEqual([
+            { canvasColor: '#112233', canvasTransparent: false },
+            { canvasColor: 'transparent', canvasTransparent: true },
+        ]);
         expect(logEvent).toHaveBeenCalledWith('ui', 'canvas-color', 'Canvas background reset to transparent.');
     });
 

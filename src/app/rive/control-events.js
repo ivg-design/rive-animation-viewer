@@ -1,5 +1,6 @@
 export const RAV_ANIMATION_LOADED_EVENT = 'rav:animation-loaded';
 export const RAV_PLAYBACK_COMMAND_EVENT = 'rav:playback-command';
+export const RAV_PRESENTATION_CHANGED_EVENT = 'rav:presentation-changed';
 export const RAV_VM_CONTROL_MUTATED_EVENT = 'rav:vm-control-mutated';
 
 function dispatchDetailEvent(documentRef, eventName, detail) {
@@ -14,8 +15,12 @@ export function dispatchAnimationLoaded(documentRef, detail = {}) {
     return dispatchDetailEvent(documentRef, RAV_ANIMATION_LOADED_EVENT, detail);
 }
 
-export function dispatchPlaybackCommand(documentRef, command) {
-    return dispatchDetailEvent(documentRef, RAV_PLAYBACK_COMMAND_EVENT, { command });
+export function dispatchPlaybackCommand(documentRef, command, payload = {}) {
+    return dispatchDetailEvent(documentRef, RAV_PLAYBACK_COMMAND_EVENT, { command, payload });
+}
+
+export function dispatchPresentationChanged(documentRef, detail = {}) {
+    return dispatchDetailEvent(documentRef, RAV_PRESENTATION_CHANGED_EVENT, { ...detail });
 }
 
 export function dispatchVmControlMutation(documentRef, {

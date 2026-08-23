@@ -39,6 +39,7 @@ export function createGlobalBindingsController({
             draftDirty: false,
             sourceMode: 'internal',
         }),
+        getRenderSurfaceState = () => null,
         getSidebarVisibility = () => ({ left: false, right: true }),
         getScriptConsoleEntries = () => ({ total: 0, returned: 0, entries: [] }),
         getVmExplorerSnippetState = () => ({ injected: false }),
@@ -168,6 +169,7 @@ export function createGlobalBindingsController({
                 : (setCurrentCanvasSizing(canvasSizing), canvasSizing)
         );
         windowRef._mcpGetLiveConfigState = () => getLiveConfigState();
+        windowRef._mcpGetRenderSurfaceState = () => getRenderSurfaceState();
         windowRef._mcpGetSidebarVisibility = () => getSidebarVisibility();
         windowRef._mcpGetVmExplorerSnippetState = () => getVmExplorerSnippetState();
         windowRef._mcpSetLiveConfigSource = async (sourceMode) => setLiveConfigSource(sourceMode);

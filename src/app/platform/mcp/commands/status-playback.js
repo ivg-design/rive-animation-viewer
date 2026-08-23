@@ -19,6 +19,19 @@ export function createStatusPlaybackCommands({
         };
     }
 
+    function buildSafeRenderSurfaceState(snapshot) {
+        if (!snapshot || typeof snapshot !== 'object') {
+            return null;
+        }
+        return {
+            active: Boolean(snapshot.surfaceCreated && snapshot.isLoaded),
+            isLoaded: Boolean(snapshot.isLoaded),
+            pendingCommands: Number.isFinite(snapshot.pendingCommands) ? snapshot.pendingCommands : 0,
+            sessionId: snapshot.sessionId || null,
+            surfaceCreated: Boolean(snapshot.surfaceCreated),
+        };
+    }
+
     return {
         async rav_status() {
             const inst = windowRef.riveInst;
@@ -54,6 +67,7 @@ export function createStatusPlaybackCommands({
                     sourceMode: liveConfigState.sourceMode || 'internal',
                 },
                 artboard: buildSafeArtboardState(windowRef._mcpGetArtboardState?.()) || null,
+                renderSurface: buildSafeRenderSurfaceState(windowRef._mcpGetRenderSurfaceState?.()),
             };
         },
 

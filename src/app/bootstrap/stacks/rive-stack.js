@@ -41,6 +41,7 @@ export function createRiveStack({
         updatePlaybackChips,
     } = callbacks;
 
+    let instanceController = null;
     const embeddedImageAssetCatalog = createEmbeddedImageAssetCatalog();
     const vmControlsController = createVmControlsController({
         elements,
@@ -74,6 +75,7 @@ export function createRiveStack({
             initLucideIcons,
             loadRiveAnimation,
             logEvent,
+            resetRiveInstance: (...args) => instanceController?.resetRiveInstance?.(...args) ?? false,
             renderVmInputControls: renderVmInputs,
             showError,
             updateInfo,
@@ -101,6 +103,7 @@ export function createRiveStack({
             captureVmControlSnapshot,
             loadRiveAnimation,
             logEvent,
+            resetRiveInstance: (...args) => instanceController?.resetRiveInstance?.(...args) ?? false,
             showError,
             updateInfo,
         },
@@ -113,7 +116,7 @@ export function createRiveStack({
         updatePlaybackChips: updatePlaybackIndicators,
     } = playbackController;
 
-    const instanceController = createRiveInstanceController({
+    instanceController = createRiveInstanceController({
         callbacks: {
             applyCanvasBackground,
             detectDefaultStateMachineName: detectDefaultStateMachineNameOverride,

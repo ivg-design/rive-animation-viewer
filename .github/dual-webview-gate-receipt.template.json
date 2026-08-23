@@ -1,0 +1,23 @@
+{
+  "buildStamp": "",
+  "platform": "",
+  "fixture": "",
+  "validatedAt": "",
+  "validator": "",
+  "validationEnvironment": "actual-tauri-rav-mcp",
+  "automatedTests": "not-run",
+  "assertions": {
+    "childWebViewZOrder": "not-run",
+    "autoToFixedSmallCanvasCentering": "not-run",
+    "fixedCanvasUsesLogicalPixelsAtDpr": "not-run",
+    "fixedCanvasArtAlignment": "not-run",
+    "oversizedFixedCanvasCentering": "not-run",
+    "backgroundFitAlignmentAfterPlayback": "not-run",
+    "queuedControlsOnReload": "not-run",
+    "toolbarResetKeepsRenderSession": "not-run",
+    "defaultResetKeepsRenderSession": "not-run",
+    "drawerAccess": "not-run",
+    "settingsAboutExportOverlays": "not-run",
+    "secondFileReload": "not-run"
+  }
+}

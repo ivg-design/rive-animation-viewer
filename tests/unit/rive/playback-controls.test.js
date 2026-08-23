@@ -1,4 +1,5 @@
 import { createPlaybackController } from '../../../src/app/rive/playback-controls.js';
+import { RAV_PLAYBACK_COMMAND_EVENT } from '../../../src/app/rive/control-events.js';
 
 function createHarness(overrides = {}) {
     let currentFileName = 'currentFileName' in overrides ? overrides.currentFileName : 'demo.riv';
@@ -73,8 +74,12 @@ describe('rive/playback-controls', () => {
         expect(harness.callbacks.logEvent).toHaveBeenCalledWith('ui', 'pause', 'Playback paused from UI.');
     });
 
-    it('resets the animation with autoplay and restores VM controls', async () => {
+    it('resets in place with autoplay, restores VM controls, and relays the same reset to the child', async () => {
         const loadOrder = [];
+        const resetRiveInstance = vi.fn((_params, options) => {
+            options?.beforeUserOnLoad?.();
+            return true;
+        });
         const callbacks = {
             applyVmControlSnapshot: vi.fn(() => {
                 loadOrder.push('restoreVmControls');
@@ -85,18 +90,49 @@ describe('rive/playback-controls', () => {
                 loadOrder.push('onLoaded');
                 options?.onLoaded?.();
             }),
+            resetRiveInstance,
         };
-        const harness = createHarness({ callbacks, riveInstance: {} });
+        const harness = createHarness({
+            callbacks,
+            playbackState: {
+                currentArtboard: 'Main',
+                currentPlaybackName: 'Bounce',
+                currentPlaybackType: 'animation',
+            },
+            riveInstance: {},
+        });
+        const playbackCommands = [];
+        document.addEventListener(
+            RAV_PLAYBACK_COMMAND_EVENT,
+            (event) => playbackCommands.push(event.detail),
+            { once: true },
+        );
 
         await harness.controller.reset();
 
-        expect(callbacks.loadRiveAnimation).toHaveBeenCalledWith('blob:demo', 'demo.riv', expect.objectContaining({
-            forceAutoplay: true,
-        }));
+        expect(callbacks.loadRiveAnimation).not.toHaveBeenCalled();
+        expect(resetRiveInstance).toHaveBeenCalledWith({
+            animations: 'Bounce',
+            artboard: 'Main',
+            autoBind: true,
+            autoplay: true,
+            stateMachines: undefined,
+        }, expect.objectContaining({ beforeUserOnLoad: expect.any(Function) }));
         expect(harness.callbacks.captureVmControlSnapshot).toHaveBeenCalled();
         expect(harness.callbacks.applyVmControlSnapshot).toHaveBeenCalledWith([{ id: 'speed' }]);
-        expect(loadOrder).toEqual(['restoreVmControls', 'onLoaded']);
-        expect(harness.callbacks.logEvent).toHaveBeenCalledWith('ui', 'reset-complete', 'Animation restarted with autoplay (2 controls restored).');
+        expect(loadOrder).toEqual(['restoreVmControls']);
+        expect(playbackCommands.at(-1)).toEqual({
+            command: 'reset',
+            payload: {
+                params: expect.objectContaining({ animations: 'Bounce', artboard: 'Main', autoplay: true }),
+                snapshot: [{ id: 'speed' }],
+            },
+        });
+        expect(harness.callbacks.logEvent).toHaveBeenCalledWith(
+            'ui',
+            'reset-complete',
+            'Animation restarted in place with autoplay (2 controls restored).',
+        );
     });
 
     it('updates and resets the FPS chip state', () => {

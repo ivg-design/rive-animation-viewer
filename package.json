@@ -1,6 +1,6 @@
 {
   "name": "rive-animation-viewer",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "description": "Desktop and web viewer for .riv files with ViewModel controls, artboard/animation switching, script editor, event console, standalone export, and MCP remote control",
   "main": "index.html",
   "scripts": {
@@ -14,6 +14,8 @@
     "test:counter": "npm --prefix telemetry/worker test",
     "test:unit": "vitest run tests/unit",
     "test:smoke": "vitest run tests/smoke",
+    "test:dual-webview": "vitest run tests/unit/platform/canvas-background-controller.test.js tests/unit/platform/demo-template-vm.test.js tests/unit/platform/global-bindings.test.js tests/unit/platform/mcp-status-playback.test.js tests/unit/platform/render-surface-controller.test.js tests/unit/rive/artboard-switcher.test.js tests/unit/rive/instance-controller.test.js tests/unit/rive/playback-controls.test.js tests/unit/ui/shell-controller.test.js",
+    "verify:dual-webview-receipt": "node scripts/verify-dual-webview-receipt.mjs",
     "test:ui": "npm run test:coverage && node scripts/prepare-vitest-ui-theme.mjs && vitest --ui --coverage.enabled --api.port 51204 --api.host 127.0.0.1 --api.strictPort",
     "test:coverage": "vitest run --coverage && node scripts/theme-coverage-report.mjs",
     "test:coverage:serve": "npm run test:coverage && node scripts/serve-static.mjs coverage 4174 127.0.0.1",

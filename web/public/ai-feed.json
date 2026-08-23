@@ -4,7 +4,7 @@
   "project": "RAV",
   "canonical": "https://forge.mograph.life/apps/rav/",
   "releaseStatus": {
-    "version": "2.5.0",
+    "version": "2.5.1",
     "status": "current-public-release",
     "public": true,
     "note": "Available through the normal public updater feed for supported macOS and Windows installations. Configured official builds show a first-run anonymous-reporting notice and keep the opt-out in Settings; see Privacy."
@@ -14,7 +14,7 @@
       "name": "RAV",
       "type": "SoftwareApplication",
       "url": "https://forge.mograph.life/apps/rav/",
-      "description": "RAV desktop Rive animation viewer. The public 2.5.0 release isolates playback in a dedicated WebView, uses reactive and bounded UI synchronization, provides anonymous version reporting with a first-run notice and Settings opt-out, and defaults to Latest runtime auto-selection with explicit pins, applied-editor-aware standalone export, document icons, and event inspection."
+      "description": "RAV desktop Rive animation viewer. The public 2.5.1 hotfix keeps the dedicated playback surface synchronized with controls after a file opens, restores Reset and Default in place, and clarifies that Fixed is the canvas viewport while Contain only aligns on axes with unused space. RAV also provides anonymous version reporting with a first-run notice and Settings opt-out, Latest runtime auto-selection with explicit pins, applied-editor-aware standalone export, document icons, and event inspection."
     },
     {
       "name": "IVG Design",

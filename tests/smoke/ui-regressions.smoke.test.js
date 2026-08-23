@@ -83,14 +83,45 @@ describe('ui regression smoke', () => {
 
     it('uses overflow-safe flex centering for fixed canvases', () => {
         const workspaceCss = readFileSync(path.join(repoRoot, 'styles', '03-workspace.css'), 'utf8');
+        const renderSurfaceCss = readFileSync(
+            path.join(repoRoot, 'src-tauri', 'src', 'demo-template', 'css', 'overlays.css'),
+            'utf8',
+        );
         const fixedCanvasRule = workspaceCss.match(/#canvas-container\.canvas-container-fixed-size\s*\{([^}]*)\}/)?.[1] || '';
         const fixedCanvasElementRule = workspaceCss.match(/#rive-canvas\.rive-canvas-fixed-size\s*\{([^}]*)\}/)?.[1] || '';
+        const renderSurfaceFixedCanvasRule = renderSurfaceCss.match(
+            /body\.render-surface-mode #canvas-container\.canvas-container-fixed-size\s*\{([^}]*)\}/,
+        )?.[1] || '';
+        const renderSurfaceFixedCanvasElementRule = renderSurfaceCss.match(
+            /body\.render-surface-mode #rive-canvas\.rive-canvas-fixed-size\s*\{([^}]*)\}/,
+        )?.[1] || '';
 
         expect(fixedCanvasRule).toContain('overflow: auto;');
         expect(fixedCanvasRule).toContain('align-items: flex-start;');
         expect(fixedCanvasRule).toContain('justify-content: flex-start;');
         expect(fixedCanvasElementRule).toContain('margin: auto;');
         expect(fixedCanvasElementRule).not.toContain('transform:');
+        expect(renderSurfaceFixedCanvasRule).toContain('display: flex;');
+        expect(renderSurfaceFixedCanvasRule).toContain('overflow: auto;');
+        expect(renderSurfaceFixedCanvasRule).toContain('align-items: flex-start;');
+        expect(renderSurfaceFixedCanvasRule).toContain('justify-content: flex-start;');
+        expect(renderSurfaceFixedCanvasElementRule).toContain('margin: auto;');
+        expect(renderSurfaceFixedCanvasElementRule).not.toContain('transform:');
+    });
+
+    it('keeps the FPS badge footprint stable while the child renderer connects', () => {
+        const headerCss = readFileSync(path.join(repoRoot, 'styles', '01-header-controls.css'), 'utf8');
+        const fpsIndicator = readFileSync(
+            path.join(repoRoot, 'src', 'app', 'platform', 'render-surface', 'fps-indicator.js'),
+            'utf8',
+        );
+        const fpsChipRule = headerCss.match(/\.fps-chip\s*\{([^}]*)\}/)?.[1] || '';
+        const pendingLabelRule = headerCss.match(/\.fps-chip-pending-label\s*\{([^}]*)\}/)?.[1] || '';
+
+        expect(fpsChipRule).toContain('flex: 0 0 80px;');
+        expect(fpsChipRule).toContain('width: 80px;');
+        expect(pendingLabelRule).toContain('font-size: 8px;');
+        expect(fpsIndicator).toContain('fps-chip-pending-label">ISOLATED');
     });
 
     it('keeps the main app header on the custom titlebar contract', () => {
@@ -288,6 +319,9 @@ describe('ui regression smoke', () => {
         expect(bootstrap).toContain('scheduleCanvasViewportAlignment');
         expect(bootstrap).toContain('container.scrollLeft = offsets.left;');
         expect(bootstrap).toContain('container.scrollTop = offsets.top;');
+        expect(bootstrap).toContain('currentControlSnapshot = JSON.parse(JSON.stringify(resetSnapshot));');
+        expect(bootstrap).toContain('riveInstance.reset(resetParams);');
+        expect(bootstrap).toContain('applyControlSnapshot(currentControlSnapshot);');
         expect(bootstrap).not.toContain('setupTransparencyControls');
         expect(preamble).not.toContain('DEMO_TRANSPARENCY_TOGGLE_ENABLED');
     });

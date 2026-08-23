@@ -3,6 +3,7 @@ import {
     createShellController,
     parseCssPixels,
 } from '../../../src/app/ui/shell-controller.js';
+import { RAV_PRESENTATION_CHANGED_EVENT } from '../../../src/app/rive/control-events.js';
 
 function createElements() {
     document.body.innerHTML = `
@@ -87,7 +88,14 @@ describe('ui/shell-controller', () => {
 
     it('handles runtime and layout changes and captures layout state', async () => {
         const elements = createElements();
-        const ensureRuntime = vi.fn().mockResolvedValue(undefined);
+        const runtime = {
+            Alignment: { TopLeft: Symbol('TopLeft') },
+            Fit: { Cover: Symbol('Cover') },
+            Layout: class Layout {},
+        };
+        const copyWith = vi.fn((nextLayout) => ({ ...nextLayout, copyWith }));
+        const riveInstance = { layout: { copyWith } };
+        const ensureRuntime = vi.fn().mockResolvedValue(runtime);
         const reloadCurrentAnimation = vi.fn().mockResolvedValue(undefined);
         let currentRuntime = 'webgl2';
         let currentLayoutAlignment = 'center';
@@ -121,6 +129,8 @@ describe('ui/shell-controller', () => {
             })),
             removeEventListener: vi.fn(),
         };
+        const presentationChanges = [];
+        document.addEventListener(RAV_PRESENTATION_CHANGED_EVENT, (event) => presentationChanges.push(event.detail));
         const controller = createShellController({
             callbacks: {
                 ensureRuntime,
@@ -130,6 +140,7 @@ describe('ui/shell-controller', () => {
                 getCurrentLayoutFit: () => currentLayoutFit,
                 getCurrentRuntime: () => currentRuntime,
                 getEventLogFilterState: () => ({ native: true }),
+                getRiveInstance: () => riveInstance,
                 getTauriInvoker: () => vi.fn(),
                 handleResize,
                 reloadCurrentAnimation,
@@ -165,12 +176,26 @@ describe('ui/shell-controller', () => {
         elements.layoutSelect.value = 'cover';
         elements.layoutSelect.dispatchEvent(new Event('change'));
         await Promise.resolve();
+        await Promise.resolve();
         expect(setCurrentLayoutFit).toHaveBeenCalledWith('cover');
+        expect(copyWith).toHaveBeenLastCalledWith(expect.objectContaining({
+            fit: runtime.Fit.Cover,
+        }));
+        expect(reloadCurrentAnimation).toHaveBeenCalledTimes(1);
 
         elements.alignmentSelect.value = 'topLeft';
         elements.alignmentSelect.dispatchEvent(new Event('change'));
         await Promise.resolve();
+        await Promise.resolve();
         expect(setCurrentLayoutAlignment).toHaveBeenCalledWith('topLeft');
+        expect(copyWith).toHaveBeenLastCalledWith(expect.objectContaining({
+            alignment: runtime.Alignment.TopLeft,
+        }));
+        expect(reloadCurrentAnimation).toHaveBeenCalledTimes(1);
+        expect(presentationChanges).toEqual([
+            { layoutFit: 'cover' },
+            { layoutAlignment: 'topLeft' },
+        ]);
 
         elements.toggleRightPanelButton.click();
         timeoutCallbacks[timeoutCallbacks.length - 1]();
@@ -204,6 +229,14 @@ describe('ui/shell-controller', () => {
         });
         Object.defineProperty(elements.canvasContainer, 'clientWidth', { configurable: true, value: 960 });
         Object.defineProperty(elements.canvasContainer, 'clientHeight', { configurable: true, value: 540 });
+        const canvas = document.createElement('canvas');
+        canvas.id = 'rive-canvas';
+        canvas.width = 1920;
+        canvas.height = 1080;
+        canvas.getBoundingClientRect = () => ({ height: 540, width: 960 });
+        elements.canvasContainer.appendChild(canvas);
+        const presentationChanges = [];
+        document.addEventListener(RAV_PRESENTATION_CHANGED_EVENT, (event) => presentationChanges.push(event.detail));
         const controller = createShellController({
             callbacks: {
                 getCurrentCanvasSizing: () => currentCanvasSizing,
@@ -249,6 +282,9 @@ describe('ui/shell-controller', () => {
             width: 960,
             height: 540,
         }));
+        expect(presentationChanges.at(-1)).toEqual({
+            canvasSizing: expect.objectContaining({ mode: 'fixed', width: 960, height: 540 }),
+        });
 
         currentCanvasSizing = {
             mode: 'fixed',

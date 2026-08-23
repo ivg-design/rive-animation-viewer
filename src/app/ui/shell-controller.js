@@ -1,4 +1,6 @@
 import { LAYOUT_ALIGNMENTS, LAYOUT_FITS } from '../core/constants.js';
+import { resolveRiveAlignment, resolveRiveFit } from '../core/rive-layout.js';
+import { dispatchPresentationChanged } from '../rive/control-events.js';
 import { createDemoButtonController } from './layout/demo-button.js';
 import { setupCenterPanelResizer, setupShellPanelResizers } from './layout/resizers.js';
 import { createCanvasSizingControlsController } from './settings/canvas-sizing-controls.js';
@@ -31,6 +33,7 @@ export function createShellController({
         getCurrentLayoutFit = () => 'contain',
         getCurrentRuntime = () => 'webgl2',
         getEventLogFilterState = () => ({}),
+        getRiveInstance = () => null,
         getTauriInvoker = () => null,
         handleResize = () => {},
         loadRiveAnimation = async () => {},
@@ -188,6 +191,26 @@ export function createShellController({
         });
     }
 
+    async function applyLiveLayout() {
+        const instance = getRiveInstance();
+        if (!instance) {
+            return false;
+        }
+        const runtime = await ensureRuntime(getCurrentRuntime());
+        if (!runtime?.Layout) {
+            return false;
+        }
+        const nextLayout = {
+            alignment: resolveRiveAlignment(runtime, getCurrentLayoutAlignment()),
+            fit: resolveRiveFit(runtime, getCurrentLayoutFit()),
+        };
+        instance.layout = typeof instance.layout?.copyWith === 'function'
+            ? instance.layout.copyWith(nextLayout)
+            : new runtime.Layout(nextLayout);
+        handleResize();
+        return true;
+    }
+
     function setupLayoutSelect() {
         const select = elements.layoutSelect;
         if (!select) return;
@@ -203,12 +226,13 @@ export function createShellController({
                 return;
             }
             setCurrentLayoutFit(selected);
+            dispatchPresentationChanged(documentRef, { layoutFit: selected });
             updateInfo(`Layout fit set to: ${selected}`);
             logEvent('ui', 'layout-change', `Layout fit set to ${selected}`);
             try {
-                await reloadActiveAnimation();
-            } catch {
-                /* reloadCurrentAnimation already reports errors */
+                await applyLiveLayout();
+            } catch (error) {
+                showError(`Failed to apply layout fit: ${error?.message || error}`);
             }
         });
     }
@@ -228,12 +252,13 @@ export function createShellController({
                 return;
             }
             setCurrentLayoutAlignment(selected);
+            dispatchPresentationChanged(documentRef, { layoutAlignment: selected });
             updateInfo(`Layout alignment set to: ${selected}`);
             logEvent('ui', 'alignment-change', `Layout alignment set to ${selected}`);
             try {
-                await reloadActiveAnimation();
-            } catch {
-                /* reloadCurrentAnimation already reports errors */
+                await applyLiveLayout();
+            } catch (error) {
+                showError(`Failed to apply layout alignment: ${error?.message || error}`);
             }
         });
     }
