@@ -46,7 +46,7 @@ Tokens are exactly 22 unpadded base64url characters (128 bits). Schema v2 uses t
 
 ## Test locally
 
-No package installation is required for the focused unit tests:
+No package installation is required for the focused unit tests. They require Node.js 22.13 or newer because the migration checks use the built-in `node:sqlite` module; the release pipeline is pinned to Node.js 24.20.0.
 
 ```bash
 cd telemetry/worker

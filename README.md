@@ -414,7 +414,7 @@ rive-local/
 
 ### Prerequisites
 - Rust toolchain (`rustup`)
-- Node.js 20.19+
+- Node.js 22.13+ (the release pipeline is pinned to Node.js 24.20.0)
 - Xcode Command Line Tools (macOS)
 
 ### Build Commands

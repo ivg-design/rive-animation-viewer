@@ -69,4 +69,27 @@ describe('platform/render-source-identity', () => {
         const resolveIdentity = createResolver();
         await expect(resolveIdentity(null, 'path:/private/demo.riv')).resolves.toBeNull();
     });
+
+    it('normalizes digest input into the WebCrypto host realm when Buffer is available', async () => {
+        const digestInputs = [];
+        const resolveIdentity = createRenderSourceIdentityResolver({
+            BufferCtor: Buffer,
+            cryptoApi: {
+                subtle: {
+                    async digest(algorithm, input) {
+                        digestInputs.push(input);
+                        return webcrypto.subtle.digest(algorithm, input);
+                    },
+                },
+            },
+        });
+
+        await expect(resolveIdentity(
+            Uint8Array.from([1, 3, 3, 7]).buffer,
+            'path:cross-realm.riv',
+        )).resolves.toMatch(/^riv-source-v1:[0-9a-f]{64}$/);
+
+        expect(digestInputs).toHaveLength(2);
+        expect(digestInputs.every((input) => Buffer.isBuffer(input))).toBe(true);
+    });
 });

@@ -45,7 +45,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
-          node-version: "20.19.4"
+          node-version: "24.20.0"
 
       - name: Resolve and verify release version
         id: meta
@@ -292,7 +292,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
-          node-version: "20.19.4"
+          node-version: "24.20.0"
           cache: npm
 
       - name: Install Rust toolchain
@@ -450,7 +450,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
-          node-version: "20.19.4"
+          node-version: "24.20.0"
           cache: npm
 
       - name: Install Rust toolchain
@@ -495,7 +495,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
-          node-version: "20.19.4"
+          node-version: "24.20.0"
 
       - name: Download and inventory the draft release
         shell: bash
@@ -590,7 +590,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
-          node-version: "20.19.4"
+          node-version: "24.20.0"
 
       - name: Download verified updater assets
         env:

@@ -21,9 +21,16 @@ function joinIdentityMaterial(preferenceBytes, contentDigest) {
     return material;
 }
 
+function normalizeDigestInput(bytes, BufferCtor) {
+    if (!BufferCtor || typeof BufferCtor.from !== 'function') return bytes;
+    const source = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : bytes;
+    return BufferCtor.from(Array.from(source));
+}
+
 export function createRenderSourceIdentityResolver({
     cryptoApi = globalThis.crypto,
     TextEncoderCtor = globalThis.TextEncoder,
+    BufferCtor = globalThis.Buffer,
 } = {}) {
     const contentDigests = new WeakMap();
     const encoder = new TextEncoderCtor();
@@ -32,7 +39,9 @@ export function createRenderSourceIdentityResolver({
         if (!cryptoApi?.subtle?.digest) {
             throw new Error('Secure source identity hashing is unavailable.');
         }
-        return new Uint8Array(await cryptoApi.subtle.digest('SHA-256', bytes));
+        return new Uint8Array(
+            await cryptoApi.subtle.digest('SHA-256', normalizeDigestInput(bytes, BufferCtor)),
+        );
     }
 
     function resolveContentDigest(buffer) {
