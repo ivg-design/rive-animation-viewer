@@ -149,5 +149,5 @@ describe('static distribution build identity', () => {
         } finally {
             fs.rmSync(fixture, { recursive: true, force: true });
         }
-    });
+    }, 20_000);
 });

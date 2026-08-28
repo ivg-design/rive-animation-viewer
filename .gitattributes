@@ -1,1 +1,4 @@
 src-tauri/Cargo.toml text eol=lf
+*.cjs text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf

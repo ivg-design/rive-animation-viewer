@@ -54,7 +54,7 @@ describe('isolated DEV MCP acceptance harness safety', () => {
 
     it('pins the exact sidecar digest before loading a scenario or spawning MCP', () => {
         const result = runHarness([
-            '--sidecar', '/usr/bin/true',
+            '--sidecar', process.execPath,
             '--port', '9278',
             '--scenario', '/tmp/does-not-exist-rav-scenario.json',
             '--expected-build', 'b0217-20260827-0300-645bfa9',
