@@ -70,7 +70,7 @@ All notable released changes to this project are documented in this file.
 
 ### Changed
 
-- **Release availability** — `2.4.3` is the current public GitHub release and is available through the normal `latest.json` updater feed.
+- **Release availability** — `2.4.3` was the current public GitHub release and was available through the normal `latest.json` updater feed.
 - **Safe runtime default** — Web 2.40.0 / runtime-v0.1.271 remains selectable, but live RAV MCP testing proved that it can double-offset nested, data-bound images in both WebGL2 and Canvas. RAV defaults to 2.39.2, where the authored layout is preserved. A one-time migration changes stored `latest` and `2.40.0` preferences to 2.39.2; explicitly choosing either again shows an authored-layout warning. Canary v0.1.272 remains separate.
 
 ### Fixed

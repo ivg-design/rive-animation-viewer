@@ -5,16 +5,16 @@
   "canonical": "https://forge.mograph.life/apps/rav/",
   "releaseStatus": {
     "version": "2.5.2",
-    "status": "release-candidate",
-    "public": false,
-    "note": "2.5.2 is a release candidate and is not yet available through the public updater feed. Configured official builds show a first-run anonymous-reporting notice and keep the opt-out in Settings; see Privacy."
+    "status": "public",
+    "public": true,
+    "note": "2.5.2 is the current public release and is available through the public updater feed. Configured official builds show a first-run anonymous-reporting notice and keep the opt-out in Settings; see Privacy."
   },
   "entities": [
     {
       "name": "RAV",
       "type": "SoftwareApplication",
       "url": "https://forge.mograph.life/apps/rav/",
-      "description": "RAV desktop Rive animation viewer. The 2.5.2 release candidate makes file, artboard, playback-target, and ViewModel-instance replacement transactional so the last confirmed frame remains visible until its successor is ready. It adds timeline progress in frames or seconds, reliable warm file opens, two-way scalar/image/list control synchronization, explicit macOS default-app and icon controls, and a final anonymous opt-out status before reporting stops."
+      "description": "RAV desktop Rive animation viewer. The 2.5.2 release makes file, artboard, playback-target, and ViewModel-instance replacement transactional so the last confirmed frame remains visible until its successor is ready. It adds timeline progress in frames or seconds, reliable warm file opens, two-way scalar/image/list control synchronization, explicit macOS default-app and icon controls, and a final anonymous opt-out status before reporting stops."
     },
     {
       "name": "IVG Design",

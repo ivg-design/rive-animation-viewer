@@ -8,7 +8,7 @@ last_updated: 2026-08-27
 language: en
 
 ## Purpose
-RAV is a standalone desktop app for inspecting, debugging, and testing Rive (.riv) files offline. Version 2.5.2 is a release candidate and is not yet available through the public updater feed.
+RAV is a standalone desktop app for inspecting, debugging, and testing Rive (.riv) files offline. Version 2.5.2 is the current public release and is available through the public updater feed.
 
 ## Canonical Sources
 - Home: https://forge.mograph.life/apps/rav/

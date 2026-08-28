@@ -90,10 +90,6 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
 
       {/* Content */}
       <main className="max-w-3xl mx-auto px-6 py-16 md:py-20">
-        <div className="mb-8 rounded-xl border border-[var(--neon)]/30 bg-[var(--neon-dim)] px-4 py-3 text-sm text-[var(--text-dim)]">
-          <strong className="text-[var(--neon)]">2.5.2 release candidate.</strong>{" "}
-          It is not yet in the public GitHub download or normal updater feed.
-        </div>
         <div className="docs-content">
           {children}
         </div>

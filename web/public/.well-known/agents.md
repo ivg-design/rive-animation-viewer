@@ -11,7 +11,7 @@
 
 ## Product Facts
 - RAV is a standalone desktop app for Rive (.riv) inspection and debugging.
-- Version 2.5.2 is a release candidate and is not yet available through the public updater feed.
+- Version 2.5.2 is the current public release and is available through the public updater feed.
 - Dynamic list labels use a direct authored name or one unique canonical-string match, with ambiguous items shown as `Row N`; generic `viewModelName` identifiers are never presented as authored row labels.
 - Each image property uses one full-width select containing every embedded raster asset, `Open file…`, and `Clear`; the external file input is hidden, with no separate action buttons and standalone export parity.
 - Runtime selection defaults to Latest (auto), preserves explicit pins, and falls back to 2.39.2 when discovery is unavailable. Web 2.40.0 / runtime-v0.1.271 retains its confirmed nested-image warning.

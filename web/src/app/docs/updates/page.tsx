@@ -45,8 +45,8 @@ export default function Updates() {
         advance installed clients.
       </p>
       <p>
-        Version 2.5.2 is a release candidate. It will appear in the normal update feed for
-        supported macOS and Windows installations after publication.
+        Version 2.5.2 is the current public release and is available through the normal
+        update feed for supported macOS and Windows installations.
       </p>
 
       <h2>Two Trust Layers</h2>

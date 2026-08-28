@@ -7,7 +7,7 @@ language: en
 site_type: product-marketing + technical documentation
 
 ## 1) Product Definition
-RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.riv) animations outside the Rive editor. Version 2.5.2 is a release candidate and is not yet available through the public updater feed.
+RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.riv) animations outside the Rive editor. Version 2.5.2 is the current public release and is available through the public updater feed.
 
 ## 2) Primary Entities
 - RAV: SoftwareApplication / DeveloperApplication
@@ -42,7 +42,7 @@ RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.
 - Keyboard shortcut reference: https://forge.mograph.life/apps/rav/docs#keyboard-shortcuts
 
 ## 5) Platform and Distribution Signals
-- 2.5.2 status: release candidate; not yet published through the public updater feed.
+- 2.5.2 status: current public release; available through the public updater feed.
 - Product + downloads context: https://forge.mograph.life/apps/rav/
 - Release downloads endpoint: https://github.com/ivg-design/rive-animation-viewer/releases/latest
 - Source repository references:

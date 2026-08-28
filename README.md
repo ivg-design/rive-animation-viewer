@@ -4,9 +4,9 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Prepared release candidate: `2.5.2` (not yet published).
-- Public downloads and the normal public `latest.json` updater feed remain on the most recently published release until 2.5.2 is released.
-- The exact `chore(release): v2.5.2` commit becomes the candidate release source once it lands on `main`.
+- Current public release: `2.5.2`.
+- Public downloads and the normal public `latest.json` updater feed deliver 2.5.2.
+- Release source: the exact `chore(release): v2.5.2` commit on `main`.
 - macOS downloads and updater apps are Developer ID signed, notarized, and stapled; updater payloads retain their separate update signatures.
 
 ## Regression Gates
