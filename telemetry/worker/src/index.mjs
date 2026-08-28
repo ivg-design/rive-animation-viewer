@@ -12,12 +12,49 @@ const INSERT_EVENT_SQL = `
     (event_type, period, token_digest, release, received_at)
   VALUES (?, ?, ?, ?, ?)
 `;
+const INSERT_INSTALL_EVENT_SQL = `
+  INSERT OR IGNORE INTO anonymous_events
+    (event_type, period, token_digest, release, received_at)
+  SELECT ?, ?, ?, ?, ?
+  WHERE NOT EXISTS (
+    SELECT 1 FROM anonymous_install_status WHERE token_digest = ?
+  )
+`;
+const UPSERT_INSTALL_STATUS_SQL = `
+  INSERT INTO anonymous_install_status
+    (token_digest, status, preference_generation, release, updated_at)
+  VALUES (?, ?, ?, ?, ?)
+  ON CONFLICT(token_digest)
+  DO UPDATE SET
+    status = excluded.status,
+    preference_generation = excluded.preference_generation,
+    release = excluded.release,
+    updated_at = excluded.updated_at
+  WHERE excluded.preference_generation > anonymous_install_status.preference_generation
+`;
+const INSERT_CURRENT_MONTHLY_EVENT_SQL = `
+  INSERT OR IGNORE INTO anonymous_events
+    (event_type, period, token_digest, release, received_at)
+  SELECT ?, ?, ?, ?, ?
+  WHERE EXISTS (
+    SELECT 1
+    FROM anonymous_install_status
+    WHERE token_digest = ?
+      AND status = 'enabled'
+      AND preference_generation = ?
+  )
+`;
 const DELETE_EXPIRED_DIGESTS_SQL = `
   DELETE FROM anonymous_events
   WHERE received_at < ?
 `;
 const DIGEST_RETENTION_DAYS = 90;
-const HEALTH_SQL = 'SELECT COUNT(*) AS total FROM anonymous_counts';
+const HEALTH_SQL = `
+  SELECT
+    (SELECT COUNT(*) FROM anonymous_counts)
+    + (SELECT COUNT(*) + COALESCE(SUM(preference_generation), 0) * 0
+       FROM anonymous_install_status) AS total
+`;
 const INSTALL_TOTAL_SQL = `
   SELECT COALESCE(SUM(total), 0) AS total
   FROM anonymous_counts
@@ -81,7 +118,9 @@ export function validateEventPayload(value, now = new Date()) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new RequestError(400);
   }
-  if (value.schema !== 1 || !['install', 'monthly_active'].includes(value.event)) {
+  if (![1, 2].includes(value.schema)
+    || !['install', 'monthly_active', 'telemetry_off'].includes(value.event)
+    || (value.schema === 1 && value.event === 'telemetry_off')) {
     throw new RequestError(400);
   }
   if (typeof value.token !== 'string' || !TOKEN_PATTERN.test(value.token)) {
@@ -95,20 +134,56 @@ export function validateEventPayload(value, now = new Date()) {
     throw new RequestError(400);
   }
 
+  const v2Keys = ['schema', 'event', 'token', 'release', 'preferenceGeneration'];
+  if (value.schema === 2 && (
+    !Number.isSafeInteger(value.preferenceGeneration)
+    || value.preferenceGeneration < 0
+  )) {
+    throw new RequestError(400);
+  }
+
   if (value.event === 'install') {
-    if (!exactKeys(value, ['schema', 'event', 'token', 'release'])) {
+    const expected = value.schema === 2
+      ? [...v2Keys, 'establishInstall']
+      : ['schema', 'event', 'token', 'release'];
+    if (!exactKeys(value, expected)
+      || (value.schema === 2 && typeof value.establishInstall !== 'boolean')) {
       throw new RequestError(400);
     }
     return {
       event: value.event,
+      establishInstall: value.schema === 2 ? value.establishInstall : true,
       period: '',
+      preferenceGeneration: value.schema === 2 ? value.preferenceGeneration : 0,
       release: value.release,
+      schema: value.schema,
+      token: value.token,
+    };
+  }
+
+  if (value.event === 'telemetry_off') {
+    if (
+      value.schema !== 2
+      || !exactKeys(value, [...v2Keys, 'status', 'establishInstall'])
+      || value.status !== 'disabled'
+      || typeof value.establishInstall !== 'boolean'
+    ) {
+      throw new RequestError(400);
+    }
+    return {
+      event: value.event,
+      establishInstall: value.establishInstall,
+      period: '',
+      preferenceGeneration: value.preferenceGeneration,
+      release: value.release,
+      schema: value.schema,
+      status: value.status,
       token: value.token,
     };
   }
 
   if (
-    !exactKeys(value, ['schema', 'event', 'token', 'release', 'period'])
+    !exactKeys(value, value.schema === 2 ? [...v2Keys, 'period'] : ['schema', 'event', 'token', 'release', 'period'])
     || typeof value.period !== 'string'
     || !PERIOD_PATTERN.test(value.period)
     || !periodIsNearCurrent(value.period, now)
@@ -118,7 +193,9 @@ export function validateEventPayload(value, now = new Date()) {
   return {
     event: value.event,
     period: value.period,
+    preferenceGeneration: value.schema === 2 ? value.preferenceGeneration : 0,
     release: value.release,
+    schema: value.schema,
     token: value.token,
   };
 }
@@ -184,27 +261,52 @@ export async function digestToken({ event, period, token }, pepper, subtle = glo
   return toHex(digest);
 }
 
-async function storeEvent(database, event, digest, receivedAt) {
+async function runStatement(database, sql, bindings) {
+  const result = await database.prepare(sql).bind(...bindings).run();
+  if (result?.success === false) {
+    throw new Error('counter storage is unavailable');
+  }
+}
+
+async function storeEvent(database, event, eventDigest, installDigest, receivedAt) {
   if (!database?.prepare) {
     throw new Error('counter storage is unavailable');
   }
-  const result = await database
-    .prepare(INSERT_EVENT_SQL)
-    .bind(event.event, event.period, digest, event.release, receivedAt)
-    .run();
-  if (result?.success === false) {
-    throw new Error('counter storage is unavailable');
+  const isInstallIdentity = event.event === 'install' || event.event === 'telemetry_off';
+  if (isInstallIdentity) {
+    if (event.establishInstall) {
+      await runStatement(database, INSERT_INSTALL_EVENT_SQL, [
+        'install', '', installDigest, event.release, receivedAt, installDigest,
+      ]);
+    }
+    await runStatement(database, UPSERT_INSTALL_STATUS_SQL, [
+      installDigest,
+      event.event === 'telemetry_off' ? 'disabled' : 'enabled',
+      event.preferenceGeneration,
+      event.release,
+      receivedAt,
+    ]);
+  } else if (event.schema === 2) {
+    await runStatement(database, INSERT_CURRENT_MONTHLY_EVENT_SQL, [
+      event.event,
+      event.period,
+      eventDigest,
+      event.release,
+      receivedAt,
+      installDigest,
+      event.preferenceGeneration,
+    ]);
+  } else {
+    // Compatibility for released schema-v1 clients. Those clients cannot send
+    // telemetry_off and use unlinkable rotating monthly tokens.
+    await runStatement(database, INSERT_EVENT_SQL, [
+      event.event, event.period, eventDigest, event.release, receivedAt,
+    ]);
   }
   const retentionCutoff = new Date(
     new Date(receivedAt).getTime() - DIGEST_RETENTION_DAYS * 24 * 60 * 60 * 1_000,
   ).toISOString();
-  const cleanup = await database
-    .prepare(DELETE_EXPIRED_DIGESTS_SQL)
-    .bind(retentionCutoff)
-    .run();
-  if (cleanup?.success === false) {
-    throw new Error('counter storage is unavailable');
-  }
+  await runStatement(database, DELETE_EXPIRED_DIGESTS_SQL, [retentionCutoff]);
 }
 
 async function storageIsHealthy(env) {
@@ -279,11 +381,20 @@ export async function handleRequest(request, env, {
 
     const received = now();
     const event = validateEventPayload(parsed, received);
-    const digest = await digestToken(event, env?.TOKEN_PEPPER, subtle);
+    // An opt-out deliberately uses the existing installation identifier. Use
+    // the same HMAC domain as install so D1 can update that installation's
+    // status without ever storing the raw identifier.
+    const eventIdentity = event.event === 'telemetry_off'
+      ? { ...event, event: 'install' }
+      : event;
+    const eventDigest = await digestToken(eventIdentity, env?.TOKEN_PEPPER, subtle);
+    const installDigest = event.schema === 2
+      ? await digestToken({ event: 'install', period: '', token: event.token }, env?.TOKEN_PEPPER, subtle)
+      : eventDigest;
     if (!(await writeIsAllowed(env))) {
       return response(429, 'too many requests', { 'retry-after': '60' });
     }
-    await storeEvent(env?.DB, event, digest, received.toISOString());
+    await storeEvent(env?.DB, event, eventDigest, installDigest, received.toISOString());
     return response(204);
   } catch (error) {
     if (error instanceof RequestError) {

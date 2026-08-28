@@ -193,4 +193,25 @@ describe('platform/install-counter/controller', () => {
         await vi.waitFor(() => expect(elements.installCounterEnabledButton.disabled).toBe(false));
         expect(elements.installCounterEnabledButton.textContent).toBe('OFF');
     });
+
+    it('reports availability and busy state independently during a delayed update', async () => {
+        let resolveMutation;
+        const mutation = new Promise((resolve) => { resolveMutation = resolve; });
+        const { controller } = harness({ mutate: () => mutation });
+        await controller.setup();
+
+        const changing = controller.setEnabled(false);
+        expect(controller.getStatusSnapshot()).toEqual(expect.objectContaining({
+            available: true,
+            busy: true,
+            enabled: true,
+        }));
+        resolveMutation({ available: true, enabled: false, noticeRequired: false });
+        await expect(changing).resolves.toBe(true);
+        expect(controller.getStatusSnapshot()).toEqual(expect.objectContaining({
+            available: true,
+            busy: false,
+            enabled: false,
+        }));
+    });
 });

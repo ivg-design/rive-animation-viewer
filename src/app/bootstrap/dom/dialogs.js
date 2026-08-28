@@ -3,7 +3,7 @@ const APP_DIALOGS_HTML = `
   <div class="mcp-setup-content">
     <div class="mcp-setup-header">
       <h2>MCP Setup</h2>
-      <button type="button" id="mcp-setup-close-btn" class="icon-btn icon-btn-ghost" aria-label="Close">
+      <button type="button" id="mcp-setup-close-btn" class="icon-btn icon-btn-ghost rav-modal-close" aria-label="Close dialog">
         <i data-lucide="x" class="lucide-18"></i>
       </button>
     </div>
@@ -114,7 +114,7 @@ const APP_DIALOGS_HTML = `
         <h2>Snippet &amp; Export Controls</h2>
         <p>Choose exactly which bound ViewModel and state-machine values should be serialized into generated snippets and exported demos.</p>
       </div>
-      <button type="button" id="instantiation-controls-close-btn" class="icon-btn icon-btn-ghost" aria-label="Close">
+      <button type="button" id="instantiation-controls-close-btn" class="icon-btn icon-btn-ghost rav-modal-close" aria-label="Close dialog">
         <i data-lucide="x" class="lucide-18"></i>
       </button>
     </div>

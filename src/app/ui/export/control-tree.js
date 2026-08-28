@@ -51,12 +51,27 @@ export function countConcreteControls(node, selectedKeys = new Set()) {
     return { selected, total };
 }
 
-function getTreeNodeKey(node, parentKey = '') {
+export function getTreeNodeKey(node, parentKey = '') {
     const ownKey = [node?.kind || 'node', node?.path || '', node?.label || ''].join(':');
     return parentKey ? `${parentKey}>${ownKey}` : ownKey;
 }
 
-function createInputRow({ depth, documentRef, input, onSelectionChange, selectedKeys }) {
+export function collectTreeNodeInputKeys(currentHierarchy, targetNodeKey) {
+    let result = null;
+    const visit = (node, parentKey = '') => {
+        if (!node || result) return;
+        const nodeKey = getTreeNodeKey(node, parentKey);
+        if (nodeKey === targetNodeKey) {
+            result = collectNodeInputKeys(node);
+            return;
+        }
+        (node.children || []).forEach((child) => visit(child, nodeKey));
+    };
+    (currentHierarchy?.children || []).forEach((node) => visit(node));
+    return result || new Set();
+}
+
+function createInputRow({ depth, documentRef, input, onSelectionChange, onSelectionToggle, selectedKeys }) {
     const row = documentRef.createElement('label');
     row.className = 'instantiation-input-row';
     row.style.setProperty('--tree-depth', String(depth));
@@ -68,6 +83,10 @@ function createInputRow({ depth, documentRef, input, onSelectionChange, selected
     checkbox.disabled = !key;
     checkbox.addEventListener('change', () => {
         if (!key) return;
+        if (typeof onSelectionToggle === 'function') {
+            onSelectionToggle(key, checkbox.checked);
+            return;
+        }
         const nextSelection = new Set(selectedKeys);
         if (checkbox.checked) nextSelection.add(key);
         else nextSelection.delete(key);
@@ -92,7 +111,10 @@ function createTreeNode({
     documentRef,
     expandedBranchKeys,
     node,
+    onExpandedBranchChange,
+    onBranchSelectionChange,
     onSelectionChange,
+    onSelectionToggle,
     parentKey = '',
     selectedKeys,
 }) {
@@ -105,11 +127,13 @@ function createTreeNode({
 
     const details = documentRef.createElement('details');
     details.className = 'instantiation-tree-branch';
+    details.dataset.branchKey = nodeKey;
     details.open = expandedBranchKeys.has(nodeKey) ? true : depth < 1;
     if (details.open) expandedBranchKeys.add(nodeKey);
     details.addEventListener('toggle', () => {
         if (details.open) expandedBranchKeys.add(nodeKey);
         else expandedBranchKeys.delete(nodeKey);
+        onExpandedBranchChange?.(nodeKey, details.open);
     });
 
     const summary = documentRef.createElement('summary');
@@ -120,6 +144,10 @@ function createTreeNode({
     checkbox.indeterminate = counts.selected > 0 && counts.selected < counts.total;
     checkbox.addEventListener('click', (event) => event.stopPropagation());
     checkbox.addEventListener('change', () => {
+        if (typeof onBranchSelectionChange === 'function') {
+            onBranchSelectionChange(nodeKey, checkbox.checked);
+            return;
+        }
         const nextSelection = new Set(selectedKeys);
         branchKeys.forEach((key) => {
             if (checkbox.checked) nextSelection.add(key);
@@ -140,7 +168,14 @@ function createTreeNode({
     const body = documentRef.createElement('div');
     body.className = 'instantiation-tree-body';
     (node.inputs || []).forEach((input) => {
-        body.appendChild(createInputRow({ depth: depth + 1, documentRef, input, onSelectionChange, selectedKeys }));
+        body.appendChild(createInputRow({
+            depth: depth + 1,
+            documentRef,
+            input,
+            onSelectionChange,
+            onSelectionToggle,
+            selectedKeys,
+        }));
     });
     (node.children || []).forEach((child) => {
         body.appendChild(createTreeNode({
@@ -148,7 +183,10 @@ function createTreeNode({
             documentRef,
             expandedBranchKeys,
             node: child,
+            onBranchSelectionChange,
+            onExpandedBranchChange,
             onSelectionChange,
+            onSelectionToggle,
             parentKey: nodeKey,
             selectedKeys,
         }));
@@ -170,7 +208,10 @@ export function renderControlHierarchyTree({
     currentHierarchy,
     documentRef = globalThis.document,
     expandedBranchKeys = new Set(),
+    onBranchSelectionChange = null,
     onSelectionChange = () => {},
+    onSelectionToggle = null,
+    onExpandedBranchChange = () => {},
     selectedKeys = new Set(),
     treeElement,
 } = {}) {
@@ -190,8 +231,43 @@ export function renderControlHierarchyTree({
             documentRef,
             expandedBranchKeys,
             node,
+            onBranchSelectionChange,
+            onExpandedBranchChange,
             onSelectionChange,
+            onSelectionToggle,
             selectedKeys,
         }));
+    });
+}
+
+export function updateControlHierarchySelection({
+    currentHierarchy,
+    selectedKeys = new Set(),
+    treeElement,
+} = {}) {
+    if (!treeElement || !currentHierarchy) return;
+
+    treeElement.querySelectorAll('[data-control-key]').forEach((checkbox) => {
+        checkbox.checked = selectedKeys.has(checkbox.getAttribute('data-control-key'));
+    });
+
+    const branchCounts = new Map();
+    const visit = (node, parentKey = '') => {
+        if (!node) return;
+        const nodeKey = getTreeNodeKey(node, parentKey);
+        branchCounts.set(nodeKey, countConcreteControls(node, selectedKeys));
+        (node.children || []).forEach((child) => visit(child, nodeKey));
+    };
+    (currentHierarchy.children || []).forEach((node) => visit(node));
+
+    treeElement.querySelectorAll('details[data-branch-key]').forEach((details) => {
+        const counts = branchCounts.get(details.dataset.branchKey);
+        const summary = details.firstElementChild;
+        const checkbox = summary?.querySelector?.('input[type="checkbox"]');
+        const badge = summary?.querySelector?.('.instantiation-tree-badge');
+        if (!counts || !checkbox) return;
+        checkbox.checked = counts.total > 0 && counts.selected === counts.total;
+        checkbox.indeterminate = counts.selected > 0 && counts.selected < counts.total;
+        if (badge) badge.textContent = counts.total ? `${counts.selected}/${counts.total}` : '0';
     });
 }

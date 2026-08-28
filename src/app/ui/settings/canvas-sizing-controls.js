@@ -1,6 +1,7 @@
 import {
     buildCanvasSizingStateFromViewport,
     formatAspectRatioLabel,
+    isValidCanvasDimensionInput,
     normalizeCanvasSizingState,
     setCanvasSizingLock,
     setCanvasSizingMode,
@@ -102,6 +103,16 @@ export function createCanvasSizingControlsController({
                 return;
             }
             const baseline = normalizeCanvasSizingState(getCurrentCanvasSizing());
+            if (!isValidCanvasDimensionInput(input.value)) {
+                input.value = String(baseline[dimension === 'height' ? 'height' : 'width']);
+                input.removeAttribute('aria-invalid');
+                input.setCustomValidity('');
+                input.removeAttribute('title');
+                return;
+            }
+            input.removeAttribute('aria-invalid');
+            input.setCustomValidity('');
+            input.removeAttribute('title');
             const nextState = updateCanvasSizingDimension(
                 setCanvasSizingMode(baseline, 'fixed'),
                 dimension,

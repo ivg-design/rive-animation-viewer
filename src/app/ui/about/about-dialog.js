@@ -5,6 +5,7 @@ import {
     ABOUT_LINKS,
     buildDependencyEntries,
 } from './about-data.js';
+import { measureDialogOverlay } from '../overlay/dialog-bounds.js';
 
 function createSectionHeading(documentRef, text) {
     const heading = documentRef.createElement('h3');
@@ -58,11 +59,14 @@ export function createAboutDialogController({
         getCurrentRuntimeVersion = () => 'latest',
         getOpenExternalUrl = () => null,
         getTauriEventListener = () => null,
+        requestUiOverlay = null,
     } = callbacks;
 
     let dialog = null;
     let dependencyList = null;
     let dependencyStatus = null;
+    let dependencyEntries = [];
+    let dependencyError = null;
     let loadedDependencies = false;
     let menuHookRetryTimer = null;
     let tauriAboutUnlisten = null;
@@ -109,7 +113,7 @@ export function createAboutDialogController({
                         </div>
                     </div>
                     <div class="about-dialog-hero-side">
-                        <button type="button" class="icon-btn icon-btn-ghost about-dialog-close" aria-label="Close">
+                        <button type="button" class="icon-btn icon-btn-ghost rav-modal-close about-dialog-close" aria-label="Close dialog">
                             <i data-lucide="x" class="lucide-18"></i>
                         </button>
                         <div class="about-dialog-build-pill">v<span data-about-version></span> · <span data-about-build></span></div>
@@ -196,6 +200,8 @@ export function createAboutDialogController({
             }
             const packageData = await response.json();
             const entries = buildDependencyEntries(packageData);
+            dependencyEntries = entries;
+            dependencyError = null;
             dependencyList.replaceChildren();
             entries.forEach(({ name, version }) => {
                 const row = documentRef.createElement('div');
@@ -210,6 +216,8 @@ export function createAboutDialogController({
             dependencyStatus.textContent = `${entries.length} deps`;
             loadedDependencies = true;
         } catch (error) {
+            dependencyEntries = [];
+            dependencyError = error.message;
             dependencyStatus.textContent = 'Load failed';
             dependencyList.replaceChildren();
             const detail = documentRef.createElement('p');
@@ -260,14 +268,42 @@ export function createAboutDialogController({
         aboutDialog.querySelector('[data-about-build-detail]')?.replaceChildren(getAppBuildLabel());
         aboutDialog.querySelector('[data-about-runtime-detail]')?.replaceChildren(runtimeSummary);
         aboutDialog.querySelector('[data-about-license-detail]')?.replaceChildren(ABOUT_LICENSE);
+        if (typeof requestUiOverlay === 'function') {
+            await loadDependencies();
+            const getState = () => ({
+                appName: ABOUT_APP_NAME,
+                build: getAppBuildLabel(),
+                credits: ABOUT_CREDITS,
+                dependencies: dependencyEntries,
+                dependencyError,
+                license: ABOUT_LICENSE,
+                links: ABOUT_LINKS,
+                runtime: `${String(getCurrentRuntime()).toUpperCase()} ${getCurrentRuntimeVersion()}`,
+                version: getAppVersionLabel(),
+            });
+            const opened = await requestUiOverlay({
+                bounds: measureDialogOverlay({ dialog: aboutDialog }),
+                getState,
+                handleAction: async ({ action, value }) => {
+                    if (action !== 'open-link') return null;
+                    const link = ABOUT_LINKS.find((entry) => entry.url === value);
+                    if (link) await openExternal(link.url);
+                    return null;
+                },
+                purpose: 'about',
+            });
+            if (opened) return { open: true, overlay: true };
+        }
         if (!aboutDialog.open) {
             if (typeof aboutDialog.showModal === 'function') {
                 aboutDialog.showModal();
+                aboutDialog.ownerDocument?.activeElement?.blur?.();
             } else {
                 aboutDialog.setAttribute('open', '');
             }
         }
         await loadDependencies();
+        return { open: true, overlay: false };
     }
 
     async function setupTauriMenuHook() {

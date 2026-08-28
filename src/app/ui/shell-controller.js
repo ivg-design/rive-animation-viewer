@@ -2,9 +2,11 @@ import { LAYOUT_ALIGNMENTS, LAYOUT_FITS } from '../core/constants.js';
 import { resolveRiveAlignment, resolveRiveFit } from '../core/rive-layout.js';
 import { dispatchPresentationChanged } from '../rive/control-events.js';
 import { createDemoButtonController } from './layout/demo-button.js';
+import { setupPropertiesPanelViewport } from './layout/properties-panel-viewport.js';
 import { setupCenterPanelResizer, setupShellPanelResizers } from './layout/resizers.js';
 import { createCanvasSizingControlsController } from './settings/canvas-sizing-controls.js';
 import { getRuntimeDisplayName } from './status/status-controller.js';
+import { createSettingsOverlayAdapter } from './overlay/shell-adapter.js';
 
 export function clamp(value, min, max) {
     return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
@@ -34,7 +36,10 @@ export function createShellController({
         getCurrentRuntime = () => 'webgl2',
         getEventLogFilterState = () => ({}),
         getRiveInstance = () => null,
+        getTauriEventListener = async () => null,
         getTauriInvoker = () => null,
+        getDefaultRivAppStatus = () => null,
+        getInstallCounterStatus = () => null,
         handleResize = () => {},
         loadRiveAnimation = async () => {},
         logEvent = () => {},
@@ -44,7 +49,11 @@ export function createShellController({
         setCurrentLayoutAlignment = () => {},
         setCurrentLayoutFit = () => {},
         setCurrentRuntime = () => {},
+        setInstallCounterEnabled = async () => false,
+        makeRavDefaultForRiv = async () => false,
+        refreshDefaultRivAppStatus = null,
         showError = () => {},
+        isTauriEnvironment = () => false,
         updateInfo = () => {},
         updateVersionInfo = () => {},
     } = callbacks;
@@ -52,17 +61,14 @@ export function createShellController({
     let isLeftPanelVisible = false;
     let isRightPanelVisible = true;
     let visibilityResizeTimeoutId = null;
-
+    let disposePropertiesPanelViewport = () => {};
     function getSidebarVisibility() {
         return {
             left: isLeftPanelVisible,
             right: isRightPanelVisible,
         };
     }
-
-    function persistPanelVisibility() {
-        // Panel visibility now starts from a consistent workspace default on every launch.
-    }
+    function persistPanelVisibility() { /* Visibility starts from a consistent default on every launch. */ }
 
     function applyPanelVisibilityState() {
         const grid = elements.mainGrid;
@@ -93,7 +99,6 @@ export function createShellController({
         visibilityResizeTimeoutId = setTimeoutFn(handleResize, 250);
         return getSidebarVisibility();
     }
-
     function setSidebarVisibility(nextVisibility = {}) {
         if (typeof nextVisibility.left === 'boolean') {
             isLeftPanelVisible = nextVisibility.left;
@@ -103,7 +108,6 @@ export function createShellController({
         }
         return applyPanelVisibilityState();
     }
-
     async function reloadActiveAnimation() {
         const currentFileUrl = getCurrentFileUrl();
         const currentFileName = getCurrentFileName();
@@ -130,6 +134,23 @@ export function createShellController({
         setup: setupCanvasSizingControls,
         syncCanvasSizingControls,
     } = canvasSizingControlsController;
+    const uiOverlayController = createSettingsOverlayAdapter({
+        callbacks: {
+            getCurrentCanvasSizing: callbacks.getCurrentCanvasSizing, getInstallCounterStatus,
+            getDefaultRivAppStatus,
+            getTauriEventListener,
+            getTauriInvoker,
+            isTauriEnvironment,
+            setInstallCounterEnabled,
+            makeRavDefaultForRiv,
+            refreshDefaultRivAppStatus,
+            showError,
+        },
+        documentRef,
+        elements,
+        syncCanvasSizingControls,
+        windowRef,
+    });
     const demoButtonController = createDemoButtonController({
         callbacks: {
             getTauriInvoker,
@@ -142,29 +163,11 @@ export function createShellController({
     });
 
     function setupSettingsPopover() {
-        const button = elements.settingsButton;
-        const popover = elements.settingsPopover;
-        if (!button || !popover) return;
-
-        button.addEventListener('click', (event) => {
-            event.stopPropagation();
-            syncCanvasSizingControls();
-            popover.hidden = !popover.hidden;
-        });
-
-        documentRef.addEventListener('click', (event) => {
-            if (!popover.hidden && !popover.contains(event.target) && event.target !== button) {
-                popover.hidden = true;
-            }
-        });
-
-        documentRef.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape' && !popover.hidden) {
-                popover.hidden = true;
-            }
-        });
+        uiOverlayController.setup();
     }
-
+    function openUiOverlay(request) {
+        return uiOverlayController.openPurpose(request);
+    }
     function setupRuntimeSelect() {
         if (!elements.runtimeSelect) return;
 
@@ -358,6 +361,8 @@ export function createShellController({
 
     function dispose() {
         demoButtonController.dispose();
+        uiOverlayController.dispose();
+        disposePropertiesPanelViewport();
         if (visibilityResizeTimeoutId) {
             clearTimeoutFn(visibilityResizeTimeoutId);
             visibilityResizeTimeoutId = null;
@@ -372,6 +377,7 @@ export function createShellController({
         setupDemoButton();
         setupPanelResizers();
         setupCenterResizer();
+        disposePropertiesPanelViewport = setupPropertiesPanelViewport({ elements });
         setupPanelVisibilityToggles();
         setupSettingsPopover();
     }
@@ -382,6 +388,7 @@ export function createShellController({
         captureLayoutStateForExport,
         dispose,
         getSidebarVisibility,
+        openUiOverlay,
         setSidebarVisibility,
         setup,
         setupAlignmentSelect,
@@ -393,5 +400,6 @@ export function createShellController({
         setupPanelVisibilityToggles,
         setupRuntimeSelect,
         setupSettingsPopover,
+        uiOverlayController,
     };
 }

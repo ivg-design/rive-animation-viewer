@@ -37,7 +37,8 @@ export function createInstanceHooks({
     }
 
     async function syncMcpPortFromDesktop() {
-        if (windowRef.__RAV_UPDATER_ACCEPTANCE__ === true) {
+        if (windowRef.__RAV_UPDATER_ACCEPTANCE__ === true
+            || windowRef.__RAV_TELEMETRY_ACCEPTANCE__ === true) {
             return getCurrentMcpPort();
         }
         const invoke = getTauriInvoker();

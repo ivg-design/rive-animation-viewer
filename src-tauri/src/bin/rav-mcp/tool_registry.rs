@@ -1,11 +1,23 @@
 use serde_json::{json, Value};
 
+use crate::vm_tool_registry::vm_tools;
+
 pub fn tools_list() -> Value {
-    json!([
+    let mut tools = json!([
         {
             "name": "rav_status",
             "description": "Get current RAV application status: loaded file, runtime, playback state, ViewModel summary, and connection info.",
             "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+        },
+        {
+            "name": "rav_set_anonymous_usage",
+            "description": "Enable or disable RAV anonymous version reporting through the same preference controller used by Settings.",
+            "inputSchema": {
+                "type": "object",
+                "properties": { "enabled": { "type": "boolean" } },
+                "required": ["enabled"],
+                "additionalProperties": false
+            }
         },
         {
             "name": "rav_open_file",
@@ -66,48 +78,6 @@ pub fn tools_list() -> Value {
             "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
         },
         {
-            "name": "rav_get_vm_tree",
-            "description": "Get the full ViewModel hierarchy tree for the loaded animation. Returns nested structure with property names, paths, kinds (number, boolean, string, enum, color, trigger), and child ViewModels/lists.",
-            "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
-        },
-        {
-            "name": "rav_vm_get",
-            "description": "Get the current value of a ViewModel property by path. Use rav_get_vm_tree first to discover live paths, including zero-based list paths such as rows/0/name.",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "path": { "type": "string", "description": "Dot-separated or slash-separated property path, e.g. \"root/nested/prop\" or \"rows/0/name\"" }
-                },
-                "required": ["path"],
-                "additionalProperties": false
-            }
-        },
-        {
-            "name": "rav_vm_set",
-            "description": "Set the value of a ViewModel property by path. Supports number, boolean, string, enum, and color properties.",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "path": { "type": "string", "description": "Property path (slash-separated; list items use a zero-based index such as rows/0/name)" },
-                    "value": { "description": "New value. Type must match the property kind: number for number, true/false for boolean, string for string/enum, ARGB integer for color." }
-                },
-                "required": ["path", "value"],
-                "additionalProperties": false
-            }
-        },
-        {
-            "name": "rav_vm_fire",
-            "description": "Fire a trigger ViewModel property by path.",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "path": { "type": "string", "description": "Path to the trigger property; list items use a zero-based index such as rows/0/launch" }
-                },
-                "required": ["path"],
-                "additionalProperties": false
-            }
-        },
-        {
             "name": "rav_get_event_log",
             "description": "Get recent event log entries from RAV. Events include native runtime events, Rive user events, and UI events.",
             "inputSchema": {
@@ -166,6 +136,18 @@ pub fn tools_list() -> Value {
             }
         },
         {
+            "name": "rav_set_alignment",
+            "description": "Set the canvas alignment within the viewer.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "alignment": { "type": "string", "enum": ["topLeft", "topCenter", "topRight", "centerLeft", "center", "centerRight", "bottomLeft", "bottomCenter", "bottomRight"], "description": "Canvas alignment" }
+                },
+                "required": ["alignment"],
+                "additionalProperties": false
+            }
+        },
+        {
             "name": "rav_set_canvas_color",
             "description": "Set the canvas background color. Use \"transparent\" for a transparent canvas background.",
             "inputSchema": {
@@ -190,7 +172,10 @@ pub fn tools_list() -> Value {
                 },
                 "additionalProperties": false
             }
-        },
+        }
+    ]).as_array().cloned().unwrap_or_default();
+    tools.extend(vm_tools());
+    tools.extend(json!([
         {
             "name": "rav_open_isolated_playback",
             "description": "Open the current animation in a separate, ordinary opaque Tauri webview using the exact self-contained standalone-export payload. This is an in-app A/B diagnostic surface for comparing RAV plumbing against isolated playback; it does not save a file or change the main RAV window.",
@@ -383,5 +368,6 @@ pub fn tools_list() -> Value {
                 "additionalProperties": false
             }
         }
-    ])
+    ]).as_array().cloned().unwrap_or_default());
+    Value::Array(tools)
 }

@@ -12,6 +12,7 @@
 
         function isControlDescriptorAllowed(descriptor) {
             if (!descriptor) return false;
+            if (typeof isRenderSurfaceMode !== 'undefined' && isRenderSurfaceMode && CONTROL_SELECTION_KEYS === null) return true;
             var exactKey = controlSnapshotKeyForDescriptor(descriptor);
             if (exactKey && ALLOWED_CONTROL_KEYS.has(exactKey)) return true;
             var selectionKey = controlSelectionKeyForDescriptor(descriptor);

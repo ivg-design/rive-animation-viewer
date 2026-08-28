@@ -26,6 +26,7 @@ function createHarness(overrides = {}) {
         getCurrentFileUrl: () => currentFileUrl,
         getPlaybackState: () => playbackState,
         getRiveInstance: () => riveInstance,
+        isAuthoritativeChildMode: () => Boolean(overrides.authoritativeChildMode),
         now: overrides.now ?? (() => 1000),
     });
 
@@ -98,6 +99,7 @@ describe('rive/playback-controls', () => {
                 currentArtboard: 'Main',
                 currentPlaybackName: 'Bounce',
                 currentPlaybackType: 'animation',
+                currentVmInstanceName: 'Board',
             },
             riveInstance: {},
         });
@@ -114,9 +116,10 @@ describe('rive/playback-controls', () => {
         expect(resetRiveInstance).toHaveBeenCalledWith({
             animations: 'Bounce',
             artboard: 'Main',
-            autoBind: true,
+            autoBind: false,
             autoplay: true,
             stateMachines: undefined,
+            viewModelInstanceName: 'Board',
         }, expect.objectContaining({ beforeUserOnLoad: expect.any(Function) }));
         expect(harness.callbacks.captureVmControlSnapshot).toHaveBeenCalled();
         expect(harness.callbacks.applyVmControlSnapshot).toHaveBeenCalledWith([{ id: 'speed' }]);
@@ -156,13 +159,11 @@ describe('rive/playback-controls', () => {
     });
 
     it('no-ops play and pause when no instance is available and plays current state for non-animation targets', () => {
-        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const harness = createHarness({ riveInstance: null });
 
         harness.controller.play();
         harness.controller.pause();
 
-        expect(warnSpy).toHaveBeenCalledWith('[rive-viewer] play() called but no riveInstance');
         expect(harness.callbacks.updateInfo).not.toHaveBeenCalledWith('Paused');
 
         const riveInstance = {
@@ -177,7 +178,111 @@ describe('rive/playback-controls', () => {
 
         expect(riveInstance.stop).not.toHaveBeenCalled();
         expect(riveInstance.play).toHaveBeenCalledWith();
-        warnSpy.mockRestore();
+    });
+
+    it('waits for child acknowledgement for play and pause without touching the hidden parent', async () => {
+        const requestAuthoritativeCommand = vi.fn(async (command) => ({ applied: true, command, status: 'applied' }));
+        const riveInstance = { pause: vi.fn(), play: vi.fn(), stop: vi.fn() };
+        const harness = createHarness({
+            authoritativeChildMode: true,
+            callbacks: { requestAuthoritativeCommand },
+            riveInstance,
+        });
+
+        await expect(harness.controller.play()).resolves.toEqual({ applied: true, status: 'applied' });
+        await expect(harness.controller.pause()).resolves.toEqual({ applied: true, status: 'applied' });
+        expect(requestAuthoritativeCommand).toHaveBeenNthCalledWith(1, 'play', { name: 'Bounce' });
+        expect(requestAuthoritativeCommand).toHaveBeenNthCalledWith(2, 'pause');
+        expect(riveInstance.play).not.toHaveBeenCalled();
+        expect(riveInstance.pause).not.toHaveBeenCalled();
+        expect(riveInstance.stop).not.toHaveBeenCalled();
+    });
+
+    it('does not report child playback success when acknowledgement is rejected', async () => {
+        const requestAuthoritativeCommand = vi.fn(async () => ({ applied: false, status: 'rejected' }));
+        const harness = createHarness({
+            authoritativeChildMode: true,
+            callbacks: { requestAuthoritativeCommand },
+        });
+
+        await expect(harness.controller.play()).resolves.toEqual({ applied: false, status: 'rejected' });
+        expect(harness.callbacks.showError).toHaveBeenCalledWith('Unable to start playback: rejected');
+        expect(harness.callbacks.updateInfo).not.toHaveBeenCalled();
+    });
+
+    it('resets only the authoritative child and resolves after its rendered-frame acknowledgement', async () => {
+        let acknowledge;
+        const requestAuthoritativeCommand = vi.fn(() => new Promise((resolve) => { acknowledge = resolve; }));
+        const resetRiveInstance = vi.fn();
+        const loadRiveAnimation = vi.fn();
+        const harness = createHarness({
+            authoritativeChildMode: true,
+            callbacks: { loadRiveAnimation, requestAuthoritativeCommand, resetRiveInstance },
+            playbackState: {
+                currentArtboard: 'Main',
+                currentPlaybackName: 'Bounce',
+                currentPlaybackType: 'animation',
+                currentVmInstanceName: 0,
+            },
+        });
+
+        const resetPromise = harness.controller.reset();
+        await vi.waitFor(() => expect(requestAuthoritativeCommand).toHaveBeenCalledWith('reset', expect.objectContaining({
+            params: expect.objectContaining({
+                animations: 'Bounce', artboard: 'Main', autoBind: false, viewModelInstanceName: 0,
+            }),
+            snapshot: [{ id: 'speed' }],
+        })));
+        expect(harness.callbacks.updateInfo).toHaveBeenLastCalledWith('Restarting demo.riv...');
+        acknowledge({ applied: true, status: 'applied' });
+        await expect(resetPromise).resolves.toEqual({ applied: true, status: 'applied' });
+        expect(resetRiveInstance).not.toHaveBeenCalled();
+        expect(loadRiveAnimation).not.toHaveBeenCalled();
+        expect(harness.callbacks.updateInfo).toHaveBeenLastCalledWith('Restarted demo.riv');
+    });
+
+    it('does not report reset success when runtime-list snapshot restoration is rejected', async () => {
+        const requestAuthoritativeCommand = vi.fn(async () => ({
+            applied: false,
+            message: 'Playback reset could not restore 1 control value.',
+            status: 'rejected',
+        }));
+        const harness = createHarness({
+            authoritativeChildMode: true,
+            callbacks: { requestAuthoritativeCommand },
+        });
+
+        await harness.controller.reset();
+
+        expect(harness.callbacks.showError).toHaveBeenCalledWith(
+            'Failed to restart animation: Playback reset could not restore 1 control value.',
+        );
+        expect(harness.callbacks.updateInfo).not.toHaveBeenCalledWith('Restarted demo.riv');
+        expect(harness.callbacks.logEvent).not.toHaveBeenCalledWith(
+            'ui',
+            'reset-complete',
+            expect.any(String),
+        );
+    });
+
+    it('keeps auto-bound ViewModel selection explicit when resetting the visible child', async () => {
+        const requestAuthoritativeCommand = vi.fn(async () => ({ applied: true, status: 'applied' }));
+        const harness = createHarness({
+            authoritativeChildMode: true,
+            callbacks: { requestAuthoritativeCommand },
+            playbackState: {
+                currentArtboard: 'Main',
+                currentPlaybackName: 'Bounce',
+                currentPlaybackType: 'animation',
+                currentVmInstanceName: '__rav_auto_bound__',
+            },
+        });
+
+        await harness.controller.reset();
+
+        expect(requestAuthoritativeCommand).toHaveBeenCalledWith('reset', expect.objectContaining({
+            params: expect.objectContaining({ autoBind: true, viewModelInstanceName: null }),
+        }));
     });
 
     it('reports reset validation and runtime failures', async () => {

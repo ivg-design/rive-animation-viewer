@@ -1,26 +1,23 @@
-import {
-    RAV_ANIMATION_LOADED_EVENT,
-    RAV_PLAYBACK_COMMAND_EVENT,
-    RAV_PRESENTATION_CHANGED_EVENT,
-    RAV_VM_CONTROL_MUTATED_EVENT,
-} from '../../rive/control-events.js';
-import { measureRenderSurfaceBounds, renderSurfaceBoundsKey } from './bounds.js';
-import { createRenderSurfaceCommandRelay } from './command-buffer.js';
+import { RAV_ANIMATION_LOADED_EVENT } from '../../rive/control-events.js';
+import { createRenderSurfaceActivationCoordinator } from './activation/coordinator.js';
+import { measureRenderSurfaceBounds } from './bounds.js';
+import { createRenderSurfaceActivationHandler } from './controller/activation-handler.js';
+import { createRenderSurfaceBridgeHandlers } from './controller/bridge.js';
+import { createRenderSurfaceAutoplayPolicy } from './controller/autoplay-policy.js';
+import { createRenderSurfaceBoundsSync } from './controller/bounds-sync.js';
+import { createRenderSurfaceLoadOperation } from './controller/load-operation.js';
+import { createRenderSurfaceLoadTracker } from './controller/load-tracker.js';
+import { createRenderSurfaceActivationLifecycle, registerRenderSurfaceControllerListeners } from './controller/listeners.js';
+import { buildRenderSurfaceState, createRenderSurfaceControllerState, createRenderSurfaceDisposer } from './controller/state.js';
 import { setRenderSurfaceFpsState } from './fps-indicator.js';
-import {
-    createRenderSurfaceVisibilityController,
-    observeBlockingMainUi,
-} from './visibility.js';
-
+import { createRenderSurfaceImageReplayCache } from './image-replay-cache.js';
+import { createRenderSurfaceEventRelay, dispatchCanonicalTimelineProgress } from './event-relay.js';
+import { createRenderSurfaceFatalRecovery } from './fatal-recovery.js';
+import { createRenderSurfaceProtocol, RENDER_SURFACE_PROTOCOL_VERSION } from './protocol.js';
+import { createRenderSurfaceVisibilityController, observeBlockingMainUi } from './visibility.js';
 export { measureRenderSurfaceBounds } from './bounds.js';
-
-const CHILD_COMMAND_EVENT = 'render-surface:command';
-const CHILD_READY_EVENT = 'render-surface:ready';
-const CHILD_LOADED_EVENT = 'render-surface:loaded';
-const CHILD_ERROR_EVENT = 'render-surface:error';
-const CHILD_METRICS_EVENT = 'render-surface:metrics';
 const LOAD_TIMEOUT_MS = 15_000;
-
+export const RENDER_SURFACE_AUTHORITY_EVENT = 'rav:render-surface-authority-change';
 export function createRenderSurfaceController({
     callbacks = {},
     demoExportController,
@@ -30,365 +27,313 @@ export function createRenderSurfaceController({
     ResizeObserverCtor = globalThis.ResizeObserver,
     windowRef = globalThis.window,
 } = {}) {
-    const {
-        getControlSnapshot = () => [],
-        getPresentationState = () => ({}),
-        getTauriEventListener = async () => null,
-        getTauriInvoker = () => null,
-        isTauriEnvironment = () => false,
-        logEvent = () => {},
-        showError = () => {},
-        updateInfo = () => {},
-    } = callbacks;
-
-    let boundsFrameId = null;
-    let disposed = false;
-    let isLoaded = false;
-    let isSetup = false;
-    let lastBoundsKey = null;
-    let loadGeneration = 0;
-    let loadTimeoutId = null;
-    let mutationObserver = null;
-    let pendingPresentationState = {};
-    let resizeObserver = null;
-    let sessionSequence = 0;
-    let surfaceCreated = false;
-    let surfaceSessionId = null;
+    const { getControlSnapshot = () => [], getPresentationState = () => ({}),
+        getTauriEventListener = async () => null, getTauriInvoker = () => null,
+        isTauriEnvironment = () => false, logEvent = () => {}, onCanonicalState = () => {},
+        onCommandResult = () => {}, showError = () => {}, updateInfo = () => {} } = callbacks;
+    let activeSessionId = null, activatingSessionId = null;
+    let mutationObserver = null, resizeObserver = null, surfaceSessionId = null;
+    let disposed = false, isLoaded = false, isSetup = false, stagedReady = false, surfaceCreated = false;
+    let lastActivationFailure = null;
+    let fatalRecovery = null;
+    const autoplayPolicy = createRenderSurfaceAutoplayPolicy();
+    const imageReplayCache = createRenderSurfaceImageReplayCache({
+        onOutcome: (outcome) => {
+            if (!outcome?.status || ['cleared', 'replaced', 'replay-retained', 'stored'].includes(outcome.status)) return;
+            logEvent(
+                'native',
+                'render-surface-image-replay-cache',
+                `Image replay cache ${outcome.status}${outcome.path ? ` for ${outcome.path}` : ''}.`,
+                outcome,
+            );
+        },
+    });
     const unlistenCallbacks = [];
-
-    const requestFrame = typeof windowRef?.requestAnimationFrame === 'function'
-        ? windowRef.requestAnimationFrame.bind(windowRef)
-        : (callback) => windowRef.setTimeout(callback, 0);
-    const cancelFrame = typeof windowRef?.cancelAnimationFrame === 'function'
-        ? windowRef.cancelAnimationFrame.bind(windowRef)
-        : windowRef.clearTimeout.bind(windowRef);
-
-    async function invokeQuietly(command, args = {}) {
-        const invoke = getTauriInvoker();
-        if (typeof invoke !== 'function') {
-            return false;
-        }
-        try {
-            await invoke(command, args);
-            return true;
-        } catch {
-            return false;
-        }
+    const controllerState = createRenderSurfaceControllerState({
+        activeSessionId: () => activeSessionId,
+        canAcceptCommands: () => !disposed && isLoaded && Boolean(activeSessionId)
+            && (fatalRecovery?.canAcceptCommands() ?? true),
+        documentRef,
+        getFatalRecovery: () => fatalRecovery,
+        isLoaded: () => isLoaded,
+        logEvent,
+        showError,
+    });
+    const { handleCommandOverflow, publishAuthorityState } = controllerState;
+    const invokeQuietly = (command, args = {}) => controllerState.invokeQuietly(command, args, getTauriInvoker);
+    const boundsSync = createRenderSurfaceBoundsSync({
+        elements,
+        hasSurface: () => surfaceCreated,
+        invokeQuietly,
+        isDisposed: () => disposed,
+        windowRef,
+    });
+    function handleCanonicalState(state) {
+        onCanonicalState(state);
+        dispatchCanonicalTimelineProgress(documentRef, state);
     }
-
+    const protocol = createRenderSurfaceProtocol({
+        canSend: (targetSessionId) => !disposed && (targetSessionId === activeSessionId
+            ? (fatalRecovery?.canAcceptCommands() ?? true)
+            : targetSessionId === surfaceSessionId && surfaceCreated && stagedReady),
+        documentRef,
+        invokeQuietly,
+        logEvent,
+        onCanonicalState: handleCanonicalState,
+        onCommandResult,
+        windowRef,
+    });
+    const activationLifecycle = createRenderSurfaceActivationLifecycle({
+        getProtocolVersion: () => protocol.getState().childProtocolVersion,
+        matches: protocol.matches,
+        protocolVersion: RENDER_SURFACE_PROTOCOL_VERSION,
+    });
+    const activationCoordinator = createRenderSurfaceActivationCoordinator({
+        getActiveSessionId: () => activeSessionId,
+        getStagedSessionId: () => surfaceCreated && stagedReady ? surfaceSessionId : null,
+        isSessionAddressable: (targetSessionId) => !disposed && (targetSessionId === activeSessionId
+            ? (fatalRecovery?.canAcceptCommands() ?? true)
+            : targetSessionId === surfaceSessionId && surfaceCreated && stagedReady),
+        onCommandResult: ({ metadata, payload, result, targetSessionId }) => imageReplayCache.resolveCommand({
+            metadata, payload, result, targetSessionId,
+        }),
+        onOverflow: handleCommandOverflow,
+        protocol,
+    });
+    fatalRecovery = createRenderSurfaceFatalRecovery({
+        getActiveSessionId: () => activeSessionId,
+        loadReplacement: () => loadCurrentAnimation({ recovery: true }),
+        onFailed: ({ reason }) => {
+            const message = `Playback surface recovery failed: ${reason}`;
+            logEvent('native', 'render-surface-recovery-failed', message);
+            showError(message);
+            publishAuthorityState();
+        },
+        onRecovering: () => {
+            isLoaded = false;
+            setRenderSurfaceFpsState(documentRef, false);
+            updateInfo('Playback surface interrupted; recovering.');
+            void invokeQuietly('hide_render_surface');
+            publishAuthorityState();
+        },
+    });
     const visibilityController = createRenderSurfaceVisibilityController({
+        canShowMainCanvas: () => fatalRecovery.canShowNativeSurface(),
         documentRef,
         elements,
         invokeQuietly,
-        isActive: () => surfaceCreated && isLoaded && !disposed,
+        isActive: () => Boolean(activeSessionId) && !disposed && fatalRecovery.canShowNativeSurface(),
     });
-    const { setMainCanvasVisible, sync: syncNativeVisibility } = visibilityController;
-    const commandRelay = createRenderSurfaceCommandRelay({
-        canSend: () => surfaceCreated && isLoaded,
-        send: sendCommand,
+    const { canReveal, setMainCanvasVisible, sync: syncNativeVisibility } = visibilityController;
+    const eventRelay = createRenderSurfaceEventRelay({
+        commandRelay: activationCoordinator.relay,
+        documentRef,
+        getPresentationState,
+        onImageCommand: (payload) => imageReplayCache.capture(
+            payload,
+            activationCoordinator.getCommandSessionId(),
+        ),
     });
-
-    function readPresentationState(detail = {}) {
-        let current = {};
-        try {
-            current = getPresentationState() || {};
-        } catch {
-            /* retain the last valid presentation state */
-        }
-        return { ...pendingPresentationState, ...current, ...detail };
-    }
-
-    function clearLoadTimeout() {
-        if (loadTimeoutId !== null) {
-            windowRef.clearTimeout(loadTimeoutId);
-            loadTimeoutId = null;
-        }
-    }
-
-    function armLoadTimeout(sessionId) {
-        clearLoadTimeout();
-        loadTimeoutId = windowRef.setTimeout(() => {
-            if (sessionId !== surfaceSessionId || isLoaded) {
-                return;
-            }
-            setMainCanvasVisible(true);
-            void invokeQuietly('hide_render_surface');
-            logEvent('native', 'render-surface-timeout', 'Dedicated render surface did not report ready; using the main canvas.');
-            updateInfo('Dedicated render surface timed out; using fallback canvas.');
-        }, LOAD_TIMEOUT_MS);
-    }
-
-    async function syncBounds({ force = false } = {}) {
-        const bounds = measureRenderSurfaceBounds(elements.canvasContainer);
-        if (!bounds) {
-            return false;
-        }
-        const nextKey = renderSurfaceBoundsKey(bounds);
-        if (!force && nextKey === lastBoundsKey) {
-            return true;
-        }
-        lastBoundsKey = nextKey;
-        if (!surfaceCreated) {
-            return true;
-        }
-        return invokeQuietly('set_render_surface_bounds', bounds);
-    }
-
-    function scheduleBoundsSync() {
-        if (boundsFrameId !== null || disposed) {
-            return;
-        }
-        boundsFrameId = requestFrame(() => {
-            boundsFrameId = null;
-            void syncBounds();
-        });
-    }
-
-    async function loadCurrentAnimation() {
-        if (disposed || !isTauriEnvironment() || typeof demoExportController?.buildRenderSurfaceContext !== 'function') {
-            return false;
-        }
-        const invoke = getTauriInvoker();
-        const bounds = measureRenderSurfaceBounds(elements.canvasContainer);
-        if (typeof invoke !== 'function' || !bounds) {
-            return false;
-        }
-
-        const generation = ++loadGeneration;
-        const sessionId = `${Date.now().toString(36)}-${(++sessionSequence).toString(36)}`;
-        surfaceSessionId = sessionId;
-        isLoaded = false;
-        commandRelay.clear();
-        pendingPresentationState = readPresentationState();
-        setMainCanvasVisible(true);
-        setRenderSurfaceFpsState(documentRef, false);
-        await invokeQuietly('hide_render_surface');
-
-        try {
-            const context = await demoExportController.buildRenderSurfaceContext();
-            if (disposed || generation !== loadGeneration) {
-                return false;
-            }
-            await invoke('create_render_surface', {
-                request: {
-                    ...bounds,
-                    payload: context.payload,
-                    sessionId,
-                },
+    const loadTracker = createRenderSurfaceLoadTracker({
+        isStillStaged: (sessionId) => sessionId === surfaceSessionId && activeSessionId !== sessionId,
+        onTimeout: (sessionId) => {
+            void rejectStagedSession(sessionId, {
+                info: 'Playback surface update timed out; previous frame retained.',
+                logName: 'render-surface-timeout',
+                logText: 'Staged render surface did not report a first frame; retaining the previous surface.',
             });
-            surfaceCreated = true;
-            lastBoundsKey = renderSurfaceBoundsKey(bounds);
-            armLoadTimeout(sessionId);
-            logEvent(
-                'native',
-                'render-surface-create',
-                `Loading isolated render surface for ${context.currentFileName || 'animation'}.`,
-            );
-            return true;
-        } catch (error) {
-            if (generation !== loadGeneration) {
-                return false;
-            }
-            surfaceCreated = false;
-            setMainCanvasVisible(true);
-            const message = String(error?.message || error || 'unknown error');
-            logEvent('native', 'render-surface-create-error', 'Unable to create isolated render surface.', error);
-            showError(`Isolated render surface unavailable: ${message}`);
-            return false;
-        }
+        },
+        timeoutMs: LOAD_TIMEOUT_MS,
+        windowRef,
+    });
+    function restoreActiveSession() {
+        surfaceSessionId = activeSessionId; surfaceCreated = Boolean(activeSessionId); stagedReady = Boolean(activeSessionId);
+        if (activeSessionId) protocol.beginSession(activeSessionId, RENDER_SURFACE_PROTOCOL_VERSION);
     }
-
-    async function sendCommand(type, payload = {}) {
-        if (!surfaceCreated || !isLoaded || !surfaceSessionId) {
-            return false;
+    async function rejectStagedSession(sessionId, { error = null, info = null, logName = null, logText = null } = {}) {
+        if (!sessionId || sessionId === activeSessionId) return false;
+        if (!activationLifecycle.beginRejection(sessionId)) return false;
+        autoplayPolicy.forget(sessionId); fatalRecovery.cancelDeliberateReplacement(sessionId);
+        const ownsCurrentStage = sessionId === surfaceSessionId;
+        const failureMessage = error?.message || error || info || logText;
+        if (ownsCurrentStage && failureMessage) lastActivationFailure = new Error(String(failureMessage));
+        if (ownsCurrentStage) {
+            loadTracker.clearTimeout();
+            stagedReady = false;
         }
-        return invokeQuietly('send_render_surface_message', {
-            event: CHILD_COMMAND_EVENT,
-            payload: {
-                sessionId: surfaceSessionId,
-                type,
-                payload,
+        imageReplayCache.rejectStage(sessionId);
+        if (activatingSessionId === sessionId) activatingSessionId = null;
+        // Revoke JS routing and authority synchronously. A late loaded receipt
+        // received while native disposal is pending can no longer reactivate
+        // this candidate or receive a control command.
+        protocol.discardSession(sessionId);
+        loadTracker.settle(sessionId, false);
+        activationCoordinator.endStage(sessionId, false);
+        if (ownsCurrentStage) {
+            restoreActiveSession();
+            if (activeSessionId) void activationCoordinator.flushQueued();
+            else activationCoordinator.clear();
+        }
+        if (logName) logEvent('native', logName, logText || info || error || 'Staged playback surface rejected.');
+        if (info) updateInfo(info);
+        if (error) showError(error);
+        await invokeQuietly('discard_render_surface', { sessionId });
+        activationLifecycle.endRejection(sessionId);
+        return false;
+    }
+    const loadOperation = createRenderSurfaceLoadOperation({
+        activationCoordinator,
+        activationFailure: {
+            get: () => lastActivationFailure,
+            set: (value) => { lastActivationFailure = value; },
+        },
+        activationLifecycle, autoplayPolicy, boundsSync, demoExportController, elements, eventRelay,
+        fatalRecovery, getTauriInvoker, handleChildLoaded, imageReplayCache, invokeQuietly,
+        isDisposed: () => disposed, isTauriEnvironment, loadTracker, logEvent, protocol,
+        rejectStagedSession,
+        sessionState: {
+            beginStage: (sessionId) => {
+                surfaceSessionId = sessionId;
+                stagedReady = false;
             },
-        });
+            getSurfaceSessionId: () => surfaceSessionId,
+            markCreated: () => { surfaceCreated = true; },
+        },
+        showError, timeoutMs: LOAD_TIMEOUT_MS, updateInfo, windowRef,
+    });
+    const loadCurrentAnimation = loadOperation.load;
+    const loadCurrentAnimationForSelection = loadOperation.loadForSelection;
+    const sendCommand = (type, payload = {}) => activationCoordinator.requestCommand(type, payload);
+    const requestImageCommand = (payload = {}) => {
+        imageReplayCache.capture(payload, activationCoordinator.getCommandSessionId());
+        return activationCoordinator.requestCommand('vm-image-set', payload);
+    };
+    const activateChildLoaded = createRenderSurfaceActivationHandler({
+        activationCoordinator, autoplayPolicy, boundsSync, canReveal, documentRef, eventRelay,
+        fatalRecovery, getControlSnapshot, imageReplayCache, invokeQuietly, loadTracker, logEvent,
+        protocol, publishAuthorityState, rejectStagedSession,
+        sessionState: {
+            getActiveSessionId: () => activeSessionId,
+            getActivatingSessionId: () => activatingSessionId,
+            getSurfaceSessionId: () => surfaceSessionId,
+            clearActivatingSessionId: (sessionId) => {
+                if (activatingSessionId === sessionId) activatingSessionId = null;
+            },
+            isDisposed: () => disposed,
+            isCurrentSession: (sessionId) => sessionId === surfaceSessionId
+                && activationLifecycle.isCurrent(sessionId, surfaceSessionId),
+            isRejectingSession: activationLifecycle.isRejecting,
+            runActivationTransaction: activationLifecycle.run,
+            setActiveSessionId: (value) => {
+                if (activeSessionId && activeSessionId !== value) {
+                    activationLifecycle.retire(activeSessionId);
+                }
+                activeSessionId = value;
+            },
+            setActivatingSessionId: (value) => { activatingSessionId = value; },
+            setLoaded: (value) => { isLoaded = value; },
+            setStagedReady: (value) => { stagedReady = value; },
+            setSurfaceIdentity: (value) => {
+                surfaceSessionId = value; surfaceCreated = true; stagedReady = true;
+            },
+        },
+        syncNativeVisibility,
+        updateInfo,
+    });
+    function handleChildLoaded(event) {
+        return activationLifecycle.handleLoaded(event, activateChildLoaded);
     }
-
-    function handleControlMutation(event) {
-        const detail = event?.detail;
-        const descriptor = detail?.descriptor;
-        if (!descriptor || !detail?.kind) {
-            return;
-        }
-        const isStateMachine = descriptor.source === 'state-machine';
-        const isTrigger = detail.action === 'fire' || detail.kind === 'trigger';
-        const command = isStateMachine
-            ? (isTrigger ? 'sm-fire' : 'sm-set')
-            : (isTrigger ? 'vm-fire' : 'vm-set');
-        commandRelay.relay(command, {
-            ...descriptor,
-            kind: detail.kind,
-            value: detail.value,
-        });
-    }
-
-    function handlePlaybackCommand(event) {
-        const command = event?.detail?.command;
-        if (command === 'play' || command === 'pause' || command === 'reset') {
-            commandRelay.relay(command, event?.detail?.payload || {});
-        }
-    }
-
-    function handlePresentationChange(event) {
-        pendingPresentationState = readPresentationState(event?.detail);
-        if (surfaceCreated && isLoaded) {
-            void sendCommand('presentation', pendingPresentationState);
-        }
-    }
-
-    function eventMatchesCurrentSession(event) {
-        const sessionId = event?.payload?.sessionId;
-        return !sessionId || sessionId === surfaceSessionId;
-    }
-
-    async function handleChildLoaded(event) {
-        if (!eventMatchesCurrentSession(event) || event?.payload?.command) {
-            return;
-        }
-        clearLoadTimeout();
-        isLoaded = true;
-        setRenderSurfaceFpsState(documentRef, true);
-        pendingPresentationState = readPresentationState();
-        let snapshot = [];
-        try {
-            snapshot = getControlSnapshot() || [];
-        } catch {
-            /* the queued mutations below remain authoritative */
-        }
-        if (Array.isArray(snapshot) && snapshot.length) {
-            await sendCommand('snapshot', { snapshot });
-        }
-        await sendCommand('presentation', pendingPresentationState);
-        await commandRelay.flush();
-        const shown = await syncNativeVisibility();
-        if (shown) {
-            logEvent('native', 'render-surface-loaded', 'Isolated render surface is active.');
-            updateInfo('Isolated render surface active.');
-        }
-    }
-
-    function handleChildError(event) {
-        if (!eventMatchesCurrentSession(event)) {
-            return;
-        }
-        clearLoadTimeout();
-        isLoaded = false;
-        setMainCanvasVisible(true);
-        setRenderSurfaceFpsState(documentRef, false);
-        void invokeQuietly('hide_render_surface');
-        const message = String(event?.payload?.message || 'unknown renderer error');
-        logEvent('native', 'render-surface-error', `Isolated render surface failed: ${message}`, event?.payload);
-        showError(`Isolated render surface failed: ${message}`);
-    }
-
-    function handleDialogMutation() {
-        void syncNativeVisibility();
-    }
-
-    function handleChildMetrics(event) {
-        if (!eventMatchesCurrentSession(event) || !isLoaded) {
-            return;
-        }
-        setRenderSurfaceFpsState(documentRef, true, event?.payload?.fps);
-    }
-
-    async function registerTauriListeners() {
-        const listen = await getTauriEventListener();
-        if (typeof listen !== 'function') {
-            return;
-        }
-        const registrations = [
-            [CHILD_READY_EVENT, () => {}],
-            [CHILD_LOADED_EVENT, handleChildLoaded],
-            [CHILD_ERROR_EVENT, handleChildError],
-            [CHILD_METRICS_EVENT, handleChildMetrics],
-        ];
-        for (const [eventName, handler] of registrations) {
-            const unlisten = await listen(eventName, handler);
-            if (typeof unlisten === 'function') {
-                unlistenCallbacks.push(unlisten);
-            }
-        }
-    }
-
+    const handlers = createRenderSurfaceBridgeHandlers({
+        clearLoadTimeout: loadTracker.clearTimeout,
+        documentRef,
+        fatalRecovery,
+        getActiveSessionId: () => activeSessionId,
+        invokeQuietly,
+        isDisposed: () => disposed,
+        logEvent,
+        onChildPointerDown: (detail) => {
+            const CustomEventCtor = documentRef?.defaultView?.CustomEvent || globalThis.CustomEvent;
+            if (typeof documentRef?.dispatchEvent !== 'function' || typeof CustomEventCtor !== 'function') return;
+            documentRef.dispatchEvent(new CustomEventCtor('rav:render-surface-pointerdown', { detail }));
+        },
+        protocol,
+        rejectStagedSession,
+        setStagedReady: (value) => { stagedReady = value; },
+    });
     async function setup() {
         if (isSetup || disposed || !isTauriEnvironment()) {
             return false;
         }
         isSetup = true;
         try {
-            await registerTauriListeners();
+            await registerRenderSurfaceControllerListeners({
+                getTauriEventListener,
+                handlers: {
+                    ...handlers,
+                    handleChildAck: protocol.handleAck,
+                    handleChildState: protocol.handleState,
+                    handleChildLoaded,
+                },
+                unlistenCallbacks,
+            });
         } catch (error) {
             isSetup = false;
             logEvent('native', 'render-surface-bridge-error', 'Unable to attach isolated render surface events.', error);
             return false;
         }
+        publishAuthorityState();
         documentRef?.addEventListener?.(RAV_ANIMATION_LOADED_EVENT, loadCurrentAnimation);
-        documentRef?.addEventListener?.(RAV_VM_CONTROL_MUTATED_EVENT, handleControlMutation);
-        documentRef?.addEventListener?.(RAV_PLAYBACK_COMMAND_EVENT, handlePlaybackCommand);
-        documentRef?.addEventListener?.(RAV_PRESENTATION_CHANGED_EVENT, handlePresentationChange);
-        windowRef?.addEventListener?.('resize', scheduleBoundsSync);
-
+        eventRelay.setup();
+        windowRef?.addEventListener?.('resize', boundsSync.schedule);
         if (typeof ResizeObserverCtor === 'function' && elements.canvasContainer) {
-            resizeObserver = new ResizeObserverCtor(scheduleBoundsSync);
+            resizeObserver = new ResizeObserverCtor(boundsSync.schedule);
             resizeObserver.observe(elements.canvasContainer);
         }
         mutationObserver = observeBlockingMainUi({
             documentRef,
             elements,
             MutationObserverCtor,
-            onChange: handleDialogMutation,
+            onChange: syncNativeVisibility,
         });
         return true;
     }
-
+    const disposeController = createRenderSurfaceDisposer({ activationCoordinator, boundsSync, documentRef,
+        eventRelay, imageReplayCache, invokeQuietly, isDisposed: () => disposed,
+        loadCurrentAnimation, loadTracker, markDisposed: () => { disposed = true; },
+        mutationObserver, publishAuthorityState, protocol, resizeObserver,
+        setFpsState: setRenderSurfaceFpsState, setLoaded: (value) => { isLoaded = value; },
+        setMainCanvasVisible, unlistenCallbacks, windowRef });
     function dispose() {
-        if (disposed) {
-            return;
-        }
-        disposed = true;
-        clearLoadTimeout();
-        if (boundsFrameId !== null) {
-            cancelFrame(boundsFrameId);
-            boundsFrameId = null;
-        }
-        resizeObserver?.disconnect?.();
-        mutationObserver?.disconnect?.();
-        documentRef?.removeEventListener?.(RAV_ANIMATION_LOADED_EVENT, loadCurrentAnimation);
-        documentRef?.removeEventListener?.(RAV_VM_CONTROL_MUTATED_EVENT, handleControlMutation);
-        documentRef?.removeEventListener?.(RAV_PLAYBACK_COMMAND_EVENT, handlePlaybackCommand);
-        documentRef?.removeEventListener?.(RAV_PRESENTATION_CHANGED_EVENT, handlePresentationChange);
-        windowRef?.removeEventListener?.('resize', scheduleBoundsSync);
-        unlistenCallbacks.splice(0).forEach((unlisten) => unlisten());
-        setMainCanvasVisible(true);
-        setRenderSurfaceFpsState(documentRef, false);
-        void invokeQuietly('close_render_surface');
+        loadOperation.cancel();
+        activationLifecycle.dispose();
+        return disposeController();
     }
-
     function getState() {
-        return {
+        const protocolState = protocol.getState();
+        return buildRenderSurfaceState({
+            activatingSessionId,
+            activeSessionId,
+            canAcceptCommands: !disposed && isLoaded && Boolean(activeSessionId) && fatalRecovery.canAcceptCommands(),
             isLoaded,
             isSetup,
-            pendingCommands: commandRelay.size(),
+            pendingCommands: activationCoordinator.pendingQueued() + activationCoordinator.pendingStage(),
+            protocolState,
+            recoveryState: fatalRecovery.getState().state,
             sessionId: surfaceSessionId,
+            stagedReady,
             surfaceCreated,
-        };
+        });
     }
-
     return {
         dispose,
+        getCanonicalState: () => protocol.getState().canonicalState,
         getState,
         loadCurrentAnimation,
+        loadCurrentAnimationForSelection,
+        requestImageCommand,
+        requestCommand: sendCommand,
         sendCommand,
         setup,
-        syncBounds,
+        syncBounds: boundsSync.sync,
     };
 }

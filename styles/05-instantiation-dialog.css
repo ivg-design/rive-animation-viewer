@@ -1,5 +1,5 @@
 .instantiation-controls-dialog {
-    border: 1px solid var(--border-bright);
+    border: 1px solid var(--dialog-frame);
     border-radius: var(--radius-lg);
     background: var(--bg-zinc);
     color: var(--text-dim);
@@ -33,6 +33,7 @@
     padding: 16px 20px;
     border-bottom: 1px solid var(--border);
     background: linear-gradient(180deg, #16181b, #121416);
+    flex-shrink: 0;
 }
 
 .instantiation-controls-header h2 {

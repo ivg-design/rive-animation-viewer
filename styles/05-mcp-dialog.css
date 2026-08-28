@@ -2,7 +2,7 @@
 
 /* dialog[open] is set by the browser — never override display on <dialog> itself */
 .mcp-setup-dialog {
-    border: 1px solid var(--border-bright);
+    border: 1px solid var(--dialog-frame);
     border-radius: var(--radius-lg);
     background: var(--bg-zinc);
     color: var(--text-dim);
@@ -28,6 +28,17 @@
 .mcp-setup-content {
     display: none;
     height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.mcp-setup-content::after {
+    content: "";
+    display: block;
+    flex: 0 0 12px;
+    min-height: 12px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-zinc);
 }
 
 .mcp-setup-header {
@@ -52,8 +63,13 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding: 16px 20px 20px;
+    /* The native overlay is a finite surface, so the body—not the dialog—owns
+     * scrolling. Extra terminal padding makes the final section feel complete
+     * rather than visibly cut off at the lower frame edge. */
+    padding: 16px 20px 32px;
     overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-padding: 16px 0 32px;
     flex: 1;
     min-height: 0;
 }

@@ -62,8 +62,7 @@ impl UiOverlayManager {
         registry.pending = Some(resource.clone());
         registry.pending_ready = Some(sender);
         registry.pending_presented = false;
-        let _ = self
-            .changes
+        self.changes
             .send_modify(|generation| *generation = generation.saturating_add(1));
         Ok((resource, receiver))
     }
@@ -73,6 +72,38 @@ impl UiOverlayManager {
             .lock()
             .map(|registry| registry.active.clone())
             .map_err(|_| "UI overlay registry is unavailable".to_string())
+    }
+
+    pub(super) fn authorized_action_source(
+        &self,
+        epoch: u64,
+        purpose: &str,
+        label: &str,
+        action: &str,
+    ) -> Result<Option<UiOverlayResource>, String> {
+        let registry = self
+            .registry
+            .lock()
+            .map_err(|_| "UI overlay registry is unavailable")?;
+        if let Some(active) = registry.active.as_ref().filter(|resource| {
+            resource.epoch == epoch
+                && resource.request.purpose == purpose
+                && resource.label == label
+        }) {
+            return Ok(Some(active.clone()));
+        }
+        if action != "close" {
+            return Ok(None);
+        }
+        Ok(registry
+            .retiring
+            .iter()
+            .find(|resource| {
+                resource.epoch == epoch
+                    && resource.request.purpose == purpose
+                    && resource.label == label
+            })
+            .cloned())
     }
 
     /// Claims the single child-ready presentation transition. A repeated ready
@@ -141,8 +172,7 @@ impl UiOverlayManager {
         if let Some(sender) = registry.pending_ready.take() {
             let _ = sender.send(Ok(()));
         }
-        let _ = self
-            .changes
+        self.changes
             .send_modify(|generation| *generation = generation.saturating_add(1));
         Ok(Some(next))
     }
@@ -162,8 +192,7 @@ impl UiOverlayManager {
         if let Some(sender) = registry.pending_ready.take() {
             let _ = sender.send(Err("UI overlay failed to become ready".to_string()));
         }
-        let _ = self
-            .changes
+        self.changes
             .send_modify(|generation| *generation = generation.saturating_add(1));
         Ok(true)
     }
@@ -186,8 +215,7 @@ impl UiOverlayManager {
             if let Some(sender) = registry.pending_ready.take() {
                 let _ = sender.send(Err("UI overlay adoption was superseded".to_string()));
             }
-            let _ = self
-                .changes
+            self.changes
                 .send_modify(|generation| *generation = generation.saturating_add(1));
             return Ok(true);
         }
@@ -209,8 +237,7 @@ impl UiOverlayManager {
         if let Some(pending) = registry.pending.take() {
             Self::retire(&mut registry, pending);
         }
-        let _ = self
-            .changes
+        self.changes
             .send_modify(|generation| *generation = generation.saturating_add(1));
         Ok(true)
     }
@@ -232,8 +259,7 @@ impl UiOverlayManager {
         {
             Self::retire(&mut registry, resource);
         }
-        let _ = self
-            .changes
+        self.changes
             .send_modify(|generation| *generation = generation.saturating_add(1));
         Ok(())
     }
@@ -270,8 +296,7 @@ impl UiOverlayManager {
         {
             Self::retire(&mut registry, resource);
         }
-        let _ = self
-            .changes
+        self.changes
             .send_modify(|generation| *generation = generation.saturating_add(1));
         Ok(())
     }

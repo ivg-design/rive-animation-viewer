@@ -1,0 +1,183 @@
+@import url("./00-base.css");
+@import url("./01-header.css");
+@import url("./01-header-controls.css");
+@import url("./02-settings.css");
+@import url("./10-about-dialog.css");
+@import url("./05-mcp-dialog.css");
+@import url("./05-instantiation-dialog.css");
+
+:root {
+    --alert: #fa541c;
+    --bg-elevated: #27272a;
+    --bg-void: #0a0a0a;
+    --bg-zinc: #18181b;
+    --border: #27272a;
+    --border-bright: #3f3f46;
+    --neon: #c4f82a;
+    --text-dim: #a1a1aa;
+    --text-muted: #71717a;
+    --text-primary: #a1a1aa;
+    --text-white: #ffffff;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --ui-overlay-frame: var(--dialog-frame);
+    --ui-overlay-frame-soft: color-mix(in srgb, var(--neon) 18%, transparent);
+}
+
+html,
+body,
+.ui-overlay-root {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+}
+
+html,
+.ui-overlay-body {
+    background: var(--bg-zinc);
+    overflow: hidden;
+}
+
+.ui-overlay-settings {
+    position: static;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    border: 1px solid var(--ui-overlay-frame);
+    border-radius: var(--radius-md);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.46), inset 0 0 0 1px var(--ui-overlay-frame-soft);
+    padding: 0;
+    overflow: hidden;
+}
+
+.ui-overlay-settings-body {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    padding: 12px;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
+    overscroll-behavior: contain;
+}
+
+.ui-overlay-settings-body.is-scroll-constrained {
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.ui-overlay-dialog {
+    position: static;
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--ui-overlay-frame);
+    border-radius: var(--radius-md);
+    background: var(--bg-zinc);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.46), inset 0 0 0 1px var(--ui-overlay-frame-soft);
+    overflow: hidden;
+}
+
+.ui-overlay-dialog[hidden] {
+    display: none;
+}
+
+.ui-overlay-dialog > .mcp-setup-content,
+.ui-overlay-dialog > .about-dialog-content,
+.ui-overlay-dialog > .instantiation-controls-content {
+    width: 100%;
+    height: 100%;
+}
+
+.ui-overlay-dialog:not([hidden]) > .mcp-setup-content,
+.ui-overlay-dialog:not([hidden]) > .instantiation-controls-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.ui-overlay-dialog > .about-dialog-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.ui-overlay-dialog > .about-dialog-content > .about-dialog-hero {
+    flex: 0 0 auto;
+}
+
+.ui-overlay-dialog > .about-dialog-content > .about-dialog-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+@media (max-width: 720px) {
+    .ui-overlay-dialog > .about-dialog-content > .about-dialog-body {
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+}
+
+.ui-overlay-action-error {
+    position: absolute;
+    z-index: 10;
+    top: 8px;
+    right: 8px;
+    left: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--alert);
+    border-radius: var(--radius-sm);
+    background: #24120d;
+    color: #ffb4a0;
+    font: 500 12px/1.35 "Space Mono", "SFMono-Regular", Consolas, monospace;
+    pointer-events: none;
+}
+
+.ui-overlay-root.is-action-busy button:not([data-overlay-close]),
+.ui-overlay-root.is-action-busy select,
+.ui-overlay-root.is-action-busy input {
+    pointer-events: none;
+    opacity: 0.58;
+}
+
+/* Native WebKit must never contribute its blue focus ring. Keyboard focus is
+ * represented by one restrained RAV-yellow halo, without a hard second box. */
+.ui-overlay-root :where(button, input, select, a, [tabindex]):focus {
+    outline: none;
+}
+
+.ui-overlay-root :where(button, input, select, a, [tabindex]):focus-visible {
+    outline: none;
+    border-color: color-mix(in srgb, var(--neon) 62%, var(--border-bright));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--neon) 34%, transparent),
+        0 0 7px color-mix(in srgb, var(--neon) 20%, transparent);
+}
+
+@media (max-width: 420px) {
+    .ui-overlay-settings-body .settings-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .ui-overlay-settings-body .settings-controls,
+    .ui-overlay-settings-body .settings-controls-canvas-size,
+    .ui-overlay-settings-body .settings-controls-canvas-size-meta,
+    .ui-overlay-settings-body .settings-controls-runtime,
+    .ui-overlay-settings-body .settings-controls-default-riv-app {
+        width: 100%;
+        max-width: none;
+    }
+
+    .ui-overlay-settings-body .settings-select,
+    .ui-overlay-settings-body .settings-input:not([type="color"]) {
+        min-width: 0;
+    }
+}

@@ -11,13 +11,20 @@
     "autoToFixedSmallCanvasCentering": "not-run",
     "fixedCanvasUsesLogicalPixelsAtDpr": "not-run",
     "fixedCanvasArtAlignment": "not-run",
-    "oversizedFixedCanvasCentering": "not-run",
+    "oversizedFixedCanvasTopLeftOrigin": "not-run",
     "backgroundFitAlignmentAfterPlayback": "not-run",
     "queuedControlsOnReload": "not-run",
+    "staticPausedFinishedActivation": "not-run",
+    "rapidSwitchingRejectsStaleResults": "not-run",
     "toolbarResetKeepsRenderSession": "not-run",
     "defaultResetKeepsRenderSession": "not-run",
     "drawerAccess": "not-run",
-    "settingsAboutExportOverlays": "not-run",
+    "settingsMcpAboutExportOverlayAccess": "not-run",
+    "overlayPlaybackContinuity": "not-run",
+    "overlayOutsideClickAndToolbarToggle": "not-run",
+    "overlayChromeAndScrollbarStyling": "not-run",
+    "overlayFocusStyling": "not-run",
+    "invalidFixedDimensionValidation": "not-run",
     "secondFileReload": "not-run"
   }
 }

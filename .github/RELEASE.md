@@ -141,7 +141,11 @@ reviewer rules before the first release.
 8. Complete the anonymous callback acceptance below against an isolated test
    Worker/D1 and retain its aggregate-only receipt.
 
-9. Commit the complete release with the exact subject:
+9. For a macOS release that changes `.riv` registration, document icons, or the
+   Settings default-app control, complete the
+   [macOS `.riv` handler and icon gate](#macos-riv-handler-and-icon-gate) below.
+
+10. Commit the complete release with the exact subject:
 
    ```bash
    git commit -m "chore(release): vX.Y.Z"
@@ -189,12 +193,30 @@ actual desktop validation.
      rather than a displaced viewport;
    - background, fit, and alignment remain correct after playback starts;
    - controls queued while a render surface reloads are applied once it loads;
+   - static, paused, inert, and already-finished artboards activate without
+     depending on a subsequent runtime advance callback;
+   - rapid A → B → A artboard changes, playback-type changes, and authored or
+     runtime-list instance changes never produce a first-frame timeout, blank or
+     stale frame, wrong selection, or stale-session receipt;
    - toolbar Reset restarts in place without changing the render-surface session
      or returning the FPS badge to its `ISOLATED` readiness state;
    - Properties `DEFAULT` resets in place with the same session/FPS behavior;
    - both workspace drawers remain accessible;
-   - Settings, About, and export overlays are accessible above the render
-     surface and restore the child surface after closing; and
+   - Settings, MCP Setup, About, and export overlays are accessible above the
+     render surface, preserve playback state while open, and restore the child
+     surface after closing;
+   - each overlay closes from clicks on the canvas and every main-window region
+     outside it, while clicking its originating toolbar button toggles it once
+     without a close/reopen race;
+   - Settings stays compact at its normal width without an unnecessary
+     scrollbar, and every overlay retains complete corners, its RAV-yellow frame,
+     and styled scrollbars only on intentionally scrollable inner content;
+   - opening an overlay does not force focus onto its close button or first
+     control; keyboard focus uses a subtle RAV-yellow glow without a native blue
+     or doubled hard outline;
+   - invalid Fixed dimensions (including `0`, `8193`, decimals, text, and very
+     large values) emit no canvas action, restore the last committed value, and
+     do not surface a generic control-action error; and
    - opening a second `.riv` replaces the first child surface and remains
      controllable through MCP.
 
@@ -202,7 +224,78 @@ Do not mark this gate passed from browser-only, unit-test-only, screenshot-only,
 or synthetic WebView evidence. This receipt is an attestation of the actual
 Tauri + RAV MCP run; the script validates completeness, not visual behavior.
 
+### Isolated DEV MCP receipt gate
+
+Before a DEV candidate can support the native visual receipt above, run
+`scripts/isolated-dev-mcp-acceptance-harness.mjs` against the exact packaged
+sidecar on port `9278`. Supply the packaged build stamp, version, `dev` channel,
+absolute scenario path, and independently calculated SHA-256 digests for both
+the sidecar and scenario. The harness refuses `/Applications`, port `9274`, a
+different build identity, changed input bytes, duplicate assertion names, or
+any skipped check.
+
+Verify the resulting JSON with `npm run verify:isolated-dev-mcp-receipt --`
+using the same exact build/version/channel, sidecar/scenario paths, and digests.
+The verifier independently hashes both files and requires the complete
+scenario-derived A/B/A inventory plus every authored-instance, timeline,
+state-machine, image, scalar ViewModel, runtime-list, reset/default, and canvas
+presentation assertion exactly once. Retain the verified receipt with the
+candidate provenance. This gate proves authoritative state and command
+contracts; the user-controlled native receipt remains required for rendered
+pixels, flicker, layout, focus, and Finder behavior.
+
+## macOS `.riv` handler and icon gate
+
+Run this gate on the packaged macOS app whenever a release changes Launch
+Services registration, `.riv` document metadata, the document icon, or the
+Settings action that makes RAV the default opener. This gate is separate from
+the updater acceptance: installing or relaunching an app does not prove its
+Launch Services ownership or Finder document icon.
+
+1. Confirm the packaged official app still declares `LSHandlerRank=Alternate`.
+   Merely installing or updating RAV must not silently replace the user's
+   chosen default `.riv` app.
+2. Open Settings and verify the live status is derived from both the canonical
+   `app.rive.editor.rive-file` UTI and the legacy
+   `app.rive.animation.viewer.riv` UTI:
+
+   - both point to this exact installed RAV bundle: `RAV DEFAULT`;
+   - only one points to this bundle: `PARTIAL`;
+   - neither points to this bundle: `OTHER APP`;
+   - the status cannot be queried safely: `UNAVAILABLE`.
+
+3. From an installed official RAV bundle, invoke **MAKE DEFAULT** and confirm
+   macOS completes the request for both UTIs. Re-open Settings after the bounded
+   verification delay and confirm `RAV DEFAULT` names this exact bundle path,
+   not another RAV copy with the same bundle identifier.
+4. Invoke **REPAIR ICON** while RAV is already default. Confirm the document
+   claims and bundled `RiveFileIcon.icns` are re-registered and both `.riv`
+   handlers are reasserted without changing playback state or restarting
+   Finder. Finder may repaint its icon cache asynchronously, so verify the
+   visible `.riv` icon separately after allowing the normal system refresh.
+5. Confirm an ordinary isolated DEV identifier reports `UNAVAILABLE`, disables
+   the action, and cannot mutate Launch Services. A locally packaged association
+   test build may opt in only through the exact
+   `app.rive.animation.viewer.flicker-test` identifier and an explicit Settings
+   action. Never use that identifier in CI or an official release artifact. Also
+   confirm the native command
+   rejects bundles running from a disk image, App Translocation, Trash, or a
+   bundle missing `Contents/Info.plist` or `Contents/Resources/RiveFileIcon.icns`.
+6. Record the final handler URL for both UTIs, the exact app bundle path, the
+   visible document icon result, macOS version, and build stamp in the release
+   receipt.
+
+Quick Look preview generation is explicitly outside this gate. The default app
+controls double-click/open handling, and bundle metadata supplies the Finder
+document icon; neither repairs or installs an independent Quick Look provider.
+
 ## Anonymous callback acceptance
+
+The normal callback reports anonymous installation and monthly-active receipts.
+When a user turns Anonymous Usage off, RAV sends one final anonymous
+`telemetry_off` control receipt and immediately disables further reporting. A
+failed final receipt remains pending locally and receives one bounded retry,
+then one retry per later launch until the idempotent Worker acknowledges it.
 
 Run this gate before every public release that changes the callback client,
 Worker, build configuration, or release version. It does not require publishing
@@ -213,24 +306,49 @@ RAV or writing synthetic rows to the production counter.
    temporary 32-byte-or-longer `TOKEN_PEPPER`.
 2. Expose that local Worker through an ephemeral Cloudflare Quick Tunnel. Verify
    the trusted HTTPS `/v1/health` returns `204` and `/v1/stats` begins at zero.
-3. Build the exact release-profile source with `RAV_OFFICIAL_RELEASE=1`, the
-   tunnel's HTTPS `/v1/event` URL, `APP_BUILD_CHANNEL=dev`, and a unique test-only
-   Tauri identifier. This exercises the production Rust sender without sharing
-   application state with an installed RAV build.
-4. On a fresh launch, verify the aggregate remains zero through the first-run
-   notice, then reaches exactly one after the notice completes and the additional
-   30-second send delay. Confirm client state records `installReported: true` and
-   clears its pending install token.
+3. Build the exact release-profile source with
+   `RAV_TELEMETRY_ACCEPTANCE=1`,
+   `RAV_TELEMETRY_ACCEPTANCE_ENDPOINT=<temporary HTTPS /v1/event URL>`,
+   `RAV_TELEMETRY_ACCEPTANCE_ACTION=enable` or `disable`, and a fresh
+   `RAV_TELEMETRY_ACCEPTANCE_ROOT` for that action. Create that root below the
+   process temp directory, not hard-coded `/tmp` (for example,
+   `accept_root=$(mktemp -d "${TMPDIR%/}/rav-telemetry-acceptance.XXXXXX")`).
+   The external runner observes only
+   `$accept_root/rav-telemetry-acceptance-result.json`; it contains the bounded
+   action result and no token or endpoint. Use a new root and marker for every
+   action launch. Build with a disposable `CARGO_TARGET_DIR` and
+   `--config src-tauri/tauri.telemetry-acceptance.conf.json`. Explicitly unset
+   `RAV_OFFICIAL_RELEASE` and `RAV_COUNTER_ENDPOINT`. The acceptance config has
+   its own app identity and data directory; the binary refuses to start under
+   any normal RAV identifier, disables updater activity, never starts MCP, and
+   advertises no `.riv` document types to Launch Services.
+   The dedicated action invokes the same Settings controller path exactly once
+   after setup and does not steal focus from an active DEV build. This exercises
+   the release-profile Rust sender without sharing application state, ports, or
+   network configuration with an installed RAV build.
+4. On a fresh `enable` action launch, verify the result marker reports success,
+   then verify the aggregate reaches exactly one. Confirm client state records
+   `installReported: true` and clears its pending install token.
 5. After the further 60-second delay, query only aggregate D1 values and confirm
    one `monthly_active` row for the current UTC month. Query token lengths, not
    token values, to confirm stored digests are 64 hexadecimal characters.
-6. Relaunch the same test identity for a complete report cycle and prove both
-   aggregate totals remain exactly one. Unit/native gates must also prove that
-   opting out creates the durable marker, removes pending/linkable client
-   secrets, and prevents reporting.
-7. Stop the app and tunnel and remove the isolated test profile and temporary D1
+6. Run a fresh-root `disable` action launch. Confirm the local durable marker is
+   created before the request, pending activity-reporting secrets are removed, and
+   `telemetryOffAttempted` is true. Query the private
+   `anonymous_install_status` table and confirm that identity is `disabled`.
+7. Relaunch while disabled and prove no further request is attempted. Then
+   re-enable and disable the same identity again: the install aggregate must
+   remain unchanged while its durable status moves `enabled` then `disabled`.
+8. Stop the app and tunnel and remove the isolated test profile and temporary D1
    data. The final production endpoint still requires its own health/stats smoke
    test before setting the repository variable.
+
+For a schema-v2 callback release, complete the production Worker rollout before
+pushing the guarded desktop release commit. Preserve the current aggregate,
+apply `telemetry/worker/migrations/0003_install_status.sql`, apply the one-time
+`0004_preference_generation.sql`, deploy the checked-in Worker, and verify both
+`GET /v1/health` (`204`) and the aggregate-only `GET /v1/stats` response. The
+Worker remains compatible with released schema-v1 clients during this rollout.
 
 The 2026-08-22 `2.5.0` pre-release run passed this path with DEV build `b0177`:
 health `204`, installations `0 → 1`, monthly active `0 → 1`, stored release
@@ -473,7 +591,7 @@ fixture, the pre-RAV ProgID is `Rive Animation`:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\verify-windows-document-icon.ps1 `
-  -ExpectedVersion 2.5.0 `
+  -ExpectedVersion 2.5.2 `
   -ExpectedBundleType NSS `
   -ExpectedPreviousProgId 'Rive Animation' `
   -ExpectedIconSha256 13e12927439f4c98db3250516389822d706e4d1b7fdf3e2b2dad0fc6cff785fb `

@@ -8,33 +8,47 @@ export function updateStringInputRows(input, value) {
     input.rows = /\r\n|\r|\n/.test(text) ? 2 : 1;
 }
 
-export function syncVmBindings(bindings, resolveControlAccessor, documentRef, force = false, getLoadedRuntime = () => null) {
+export function syncVmBindings(
+    bindings,
+    resolveControlAccessor,
+    documentRef,
+    force = false,
+    getLoadedRuntime = () => null,
+    canMutateBinding = () => true,
+) {
     const isEditingControl = (element) => documentRef.activeElement === element;
 
     bindings.forEach((binding) => {
         const accessor = binding.accessor || resolveControlAccessor(binding.descriptor);
-        const canEdit = Boolean(accessor);
+        const canEdit = Boolean(accessor) && canMutateBinding(binding.descriptor);
+        const canDecodeImage = binding.usesAuthoritativeImageTransport === true
+            || typeof getLoadedRuntime()?.decodeImage === 'function';
 
-        if (binding.input) {
-            binding.input.disabled = !canEdit
-                || (binding.kind === 'image' && typeof getLoadedRuntime()?.decodeImage !== 'function');
-        }
-        if (binding.colorInput) binding.colorInput.disabled = !canEdit;
-        if (binding.alphaInput) binding.alphaInput.disabled = !canEdit;
-        if (binding.clearButton) binding.clearButton.disabled = !canEdit;
+        const setDisabled = (element, disabled) => {
+            if (element && element.disabled !== disabled) element.disabled = disabled;
+        };
+        setDisabled(binding.input, !canEdit || (binding.kind === 'image' && !canDecodeImage));
+        setDisabled(binding.colorInput, !canEdit);
+        setDisabled(binding.alphaInput, !canEdit);
+        setDisabled(binding.clearButton, !canEdit);
+        setDisabled(binding.button, !canEdit);
         if (binding.browseButton) {
-            binding.browseButton.disabled = !canEdit || typeof getLoadedRuntime()?.decodeImage !== 'function';
+            setDisabled(binding.browseButton, !canEdit || !canDecodeImage);
         }
         if (binding.assetSelect) {
-            const canDecodeImage = typeof getLoadedRuntime()?.decodeImage === 'function';
-            binding.assetSelect.disabled = !canEdit;
+            setDisabled(binding.assetSelect, !canEdit);
             Array.from(binding.assetSelect.options).forEach((option) => {
                 if (option.value === '__open__' || option.value.startsWith('embedded:')) {
-                    option.disabled = !canDecodeImage;
+                    setDisabled(option, !canDecodeImage);
                 }
             });
         }
         if (!canEdit) return;
+
+        if (binding.kind === 'image') {
+            binding.syncImageSelection?.(accessor.metadata);
+            return;
+        }
 
         if (binding.kind === 'number') {
             const value = Number(accessor.value);
@@ -63,6 +77,10 @@ export function syncVmBindings(bindings, resolveControlAccessor, documentRef, fo
 
         if (binding.kind === 'enum') {
             const nextValue = typeof accessor.value === 'string' ? accessor.value : '';
+            // A native select's popup is owned by the browser. Updating its
+            // value while it has focus closes that popup, so defer routine
+            // canonical deltas until the user finishes choosing an option.
+            if (!force && isEditingControl(binding.input)) return;
             if (binding.input.value !== nextValue) binding.input.value = nextValue;
             return;
         }

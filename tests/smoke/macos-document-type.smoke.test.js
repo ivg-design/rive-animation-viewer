@@ -22,11 +22,11 @@ describe('macOS Rive document registration', () => {
             ],
         }));
         expect(association.exportedType).toBeUndefined();
-        expect(config.bundle.macOS.infoPlist).toBe('Info.plist');
+        expect(config.bundle.macOS.infoPlist).toBe('Info.production.plist');
     });
 
     it('declares official and legacy UTI icon metadata in the merged plist source', () => {
-        const plist = read('src-tauri/Info.plist');
+        const plist = read('src-tauri/Info.production.plist');
 
         expect(plist).toContain('<key>UTImportedTypeDeclarations</key>');
         expect(plist).toContain('<key>UTExportedTypeDeclarations</key>');
@@ -37,5 +37,16 @@ describe('macOS Rive document registration', () => {
         expect(plist).toContain('<key>CFBundleTypeIconSystemGenerated</key>');
         expect(plist).toContain('<false/>');
         expect(read('src-tauri/icons/README.md')).toContain('src-tauri/icons/RiveFileIcon.icns');
+    });
+
+    it('wires marker-gated startup refresh without automatic handler takeover', () => {
+        const main = read('src-tauri/src/main.rs');
+        const launchServices = read('src-tauri/src/app/launch_services.rs');
+        const registration = read('src-tauri/src/app/launch_services/registration.rs');
+
+        expect(main).toContain('app::launch_services::refresh_for_installed_version(');
+        expect(launchServices).toContain('is_official_app_identifier(identifier)');
+        expect(launchServices).toContain('registration::register_bundle(&canonical_bundle)?;');
+        expect(registration).not.toContain('set_default_handler');
     });
 });

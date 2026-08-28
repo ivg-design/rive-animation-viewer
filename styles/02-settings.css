@@ -10,7 +10,7 @@
     right: 0;
     min-width: 520px;
     background: var(--bg-zinc);
-    border: 1px solid var(--border);
+    border: 1px solid var(--dialog-frame);
     border-radius: var(--radius-md);
     padding: 12px;
     display: flex;
@@ -18,6 +18,12 @@
     gap: 10px;
     z-index: 100;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.settings-popover:not(.ui-overlay-settings) {
+    width: min(520px, calc(100vw - 16px));
+    min-width: min(520px, calc(100vw - 16px));
+    max-width: calc(100vw - 16px);
 }
 
 .settings-popover[hidden] {
@@ -70,6 +76,26 @@
     width: min(100%, 340px);
 }
 
+.settings-controls-default-riv-app {
+    justify-content: flex-end;
+    min-width: 218px;
+}
+
+.settings-default-riv-app-status {
+    max-width: 132px;
+    min-width: 82px;
+    color: var(--text-dim);
+    font-weight: 600;
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.settings-toggle-default-riv-app {
+    min-width: 112px;
+}
+
 .settings-row-runtime-custom .settings-label {
     opacity: 0.85;
 }
@@ -107,6 +133,11 @@
 
 .settings-input:focus {
     border-color: var(--border-bright);
+}
+
+.settings-input[aria-invalid="true"] {
+    border-color: var(--alert);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--alert) 35%, transparent);
 }
 
 .settings-toggle {
@@ -165,6 +196,31 @@
 .color-input.is-transparent {
     border-color: #c4f82a66;
     box-shadow: inset 0 0 0 1px #c4f82a44;
+}
+
+@media (max-width: 540px) {
+    .settings-popover:not(.ui-overlay-settings) .settings-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .settings-popover:not(.ui-overlay-settings) :is(
+        .settings-controls,
+        .settings-controls-canvas-size,
+        .settings-controls-canvas-size-meta,
+        .settings-controls-runtime,
+        .settings-controls-default-riv-app
+    ) {
+        width: 100%;
+        max-width: none;
+    }
+
+    .settings-popover:not(.ui-overlay-settings) :is(
+        .settings-select,
+        .settings-input:not([type="color"])
+    ) {
+        min-width: 0;
+    }
 }
 
 /* ── Legacy icon classes (kept for compatibility) ─────────── */

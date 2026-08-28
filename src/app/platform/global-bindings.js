@@ -27,6 +27,7 @@ export function createGlobalBindingsController({
         exportDemoToPath = async () => {},
         openIsolatedPlayback = async () => {},
         getArtboardStateSnapshot = () => ({}),
+        getCanvasBackgroundStateSnapshot = () => ({}),
         getCurrentCanvasSizing = () => null,
         getCurrentFileBuffer = () => null,
         getCurrentFileMimeType = () => 'application/octet-stream',
@@ -40,6 +41,7 @@ export function createGlobalBindingsController({
             sourceMode: 'internal',
         }),
         getRenderSurfaceState = () => null,
+        getRenderSurfaceController = () => null,
         getSidebarVisibility = () => ({ left: false, right: true }),
         getScriptConsoleEntries = () => ({ total: 0, returned: 0, entries: [] }),
         getVmExplorerSnippetState = () => ({ injected: false }),
@@ -65,14 +67,17 @@ export function createGlobalBindingsController({
         reset = () => {},
         resetToDefaultArtboard = () => {},
         setCurrentFile = () => {},
+        stageCurrentFile = () => null,
         setCurrentCanvasSizing = () => {},
         setCanvasSizingState = (canvasSizing) => canvasSizing,
         setEditorCode = () => {},
         setLiveConfigSource = async () => ({ sourceMode: 'internal' }),
+        setInstallCounterEnabled = async () => false,
         setSidebarVisibility = () => ({ left: false, right: true }),
         setVmExplorerSnippetEnabled = async () => ({ injected: false }),
         showMcpSetup = () => {},
         switchArtboard = () => {},
+        switchVmInstance = () => {},
         toggleInstantiationControlsDialog = async () => ({ open: false }),
         toggleLiveConfigSource = async () => {},
     } = callbacks;
@@ -105,6 +110,7 @@ export function createGlobalBindingsController({
         };
 
         windowRef._mcpSetCurrentFile = (...args) => setCurrentFile(...args);
+        windowRef._mcpStageCurrentFile = (...args) => stageCurrentFile(...args);
         windowRef._mcpLoadAnimation = loadRiveAnimation;
         windowRef._mcpGetEventLog = getEventLogEntries;
         windowRef._mcpConsoleOpen = async () => openScriptConsole();
@@ -160,16 +166,20 @@ export function createGlobalBindingsController({
         windowRef._mcpOpenIsolatedPlayback = async (options) => openIsolatedPlayback(options);
         windowRef._mcpGenerateWebInstantiationCode = async (packageSource, snippetMode) => getGenerateWebInstantiationCode(packageSource, snippetMode);
         windowRef._mcpSwitchArtboard = switchArtboard;
+        windowRef._mcpSwitchVmInstance = switchVmInstance;
         windowRef._mcpResetArtboard = resetToDefaultArtboard;
         windowRef._mcpGetArtboardState = () => getArtboardStateSnapshot();
+        windowRef._mcpGetCanvasBackgroundState = () => getCanvasBackgroundStateSnapshot();
         windowRef._mcpGetCanvasSizing = () => getCurrentCanvasSizing();
         windowRef._mcpSetCanvasSizing = (canvasSizing, message) => (
             typeof setCanvasSizingState === 'function'
                 ? setCanvasSizingState(canvasSizing, message)
                 : (setCurrentCanvasSizing(canvasSizing), canvasSizing)
         );
+        windowRef._mcpSetInstallCounterEnabled = (enabled) => setInstallCounterEnabled(enabled);
         windowRef._mcpGetLiveConfigState = () => getLiveConfigState();
         windowRef._mcpGetRenderSurfaceState = () => getRenderSurfaceState();
+        windowRef._mcpGetRenderSurfaceController = () => getRenderSurfaceController();
         windowRef._mcpGetSidebarVisibility = () => getSidebarVisibility();
         windowRef._mcpGetVmExplorerSnippetState = () => getVmExplorerSnippetState();
         windowRef._mcpSetLiveConfigSource = async (sourceMode) => setLiveConfigSource(sourceMode);

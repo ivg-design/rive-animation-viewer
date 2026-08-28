@@ -2,12 +2,12 @@
 
 canonical_url: https://forge.mograph.life/apps/rav/
 owner: IVG Design
-last_updated: 2026-08-22
+last_updated: 2026-08-27
 language: en
 site_type: product-marketing + technical documentation
 
 ## 1) Product Definition
-RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.riv) animations outside the Rive editor. Version 2.5.1 is the current public release and is available through the normal public updater feed.
+RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.riv) animations outside the Rive editor. Version 2.5.2 is a release candidate and is not yet available through the public updater feed.
 
 ## 2) Primary Entities
 - RAV: SoftwareApplication / DeveloperApplication
@@ -33,7 +33,8 @@ RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.
 - macOS .riv declarations cover UTI `app.rive.editor.rive-file` and compatibility UTI `app.rive.animation.viewer.riv`, both with the document-icon resource, Viewer role, Alternate rank, and version/schema-gated post-update Launch Services refresh without default takeover: https://forge.mograph.life/apps/rav/docs/opening-files
 - Windows NSIS and MSI packages ship a dedicated ten-resolution `RiveFileIcon.ico`. NSIS rewrites the generated `Rive File` document-icon value on install/update, preserves the association that preceded RAV for uninstall, and notifies Explorer; MSI owns the equivalent value as an upgrade-aware removable component: https://forge.mograph.life/apps/rav/docs/opening-files
 - RAV defaults to Latest (auto), preserves explicit runtime pins, and falls back to 2.39.2 if discovery is unavailable. Web 2.40.0 / runtime-v0.1.271 retains its proven nested, data-bound image warning in both WebGL2 and Canvas: https://forge.mograph.life/apps/rav/docs/configuration
-- RAV 2.5.1 keeps playback-surface controls synchronized after a file opens and restores Reset/Default playback in place. Fixed size is the canvas viewport, not the authored artboard; `Contain` can only align along an axis with unused canvas space: https://forge.mograph.life/apps/rav/docs/ui-layout
+- RAV 2.5.2 keeps the last confirmed frame visible while files, artboards, playback targets, and ViewModel instances change, discards stale rapid-switch work, and queues warm file opens. Timeline playback shows current and total frames or seconds, while scalar, image, list, and reset state remain authoritative to the visible surface: https://forge.mograph.life/apps/rav/changelog
+- Fixed size is the canvas viewport, not the authored artboard; `Contain` can only align along an axis with unused canvas space: https://forge.mograph.life/apps/rav/docs/ui-layout
 - RAV 2.5.0 places playback in a dedicated child WebView while controls and diagnostics remain in the main WebView, reducing ordinary UI contention with playback: https://forge.mograph.life/apps/rav/changelog
 - Configured official builds enable Anonymous Usage by default, show a first-run notice before reporting, and keep the opt-out in Settings: https://forge.mograph.life/apps/rav/privacy
 - Configuration, renderer, and layout controls: https://forge.mograph.life/apps/rav/docs#configuration
@@ -41,7 +42,7 @@ RAV (Rive Animation Viewer) is a desktop tool for loading and inspecting Rive (.
 - Keyboard shortcut reference: https://forge.mograph.life/apps/rav/docs#keyboard-shortcuts
 
 ## 5) Platform and Distribution Signals
-- 2.5.1 status: current public release; published through the normal public updater feed.
+- 2.5.2 status: release candidate; not yet published through the public updater feed.
 - Product + downloads context: https://forge.mograph.life/apps/rav/
 - Release downloads endpoint: https://github.com/ivg-design/rive-animation-viewer/releases/latest
 - Source repository references:

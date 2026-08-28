@@ -49,6 +49,7 @@ describe('platform/mcp-bridge', () => {
         delete window._mcpUpdateStatus;
         delete window.__RAV_MCP_PORT__;
         delete window.__RAV_UPDATER_ACCEPTANCE__;
+        delete window.__RAV_TELEMETRY_ACCEPTANCE__;
         delete window.__TAURI__;
     });
 
@@ -77,6 +78,24 @@ describe('platform/mcp-bridge', () => {
         expect(window._mcpBridge.setPort(9999)).toBe(9274);
         expect(window._mcpBridge.enabled).toBe(false);
         expect(FakeWebSocket.instances).toHaveLength(0);
+        expect(invoke).not.toHaveBeenCalled();
+    });
+
+    it('stays fully disconnected during telemetry acceptance', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        vi.stubGlobal('setInterval', vi.fn(() => 1));
+        vi.stubGlobal('clearInterval', vi.fn());
+        const invoke = vi.fn();
+        window.__RAV_TELEMETRY_ACCEPTANCE__ = true;
+        window.__TAURI__ = { core: { invoke } };
+
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-telemetry-acceptance');
+        await flushBridgeMicrotasks();
+
+        expect(window._mcpBridge.enabled).toBe(false);
+        expect(window._mcpBridge.state).toBe('off');
+        expect(FakeWebSocket.instances).toHaveLength(0);
+        await expect(window._mcpBridge.reconnect()).resolves.toBe(false);
         expect(invoke).not.toHaveBeenCalled();
     });
 
@@ -329,6 +348,43 @@ describe('platform/mcp-bridge', () => {
                 total: 1,
             },
         });
+    });
+
+    it('times out a stuck command and remains able to serve the next request', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        window._mcpLogEvent = vi.fn();
+        window._mcpUpdateStatus = vi.fn();
+        window._mcpConsoleRead = vi.fn()
+            .mockImplementationOnce(() => new Promise(() => {}))
+            .mockReturnValueOnce({ entries: [], returned: 0, total: 0 });
+
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-command-timeout');
+        await flushBridgeMicrotasks();
+
+        const socket = FakeWebSocket.instances[0];
+        socket.accept();
+        await flushBridgeMicrotasks();
+
+        const first = socket.onmessage?.({
+            data: { id: 'stuck-1', command: 'rav_console_read', params: {} },
+        });
+        await vi.advanceTimersByTimeAsync(20_000);
+        await first;
+        await flushBridgeMicrotasks();
+
+        await socket.onmessage?.({
+            data: { id: 'healthy-2', command: 'rav_console_read', params: {} },
+        });
+        await flushBridgeMicrotasks();
+
+        const replies = socket.sent.map((entry) => {
+            try { return JSON.parse(entry); } catch { return null; }
+        }).filter((entry) => entry?.id);
+        expect(replies).toEqual([
+            { id: 'stuck-1', error: 'MCP command timed out before the app completed it.' },
+            { id: 'healthy-2', result: { entries: [], returned: 0, total: 0 } },
+        ]);
+        expect(window._mcpBridge.connected).toBe(true);
     });
 
     it('stays green while ready, turns active only for recent commands, and resets the 30-second window', async () => {

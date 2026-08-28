@@ -2,7 +2,7 @@
     width: min(1040px, calc(100vw - 32px));
     max-height: min(780px, calc(100vh - 20px));
     margin: auto;
-    border: 1px solid color-mix(in srgb, var(--border-bright) 72%, #c4f82a 28%);
+    border: 1px solid var(--dialog-frame);
     border-radius: 22px;
     padding: 0;
     overflow: hidden;
@@ -39,6 +39,7 @@
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0)),
         linear-gradient(90deg, rgba(196, 248, 42, 0.04), transparent 42%);
+    flex: 0 0 auto;
 }
 
 .about-dialog-kicker {
@@ -98,8 +99,8 @@
 }
 
 .about-dialog-body {
-    flex: 0 0 auto;
-    min-height: auto;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow: hidden;
     display: grid;
     grid-template-columns: minmax(400px, 0.94fr) minmax(452px, 1.06fr);
@@ -352,7 +353,8 @@
     .about-dialog-body {
         grid-template-columns: 1fr;
         grid-template-rows: none;
-        overflow: auto;
+        overflow-y: auto;
+        overflow-x: hidden;
     }
 
     .about-dialog-card-build,

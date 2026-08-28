@@ -1,5 +1,4 @@
         init();
-
         function init() {
             if (isRenderSurfaceMode) {
                 document.body.classList.add('render-surface-mode');
@@ -30,44 +29,11 @@
             window.addEventListener('resize', handleResize);
             loadAnimation();
         }
-
-        function setupRenderSurfaceBridge() {
-            var events = window.__TAURI__ && window.__TAURI__.event;
-            if (!events || typeof events.listen !== 'function') return;
-
-            var emitToMain = function (eventName, payload) {
-                if (typeof events.emitTo !== 'function') return;
-                var eventPayload = Object.assign(
-                    { sessionId: renderSurfaceSessionId },
-                    payload && typeof payload === 'object' ? payload : {},
-                );
-                Promise.resolve(events.emitTo('main', eventName, eventPayload)).catch(function () { /* noop */ });
-            };
-            window.__ravRenderSurfaceEmit = emitToMain;
-
-            events.listen('render-surface:command', function (event) {
-                var command = event && event.payload && typeof event.payload === 'object' ? event.payload : {};
-                try {
-                    handleRenderSurfaceCommand(command, emitToMain);
-                } catch (error) {
-                    emitToMain('render-surface:error', {
-                        command: command.type || command.command || null,
-                        message: String((error && error.message) || error),
-                    });
-                }
-            }).catch(function (error) {
-                emitToMain('render-surface:error', { phase: 'listen', message: String((error && error.message) || error) });
-            });
-
-            emitToMain('render-surface:ready', { protocol: 1 });
-        }
-
         function renderSurfaceCommandPayload(command) {
             return command && command.payload && typeof command.payload === 'object'
                 ? command.payload
                 : command || {};
         }
-
         function setRenderSurfaceAccessorValue(accessor, kind, value) {
             if (!accessor) throw new Error('Control is unavailable.');
             if (kind === 'trigger') {
@@ -79,7 +45,94 @@
             if (!('value' in accessor)) throw new Error('Control does not expose a value.');
             accessor.value = value;
         }
-
+        function renderSurfaceCommandValue(payload, descriptor) {
+            if (payload && Object.prototype.hasOwnProperty.call(payload, 'value')) {
+                return payload.value;
+            }
+            return descriptor && Object.prototype.hasOwnProperty.call(descriptor, 'value')
+                ? descriptor.value
+                : undefined;
+        }
+        function renderSurfaceImageCommand(payload) {
+            var descriptor = payload && payload.descriptor && typeof payload.descriptor === 'object'
+                ? payload.descriptor
+                : payload || {};
+            var command = Object.assign({}, descriptor);
+            if (payload && Object.prototype.hasOwnProperty.call(payload, 'action')) command.action = payload.action;
+            if (payload && Object.prototype.hasOwnProperty.call(payload, 'imageSelection')) command.imageSelection = payload.imageSelection;
+            if (payload && Object.prototype.hasOwnProperty.call(payload, 'value')) command.value = payload.value;
+            return command;
+        }
+        function resetRenderSurfaceAndWait(resetParams, resetSnapshot) {
+            if (!riveInstance || typeof riveInstance.reset !== 'function') {
+                return Promise.reject(new Error('Playback reset is unavailable.'));
+            }
+            if (pendingRenderSurfaceReset) {
+                return Promise.reject(new Error('A playback reset is already in progress.'));
+            }
+            currentControlSnapshot = JSON.parse(JSON.stringify(resetSnapshot));
+            return new Promise(function (resolve, reject) {
+                var timeoutId = window.setTimeout(function () {
+                    if (!pendingRenderSurfaceReset) return;
+                    pendingControlSnapshot.clear();
+                    if (typeof scheduleRenderSurfaceCanonicalRefresh === 'function') {
+                        scheduleRenderSurfaceCanonicalRefresh('reset-first-frame', true);
+                    }
+                    pendingRenderSurfaceReset = null;
+                    reject(new Error('Playback reset did not confirm a rendered frame.'));
+                }, 8000);
+                pendingRenderSurfaceReset = {
+                    params: resetParams,
+                    presentationScheduled: false,
+                    reject: function (error) {
+                        window.clearTimeout(timeoutId);
+                        pendingRenderSurfaceReset = null;
+                        reject(error);
+                    },
+                    resolve: function (result) {
+                        window.clearTimeout(timeoutId);
+                        pendingRenderSurfaceReset = null;
+                        resolve(result);
+                    },
+                    snapshot: currentControlSnapshot,
+                };
+                try {
+                    if (typeof invalidateRenderSurfaceCanonicalBindingsForReset === 'function') {
+                        invalidateRenderSurfaceCanonicalBindingsForReset();
+                    }
+                    resetPlaybackChips();
+                    riveInstance.reset(resetParams);
+                    // `Rive.reset()` is in-place and is not required to call
+                    // onLoad. Rebind an explicit VM here, after reset and
+                    // before the scalar/list/image snapshots resolve. Zero is
+                    // a valid list-instance key, so test only null/undefined.
+                    var requestedVmInstanceKey = resetParams && resetParams.viewModelInstanceName;
+                    var explicitVmInstanceRequested = requestedVmInstanceKey !== null
+                        && typeof requestedVmInstanceKey !== 'undefined';
+                    var bindingApplied = explicitVmInstanceRequested
+                        ? bindViewModelInstanceByKey(riveInstance, requestedVmInstanceKey)
+                        : true;
+                    if (!bindingApplied) {
+                        throw new Error('ViewModel instance "' + requestedVmInstanceKey + '" is unavailable after reset.');
+                    }
+                    pendingRenderSurfaceReset.binding = {
+                        applied: bindingApplied,
+                        key: explicitVmInstanceRequested ? requestedVmInstanceKey : null,
+                        requested: explicitVmInstanceRequested,
+                    };
+                    // Rive reset is intentionally in-place: it normally does
+                    // not re-enter onLoad. Start the child-only presentation
+                    // barrier immediately after the reset call rather than
+                    // recreating the renderer or waiting for a load callback.
+                    settleRenderSurfaceResetAfterPresentation(pendingRenderSurfaceReset);
+                } catch (error) {
+                    if (typeof scheduleRenderSurfaceCanonicalRefresh === 'function') {
+                        scheduleRenderSurfaceCanonicalRefresh('reset-first-frame', true);
+                    }
+                    pendingRenderSurfaceReset.reject(error);
+                }
+            });
+        }
         function handleRenderSurfaceCommand(command, emitToMain) {
             if (command.sessionId && renderSurfaceSessionId && command.sessionId !== renderSurfaceSessionId) {
                 return;
@@ -89,55 +142,77 @@
             if (type === 'snapshot') {
                 var snapshot = Array.isArray(payload.snapshot) ? payload.snapshot : (Array.isArray(command.snapshot) ? command.snapshot : []);
                 var applied = applyControlSnapshot(snapshot);
-                emitToMain('render-surface:loaded', { command: 'snapshot', applied: applied });
-                return;
+                return { applied: applied, pending: pendingControlSnapshot.size };
             }
             if (type === 'vm-set' || type === 'vm-fire') {
                 var vmDescriptor = payload.descriptor && typeof payload.descriptor === 'object' ? payload.descriptor : payload;
                 var vmKind = type === 'vm-fire' ? 'trigger' : vmDescriptor.kind;
                 var vmAccessor = resolveLiveAccessor(vmDescriptor.path, vmKind);
-                setRenderSurfaceAccessorValue(vmAccessor, vmKind, vmDescriptor.value);
-                return;
+                if (vmKind === 'trigger' && riveInstance && riveInstance.isPlaying === false) riveInstance.play();
+                setRenderSurfaceAccessorValue(vmAccessor, vmKind, renderSurfaceCommandValue(payload, vmDescriptor));
+                if (vmKind === 'trigger') recordRenderSurfaceTriggerReceipt(Object.assign({}, vmDescriptor, { kind: 'trigger', source: 'view-model' }));
+                return {
+                    descriptor: vmDescriptor,
+                    value: vmKind === 'trigger' ? null : vmAccessor.value,
+                };
+            }
+            if (type === 'vm-image-set') {
+                var imageDescriptor = renderSurfaceImageCommand(payload);
+                return applyRenderSurfaceImageCommand(imageDescriptor, true);
             }
             if (type === 'sm-set' || type === 'sm-fire') {
                 var smDescriptor = payload.descriptor && typeof payload.descriptor === 'object' ? payload.descriptor : payload;
                 var smKind = type === 'sm-fire' ? 'trigger' : smDescriptor.kind;
                 var smAccessor = resolveStateMachineInputAccessor(smDescriptor.stateMachineName, smDescriptor.name, smKind);
-                setRenderSurfaceAccessorValue(smAccessor, smKind, smDescriptor.value);
-                return;
+                if (smKind === 'trigger' && riveInstance && riveInstance.isPlaying === false) riveInstance.play();
+                setRenderSurfaceAccessorValue(smAccessor, smKind, renderSurfaceCommandValue(payload, smDescriptor));
+                if (smKind === 'trigger') recordRenderSurfaceTriggerReceipt(Object.assign({}, smDescriptor, { kind: 'trigger', source: 'state-machine' }));
+                return {
+                    descriptor: smDescriptor,
+                    value: smKind === 'trigger' ? null : smAccessor.value,
+                };
             }
             if (type === 'play') {
-                if (riveInstance && typeof riveInstance.play === 'function') riveInstance.play();
-                return;
+                if (!riveInstance || typeof riveInstance.play !== 'function') throw new Error('Playback is unavailable.');
+                var playTarget = payload.name || payload.animation || payload.playbackName;
+                var configuredTarget = window.__ravRenderSurfaceTarget || {};
+                if (!playTarget && configuredTarget.type === 'animation') playTarget = configuredTarget.name;
+                if (playTarget) riveInstance.play(playTarget);
+                else riveInstance.play();
+                return { name: playTarget || null };
             }
             if (type === 'pause') {
-                if (riveInstance && typeof riveInstance.pause === 'function') riveInstance.pause();
-                return;
+                if (!riveInstance || typeof riveInstance.pause !== 'function') throw new Error('Playback pause is unavailable.');
+                riveInstance.pause();
+                return { paused: true };
             }
             if (type === 'reset') {
-                if (!riveInstance || typeof riveInstance.reset !== 'function') {
-                    throw new Error('Playback reset is unavailable.');
-                }
                 var resetSnapshot = Array.isArray(payload.snapshot) ? payload.snapshot : [];
-                var resetParams = payload.params && typeof payload.params === 'object'
-                    ? payload.params
-                    : { autoplay: true, autoBind: true };
+                var resetContract = buildRenderSurfaceResetContract(payload.params);
+                var resetParams = resetContract.params;
                 currentControlSnapshot = JSON.parse(JSON.stringify(resetSnapshot));
-                riveInstance.reset(resetParams);
-                applyControlSnapshot(currentControlSnapshot);
-                return;
+                setRenderSurfacePlaybackTarget(resetContract.target);
+                return resetRenderSurfaceAndWait(resetParams, resetSnapshot);
             }
             if (type === 'presentation') {
                 applyRenderSurfacePresentation(payload);
-                return;
+                return { presentation: true };
             }
             if (type === 'resize') {
                 handleResize();
-                return;
+                return { resized: true };
+            }
+            if (type === 'prepare-frame') {
+                // A child may be staged behind the active surface. Wait for two
+                // presentation opportunities after all snapshot/layout work so
+                // the host swaps only after a composited candidate is ready.
+                return waitForRenderSurfacePresentationFrames(2);
+            }
+            if (type === 'activate-callbacks') {
+                return { activated: activateRenderSurfaceUserCallbacks() };
             }
             throw new Error('Unsupported render-surface command: ' + (type || '(empty)'));
         }
-
         function applyRenderSurfacePresentation(payload) {
             if (LAYOUT_FITS.indexOf(payload.layoutFit) >= 0) currentLayoutFit = payload.layoutFit;
             if (LAYOUT_ALIGNMENTS.indexOf(payload.layoutAlignment) >= 0) currentLayoutAlignment = payload.layoutAlignment;
@@ -166,12 +241,10 @@
             }
             handleResize();
         }
-
         function parseCssPixels(value, fallback) {
             var numeric = Number.parseFloat(String(value == null ? '' : value).replace('px', '').trim());
             return Number.isFinite(numeric) ? Math.round(numeric) : fallback;
         }
-
         function normalizeCanvasColor(rawColor) {
             var value = String(rawColor || '').trim().toLowerCase();
             if (/^#[0-9a-f]{6}$/i.test(value)) {
@@ -179,16 +252,13 @@
             }
             return null;
         }
-
         function isCanvasBackgroundTransparent() {
             return currentCanvasColor === TRANSPARENT_CANVAS_COLOR;
         }
-
         function syncCanvasColorControls() {
             var input = els.canvasColorInput;
             var resetBtn = els.canvasColorResetBtn;
             if (!input || !resetBtn) return;
-
             if (!normalizeCanvasColor(lastSolidCanvasColor)) {
                 lastSolidCanvasColor = DEFAULT_CANVAS_COLOR;
             }
@@ -197,12 +267,10 @@
             resetBtn.classList.toggle('is-active', isCanvasBackgroundTransparent());
             resetBtn.setAttribute('aria-pressed', String(isCanvasBackgroundTransparent()));
         }
-
         function applyPersistedLayoutState() {
             var rightWidth = parseCssPixels(LAYOUT_STATE.rightPanelWidth, 320);
             var eventLogHeight = parseCssPixels(LAYOUT_STATE.eventLogHeight, 230);
             var collapsedEventLog = Boolean(LAYOUT_STATE.eventLogCollapsed);
-
             if (els.mainGrid && Number.isFinite(rightWidth)) {
                 els.mainGrid.style.setProperty('--right-width', clamp(rightWidth, 260, 900) + 'px');
             }
@@ -212,16 +280,13 @@
             if (typeof setEventLogCollapsed === 'function') {
                 setEventLogCollapsed(collapsedEventLog);
             }
-
             syncCanvasColorControls();
         }
-
         function initLucideIcons() {
             if (typeof lucide !== 'undefined' && lucide.createIcons) {
                 lucide.createIcons();
             }
         }
-
         /* ── Canvas sizing ───────────────────────────────────── */
 
         function setupCanvasSize() {
@@ -298,7 +363,6 @@
         }
 
         /* ── Canvas background ───────────────────────────────── */
-
         function updateCanvasBackground() {
             var canvasBackground = isCanvasBackgroundTransparent() ? 'transparent' : currentCanvasColor;
             document.documentElement.style.setProperty('--canvas-color', canvasBackground);

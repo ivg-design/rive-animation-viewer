@@ -4,8 +4,8 @@ import {
     DEFAULT_CANVAS_WIDTH,
 } from './constants.js';
 
-const MIN_CANVAS_DIMENSION = 1;
-const MAX_CANVAS_DIMENSION = 8192;
+export const MIN_CANVAS_DIMENSION = 1;
+export const MAX_CANVAS_DIMENSION = 8192;
 const DEFAULT_ASPECT_RATIO = DEFAULT_CANVAS_WIDTH / DEFAULT_CANVAS_HEIGHT;
 const BASE_CANVAS_SIZING_STATE = {
     mode: 'auto',
@@ -21,6 +21,16 @@ function clampDimension(value, fallback) {
         return fallback;
     }
     return Math.min(MAX_CANVAS_DIMENSION, Math.max(MIN_CANVAS_DIMENSION, Math.round(numeric)));
+}
+
+export function isValidCanvasDimensionInput(value, { allowEmpty = false } = {}) {
+    const text = String(value ?? '').trim();
+    if (allowEmpty && text === '') return true;
+    if (text === '' || !/^\d+$/.test(text)) return false;
+    const numeric = Number(text);
+    return Number.isSafeInteger(numeric)
+        && numeric >= MIN_CANVAS_DIMENSION
+        && numeric <= MAX_CANVAS_DIMENSION;
 }
 
 function normalizeMode(value) {

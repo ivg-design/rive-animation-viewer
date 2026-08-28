@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::process::Child;
-use std::sync::Mutex;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Mutex,
+};
 use tauri_plugin_updater::Update;
 
 #[derive(Deserialize)]
@@ -44,6 +47,30 @@ pub struct DemoBundlePayload {
 }
 
 pub struct OpenedFiles(pub Mutex<VecDeque<String>>);
+
+#[derive(Default)]
+pub struct NativeDialogState {
+    active: AtomicBool,
+}
+
+pub struct NativeDialogLease<'a> {
+    state: &'a NativeDialogState,
+}
+
+impl NativeDialogState {
+    pub fn try_acquire(&self) -> Result<NativeDialogLease<'_>, String> {
+        self.active
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .map_err(|_| "A native file dialog is already open.".to_string())?;
+        Ok(NativeDialogLease { state: self })
+    }
+}
+
+impl Drop for NativeDialogLease<'_> {
+    fn drop(&mut self) {
+        self.state.active.store(false, Ordering::Release);
+    }
+}
 
 pub struct McpBridgeManager {
     pub child: Mutex<Option<Child>>,

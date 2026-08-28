@@ -2,6 +2,7 @@ export function createConsoleModeController({
     callbacks = {},
     elements,
     eventLogController,
+    operationsDiagnosticsController,
     scriptConsoleController,
 } = {}) {
     const {
@@ -17,7 +18,22 @@ export function createConsoleModeController({
     }
 
     function deriveConsoleViewFromControllers() {
+        if (operationsDiagnosticsController?.isOpen?.()) return 'rav';
         return scriptConsoleController?.isOpen?.() ? 'js' : 'events';
+    }
+
+    function syncModeTabs() {
+        const view = isConsoleOpen() ? currentConsoleView : 'events';
+        [
+            [elements?.eventConsoleTab, 'events'],
+            [elements?.scriptConsoleTab, 'js'],
+            [elements?.ravOperationsTab, 'rav'],
+        ].forEach(([tab, mode]) => {
+            if (!tab) return;
+            const active = view === mode;
+            tab.classList.toggle('is-active', active);
+            tab.setAttribute('aria-pressed', String(active));
+        });
     }
 
     function updateConsoleModeChip() {
@@ -37,10 +53,11 @@ export function createConsoleModeController({
     }
 
     async function setConsoleMode(mode) {
-        const normalizedMode = ['closed', 'events', 'js'].includes(mode) ? mode : 'events';
+        const normalizedMode = ['closed', 'events', 'js', 'rav'].includes(mode) ? mode : 'events';
         syncingConsoleMode = true;
         try {
             if (normalizedMode === 'closed') {
+                operationsDiagnosticsController?.close?.();
                 scriptConsoleController.close();
                 eventLogController.setCollapsed(true);
                 return;
@@ -49,17 +66,24 @@ export function createConsoleModeController({
             currentConsoleView = normalizedMode;
             eventLogController.setCollapsed(false);
             if (normalizedMode === 'events') {
+                operationsDiagnosticsController?.close?.();
                 scriptConsoleController.close();
-            } else {
+            } else if (normalizedMode === 'js') {
+                operationsDiagnosticsController?.close?.();
                 await scriptConsoleController.open();
+            } else {
+                scriptConsoleController.close();
+                const shown = await operationsDiagnosticsController?.show?.();
+                if (!shown) throw new Error('RAV operational diagnostics are unavailable in this build.');
             }
         } catch (error) {
             currentConsoleView = deriveConsoleViewFromControllers();
-            showError(`Failed to open JavaScript console: ${error.message}`);
+            showError(`Failed to open console: ${error.message}`);
             logEvent('ui', 'console-open-failed', error.message);
             throw error;
         } finally {
             syncingConsoleMode = false;
+            syncModeTabs();
             updateConsoleModeChip();
         }
     }
@@ -71,10 +95,12 @@ export function createConsoleModeController({
         }
         syncingConsoleMode = true;
         try {
+            operationsDiagnosticsController?.close?.();
             scriptConsoleController.close();
             eventLogController.setCollapsed(true);
         } finally {
             syncingConsoleMode = false;
+            syncModeTabs();
             updateConsoleModeChip();
         }
     }
@@ -89,12 +115,14 @@ export function createConsoleModeController({
         }
 
         if (collapsed) {
+            operationsDiagnosticsController?.close?.();
             if (scriptConsoleController?.isOpen()) {
                 scriptConsoleController.close();
             }
         } else {
             currentConsoleView = deriveConsoleViewFromControllers();
         }
+        syncModeTabs();
         updateConsoleModeChip();
     }
 
@@ -103,7 +131,15 @@ export function createConsoleModeController({
             return;
         }
 
-        currentConsoleView = isOpen ? 'js' : 'events';
+        currentConsoleView = isOpen ? 'js' : deriveConsoleViewFromControllers();
+        syncModeTabs();
+        updateConsoleModeChip();
+    }
+
+    function handleOperationsDiagnosticsOpenChange(isOpen) {
+        if (syncingConsoleMode) return;
+        currentConsoleView = isOpen ? 'rav' : deriveConsoleViewFromControllers();
+        syncModeTabs();
         updateConsoleModeChip();
     }
 
@@ -122,10 +158,16 @@ export function createConsoleModeController({
         await setConsoleMode('js');
     }
 
+    async function activateRavMode() {
+        await setConsoleMode('rav');
+    }
+
     return {
         activateEventsMode,
         activateJsMode,
+        activateRavMode,
         handleEventLogCollapsedChange,
+        handleOperationsDiagnosticsOpenChange,
         handleScriptConsoleOpenChange,
         handleScriptConsoleToggleRequest,
         setConsoleMode,

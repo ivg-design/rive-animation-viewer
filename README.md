@@ -4,9 +4,9 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current public release: `2.5.1`.
-- Release downloads are available through GitHub Releases and the normal public `latest.json` updater feed.
-- The verified `v2.5.1` commit on `main` is the release source.
+- Prepared release candidate: `2.5.2` (not yet published).
+- Public downloads and the normal public `latest.json` updater feed remain on the most recently published release until 2.5.2 is released.
+- The exact `chore(release): v2.5.2` commit becomes the candidate release source once it lands on `main`.
 - macOS downloads and updater apps are Developer ID signed, notarized, and stapled; updater payloads retain their separate update signatures.
 
 ## Regression Gates
@@ -21,6 +21,16 @@ The repo now has explicit prebuild guards for the surfaces that were regressing 
 - `cargo check --manifest-path src-tauri/Cargo.toml` validates the native Tauri layer
 
 These gates materially reduce regression risk, but they are still code- and DOM-contract tests, not full visual snapshot coverage. If we want pixel-level guarantees from this point forward, the next step is adding screenshot-based desktop smoke tests for the packaged app window.
+
+## 2.5.2 Reliability Update
+
+- **Switch without flicker**: File, artboard, playback-target, and ViewModel-instance changes keep the last confirmed frame visible until the replacement is ready. Rapid changes discard stale work instead of surfacing blank frames or first-frame errors.
+- **Controls match the canvas**: Scalars, booleans, images, authored instances, and runtime-generated list instances remain synchronized in both directions. Image slots stay independent, and Reset plus Properties `DEFAULT` update playback and controls together.
+- **Timeline progress**: Timeline playback shows current and total frames or seconds in a compact meter that stays hidden for state machines.
+- **Reliable warm opens**: Opening another `.riv` while RAV is already running queues the request and replaces the active file without racing playback activation.
+- **Stable overlays**: Settings, MCP Setup, About, and export remain above playback without stopping it, close from any outside click, and keep consistent RAV chrome, focus, corners, and scrollbars.
+- **macOS `.riv` ownership**: Settings names the actual current handler and provides deliberate Make Default and Repair Icon actions without silently taking ownership. Quick Look remains separate.
+- **Private-by-design opt-out**: Disabling Anonymous Usage sends one final anonymous off status, then stops reporting. No Rive files, paths, hardware identifiers, accounts, or license information are sent.
 
 ## 2.5.1 Hotfix
 
@@ -43,12 +53,13 @@ For example, a 16:9 artboard inside a taller 500 × 409 canvas fills the full 50
 - **Accurate export counts**: Export summaries report the actual number of serialized controls, including controls generated from repeated lists.
 - **Drawer reveal controls**: The left and right drawer buttons now live in the main interface strip so they remain accessible beside the separate playback surface.
 - **Anonymous Usage controls**: Official releases can report anonymous installation and monthly usage counts. A first-run notice, a Settings toggle, and Privacy Policy links were added with the feature.
+- **macOS `.riv` ownership and icon repair**: Settings reports whether this exact installed RAV bundle owns both the canonical and legacy `.riv` identifiers. Users can deliberately make RAV the default opener or re-register its document icon without RAV silently taking ownership during installation; Quick Look remains a separate macOS provider.
 
 ## Anonymous installation counting
 
 Anonymous counting is on by default in official releases. A first-run notice appears before the first report, and the feature can be disabled at any time under Settings → Anonymous Usage.
 
-RAV reports only anonymous installation and monthly usage tokens with the release number. It does not send Rive data, files, paths, hardware identifiers, accounts, or license information. The website displays only an aggregate total; updates usually appear within a few minutes. More information is available in the RAV website's Privacy Policy.
+RAV reports only anonymous installation and monthly usage tokens with the release number. Turning Anonymous Usage off sends one final anonymous disable status, then reporting stops. If that final status cannot be delivered, it remains pending locally and receives at most one retry per later launch until acknowledged, without resuming any other reporting. RAV does not send Rive data, files, paths, hardware identifiers, accounts, or license information. The website displays only an aggregate total; updates usually appear within a few minutes. More information is available in the RAV website's Privacy Policy.
 
 ## 2.4.3 Highlights
 
@@ -319,7 +330,7 @@ Open the RAV desktop app and enable the MCP bridge. The **MCP** chip is muted an
 | `rav_get_editor_code` / `rav_set_editor_code` | Read/write the script editor |
 | `rav_apply_code` | Apply editor code and reload animation (`Script Access` required) |
 | `rav_set_runtime` | Switch runtime (webgl2/canvas) |
-| `rav_set_layout` | Set layout fit mode |
+| `rav_set_layout` / `rav_set_alignment` | Set layout fit mode and nine-way canvas alignment |
 | `rav_set_canvas_color` | Set background color or transparent |
 | `rav_set_canvas_size` | Set canvas sizing mode (`auto` or explicit pixels) and optional aspect lock |
 | `rav_export_demo` | Export standalone HTML demo |

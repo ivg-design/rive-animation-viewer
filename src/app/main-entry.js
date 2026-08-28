@@ -25,6 +25,26 @@ import {
     loadRuntimeVersionPreference,
 } from './platform/runtime/runtime-utils.js';
 import { createTauriBridgeController } from './platform/tauri-bridge.js';
+import { createTimelineProgressController } from './rive/timeline-progress.js';
+
+const APP_BUILD = '__APP_BUILD__';
+const APP_BUILD_PLACEHOLDER = '__APP' + '_BUILD__';
+const APP_CHANNEL = '__APP_CHANNEL__';
+const APP_VERSION = '__APP_VERSION__';
+const APP_VERSION_PLACEHOLDER = '__APP' + '_VERSION__';
+
+// MCP acceptance must be able to prove that it reached the same packaged
+// WebView as the explicitly selected sidecar. Keep this small, immutable, and
+// free of local paths or device identity.
+window.__RAV_BUILD_INFO__ = Object.freeze({
+    build: APP_BUILD,
+    channel: APP_CHANNEL,
+    version: APP_VERSION,
+});
+
+// The visible shell is renderer-agnostic. The authoritative child can feed
+// confirmed metrics later through the module's update() API or custom event.
+createTimelineProgressController();
 
 const runtimePreferences = {
     runtimeVersionByFile: loadRuntimeVersionByFile(),
@@ -142,11 +162,11 @@ const elements = getElements();
 const controllerStack = createControllerStack({
     elements,
     placeholders: {
-        appBuild: '__APP_BUILD__',
-        appBuildPlaceholder: '__APP' + '_BUILD__',
-        appChannel: '__APP_CHANNEL__',
-        appVersion: '__APP_VERSION__',
-        appVersionPlaceholder: '__APP' + '_VERSION__',
+        appBuild: APP_BUILD,
+        appBuildPlaceholder: APP_BUILD_PLACEHOLDER,
+        appChannel: APP_CHANNEL,
+        appVersion: APP_VERSION,
+        appVersionPlaceholder: APP_VERSION_PLACEHOLDER,
     },
     callbacks: {
         buildFileRuntimePreferenceId: createFileRuntimePreferenceId,

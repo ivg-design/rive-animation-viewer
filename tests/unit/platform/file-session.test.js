@@ -32,6 +32,7 @@ describe('platform/file-session', () => {
         const revokeObjectURL = vi.fn();
         const loadRiveAnimation = vi.fn().mockResolvedValue(undefined);
         const applyStoredRuntimeVersionForCurrentFile = vi.fn().mockResolvedValue(undefined);
+        const openedPaths = ['/tmp/demo.riv'];
         const controller = createFileSessionController({
             callbacks: {
                 applyStoredRuntimeVersionForCurrentFile,
@@ -40,7 +41,7 @@ describe('platform/file-session', () => {
                 ensureTauriBridge: vi.fn().mockResolvedValue(undefined),
                 getTauriInvoker: () => vi.fn(async (command) => {
                     if (command === 'get_opened_file') {
-                        return '/tmp/demo.riv';
+                        return openedPaths.shift() || null;
                     }
                     if (command === 'read_riv_file') {
                         return 'AQI=';
@@ -71,7 +72,7 @@ describe('platform/file-session', () => {
         await expect(controller.checkOpenedFile()).resolves.toBe(true);
         expect(createObjectURL).toHaveBeenCalled();
         expect(applyStoredRuntimeVersionForCurrentFile).toHaveBeenCalled();
-        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:demo', 'demo.riv', { forceAutoplay: true });
+        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:demo', 'demo.riv', { forceAutoplay: true, waitForActivation: true });
         expect(controller.getCurrentFileUrl()).toBe('blob:demo');
         expect(controller.getCurrentFileName()).toBe('demo.riv');
         expect(controller.getCurrentFileMimeType()).toBe('application/octet-stream');
@@ -192,7 +193,7 @@ describe('platform/file-session', () => {
         expect(controller.getCurrentFileUrl()).toBe('blob:valid');
         expect(hideError).toHaveBeenCalled();
         expect(applyStoredRuntimeVersionForCurrentFile).toHaveBeenCalled();
-        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:valid', 'demo.riv', { forceAutoplay: true });
+        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:valid', 'demo.riv', { forceAutoplay: true, waitForActivation: true });
 
         controller.handleFileButtonClick();
 
@@ -251,7 +252,7 @@ describe('platform/file-session', () => {
 
         expect(controller.getCurrentFileName()).toBe('native-demo.riv');
         expect(controller.getCurrentFileSourcePath()).toBe('/tmp/native-demo.riv');
-        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:native-demo', 'native-demo.riv', { forceAutoplay: true });
+        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:native-demo', 'native-demo.riv', { forceAutoplay: true, waitForActivation: true });
     });
 
     it('handles drag-and-drop payloads from files and local file paths', async () => {
@@ -318,7 +319,7 @@ describe('platform/file-session', () => {
 
         await listeners.drop(fileDropEvent);
         expect(fileDropEvent.preventDefault).toHaveBeenCalled();
-        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:dropped', 'drop.riv', { forceAutoplay: true });
+        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:dropped', 'drop.riv', { forceAutoplay: true, waitForActivation: true });
         expect(elements.canvasContainer.classList.contains('drag-active')).toBe(false);
 
         const pathDropEvent = {
@@ -359,9 +360,12 @@ describe('platform/file-session', () => {
             listen.handler = handler;
             return vi.fn();
         });
+        const openedPaths = [
+            { paths: ['file:///Users/test/startup-open.riv'] },
+        ];
         const invoke = vi.fn(async (command, payload) => {
             if (command === 'get_opened_file') {
-                return { paths: ['file:///Users/test/startup-open.riv'] };
+                return openedPaths.shift() || null;
             }
             if (command === 'read_riv_file') {
                 return payload.path.includes('startup-open') ? 'AQI=' : 'AwQ=';
@@ -400,13 +404,14 @@ describe('platform/file-session', () => {
 
         await expect(controller.checkOpenedFile()).resolves.toBe(true);
         expect(invoke).toHaveBeenCalledWith('read_riv_file', { path: '/Users/test/startup-open.riv' });
-        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:startup-open', 'startup-open.riv', { forceAutoplay: true });
+        expect(loadRiveAnimation).toHaveBeenCalledWith('blob:startup-open', 'startup-open.riv', { forceAutoplay: true, waitForActivation: true });
 
         await controller.setupTauriOpenFileListener();
+        openedPaths.push({ filePath: 'file:///Users/test/double-click-open.riv' });
         await listen.handler({ payload: { filePath: 'file:///Users/test/double-click-open.riv' } });
 
         expect(invoke).toHaveBeenCalledWith('read_riv_file', { path: '/Users/test/double-click-open.riv' });
-        expect(loadRiveAnimation).toHaveBeenLastCalledWith('blob:double-click-open', 'double-click-open.riv', { forceAutoplay: true });
+        expect(loadRiveAnimation).toHaveBeenLastCalledWith('blob:double-click-open', 'double-click-open.riv', { forceAutoplay: true, waitForActivation: true });
         expect(controller.getCurrentFileName()).toBe('double-click-open.riv');
     });
 
@@ -414,9 +419,10 @@ describe('platform/file-session', () => {
         const elements = createElements();
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const showError = vi.fn();
+        const openedPaths = ['/tmp/not-rive.txt'];
         const invoke = vi.fn(async (command, payload) => {
             if (command === 'get_opened_file') {
-                return '/tmp/not-rive.txt';
+                return openedPaths.shift() || null;
             }
             if (command === 'read_riv_file') {
                 throw new Error(`cannot read ${payload.path}`);
@@ -535,7 +541,7 @@ describe('platform/file-session', () => {
         expect(logEvent).toHaveBeenCalledWith('native', 'load-failed', 'Failed to load broken.riv.');
     });
 
-    it('covers polling guards, listener payload filtering, and drag state edge cases', async () => {
+    it('covers polling guards, queue wakeups, and drag state edge cases', async () => {
         const elements = createElements();
         const listeners = {};
         const setTimeoutFn = vi.fn((callback) => {
@@ -552,9 +558,10 @@ describe('platform/file-session', () => {
         });
         let tauri = false;
         let invokeAvailable = false;
+        const openedPaths = [];
         const invoke = vi.fn(async (command) => {
             if (command === 'get_opened_file') {
-                return '';
+                return openedPaths.shift() || '';
             }
             if (command === 'read_riv_file') {
                 return 'AQI=';
@@ -607,6 +614,7 @@ describe('platform/file-session', () => {
 
         await controller.setupTauriOpenFileListener();
         await listen.handler({ payload: null });
+        openedPaths.push('/tmp/from-listener.riv');
         await listen.handler({ payload: '/tmp/from-listener.riv' });
         expect(invoke).toHaveBeenCalledWith('read_riv_file', { path: '/tmp/from-listener.riv' });
 
@@ -619,5 +627,201 @@ describe('platform/file-session', () => {
         controller.dispose();
         expect(clearTimeoutFn).toHaveBeenCalledWith('timer-2');
         warnSpy.mockRestore();
+    });
+
+    it('rolls back provisional file identity and object URLs when visible activation fails', async () => {
+        const elements = createElements();
+        const revokeObjectURL = vi.fn();
+        let controller;
+        const restoredSnapshots = [];
+        const restoreFileSessionUi = vi.fn((restoredState) => {
+            restoredSnapshots.push({
+                callbackState: restoredState,
+                current: {
+                    name: controller.getCurrentFileName(),
+                    sourcePath: controller.getCurrentFileSourcePath(),
+                    url: controller.getCurrentFileUrl(),
+                },
+            });
+        });
+        controller = createFileSessionController({
+            callbacks: {
+                applyStoredRuntimeVersionForCurrentFile: vi.fn().mockResolvedValue(undefined),
+                buildFileRuntimePreferenceId: vi.fn((name) => `pref:${name}`),
+                getTauriInvoker: () => vi.fn(async (command) => {
+                    if (command === 'read_riv_file') return 'AQI=';
+                    return null;
+                }),
+                loadRiveAnimation: vi.fn().mockRejectedValue(new Error('child first frame rejected')),
+                resetArtboardSwitcherState: vi.fn(),
+                restoreFileSessionUi,
+                showError: vi.fn(),
+            },
+            elements,
+            urlApi: {
+                createObjectURL: vi.fn(() => 'blob:replacement'),
+                revokeObjectURL,
+            },
+            windowRef: {
+                addEventListener: vi.fn(),
+                atob: () => '\u0001\u0002',
+            },
+        });
+        const originalBuffer = Uint8Array.from([9]).buffer;
+        controller.setCurrentFile('blob:original', 'original.riv', true, originalBuffer, 'application/riv', 1, {
+            sourcePath: '/tmp/original.riv',
+        });
+
+        await controller.loadRivFromPath('/tmp/replacement.riv');
+
+        expect(controller.getCurrentFileName()).toBe('original.riv');
+        expect(controller.getCurrentFileUrl()).toBe('blob:original');
+        expect(controller.getCurrentFileBuffer()).toBe(originalBuffer);
+        expect(controller.getCurrentFileSourcePath()).toBe('/tmp/original.riv');
+        expect(revokeObjectURL).toHaveBeenCalledWith('blob:replacement');
+        expect(revokeObjectURL).not.toHaveBeenCalledWith('blob:original');
+        expect(restoreFileSessionUi).toHaveBeenCalledOnce();
+        expect(restoredSnapshots).toEqual([{
+            callbackState: expect.objectContaining({
+                name: 'original.riv',
+                sourcePath: '/tmp/original.riv',
+                url: 'blob:original',
+            }),
+            current: {
+                name: 'original.riv',
+                sourcePath: '/tmp/original.riv',
+                url: 'blob:original',
+            },
+        }]);
+    });
+
+    it('treats the open-file event as a wake signal and consumes the native queue as the authority', async () => {
+        const elements = createElements();
+        const loadRiveAnimation = vi.fn().mockResolvedValue(undefined);
+        const listen = vi.fn(async (_eventName, handler) => {
+            listen.handler = handler;
+            return vi.fn();
+        });
+        const openedPaths = ['/tmp/queued.riv'];
+        const invoke = vi.fn(async (command, payload) => {
+            if (command === 'get_opened_file') return openedPaths.shift() || null;
+            if (command === 'read_riv_file') {
+                expect(payload).toEqual({ path: '/tmp/queued.riv' });
+                return 'AQI=';
+            }
+            return null;
+        });
+        const controller = createFileSessionController({
+            callbacks: {
+                applyStoredRuntimeVersionForCurrentFile: vi.fn().mockResolvedValue(undefined),
+                buildFileRuntimePreferenceId: vi.fn(() => 'pref-queue'),
+                ensureTauriBridge: vi.fn().mockResolvedValue(undefined),
+                getTauriEventListener: async () => listen,
+                getTauriInvoker: () => invoke,
+                isTauriEnvironment: () => true,
+                loadRiveAnimation,
+                resetArtboardSwitcherState: vi.fn(),
+                showError: vi.fn(),
+            },
+            elements,
+            urlApi: {
+                createObjectURL: vi.fn(() => 'blob:queued'),
+                revokeObjectURL: vi.fn(),
+            },
+            windowRef: {
+                atob: () => '\u0001\u0002',
+            },
+        });
+
+        await controller.setupTauriOpenFileListener();
+        await listen.handler({ payload: { filePath: '/tmp/event-payload-must-not-win.riv' } });
+
+        expect(invoke).toHaveBeenCalledWith('get_opened_file');
+        expect(invoke).toHaveBeenCalledWith('read_riv_file', { path: '/tmp/queued.riv' });
+        expect(invoke).not.toHaveBeenCalledWith('read_riv_file', { path: '/tmp/event-payload-must-not-win.riv' });
+    });
+
+    it('serializes queued document loads, allowing the next document after a failed load', async () => {
+        const elements = createElements();
+        const queuedPaths = ['/tmp/first.riv', '/tmp/second.riv'];
+        const loadOrder = [];
+        let activeLoads = 0;
+        let maximumConcurrentLoads = 0;
+        const loadRiveAnimation = vi.fn(async (_url, fileName) => {
+            activeLoads += 1;
+            maximumConcurrentLoads = Math.max(maximumConcurrentLoads, activeLoads);
+            loadOrder.push(fileName);
+            await Promise.resolve();
+            activeLoads -= 1;
+            if (fileName === 'first.riv') throw new Error('first document rejected');
+        });
+        const invoke = vi.fn(async (command) => {
+            if (command === 'get_opened_file') return queuedPaths.shift() || null;
+            if (command === 'read_riv_file') return 'AQI=';
+            return null;
+        });
+        const controller = createFileSessionController({
+            callbacks: {
+                applyStoredRuntimeVersionForCurrentFile: vi.fn().mockResolvedValue(undefined),
+                buildFileRuntimePreferenceId: vi.fn((name) => `pref:${name}`),
+                ensureTauriBridge: vi.fn().mockResolvedValue(undefined),
+                getTauriInvoker: () => invoke,
+                isTauriEnvironment: () => true,
+                loadRiveAnimation,
+                resetArtboardSwitcherState: vi.fn(),
+                showError: vi.fn(),
+            },
+            elements,
+            urlApi: {
+                createObjectURL: vi.fn((blob) => `blob:${blob.size}`),
+                revokeObjectURL: vi.fn(),
+            },
+            windowRef: {
+                atob: () => '\u0001\u0002',
+            },
+        });
+
+        await Promise.all([
+            controller.checkOpenedFile(),
+            controller.checkOpenedFile(),
+        ]);
+
+        expect(loadOrder).toEqual(['first.riv', 'second.riv']);
+        expect(maximumConcurrentLoads).toBe(1);
+        expect(controller.getCurrentFileName()).toBe('second.riv');
+    });
+
+    it('coalesces duplicate native deliveries within one serialized queue drain', async () => {
+        const elements = createElements();
+        const queuedPaths = ['/tmp/same.riv', '/tmp/same.riv'];
+        const loadRiveAnimation = vi.fn().mockResolvedValue(undefined);
+        const invoke = vi.fn(async (command) => {
+            if (command === 'get_opened_file') return queuedPaths.shift() || null;
+            if (command === 'read_riv_file') return 'AQI=';
+            return null;
+        });
+        const controller = createFileSessionController({
+            callbacks: {
+                applyStoredRuntimeVersionForCurrentFile: vi.fn().mockResolvedValue(undefined),
+                buildFileRuntimePreferenceId: vi.fn(() => 'pref:same'),
+                ensureTauriBridge: vi.fn().mockResolvedValue(undefined),
+                getTauriInvoker: () => invoke,
+                isTauriEnvironment: () => true,
+                loadRiveAnimation,
+                resetArtboardSwitcherState: vi.fn(),
+                showError: vi.fn(),
+            },
+            elements,
+            urlApi: {
+                createObjectURL: vi.fn(() => 'blob:same'),
+                revokeObjectURL: vi.fn(),
+            },
+            windowRef: { atob: () => '\u0001\u0002' },
+        });
+
+        await controller.checkOpenedFile();
+
+        expect(loadRiveAnimation).toHaveBeenCalledOnce();
+        expect(invoke).toHaveBeenCalledWith('read_riv_file', { path: '/tmp/same.riv' });
     });
 });

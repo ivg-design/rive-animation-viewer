@@ -1,13 +1,10 @@
         function clearVmControlBindings() {
             vmControlBindings = [];
         }
-
         function captureVmControlSnapshot() {
             if (!vmControlBindings.length) return [];
-
             var snapshot = [];
             var seen = new Set();
-
             vmControlBindings.forEach(function (binding) {
                 if (!binding || binding.kind === 'trigger' || binding.kind === 'image') return;
                 var descriptor = binding.descriptor || {};
@@ -32,10 +29,8 @@
                     value: accessor.value,
                 });
             });
-
             return snapshot;
         }
-
         function applyControlSnapshot(snapshot) {
             pendingControlSnapshot = new Map();
             if (!Array.isArray(snapshot) || !snapshot.length) return 0;
@@ -48,10 +43,8 @@
             });
             return retryPendingControlSnapshot();
         }
-
         function retryPendingControlSnapshot() {
             if (!pendingControlSnapshot.size) return 0;
-
             var applied = 0;
             pendingControlSnapshot.forEach(function (entry, key) {
                 var descriptor = (entry && entry.descriptor) || {};
@@ -60,7 +53,6 @@
                     pendingControlSnapshot.delete(key);
                     return;
                 }
-
                 if (descriptor.source === 'state-machine') {
                     var stateMachineInput = resolveStateMachineInputAccessor(descriptor.stateMachineName, descriptor.name, kind);
                     if (stateMachineInput && 'value' in stateMachineInput) {
@@ -70,18 +62,15 @@
                     }
                     return;
                 }
-
                 var accessor = resolveLiveAccessor(descriptor.path, kind);
                 if (!accessor || !('value' in accessor)) return;
                 accessor.value = entry.value;
                 pendingControlSnapshot.delete(key);
                 applied += 1;
             });
-
             if (applied > 0) syncVmControlBindings(true);
             return applied;
         }
-
         function registerVmControlBinding(descriptor, binding) {
             if (!descriptor || !binding) return;
             vmControlBindings.push({
@@ -102,33 +91,27 @@
                 embeddedAssetCount: Number(binding.embeddedAssetCount) || 0,
             });
         }
-
         function startVmControlSync() {
             if (vmControlSyncTimer || (!vmControlBindings.length && vmListTopologySignature === null)) return;
             vmControlSyncTimer = setInterval(function () {
                 if (!syncVmControlTopology()) syncVmControlBindings(false);
             }, VM_CONTROL_SYNC_INTERVAL_MS);
         }
-
         function stopVmControlSync() {
             if (vmControlSyncTimer) {
                 clearInterval(vmControlSyncTimer);
                 vmControlSyncTimer = null;
             }
         }
-
         function isEditingControl(element) {
             return document.activeElement === element;
         }
-
         function syncVmControlBindings(force) {
             if (force === void 0) force = false;
             if (!vmControlBindings.length) return;
-
             vmControlBindings.forEach(function (binding) {
                 var accessor = resolveControlAccessor(binding.descriptor);
                 var canEdit = Boolean(accessor);
-
                 if (binding.kind === 'image') {
                     var canDecodeImage = typeof (loadedRiveRuntime && loadedRiveRuntime.decodeImage) === 'function';
                     if (binding.input) binding.input.disabled = !canEdit || !canDecodeImage;

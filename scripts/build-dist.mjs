@@ -204,7 +204,7 @@ async function build() {
     || `${numberedPrefix}-${getBuildTimestamp()}-${getGitShortSha()}${gitWorktreeSuffix}`;
   const buildChannel = getBuildChannel();
 
-  const filesToCopy = ['index.html', 'style.css', 'README.md', 'package.json'];
+  const filesToCopy = ['index.html', 'overlay.html', 'style.css', 'README.md', 'package.json'];
 
   for (const file of filesToCopy) {
     const src = path.join(root, file);

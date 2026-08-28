@@ -1,0 +1,81 @@
+/* Reserve the footprint while hidden so playback selection never shifts the toolbar. */
+.timeline-progress {
+    box-sizing: border-box;
+    flex: 0 0 174px;
+    width: 174px;
+    height: var(--header-control-h);
+    padding: 0 7px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-toolbar);
+    background: var(--bg-void);
+    color: var(--text-dim);
+    display: inline-grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 1fr 5px;
+    align-items: center;
+    column-gap: 6px;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 120ms ease;
+}
+
+.timeline-progress.is-visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.timeline-progress-readout,
+.timeline-progress-unit {
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.08px;
+    white-space: nowrap;
+}
+
+.timeline-progress-readout { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+.timeline-progress-unit {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--neon);
+    cursor: pointer;
+    font-size: 8px;
+    font-weight: 700;
+}
+
+.timeline-progress-unit:hover,
+.timeline-progress-unit:focus-visible { color: var(--text-white); outline: none; }
+
+.timeline-progress-bar {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    width: 100%;
+    height: 4px;
+    grid-column: 1 / -1;
+    border: 0;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--bg-elevated);
+    color: var(--neon);
+    accent-color: var(--neon);
+}
+
+.timeline-progress-bar::-webkit-progress-bar {
+    border-radius: inherit;
+    background: var(--bg-elevated);
+}
+
+.timeline-progress-bar::-webkit-progress-value {
+    border-radius: inherit;
+    background: var(--neon);
+}
+
+.timeline-progress-bar::-moz-progress-bar {
+    border-radius: inherit;
+    background: var(--neon);
+}

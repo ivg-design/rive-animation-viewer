@@ -46,6 +46,7 @@ body {
 }
 
 body::-webkit-scrollbar,
+#canvas-container::-webkit-scrollbar,
 .event-log-body::-webkit-scrollbar,
 .properties-panel-body::-webkit-scrollbar {
     width: 10px;
@@ -53,6 +54,7 @@ body::-webkit-scrollbar,
 }
 
 body::-webkit-scrollbar-track,
+#canvas-container::-webkit-scrollbar-track,
 .event-log-body::-webkit-scrollbar-track,
 .properties-panel-body::-webkit-scrollbar-track {
     background: #0f1015;
@@ -60,6 +62,7 @@ body::-webkit-scrollbar-track,
 }
 
 body::-webkit-scrollbar-thumb,
+#canvas-container::-webkit-scrollbar-thumb,
 .event-log-body::-webkit-scrollbar-thumb,
 .properties-panel-body::-webkit-scrollbar-thumb {
     background: #313542;
@@ -68,9 +71,14 @@ body::-webkit-scrollbar-thumb,
 }
 
 body::-webkit-scrollbar-thumb:hover,
+#canvas-container::-webkit-scrollbar-thumb:hover,
 .event-log-body::-webkit-scrollbar-thumb:hover,
 .properties-panel-body::-webkit-scrollbar-thumb:hover {
     background: #444b5d;
+}
+
+#canvas-container::-webkit-scrollbar-corner {
+    background: #0f1015;
 }
 
 /* ── Lucide icon sizing ──────────────────────────────────── */

@@ -1,24 +1,16 @@
-import {
-    buildCenteredCanvasScrollOffsets,
-    buildResolvedCanvasPixelSize,
-    normalizeCanvasSizingState,
-} from '../core/canvas-sizing.js';
+import { normalizeCanvasSizingState } from '../core/canvas-sizing.js';
 import { resolveRiveAlignment, resolveRiveFit } from '../core/rive-layout.js';
 import { composeEmbeddedImageAssetLoader } from './assets/embedded-image-assets.js';
-import { dispatchAnimationLoaded } from './control-events.js';
 import { createRiveEventBridge } from './instance/event-bridge.js';
-import { runUserOnLoadWithVmRestore } from './instance/load-hooks.js';
-import { buildPlaybackContext, buildPlaybackStatusLabel } from './playback-status.js';
-export function safelyInvokeUserCallback(callback, event, callbackName) {
-    if (typeof callback !== 'function') {
-        return;
-    }
-    try {
-        callback(event);
-    } catch (error) {
-        console.warn(`Error in user ${callbackName}:`, error);
-    }
-}
+import { createInstanceCanvasPresentationController } from './instance/canvas-presentation.js';
+import { bindViewModelInstanceByKey } from './view-model/instances.js';
+import { normalizeResetViewModelInstanceKey } from './reset-contract.js';
+import {
+    configureRiveLoadLifecycle,
+} from './instances/load-lifecycle.js';
+import { createHiddenPlumbingTransactionController } from './instances/hidden-plumbing-transaction.js';
+import { createLoadSettlement } from './instances/load-settlement.js';
+export { safelyInvokeUserCallback } from './instances/load-lifecycle.js';
 export function createRiveInstanceController({
     callbacks = {},
     embeddedImageAssetCatalog = null,
@@ -29,9 +21,11 @@ export function createRiveInstanceController({
     getCurrentLayoutFit = () => 'contain',
     getCurrentRuntime = () => 'webgl2',
     getEditorConfig = () => ({}),
+    isAuthoritativeChildMode = () => false,
     windowRef = globalThis.window,
 } = {}) {
     const {
+        activateAuthoritativeSurface = async () => false,
         applyCanvasBackground = () => {},
         detectDefaultStateMachineName = async () => null,
         ensureRuntime = async () => null,
@@ -54,90 +48,55 @@ export function createRiveInstanceController({
 
     let riveInstance = null;
     let pendingInPlaceReset = null;
+    let cancelPendingLoad = null;
+    let loadGeneration = 0;
     const riveEventBridge = createRiveEventBridge({ logEvent });
 
     function getRiveInstance() {
         return riveInstance;
     }
 
-    function getEffectiveCanvasSizingState(editorConfig = {}) {
-        return normalizeCanvasSizingState(getCurrentCanvasSizing(), editorConfig?.canvasSize || getCurrentCanvasSizing());
+    function setRiveInstance(instance) {
+        riveInstance = instance;
+        windowRef.riveInst = instance;
     }
 
-    function applyCanvasPresentation(canvas, sizingState) {
-        const container = elements.canvasContainer;
-        if (!container || !canvas) {
-            return;
+    const { handleResize, resizeCanvas } = createInstanceCanvasPresentationController({
+        elements,
+        getCurrentCanvasSizing,
+        getEditorConfig,
+        getRiveInstance,
+        windowRef,
+    });
+
+    function cleanupRiveInstance(instance) {
+        if (!instance?.cleanup) return;
+        try {
+            instance.cleanup();
+        } catch (error) {
+            console.warn('[rive-viewer] cleanup error (WebGL context loss):', error.message);
         }
-        const isFixed = sizingState.mode === 'fixed';
-        container.classList.toggle('canvas-container-fixed-size', isFixed);
-        canvas.classList.toggle('rive-canvas-fixed-size', isFixed);
-        if (isFixed) {
-            canvas.style.width = `${sizingState.width}px`;
-            canvas.style.height = `${sizingState.height}px`;
-            return;
-        }
-        canvas.style.width = '';
-        canvas.style.height = '';
     }
 
-    function resizeCanvas(canvas, editorConfig = {}) {
-        const container = elements.canvasContainer;
-        if (!container || !canvas) {
-            return;
-        }
-        const { clientWidth, clientHeight } = container;
-        const sizingState = getEffectiveCanvasSizingState(editorConfig);
-        const resolved = buildResolvedCanvasPixelSize(sizingState, {
-            width: clientWidth,
-            height: clientHeight,
-        });
-        canvas.width = resolved.width;
-        canvas.height = resolved.height;
-        applyCanvasPresentation(canvas, {
-            ...sizingState,
-            width: resolved.width,
-            height: resolved.height,
-            mode: resolved.fixed ? 'fixed' : 'auto',
-        });
-        scheduleCanvasViewportAlignment(container, resolved);
-    }
+    const hiddenPlumbingTransaction = createHiddenPlumbingTransactionController({
+        cleanupRiveInstance,
+        elements,
+        getRiveInstance,
+        populateArtboardSwitcher,
+        refreshInfoStrip,
+        renderVmInputControls,
+        riveEventBridge,
+        setRiveInstance,
+        windowRef,
+    });
 
-    function scheduleCanvasViewportAlignment(container, resolvedCanvasSize) {
-        if (!container) {
-            return;
+    function cleanupInstance({ preservePendingLoad = false } = {}) {
+        if (!preservePendingLoad) {
+            loadGeneration += 1;
+            cancelPendingLoad?.(new Error('Animation load cancelled.'));
+            cancelPendingLoad = null;
         }
-        const alignViewport = () => {
-            if (!resolvedCanvasSize?.fixed) {
-                container.scrollLeft = 0;
-                container.scrollTop = 0;
-                return;
-            }
-            const offsets = buildCenteredCanvasScrollOffsets({
-                containerWidth: container.clientWidth,
-                containerHeight: container.clientHeight,
-                contentWidth: resolvedCanvasSize.width,
-                contentHeight: resolvedCanvasSize.height,
-            });
-            container.scrollLeft = offsets.left;
-            container.scrollTop = offsets.top;
-        };
-        const scheduler = typeof windowRef.requestAnimationFrame === 'function'
-            ? windowRef.requestAnimationFrame.bind(windowRef)
-            : (callback) => callback();
-        scheduler(alignViewport);
-    }
-
-    function handleResize() {
-        const canvas = windowRef.document?.getElementById('rive-canvas');
-        if (!canvas) {
-            return;
-        }
-        resizeCanvas(canvas, getEditorConfig());
-        riveInstance?.resizeDrawingSurfaceToCanvas?.();
-    }
-
-    function cleanupInstance() {
+        hiddenPlumbingTransaction.disposeRetained();
         pendingInPlaceReset = null;
         riveEventBridge.clear();
         resetPlaybackChips();
@@ -146,26 +105,27 @@ export function createRiveInstanceController({
         if (elements.artboardSwitcher) {
             elements.artboardSwitcher.hidden = true;
         }
-        if (riveInstance?.cleanup) {
-            try {
-                riveInstance.cleanup();
-            } catch (error) {
-                console.warn('[rive-viewer] cleanup error (WebGL context loss):', error.message);
-            }
-        }
-        riveInstance = null;
-        windowRef.riveInst = null;
+        cleanupRiveInstance(riveInstance);
+        setRiveInstance(null);
     }
 
     function resetRiveInstance(params = {}, { beforeUserOnLoad = null } = {}) {
         if (!riveInstance || typeof riveInstance.reset !== 'function') {
             return false;
         }
+        const vmInstanceKey = normalizeResetViewModelInstanceKey(params.viewModelInstanceName);
         pendingInPlaceReset = {
-            beforeUserOnLoad: typeof beforeUserOnLoad === 'function' ? beforeUserOnLoad : null,
+            beforeUserOnLoad: () => {
+                if (vmInstanceKey !== null) {
+                    bindViewModelInstanceByKey(riveInstance, vmInstanceKey);
+                }
+                beforeUserOnLoad?.();
+            },
         };
         try {
-            riveInstance.reset(params);
+            riveInstance.reset(isAuthoritativeChildMode()
+                ? { ...params, autoplay: false }
+                : params);
             return true;
         } catch (error) {
             pendingInPlaceReset = null;
@@ -180,37 +140,35 @@ export function createRiveInstanceController({
             configOverrides = null,
             onLoaded = null,
             onLoadError = null,
+            waitForActivation = false,
         } = options || {};
-        let loadSettled = false;
+        const previousPendingLoad = cancelPendingLoad;
+        const generation = ++loadGeneration;
+        previousPendingLoad?.(new Error('Animation load superseded.'));
+        const isCurrentLoad = () => generation === loadGeneration;
+        let loadTransaction = null;
+        const loadSettlement = createLoadSettlement({
+            onCommit: () => hiddenPlumbingTransaction.commit(loadTransaction),
+            onFailure: onLoadError,
+            onRollback: () => hiddenPlumbingTransaction.rollback(loadTransaction),
+            onSuccess: onLoaded,
+            waitForActivation,
+        });
         const notifyLoadSuccess = () => {
-            if (loadSettled) {
-                return;
-            }
-            loadSettled = true;
-            if (typeof onLoaded === 'function') {
-                try {
-                    onLoaded();
-                } catch (error) {
-                    console.warn('[rive-viewer] onLoaded callback failed:', error);
-                }
-            }
+            if (!loadSettlement.success()) return;
+            if (cancelPendingLoad === cancelThisLoad) cancelPendingLoad = null;
         };
         const notifyLoadFailure = (error) => {
-            if (loadSettled) {
-                return;
-            }
-            loadSettled = true;
-            if (typeof onLoadError === 'function') {
-                try {
-                    onLoadError(error);
-                } catch (callbackError) {
-                    console.warn('[rive-viewer] onLoadError callback failed:', callbackError);
-                }
-            }
+            if (!loadSettlement.failure(error)) return;
+            if (cancelPendingLoad === cancelThisLoad) cancelPendingLoad = null;
         };
+        const cancelThisLoad = (error) => notifyLoadFailure(error);
+        cancelPendingLoad = cancelThisLoad;
 
         if (!fileUrl) {
             showError('Please load a Rive file first');
+            loadSettlement.failure(new Error('Animation file URL is unavailable.'));
+            if (cancelPendingLoad === cancelThisLoad) cancelPendingLoad = null;
             return;
         }
 
@@ -220,25 +178,49 @@ export function createRiveInstanceController({
 
         try {
             const runtime = await ensureRuntime(getCurrentRuntime());
+            if (!isCurrentLoad()) return;
             const container = elements.canvasContainer;
             if (!runtime || !container) {
                 throw new Error('Runtime or canvas container is not available');
             }
 
-            cleanupInstance();
-            container.innerHTML = '';
+            const authoritativeChildMode = Boolean(isAuthoritativeChildMode());
+            if (authoritativeChildMode) {
+                loadTransaction = hiddenPlumbingTransaction.begin(runtime);
+            } else {
+                cleanupInstance({ preservePendingLoad: true });
+                container.innerHTML = '';
+            }
 
             const canvas = windowRef.document.createElement('canvas');
             canvas.id = 'rive-canvas';
             container.appendChild(canvas);
+            hiddenPlumbingTransaction.setCandidateCanvas(loadTransaction, canvas);
             applyCanvasBackground(canvas);
             const userConfig = getEditorConfig();
             resizeCanvas(canvas, userConfig);
 
             const { canvasSize: _ignoredCanvasSize, ...sanitizedUserConfig } = userConfig || {};
-            const effectiveUserConfig = forceAutoplay ? { ...sanitizedUserConfig, autoplay: true } : { ...sanitizedUserConfig };
+            // The hidden plumbing instance is intentionally paused, but that
+            // must not erase the requested playback policy for the child that
+            // will become authoritative. Selection and DEFAULT loads force
+            // autoplay even when the retiring child was paused; refreshes can
+            // explicitly request false to preserve a paused session.
+            let authoritativeAutoplay = forceAutoplay
+                ? true
+                : sanitizedUserConfig.autoplay !== false;
+            if (configOverrides && typeof configOverrides === 'object'
+                && Object.prototype.hasOwnProperty.call(configOverrides, 'autoplay')) {
+                authoritativeAutoplay = configOverrides.autoplay !== false;
+            }
+            const effectiveUserConfig = authoritativeChildMode
+                ? { ...sanitizedUserConfig, autoplay: false }
+                : (forceAutoplay ? { ...sanitizedUserConfig, autoplay: true } : { ...sanitizedUserConfig });
             if (configOverrides && typeof configOverrides === 'object') {
                 Object.assign(effectiveUserConfig, configOverrides);
+            }
+            if (authoritativeChildMode) {
+                effectiveUserConfig.autoplay = false;
             }
             const config = { ...effectiveUserConfig };
             embeddedImageAssetCatalog?.reset?.();
@@ -266,7 +248,10 @@ export function createRiveInstanceController({
             });
             config.src = fileUrl;
             config.canvas = canvas;
-            config.assetLoader = composeEmbeddedImageAssetLoader(embeddedImageAssetCatalog, userAssetLoader);
+            config.assetLoader = composeEmbeddedImageAssetLoader(
+                embeddedImageAssetCatalog,
+                authoritativeChildMode ? null : userAssetLoader,
+            );
             if (typeof config.autoBind === 'undefined') {
                 config.autoBind = true;
             }
@@ -287,6 +272,7 @@ export function createRiveInstanceController({
                     fileUrl,
                     artboardName: config.artboard,
                 });
+                if (!isCurrentLoad()) return;
                 if (detectedStateMachine) {
                     config.stateMachines = detectedStateMachine;
                     syncArtboardStateFromConfig({
@@ -298,70 +284,47 @@ export function createRiveInstanceController({
                 }
             }
 
-            config.onLoad = () => {
-                const inPlaceReset = pendingInPlaceReset;
-                pendingInPlaceReset = null;
-                hideError();
-                resizeCanvas(config.canvas, userConfig);
-                riveInstance?.resizeDrawingSurfaceToCanvas?.();
-                logEvent('native', 'load', `Loaded ${fileName} using ${getCurrentRuntime()}.`);
-
-                syncArtboardStateAfterLoad(riveInstance, config);
-                updateInfo(buildPlaybackStatusLabel(buildPlaybackContext({
-                    playbackState: getPlaybackState(),
-                    riveInstance,
-                })));
-                refreshInfoStrip();
-
-                runUserOnLoadWithVmRestore({
-                    beforeUserOnLoad: inPlaceReset ? inPlaceReset.beforeUserOnLoad : beforeUserOnLoad,
-                    riveInstance,
-                    userOnLoad,
-                });
-
-                renderVmInputControls();
-                setVmControlBaselineSnapshot();
-                populateArtboardSwitcher();
-                if (!loadSettled) {
-                    dispatchAnimationLoaded(windowRef.document, {
-                        fileName,
-                        runtime: getCurrentRuntime(),
-                    });
-                }
-                notifyLoadSuccess();
-            };
-
-            config.onLoadError = (error) => {
-                const errorMsg = error?.message || error?.toString() || String(error);
-                showError(`Error loading animation: ${errorMsg}`);
-                logEvent('native', 'loaderror', `Load error for ${fileName}.`, error);
-                safelyInvokeUserCallback(userOnLoadError, error, 'onLoadError');
-                notifyLoadFailure(error);
-            };
-            config.onPlay = (event) => {
-                logEvent('native', 'play', 'Playback started by runtime.', event);
-                safelyInvokeUserCallback(userOnPlay, event, 'onPlay');
-            };
-            config.onPause = (event) => {
-                logEvent('native', 'pause', 'Playback paused by runtime.', event);
-                safelyInvokeUserCallback(userOnPause, event, 'onPause');
-            };
-            config.onStop = (event) => {
-                logEvent('native', 'stop', 'Playback stopped by runtime.', event);
-                safelyInvokeUserCallback(userOnStop, event, 'onStop');
-            };
-            config.onLoop = (event) => {
-                logEvent('native', 'loop', 'Loop event emitted by runtime.', event);
-                safelyInvokeUserCallback(userOnLoop, event, 'onLoop');
-            };
-            config.onStateChange = (event) => {
-                logEvent('native', 'statechange', 'State machine changed state.', event);
-                safelyInvokeUserCallback(userOnStateChange, event, 'onStateChange');
-            };
-            config.onAdvance = (event) => {
-                updatePlaybackChips();
-                safelyInvokeUserCallback(userOnAdvance, event, 'onAdvance');
-            };
+            configureRiveLoadLifecycle({
+                activateAuthoritativeSurface,
+                authoritativeAutoplay,
+                authoritativeChildMode,
+                beforeUserOnLoad,
+                config,
+                documentRef: windowRef.document,
+                fileName,
+                getCurrentRuntime,
+                getPlaybackState,
+                getRiveInstance,
+                hideError,
+                loadSettled: loadSettlement.isSettled,
+                isCurrentLoad,
+                logEvent,
+                notifyLoadFailure,
+                notifyLoadSuccess,
+                onLoadError: userOnLoadError,
+                populateArtboardSwitcher,
+                refreshInfoStrip,
+                renderVmInputControls,
+                resizeCanvas,
+                setVmControlBaselineSnapshot,
+                showError,
+                syncArtboardStateAfterLoad,
+                takePendingInPlaceReset: () => {
+                    const inPlaceReset = pendingInPlaceReset;
+                    pendingInPlaceReset = null;
+                    return inPlaceReset;
+                },
+                updateInfo,
+                updatePlaybackChips,
+                userConfig,
+                userOnAdvance,
+                userOnLoad,
+                userOnLoop,
+                userOnPause,
+                userOnPlay,
+                userOnStateChange,
+                userOnStop,
+            });
 
             Object.keys(config).forEach((key) => {
                 if (config[key] === undefined) {
@@ -369,10 +332,18 @@ export function createRiveInstanceController({
                 }
             });
 
-            riveInstance = new runtime.Rive(config);
-            windowRef.riveInst = riveInstance;
-            riveEventBridge.attach(runtime, riveInstance);
+            const candidateInstance = new runtime.Rive(config);
+            if (!isCurrentLoad()) {
+                candidateInstance?.cleanup?.();
+                return;
+            }
+            setRiveInstance(candidateInstance);
+            riveEventBridge.attach(runtime, candidateInstance);
+            if (loadSettlement.promise) {
+                return await loadSettlement.promise;
+            }
         } catch (error) {
+            if (!isCurrentLoad()) return;
             showError(`Error initializing Rive: ${error.message}`);
             logEvent('native', 'init-error', 'Error initializing runtime instance.', error);
             notifyLoadFailure(error);

@@ -13,8 +13,23 @@
     overflow-x: hidden;
     padding: 4px 3px;
     scrollbar-gutter: stable;
+    min-width: 0;
 }
-
+/* The shell only scrolls vertically; children must shrink inside its fixed track. */
+.properties-panel-body > *,
+.artboard-switcher,
+.vm-controls-tree,
+.vm-section,
+.vm-section-body,
+.vm-node,
+.vm-node-body,
+.vm-input-list,
+.vm-control-row,
+.vm-control-input,
+.vm-child-nodes {
+    min-width: 0;
+    max-width: 100%;
+}
 /* ── Pills ────────────────────────────────────────────────── */
 
 .pill {
@@ -43,6 +58,24 @@
 
 .artboard-switcher {
     margin-bottom: 4px;
+}
+
+/* Selector replacements retain a stable shell while the authoritative child
+   is staged. The rows may update their text/options, but must not reflow the
+   rest of Properties between first-frame acknowledgement and canonical sync. */
+.artboard-switcher > .vm-section[open] > .vm-section-body {
+    min-height: 176px;
+}
+
+.artboard-switcher .vm-control-row,
+.artboard-switcher-actions {
+    min-height: 40px;
+}
+
+#vm-instance-row[hidden] {
+    display: grid;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .artboard-switcher-actions {
@@ -101,6 +134,14 @@
     text-transform: uppercase;
     letter-spacing: 0.25px;
     line-height: 1;
+    min-width: 0;
+}
+
+.vm-section-header > span:not(.vm-section-bar):not(.vm-section-count) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .vm-section-header::-webkit-details-marker {
@@ -138,6 +179,7 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+    min-width: 0;
 }
 
 /* Depth indent guide: left border line matching depth color */
@@ -325,20 +367,6 @@
     line-height: 1;
 }
 
-.vm-image-control {
-    display: block;
-    min-width: 0;
-}
-
-.vm-image-control .vm-image-asset-select {
-    width: 100%;
-    min-width: 0;
-}
-
-.vm-image-file-input {
-    display: none;
-}
-
 .vm-color-control {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 56px;
@@ -361,6 +389,7 @@
 
 .vm-child-nodes {
     display: flex;
+    width: calc(100% - 8px);
     flex-direction: column;
     gap: 8px;
     margin-left: 8px;

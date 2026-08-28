@@ -36,3 +36,23 @@ BEGIN
   ON CONFLICT (event_type, period, release)
   DO UPDATE SET total = total + 1;
 END;
+
+-- The status uses the HMAC digest of the stable anonymous install identifier.
+-- It therefore updates the same opaque installation identity that produced an
+-- install event, without retaining any raw identifier or request metadata. It
+-- is durable server-side opt-out state and is deliberately not retention-pruned.
+CREATE TABLE IF NOT EXISTS anonymous_install_status (
+  token_digest TEXT PRIMARY KEY CHECK (
+    length(token_digest) = 64
+    AND token_digest NOT GLOB '*[^0-9a-f]*'
+  ),
+  status TEXT NOT NULL CHECK (status IN ('enabled', 'disabled')),
+  preference_generation INTEGER NOT NULL CHECK (
+    preference_generation BETWEEN 0 AND 9007199254740991
+  ),
+  release TEXT NOT NULL CHECK (length(release) BETWEEN 1 AND 64),
+  updated_at TEXT NOT NULL
+) WITHOUT ROWID;
+
+CREATE INDEX IF NOT EXISTS anonymous_install_status_updated_at
+  ON anonymous_install_status (updated_at);

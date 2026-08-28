@@ -1,0 +1,34 @@
+{
+  "productName": "RAV 2.5.2 DEV",
+  "mainBinaryName": "rav-2.5.2-dev",
+  "identifier": "app.rive.animation.viewer.flicker-test",
+  "build": {
+    "beforeBuildCommand": null
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "create": false,
+        "title": "RAV 2.5.2 DEV",
+        "width": 1250,
+        "height": 900,
+        "minWidth": 1090,
+        "minHeight": 850,
+        "resizable": true,
+        "decorations": true,
+        "shadow": true,
+        "backgroundColor": "#0A0A0AFF",
+        "transparent": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "theme": "Dark",
+        "fullscreen": false
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": false
+  }
+}

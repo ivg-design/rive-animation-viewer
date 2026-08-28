@@ -10,6 +10,7 @@ export function createRiveStack({
     callbacks,
 } = {}) {
     const {
+        activateAuthoritativeSurface,
         applyCanvasBackground,
         detectDefaultStateMachineNameOverride = detectDefaultStateMachineName,
         ensureRuntime,
@@ -23,12 +24,17 @@ export function createRiveStack({
         getLoadedRuntime,
         getLiveConfig,
         getRiveInstance,
+        getRenderSurfaceAuthority,
+        getRenderSurfaceCanonicalState,
+        getTauriInvoker,
         hideError,
         initLucideIcons,
         isCanvasBackgroundTransparent,
+        isAuthoritativeChildMode,
         loadRiveAnimation,
         logEvent,
         populateArtboardSwitcher,
+        requestAuthoritativeCommand,
         refreshInfoStrip,
         renderVmInputControls,
         resetPlaybackChips,
@@ -49,10 +55,19 @@ export function createRiveStack({
         getCurrentRuntime,
         getLoadedRuntime,
         getRiveInstance,
+        getRenderSurfaceAuthority,
+        getRenderSurfaceCanonicalState,
+        pickImageFile: async () => {
+            const invoke = getTauriInvoker?.();
+            if (typeof invoke !== 'function') return null;
+            return invoke('pick_image_file');
+        },
         callbacks: {
             initLucideIcons,
             logEvent,
+            showError,
         },
+        isAuthoritativeChildMode: Boolean(isAuthoritativeChildMode?.()),
     });
     const {
         applyVmControlSnapshot,
@@ -71,10 +86,12 @@ export function createRiveStack({
         getCurrentFileName,
         getCurrentFileUrl,
         getRiveInstance,
+        isAuthoritativeChildMode,
         callbacks: {
             initLucideIcons,
             loadRiveAnimation,
             logEvent,
+            requestAuthoritativeCommand,
             resetRiveInstance: (...args) => instanceController?.resetRiveInstance?.(...args) ?? false,
             renderVmInputControls: renderVmInputs,
             showError,
@@ -90,6 +107,7 @@ export function createRiveStack({
         switchArtboard,
         switchVmInstance,
         syncStateAfterLoad: syncArtboardAfterLoad,
+        syncStateFromCanonical: syncArtboardFromCanonical,
         syncStateFromConfig: syncArtboardFromConfig,
     } = artboardSwitcherController;
 
@@ -98,11 +116,13 @@ export function createRiveStack({
         getCurrentFileUrl,
         getPlaybackState: () => getArtboardStateSnapshot(),
         getRiveInstance,
+        isAuthoritativeChildMode,
         callbacks: {
             applyVmControlSnapshot,
             captureVmControlSnapshot,
             loadRiveAnimation,
             logEvent,
+            requestAuthoritativeCommand,
             resetRiveInstance: (...args) => instanceController?.resetRiveInstance?.(...args) ?? false,
             showError,
             updateInfo,
@@ -118,6 +138,7 @@ export function createRiveStack({
 
     instanceController = createRiveInstanceController({
         callbacks: {
+            activateAuthoritativeSurface,
             applyCanvasBackground,
             detectDefaultStateMachineName: detectDefaultStateMachineNameOverride,
             ensureRuntime,
@@ -145,6 +166,7 @@ export function createRiveStack({
         getCurrentLayoutFit,
         getCurrentRuntime,
         getEditorConfig: getLiveConfig,
+        isAuthoritativeChildMode,
     });
 
     return {
@@ -170,6 +192,7 @@ export function createRiveStack({
         switchArtboard,
         switchVmInstance,
         syncArtboardStateAfterLoad: syncArtboardAfterLoad,
+        syncArtboardStateFromCanonical: syncArtboardFromCanonical,
         syncArtboardStateFromConfig: syncArtboardFromConfig,
         updatePlaybackChips: updatePlaybackIndicators,
         vmControlsController,

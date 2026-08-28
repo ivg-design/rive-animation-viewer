@@ -1,4 +1,5 @@
 import { getFileNameFromPath, normalizeOpenedFilePath } from './path-utils.js';
+import { normalizeLoadErrorMessage } from '../../rive/instances/load-settlement.js';
 
 function isSupportedRivFileName(fileName) {
     return /\.riv$/i.test(fileName || '');
@@ -10,7 +11,7 @@ export function createPathRivLoader({
     hideError,
     loadRiveAnimation,
     logEvent,
-    setCurrentFile,
+    stageCurrentFile,
     showError,
     urlApi,
     windowRef,
@@ -18,14 +19,14 @@ export function createPathRivLoader({
     return async function loadRivFromPath(filePath, { source = 'open-with' } = {}) {
         const invoke = getTauriInvoker();
         if (!invoke) {
-            return;
+            return false;
         }
         try {
             const normalizedPath = normalizeOpenedFilePath(filePath);
             const fileName = getFileNameFromPath(normalizedPath);
             if (!isSupportedRivFileName(fileName)) {
                 showError(`Unsupported file type: ${fileName}`);
-                return;
+                return false;
             }
 
             logEvent(
@@ -43,15 +44,23 @@ export function createPathRivLoader({
             const buffer = bytes.buffer;
             const blob = new Blob([buffer], { type: 'application/octet-stream' });
             const fileUrl = urlApi.createObjectURL(blob);
-            setCurrentFile(fileUrl, fileName, true, buffer, blob.type, buffer.byteLength, {
+            const fileTransaction = stageCurrentFile(fileUrl, fileName, true, buffer, blob.type, buffer.byteLength, {
                 sourcePath: normalizedPath,
             });
-            hideError();
-            await applyStoredRuntimeVersionForCurrentFile();
-            await loadRiveAnimation(fileUrl, fileName, { forceAutoplay: true });
+            try {
+                hideError();
+                await applyStoredRuntimeVersionForCurrentFile();
+                await loadRiveAnimation(fileUrl, fileName, { forceAutoplay: true, waitForActivation: true });
+                fileTransaction.commit();
+                return true;
+            } catch (error) {
+                fileTransaction.rollback();
+                throw error;
+            }
         } catch (error) {
             console.error('[rive-viewer] loadRivFromPath failed:', error);
-            showError(`Failed to open file: ${error.message || error}`);
+            showError(`Failed to open file: ${normalizeLoadErrorMessage(error)}`);
+            return false;
         }
     };
 }
@@ -61,7 +70,7 @@ async function loadLocalRivFile(file, {
     hideError,
     loadRiveAnimation,
     logEvent,
-    setCurrentFile,
+    stageCurrentFile,
     showError,
     updateFileTriggerButton,
     urlApi,
@@ -75,15 +84,18 @@ async function loadLocalRivFile(file, {
     logEvent('ui', 'file-selected', `Selected file: ${file.name}`);
     const buffer = await file.arrayBuffer();
     const fileUrl = urlApi.createObjectURL(file);
-    setCurrentFile(fileUrl, file.name, true, buffer, file.type, file.size, {
+    const fileTransaction = stageCurrentFile(fileUrl, file.name, true, buffer, file.type, file.size, {
         lastModified: file.lastModified,
     });
-    hideError();
-    await applyStoredRuntimeVersionForCurrentFile();
     try {
-        await loadRiveAnimation(fileUrl, file.name, { forceAutoplay: true });
-    } catch {
+        hideError();
+        await applyStoredRuntimeVersionForCurrentFile();
+        await loadRiveAnimation(fileUrl, file.name, { forceAutoplay: true, waitForActivation: true });
+        fileTransaction.commit();
+    } catch (error) {
+        fileTransaction.rollback();
         logEvent('native', 'load-failed', `Failed to load ${file.name}.`);
+        throw error;
     }
     return true;
 }
@@ -94,7 +106,7 @@ export function createFileInputSetup({
     hideError,
     loadRiveAnimation,
     logEvent,
-    setCurrentFile,
+    stageCurrentFile,
     showError,
     updateFileTriggerButton,
     urlApi,
@@ -122,11 +134,14 @@ export function createFileInputSetup({
                     hideError,
                     loadRiveAnimation,
                     logEvent,
-                    setCurrentFile,
+                    stageCurrentFile,
                     showError,
                     updateFileTriggerButton,
                     urlApi,
                 });
+            } catch {
+                // The transactional loader already restored the prior file and
+                // reported the runtime error. Avoid an unhandled event rejection.
             } finally {
                 event.target.value = '';
             }

@@ -1,5 +1,6 @@
 import { bindUiActionHandlers } from '../ui/action-bindings.js';
 import { buildEffectiveInstantiationDescriptor } from '../platform/export/web-instantiation.js';
+import { runTelemetryAcceptanceAction } from '../platform/install-counter/acceptance-driver.js';
 
 export function createAppLifecycle({
     callbacks,
@@ -37,6 +38,8 @@ export function createAppLifecycle({
         injectCodeSnippet,
         instantiationControlsDialogController,
         installCounterController,
+        defaultRivAppController,
+        operationsDiagnosticsController,
         loadRiveAnimation,
         logEvent,
         pause,
@@ -93,8 +96,11 @@ export function createAppLifecycle({
 
         const currentArtboardState = getArtboardStateSnapshot();
         const viewModelSnapshot = captureVmControlSnapshot();
-        const wasPlaying = Boolean(getRiveInstance()?.isPlaying);
-        const configOverrides = { autoBind: true, autoplay: true };
+        const authoritativePlayback = renderSurfaceController?.getCanonicalState?.()?.playback || null;
+        const wasPlaying = authoritativePlayback
+            ? authoritativePlayback.isPlaying === true
+            : Boolean(getRiveInstance()?.isPlaying);
+        const configOverrides = { autoBind: true, autoplay: wasPlaying };
 
         if (currentArtboardState.currentArtboard) {
             configOverrides.artboard = currentArtboardState.currentArtboard;
@@ -138,10 +144,30 @@ export function createAppLifecycle({
                     },
                     configOverrides,
                     onLoaded: () => {
-                        if (!wasPlaying) {
-                            getRiveInstance()?.pause?.();
-                        }
-                        resolveOnce();
+                        const restoreVisiblePlayback = async () => {
+                            if (authoritativePlayback && renderSurfaceController?.getState?.()?.activeSessionId) {
+                                const result = await renderSurfaceController.requestCommand(
+                                    wasPlaying ? 'play' : 'pause',
+                                    wasPlaying && authoritativePlayback.name
+                                        ? { name: authoritativePlayback.name }
+                                        : {},
+                                );
+                                if (!result?.applied) {
+                                    throw new Error(result?.message || result?.status || 'Visible playback state was not restored.');
+                                }
+                                return;
+                            }
+                            if (wasPlaying) {
+                                if (currentArtboardState.currentPlaybackType === 'animation' && currentArtboardState.currentPlaybackName) {
+                                    getRiveInstance()?.play?.(currentArtboardState.currentPlaybackName);
+                                } else {
+                                    getRiveInstance()?.play?.();
+                                }
+                            } else {
+                                getRiveInstance()?.pause?.();
+                            }
+                        };
+                        Promise.resolve(restoreVisiblePlayback()).then(resolveOnce, rejectOnce);
                     },
                     onLoadError: rejectOnce,
                 }).catch(rejectOnce);
@@ -167,6 +193,13 @@ export function createAppLifecycle({
         await ensureTauriBridge();
         await renderSurfaceController?.setup?.();
         await installCounterController?.setup?.();
+        await runTelemetryAcceptanceAction({
+            controller: installCounterController,
+            getTauriInvoker,
+            logEvent,
+            windowRef,
+        });
+        await defaultRivAppController?.setup?.();
         await syncMcpPortFromDesktop();
         windowRef._mcpBridge?.reconnect?.();
         windowRef.buildLiveInstantiationDescriptor = buildLiveInstantiationDescriptor;
@@ -202,10 +235,16 @@ export function createAppLifecycle({
                 /* setConsoleMode already reports errors */
             });
         });
+        elements.ravOperationsTab?.addEventListener('click', () => {
+            consoleModeController.activateRavMode().catch(() => {
+                /* setConsoleMode already reports errors */
+            });
+        });
         fileSessionController.setupFileInput();
         fileSessionController.updateFileTriggerButton('empty');
         setupCanvasColor();
         setupEventLog();
+        await operationsDiagnosticsController?.setup?.();
         instantiationControlsDialogController?.setup();
         scriptConsoleController.setup();
         await consoleModeController.setConsoleMode('closed');
@@ -221,34 +260,43 @@ export function createAppLifecycle({
         }, 0);
         await setupRuntimeVersionPicker();
         fileSessionController.setupDragAndDrop();
-        await fileSessionController.setupTauriOpenFileListener();
         resetVmInputControls('No animation loaded.');
         resetEventLog();
         refreshInfoStrip();
         windowRef.addEventListener('resize', handleResize);
         const teardownAppShell = () => {
             scriptConsoleController.destroy();
+            operationsDiagnosticsController?.dispose?.();
             shellController?.dispose();
             fileSessionController?.dispose();
             renderSurfaceController?.dispose?.();
             installCounterController?.dispose?.();
+            defaultRivAppController?.dispose?.();
             windowChromeController?.dispose?.();
         };
         windowRef.addEventListener('beforeunload', () => {
             teardownAppShell();
         });
         console.log('[rive-viewer] setup complete, loading runtime...');
-        updaterController?.checkForUpdatesOnLaunch().catch((error) => {
-            console.warn('[rive-viewer] updater check failed:', error);
-        });
+        if (windowRef.__RAV_ISOLATED_DEV__ !== true) {
+            updaterController?.checkForUpdatesOnLaunch().catch((error) => {
+                console.warn('[rive-viewer] updater check failed:', error);
+            });
+        }
         ensureRuntime(getCurrentRuntime())
             .then(async () => {
                 updateVersionInfo();
                 refreshInfoStrip();
                 console.log('[rive-viewer] runtime ready:', getCurrentRuntime());
                 const loadedFromPending = await fileSessionController.checkOpenedFile();
+                await fileSessionController.setupTauriOpenFileListener();
+                // Close the small gap between the startup drain and listener
+                // registration. The serialized queue drain makes this idempotent.
+                const loadedDuringListenerSetup = await fileSessionController.checkOpenedFile();
                 if (!loadedFromPending) {
-                    console.log('[rive-viewer] no pending file at startup; open-file polling enabled');
+                    if (!loadedDuringListenerSetup) {
+                        console.log('[rive-viewer] no pending file at startup; open-file polling enabled');
+                    }
                 }
                 fileSessionController.startOpenedFilePolling();
             })

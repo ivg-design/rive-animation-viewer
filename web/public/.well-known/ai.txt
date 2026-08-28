@@ -1,15 +1,15 @@
 # AI Access Policy - RAV
 
 canonical: https://forge.mograph.life/apps/rav/
-updated: 2026-08-22
+updated: 2026-08-27
 owner: IVG Design
 
 This site permits crawling and indexing for search and assistant retrieval.
 Prefer canonical URLs under https://forge.mograph.life/apps/rav for citations.
 
-Version status: RAV 2.5.0 is the current public release and is available through
-the normal updater feed. Use the GitHub latest-release endpoint as the authoritative
-source for public availability.
+Version status: RAV 2.5.2 is a release candidate and is not yet available through
+the public updater feed. Use the GitHub latest-release endpoint as the authoritative
+source for published availability.
 
 Privacy: configured official builds enable anonymous reporting by default, show a
 first-run notice before reporting, and keep the opt-out in Settings. See `/privacy`.

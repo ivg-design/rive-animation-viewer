@@ -2,6 +2,27 @@
 
 All notable released changes to this project are documented in this file.
 
+## [2.5.2] - 2026-08-27
+
+### Added
+
+- **Timeline progress readout** — Timeline playback now shows current and total progress in a compact meter that can switch between frames and seconds. The meter is hidden for state machines and keeps a reserved footprint so playback controls do not shift.
+- **macOS default-app controls** — Settings identifies the application macOS currently uses for `.riv` files and provides deliberate **MAKE DEFAULT** and **REPAIR ICON** actions. RAV still registers as an alternate viewer and never takes ownership silently; Quick Look remains a separate macOS provider.
+
+### Changed
+
+- **Anonymous Usage opt-out receipt** — Turning Anonymous Usage off sends one final anonymous `telemetry_off` status and then stops reporting. A failed final status is retained and receives at most one retry per later launch until acknowledged, without resuming installation or activity reporting.
+- **Authoritative playback control** — UI and MCP commands now read from and write to the visible playback surface, including artboard, playback target, ViewModel instance, scalar, image, list, reset, layout, and timeline state.
+
+### Fixed
+
+- **Flicker-free surface replacement** — Opening a file or changing artboard, animation, state machine, or ViewModel instance keeps the previous confirmed frame visible until the replacement surface is ready. Stale rapid-switch results are discarded instead of producing blank frames, first-frame errors, or selection rollback.
+- **ViewModel and image synchronization** — Boolean controls persist, live values flow back to Properties, authored and runtime-list instances remain selectable, independent image slots no longer overwrite one another, and both reset paths update the canvas and controls together.
+- **Warm file opening** — Double-clicking or opening another `.riv` while RAV is already running now queues and activates the new file reliably instead of racing the existing playback surface.
+- **Overlay continuity and styling** — Settings, MCP Setup, About, and export surfaces remain above playback without stopping it, close from any outside click, retain complete RAV-yellow chrome, avoid forced focus and native-blue outlines, and use styled scrollbars only where content is intentionally scrollable.
+- **Canvas validation and presentation** — Fixed dimensions reject unsupported values without sending invalid render actions, while logical pixel sizing, centering, overflow origin, background, fit, and nine-way alignment remain synchronized after playback begins.
+- **Readable playback errors** — Structured native and playback failures now preserve their useful message instead of collapsing to generic text such as `[object Object]`.
+
 ## [2.5.1] - 2026-08-22
 
 ### Fixed

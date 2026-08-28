@@ -124,6 +124,15 @@ fn expected_close_retries_an_already_retired_epoch() {
 
     manager.retire_for_close(Some(resource.epoch)).unwrap();
     assert_eq!(manager.retiring().unwrap()[0].label, resource.label);
+
+    assert!(manager
+        .authorized_action_source(resource.epoch, "settings", &resource.label, "close",)
+        .unwrap()
+        .is_some());
+    assert!(manager
+        .authorized_action_source(resource.epoch, "settings", &resource.label, "canvas-mode",)
+        .unwrap()
+        .is_none());
 }
 
 #[test]

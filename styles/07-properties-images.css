@@ -1,0 +1,20 @@
+.vm-image-control {
+    position: relative;
+    display: block;
+    min-width: 0;
+}
+
+.vm-image-control .vm-image-asset-select {
+    width: 100%;
+    min-width: 0;
+}
+
+.vm-image-file-input {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+}

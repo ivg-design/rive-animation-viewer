@@ -1,4 +1,5 @@
 import { createMcpSetupController } from '../../../src/app/ui/mcp-setup.js';
+import { createUiOverlayController } from '../../../src/app/ui/overlay/controller.js';
 
 function buildElements() {
     document.body.innerHTML = `
@@ -12,6 +13,8 @@ function buildElements() {
             <button id="mcp-remove-claude-desktop-btn" data-remove-target="claude-desktop">REMOVE</button>
         </dialog>
         <pre id="mcp-server-path-display"></pre>
+        <input id="mcp-port-input" value="9274">
+        <button id="mcp-port-apply-btn">SET</button>
         <div id="mcp-node-status"></div>
         <span id="mcp-node-label"></span>
         <p id="mcp-claude-desktop-copy"></p>
@@ -30,6 +33,8 @@ function buildElements() {
     return {
         mcpSetupDialog: dialog,
         mcpServerPathDisplay: document.getElementById('mcp-server-path-display'),
+        mcpPortInput: document.getElementById('mcp-port-input'),
+        mcpPortApplyButton: document.getElementById('mcp-port-apply-btn'),
         mcpNodeStatus: document.getElementById('mcp-node-status'),
         mcpNodeLabel: document.getElementById('mcp-node-label'),
         mcpClaudeDesktopCopy: document.getElementById('mcp-claude-desktop-copy'),
@@ -187,5 +192,154 @@ describe('ui/mcp-setup', () => {
         expect(invoke).toHaveBeenCalledWith('remove_mcp_client', { target: 'codex' });
         expect(elements.mcpClientStatusCodex.textContent).toBe('Detected');
         expect(elements.mcpRemoveCodexButton.hidden).toBe(true);
+    });
+
+    it('preserves an MCP port draft in the state captured for a restack', async () => {
+        const elements = buildElements();
+        let overlayDefinition;
+        const invoke = vi.fn(async (command) => (
+            command === 'get_mcp_setup_status' ? mockSetupStatus() : null
+        ));
+        const controller = createMcpSetupController({
+            elements,
+            getTauriInvoker: () => invoke,
+            initLucideIcons: vi.fn(),
+            requestUiOverlay: vi.fn(async (definition) => {
+                overlayDefinition = definition;
+                return true;
+            }),
+            windowRef: { localStorage: window.localStorage, setTimeout: (callback) => { callback(); return 1; } },
+        });
+
+        await controller.showMcpSetup();
+        await overlayDefinition.handleAction({ action: 'port-draft', value: '9555draft' });
+        expect(overlayDefinition.getState().node).toEqual(expect.objectContaining({
+            portDraft: '9555draft',
+        }));
+    });
+
+    it('waits for the native port receipt before the MCP overlay action completes', async () => {
+        const elements = buildElements();
+        let resolvePort;
+        let overlayDefinition;
+        const invoke = vi.fn((command) => {
+            if (command === 'get_mcp_setup_status') {
+                return Promise.resolve({ ...mockSetupStatus(), port: invoke.port || 9411 });
+            }
+            if (command === 'set_mcp_port') {
+                return new Promise((resolve) => { resolvePort = resolve; });
+            }
+            return Promise.resolve(null);
+        });
+        const controller = createMcpSetupController({
+            elements,
+            getTauriInvoker: () => invoke,
+            initLucideIcons: vi.fn(),
+            requestUiOverlay: async (definition) => {
+                overlayDefinition = definition;
+                return true;
+            },
+        });
+
+        await controller.showMcpSetup();
+        const applying = overlayDefinition.handleAction({ action: 'port-apply', value: '9555' });
+        await vi.waitFor(() => expect(resolvePort).toBeTypeOf('function'));
+        expect(invoke).toHaveBeenCalledWith('set_mcp_port', { port: 9555 });
+        expect(invoke.mock.calls.filter(([command]) => command === 'get_mcp_setup_status')).toHaveLength(1);
+
+        invoke.port = 9555;
+        resolvePort(9555);
+        await expect(applying).resolves.toBeNull();
+        expect(elements.mcpPortInput.value).toBe('9555');
+        expect(invoke.mock.calls.filter(([command]) => command === 'get_mcp_setup_status')).toHaveLength(2);
+    });
+
+    it('rejects unsuccessful MCP overlay operations and unavailable clipboard payloads', async () => {
+        const elements = buildElements();
+        let overlayDefinition;
+        const clipboardWrite = vi.fn().mockRejectedValue(new Error('Clipboard blocked'));
+        const invoke = vi.fn(async (command) => {
+            if (command === 'get_mcp_setup_status') return mockSetupStatus();
+            if (command === 'set_mcp_port') throw new Error('Port restart failed');
+            if (command === 'install_mcp_client') return { installed: false };
+            if (command === 'remove_mcp_client') return { installed: true };
+            return null;
+        });
+        const controller = createMcpSetupController({
+            elements,
+            getTauriInvoker: () => invoke,
+            initLucideIcons: vi.fn(),
+            requestUiOverlay: async (definition) => {
+                overlayDefinition = definition;
+                return true;
+            },
+            windowRef: { navigator: { clipboard: { writeText: clipboardWrite } } },
+        });
+
+        await controller.showMcpSetup();
+        await expect(overlayDefinition.handleAction({ action: 'port-apply', value: '9555' }))
+            .rejects.toThrow('Port restart failed');
+        await expect(overlayDefinition.handleAction({ action: 'client-install', value: 'codex' }))
+            .rejects.toThrow('did not confirm installation');
+        await expect(overlayDefinition.handleAction({ action: 'client-remove', value: 'codex' }))
+            .rejects.toThrow('did not confirm removal');
+        await expect(overlayDefinition.handleAction({ action: 'copy', value: 'missing-target' }))
+            .rejects.toThrow('configuration is unavailable');
+        await expect(overlayDefinition.handleAction({ action: 'copy', value: 'codex' }))
+            .rejects.toThrow('Clipboard blocked');
+    });
+
+    it('reports a failed MCP overlay action with a failed native completion receipt', async () => {
+        const elements = buildElements();
+        const listeners = new Map();
+        const invoke = vi.fn(async (command) => {
+            if (command === 'is_ui_overlay_supported') return true;
+            if (command === 'show_ui_overlay') return 17;
+            if (command === 'get_mcp_setup_status') return mockSetupStatus();
+            if (command === 'set_mcp_port') throw new Error('Port restart failed');
+            return null;
+        });
+        const overlayController = createUiOverlayController({
+            callbacks: {
+                createOverlayRequestToken: () => 'mcp-overlay-token',
+                getTauriEventListener: async () => async (name, handler) => {
+                    listeners.set(name, handler);
+                    return () => listeners.delete(name);
+                },
+                getTauriInvoker: () => invoke,
+                isTauriEnvironment: () => true,
+                showError: vi.fn(),
+            },
+            documentRef: document,
+            windowRef: window,
+        });
+        const controller = createMcpSetupController({
+            elements,
+            getTauriInvoker: () => invoke,
+            initLucideIcons: vi.fn(),
+            requestUiOverlay: (definition) => overlayController.openPurpose(definition),
+            windowRef: window,
+        });
+
+        await overlayController.setup();
+        await controller.showMcpSetup();
+        await listeners.get('ui-overlay:action')({
+            payload: {
+                action: 'port-apply',
+                actionId: '17-1',
+                epoch: 17,
+                purpose: 'mcp',
+                requestToken: 'mcp-overlay-token',
+                value: '9555',
+            },
+        });
+
+        expect(invoke).toHaveBeenCalledWith('complete_ui_overlay_action', {
+            actionId: '17-1',
+            epoch: 17,
+            message: 'Port restart failed',
+            ok: false,
+        });
+        overlayController.dispose();
     });
 });

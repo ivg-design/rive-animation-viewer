@@ -26,6 +26,7 @@ export function dispatchPresentationChanged(documentRef, detail = {}) {
 export function dispatchVmControlMutation(documentRef, {
     action = 'set',
     descriptor,
+    imageSelection,
     kind = descriptor?.kind,
     value = null,
 } = {}) {
@@ -35,6 +36,7 @@ export function dispatchVmControlMutation(documentRef, {
     return dispatchDetailEvent(documentRef, RAV_VM_CONTROL_MUTATED_EVENT, {
         action,
         descriptor: { ...descriptor },
+        ...(kind === 'image' ? { imageSelection } : {}),
         kind,
         value,
     });

@@ -1,6 +1,6 @@
-import { OPEN_FILE_POLL_INTERVAL_MS } from '../../core/constants.js';
 import { createDragAndDropSetup } from './drag-drop.js';
 import { createFileInputSetup, createPathRivLoader } from './local-file.js';
+import { createOpenedFileQueue } from './open-file-queue.js';
 import { extractOpenedFilePath } from './path-utils.js';
 
 export {
@@ -33,6 +33,7 @@ export function createFileSessionController({
         refreshInfoStrip = () => {},
         resetArtboardSwitcherState = () => {},
         resetVmInputControls = () => {},
+        restoreFileSessionUi = () => {},
         showError = () => {},
     } = callbacks;
 
@@ -44,8 +45,8 @@ export function createFileSessionController({
     let currentFileSizeBytes = 0;
     let currentFileUrl = null;
     let lastObjectUrl = null;
-    let openedFilePollTimeout = null;
-    let tauriOpenFileUnlisten = null;
+    let stagedFileTransaction = null;
+    let fileTransactionSequence = 0;
 
     function getCurrentFileBuffer() {
         return currentFileBuffer;
@@ -96,7 +97,78 @@ export function createFileSessionController({
         }
     }
 
+    function captureFileState() {
+        return {
+            buffer: currentFileBuffer,
+            mimeType: currentFileMimeType,
+            name: currentFileName,
+            objectUrl: lastObjectUrl,
+            preferenceId: currentFilePreferenceId,
+            sizeBytes: currentFileSizeBytes,
+            sourcePath: currentFileSourcePath,
+            url: currentFileUrl,
+        };
+    }
+
+    function applyFileState(state) {
+        currentFileBuffer = state.buffer;
+        currentFileMimeType = state.mimeType;
+        currentFileName = state.name;
+        currentFilePreferenceId = state.preferenceId;
+        currentFileSizeBytes = state.sizeBytes;
+        currentFileSourcePath = state.sourcePath;
+        currentFileUrl = state.url;
+        lastObjectUrl = state.objectUrl;
+        updateFileTriggerButton(state.name ? 'loaded' : 'empty', state.name);
+        refreshInfoStrip();
+    }
+
+    function stageCurrentFile(url, name, isObjectUrl = false, buffer, mimeType, fileSizeBytes, metadata = {}) {
+        stagedFileTransaction?.rollback?.();
+        const previous = captureFileState();
+        const transactionId = ++fileTransactionSequence;
+        const staged = {
+            buffer: buffer instanceof ArrayBuffer ? buffer : previous.buffer,
+            mimeType: mimeType || previous.mimeType,
+            name,
+            objectUrl: isObjectUrl ? url : null,
+            preferenceId: buildFileRuntimePreferenceId(name, Number.isFinite(fileSizeBytes) ? Number(fileSizeBytes) : 0, metadata),
+            sizeBytes: Number.isFinite(fileSizeBytes) ? Number(fileSizeBytes) : 0,
+            sourcePath: typeof metadata.sourcePath === 'string' ? metadata.sourcePath : '',
+            url,
+        };
+        let settled = false;
+        applyFileState(staged);
+        resetArtboardSwitcherState();
+        const transaction = {
+            commit() {
+                if (settled || stagedFileTransaction !== transaction) return false;
+                settled = true;
+                stagedFileTransaction = null;
+                if (previous.objectUrl && previous.objectUrl !== staged.objectUrl) {
+                    urlApi.revokeObjectURL(previous.objectUrl);
+                }
+                return true;
+            },
+            rollback() {
+                if (settled || stagedFileTransaction !== transaction) return false;
+                settled = true;
+                stagedFileTransaction = null;
+                if (staged.objectUrl && staged.objectUrl !== previous.objectUrl) {
+                    urlApi.revokeObjectURL(staged.objectUrl);
+                }
+                applyFileState(previous);
+                restoreFileSessionUi(previous);
+                return true;
+            },
+            id: transactionId,
+        };
+        stagedFileTransaction = transaction;
+        return transaction;
+    }
+
     function setCurrentFile(url, name, isObjectUrl = false, buffer, mimeType, fileSizeBytes, metadata = {}) {
+        stagedFileTransaction?.rollback?.();
         if (lastObjectUrl && lastObjectUrl !== url) {
             urlApi.revokeObjectURL(lastObjectUrl);
             lastObjectUrl = null;
@@ -129,6 +201,7 @@ export function createFileSessionController({
     }
 
     async function clearCurrentFile() {
+        stagedFileTransaction?.rollback?.();
         cleanupInstance();
         revokeLastObjectUrl();
         currentFileUrl = null;
@@ -159,87 +232,25 @@ export function createFileSessionController({
         loadRiveAnimation,
         logEvent,
         setCurrentFile,
+        stageCurrentFile,
         showError,
         urlApi,
         windowRef,
     });
 
-    async function checkOpenedFile() {
-        await ensureTauriBridge();
-        const invoke = getTauriInvoker();
-        if (!invoke) {
-            if (isTauriEnvironment()) {
-                console.warn('[rive-viewer] Tauri environment detected but invoke bridge is unavailable');
-            }
-            return false;
-        }
-
-        try {
-            const filePath = extractOpenedFilePath(await invoke('get_opened_file'));
-            if (filePath) {
-                await loadRivFromPath(filePath);
-                return true;
-            }
-        } catch (error) {
-            console.warn('[rive-viewer] get_opened_file failed:', error);
-        }
-        return false;
-    }
-
-    function startOpenedFilePolling(intervalMs = OPEN_FILE_POLL_INTERVAL_MS) {
-        if (!isTauriEnvironment()) {
-            return;
-        }
-        if (openedFilePollTimeout) {
-            clearTimeoutFn(openedFilePollTimeout);
-            openedFilePollTimeout = null;
-        }
-
-        const poll = async () => {
-            await checkOpenedFile();
-            openedFilePollTimeout = setTimeoutFn(poll, intervalMs);
-        };
-
-        openedFilePollTimeout = setTimeoutFn(poll, Math.max(250, intervalMs));
-    }
-
-    async function setupTauriOpenFileListener() {
-        const listen = await getTauriEventListener();
-        if (typeof listen !== 'function') {
-            return;
-        }
-
-        try {
-            tauriOpenFileUnlisten = await listen('open-file', async (event) => {
-                const filePath = extractOpenedFilePath(event?.payload);
-                if (!filePath) {
-                    return;
-                }
-                try {
-                    await loadRivFromPath(filePath);
-                } catch (error) {
-                    console.warn('[rive-viewer] open-file event load failed:', error);
-                }
-            });
-        } catch (error) {
-            console.warn('[rive-viewer] failed to register open-file listener:', error);
-        }
-    }
+    const openedFileQueue = createOpenedFileQueue({
+        clearTimeoutFn,
+        ensureTauriBridge,
+        getTauriEventListener,
+        getTauriInvoker,
+        isTauriEnvironment,
+        loadRivFromPath,
+        setTimeoutFn,
+    });
 
     function dispose() {
-        if (openedFilePollTimeout) {
-            clearTimeoutFn(openedFilePollTimeout);
-            openedFilePollTimeout = null;
-        }
+        openedFileQueue.dispose();
         revokeLastObjectUrl();
-        if (typeof tauriOpenFileUnlisten === 'function') {
-            try {
-                tauriOpenFileUnlisten();
-            } catch {
-                /* noop */
-            }
-            tauriOpenFileUnlisten = null;
-        }
     }
 
     const setupFileInput = createFileInputSetup({
@@ -249,6 +260,7 @@ export function createFileSessionController({
         loadRiveAnimation,
         logEvent,
         setCurrentFile,
+        stageCurrentFile,
         showError,
         updateFileTriggerButton,
         urlApi,
@@ -262,6 +274,7 @@ export function createFileSessionController({
         loadRivFromPath,
         logEvent,
         setCurrentFile,
+        stageCurrentFile,
         showError,
         updateFileTriggerButton,
         urlApi,
@@ -294,7 +307,7 @@ export function createFileSessionController({
     }
 
     return {
-        checkOpenedFile,
+        checkOpenedFile: openedFileQueue.drain,
         clearCurrentFile,
         dispose,
         getCurrentFileBuffer,
@@ -306,12 +319,14 @@ export function createFileSessionController({
         getCurrentFileUrl,
         handleFileButtonClick,
         loadRivFromPath,
+        drainOpenedFiles: openedFileQueue.drain,
         revokeLastObjectUrl,
         setCurrentFile,
+        stageCurrentFile,
         setupDragAndDrop,
         setupFileInput,
-        setupTauriOpenFileListener,
-        startOpenedFilePolling,
+        setupTauriOpenFileListener: openedFileQueue.setupListener,
+        startOpenedFilePolling: openedFileQueue.startPolling,
         updateFileTriggerButton,
     };
 }

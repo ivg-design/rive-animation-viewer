@@ -139,6 +139,59 @@
     color: var(--text-dim);
 }
 
+/* Shared dialog chrome: used by both the main-WebView fallback dialogs and
+ * the bounded native overlay document. */
+.rav-modal-close {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    border: 1px solid var(--dialog-frame);
+    border-radius: 13px;
+    background: color-mix(in srgb, var(--bg-void) 84%, var(--neon) 5%);
+    color: var(--neon);
+    font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+    font-size: 27px;
+    font-weight: 400;
+    line-height: 1;
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.rav-modal-close:hover:not(:disabled) {
+    border-color: #d7ff58;
+    background: color-mix(in srgb, var(--neon) 16%, var(--bg-void));
+    color: #efffb6;
+}
+
+.rav-modal-close:active:not(:disabled) {
+    transform: translateY(1px);
+    background: color-mix(in srgb, var(--neon) 24%, var(--bg-void));
+}
+
+.rav-modal-close:focus-visible {
+    border-color: var(--neon);
+    outline: none;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--neon) 32%, transparent),
+        0 0 7px color-mix(in srgb, var(--neon) 18%, transparent);
+}
+
+.rav-modal-close:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+:is(.settings-popover, .mcp-setup-dialog, .about-dialog, .instantiation-controls-dialog)
+    :where(button, input, select, a, [tabindex]):focus {
+    outline: none;
+}
+
+:is(.settings-popover, .mcp-setup-dialog, .about-dialog, .instantiation-controls-dialog)
+    :where(button, input, select, a, [tabindex]):focus-visible {
+    outline: none;
+    border-color: color-mix(in srgb, var(--neon) 62%, var(--border-bright));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--neon) 34%, transparent),
+        0 0 7px color-mix(in srgb, var(--neon) 20%, transparent);
+}
+
 .icon-btn-toolbar {
     width: var(--header-control-h);
     height: var(--header-control-h);
@@ -224,11 +277,6 @@
     color: var(--text-dim);
     font-size: 11px;
     font-weight: 500;
-}
-
-.fps-chip-pending-label {
-    font-size: 8px;
-    letter-spacing: -0.02em;
 }
 
 .dot {

@@ -1,30 +1,45 @@
-use reqwest::{redirect::Policy, Url};
-use std::sync::atomic::{AtomicBool, Ordering};
+use reqwest::Url;
+use std::path::Path;
+use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime};
 use tauri::Manager;
 
-use self::protocol::{monthly_token, utc_month, validate_endpoint, CounterPayload};
+use self::protocol::validate_endpoint;
+#[cfg(test)]
+use self::protocol::{utc_month, CounterPayload};
+#[cfg(test)]
+use self::reporting_cycle::build_counter_client;
+use self::reporting_cycle::{
+    report_telemetry_off_if_needed, reporting_work_is_pending, schedule_report_cycle,
+    LAUNCH_INSTALL_DELAY,
+};
 use self::state::{
-    apply_enabled, ensure_state, read_state, record_install_success, record_monthly_active_success,
-    state_path, write_state, CounterState,
+    apply_enabled, ensure_state, prepare_telemetry_off_receipt, read_state, state_path,
+    write_state, CounterState,
+};
+#[cfg(test)]
+use self::state::{
+    pending_telemetry_off, record_install_success, record_monthly_active_success,
+    record_telemetry_off_success,
 };
 
 mod protocol;
+mod reporting_cycle;
 mod state;
+pub mod telemetry_acceptance;
 #[cfg(test)]
 mod tests;
 
-const COUNTER_SCHEMA: u8 = 1;
+const COUNTER_SCHEMA: u8 = 2;
 const NOTICE_VERSION: u16 = 1;
-const COUNTER_TIMEOUT: Duration = Duration::from_secs(5);
-const LAUNCH_INSTALL_DELAY: Duration = Duration::from_secs(30);
-const ACTIVE_DELAY_AFTER_INSTALL: Duration = Duration::from_secs(60);
+pub const TELEMETRY_ACCEPTANCE_IDENTIFIER: &str = "app.rive.animation.viewer.telemetry-acceptance";
 
 #[derive(Default)]
 pub struct InstallCounterManager {
     state_lock: Mutex<()>,
     reporting: AtomicBool,
+    telemetry_off_reporting: AtomicBool,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -39,10 +54,75 @@ pub struct InstallCounterStatus {
 }
 
 fn configured_endpoint() -> Option<Url> {
-    if cfg!(debug_assertions) || option_env!("RAV_OFFICIAL_RELEASE") != Some("1") {
+    configured_endpoint_from_values(
+        cfg!(debug_assertions),
+        option_env!("RAV_OFFICIAL_RELEASE"),
+        option_env!("RAV_COUNTER_ENDPOINT"),
+        option_env!("RAV_TELEMETRY_ACCEPTANCE_BUILD"),
+        option_env!("RAV_TELEMETRY_ACCEPTANCE_BUILD_ENDPOINT"),
+    )
+}
+
+/// This is intentionally compile-time only: a normal DEV build cannot be
+/// pointed at an endpoint through its launch environment. Acceptance builds
+/// use an explicitly separate endpoint compiled by `build.rs`.
+pub fn telemetry_acceptance_enabled() -> bool {
+    telemetry_acceptance_enabled_from_values(
+        cfg!(debug_assertions),
+        option_env!("RAV_OFFICIAL_RELEASE"),
+        option_env!("RAV_TELEMETRY_ACCEPTANCE_BUILD"),
+    )
+}
+
+/// Refuse a telemetry-marked binary that was bundled with any normal RAV
+/// identifier. This runs during setup before the counter can create state or
+/// send a request, keeping acceptance data isolated from both release and DEV
+/// app-data directories.
+pub fn validate_telemetry_acceptance_identifier(identifier: &str) -> Result<(), String> {
+    if !telemetry_acceptance_identifier_is_valid(telemetry_acceptance_enabled(), identifier) {
+        return Err(format!(
+            "telemetry acceptance requires app identifier {TELEMETRY_ACCEPTANCE_IDENTIFIER}, got {identifier}"
+        ));
+    }
+    Ok(())
+}
+
+fn telemetry_acceptance_identifier_is_valid(
+    telemetry_acceptance_enabled: bool,
+    identifier: &str,
+) -> bool {
+    !telemetry_acceptance_enabled || identifier == TELEMETRY_ACCEPTANCE_IDENTIFIER
+}
+
+fn telemetry_acceptance_enabled_from_values(
+    debug_assertions: bool,
+    official_release: Option<&str>,
+    acceptance_build: Option<&str>,
+) -> bool {
+    !debug_assertions && official_release != Some("1") && acceptance_build == Some("1")
+}
+
+fn configured_endpoint_from_values(
+    debug_assertions: bool,
+    official_release: Option<&str>,
+    official_endpoint: Option<&str>,
+    acceptance_build: Option<&str>,
+    acceptance_endpoint: Option<&str>,
+) -> Option<Url> {
+    if debug_assertions {
         return None;
     }
-    option_env!("RAV_COUNTER_ENDPOINT").and_then(|value| validate_endpoint(value).ok())
+    if official_release == Some("1") {
+        return official_endpoint.and_then(|value| validate_endpoint(value).ok());
+    }
+    if telemetry_acceptance_enabled_from_values(
+        debug_assertions,
+        official_release,
+        acceptance_build,
+    ) {
+        return acceptance_endpoint.and_then(|value| validate_endpoint(value).ok());
+    }
+    None
 }
 
 fn status_from_state(state: &CounterState) -> InstallCounterStatus {
@@ -60,6 +140,14 @@ fn reporting_is_ready(state: &CounterState) -> bool {
     state.enabled && state.notice_version >= NOTICE_VERSION
 }
 
+fn state_for_status(path: &Path, endpoint_available: bool) -> Result<CounterState, String> {
+    if endpoint_available {
+        ensure_state(path, true)
+    } else {
+        Ok(read_state(path))
+    }
+}
+
 #[tauri::command]
 pub fn get_install_counter_status(
     app: tauri::AppHandle,
@@ -70,33 +158,66 @@ pub fn get_install_counter_status(
         .lock()
         .map_err(|error| error.to_string())?;
     let path = state_path(&app)?;
-    let state = ensure_state(&path, configured_endpoint().is_some())?;
+    // An unavailable/dev build must be observational only. In particular, it
+    // must not create the durable opt-out marker just because this build has
+    // no endpoint; that would silently carry into an official build sharing
+    // the same app-data directory.
+    let state = state_for_status(&path, configured_endpoint().is_some())?;
     Ok(status_from_state(&state))
 }
 
 #[tauri::command]
-pub fn set_install_counter_enabled(
+pub async fn set_install_counter_enabled(
     app: tauri::AppHandle,
     manager: tauri::State<'_, InstallCounterManager>,
     enabled: bool,
 ) -> Result<InstallCounterStatus, String> {
-    if enabled && configured_endpoint().is_none() {
-        return Err("anonymous installation counting is not configured in this build".to_string());
+    let endpoint = configured_endpoint();
+    if endpoint.is_none() {
+        if enabled {
+            return Err(
+                "anonymous installation counting is not configured in this build".to_string(),
+            );
+        }
+        let _guard = manager
+            .state_lock
+            .lock()
+            .map_err(|error| error.to_string())?;
+        let path = state_path(&app)?;
+        return Ok(status_from_state(&read_state(&path)));
     }
-    let status = {
+    let (mut status, telemetry_off_requested) = {
         let _guard = manager
             .state_lock
             .lock()
             .map_err(|error| error.to_string())?;
         let path = state_path(&app)?;
         let mut state = ensure_state(&path, configured_endpoint().is_some())?;
+        let was_enabled = state.enabled;
         apply_enabled(&mut state, enabled);
+        let telemetry_off_requested = !enabled
+            && was_enabled
+            && endpoint.is_some()
+            && prepare_telemetry_off_receipt(&mut state).is_some();
         if enabled {
             state.notice_version = NOTICE_VERSION;
         }
         write_state(&path, &state)?;
-        status_from_state(&state)
+        (status_from_state(&state), telemetry_off_requested)
     };
+    if let (Some(endpoint), true) = (endpoint.as_ref(), telemetry_off_requested) {
+        if let Err(error) = report_telemetry_off_if_needed(&app, endpoint).await {
+            eprintln!("[rav-counter] telemetry-off receipt was not delivered: {error}");
+            // One bounded retry is queued. If it also fails, the durable
+            // pending receipt is retried once on each later app launch.
+            schedule_report_cycle(&app, LAUNCH_INSTALL_DELAY);
+        }
+        if let Ok(_guard) = manager.state_lock.lock() {
+            if let Ok(path) = state_path(&app) {
+                status = status_from_state(&read_state(&path));
+            }
+        }
+    }
     if enabled && !status.notice_required {
         schedule_report_cycle(&app, Duration::ZERO);
     }
@@ -108,6 +229,9 @@ pub fn acknowledge_install_counter_notice(
     app: tauri::AppHandle,
     manager: tauri::State<'_, InstallCounterManager>,
 ) -> Result<InstallCounterStatus, String> {
+    if configured_endpoint().is_none() {
+        return Ok(status_from_state(&read_state(&state_path(&app)?)));
+    }
     let status = {
         let _guard = manager
             .state_lock
@@ -138,137 +262,8 @@ pub fn schedule_on_launch(app: &tauri::AppHandle) {
         .lock()
         .ok()
         .and_then(|_guard| ensure_state(&path, true).ok())
-        .is_some_and(|state| reporting_is_ready(&state));
+        .is_some_and(|state| reporting_work_is_pending(&state, SystemTime::now()));
     if ready {
         schedule_report_cycle(app, LAUNCH_INSTALL_DELAY);
     }
-}
-
-fn schedule_report_cycle(app: &tauri::AppHandle, initial_delay: Duration) {
-    let Some(endpoint) = configured_endpoint() else {
-        return;
-    };
-    let manager = app.state::<InstallCounterManager>();
-    let Ok(path) = state_path(app) else {
-        return;
-    };
-    let enabled = manager.state_lock.lock().ok().is_some_and(|_guard| {
-        let state = read_state(&path);
-        reporting_is_ready(&state)
-    });
-    if !enabled || manager.reporting.swap(true, Ordering::AcqRel) {
-        return;
-    }
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(initial_delay).await;
-        if let Err(error) = report_install_if_needed(&app, &endpoint).await {
-            eprintln!("[rav-counter] installation report deferred: {error}");
-        }
-        tokio::time::sleep(ACTIVE_DELAY_AFTER_INSTALL).await;
-        if let Err(error) = report_monthly_active_if_needed(&app, &endpoint).await {
-            eprintln!("[rav-counter] monthly activity report deferred: {error}");
-        }
-        app.state::<InstallCounterManager>()
-            .reporting
-            .store(false, Ordering::Release);
-    });
-}
-
-async fn send_payload(endpoint: &Url, payload: &CounterPayload) -> Result<(), String> {
-    let client = build_counter_client()?;
-    let response = client
-        .post(endpoint.clone())
-        .json(payload)
-        .send()
-        .await
-        .map_err(|error| format!("counter endpoint unavailable: {error}"))?;
-    if !response.status().is_success() {
-        return Err(format!("counter endpoint returned {}", response.status()));
-    }
-    Ok(())
-}
-
-fn build_counter_client() -> Result<reqwest::Client, String> {
-    let _ = rustls::crypto::ring::default_provider().install_default();
-    reqwest::Client::builder()
-        .timeout(COUNTER_TIMEOUT)
-        .redirect(Policy::none())
-        .build()
-        .map_err(|error| format!("counter client unavailable: {error}"))
-}
-
-async fn report_install_if_needed(app: &tauri::AppHandle, endpoint: &Url) -> Result<(), String> {
-    let manager = app.state::<InstallCounterManager>();
-    let path = state_path(app)?;
-    let pending_token = {
-        let _guard = manager
-            .state_lock
-            .lock()
-            .map_err(|error| error.to_string())?;
-        let state = read_state(&path);
-        if !state.enabled || state.install_reported {
-            return Ok(());
-        }
-        state.pending_install_token
-    };
-    let Some(token) = pending_token else {
-        return Ok(());
-    };
-    let payload = CounterPayload {
-        schema: COUNTER_SCHEMA,
-        event: "install",
-        token: token.clone(),
-        release: app.package_info().version.to_string(),
-        period: None,
-    };
-    send_payload(endpoint, &payload).await?;
-    let _guard = manager
-        .state_lock
-        .lock()
-        .map_err(|error| error.to_string())?;
-    let mut state = read_state(&path);
-    record_install_success(&mut state, SystemTime::now());
-    write_state(&path, &state)?;
-    Ok(())
-}
-
-async fn report_monthly_active_if_needed(
-    app: &tauri::AppHandle,
-    endpoint: &Url,
-) -> Result<(), String> {
-    let manager = app.state::<InstallCounterManager>();
-    let path = state_path(app)?;
-    let period = utc_month(SystemTime::now());
-    let secret = {
-        let _guard = manager
-            .state_lock
-            .lock()
-            .map_err(|error| error.to_string())?;
-        let state = read_state(&path);
-        if !state.enabled || state.last_active_period.as_deref() == Some(period.as_str()) {
-            return Ok(());
-        }
-        state.activity_secret
-    };
-    let Some(secret) = secret else {
-        return Ok(());
-    };
-    let token = monthly_token(&secret, &period)?;
-    let payload = CounterPayload {
-        schema: COUNTER_SCHEMA,
-        event: "monthly_active",
-        token,
-        release: app.package_info().version.to_string(),
-        period: Some(period.clone()),
-    };
-    send_payload(endpoint, &payload).await?;
-    let _guard = manager
-        .state_lock
-        .lock()
-        .map_err(|error| error.to_string())?;
-    let mut state = read_state(&path);
-    record_monthly_active_success(&mut state, period, SystemTime::now());
-    write_state(&path, &state)?;
-    Ok(())
 }

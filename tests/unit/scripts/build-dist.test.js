@@ -54,6 +54,11 @@ describe('static distribution build identity', () => {
 
             const localEnv = {
                 ...process.env,
+                // The surrounding release build may intentionally export a
+                // fixed build number. This fixture specifically verifies the
+                // auto-counter path, so do not inherit that unrelated value.
+                APP_BUILD_NUMBER: '',
+                APP_BUILD_CHANNEL: '',
                 CI: '',
                 GITHUB_ACTIONS: '',
                 TAURI_ENV_DEBUG: 'true',

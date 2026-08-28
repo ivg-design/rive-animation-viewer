@@ -6,8 +6,8 @@ export function hasBlockingMainUi(documentRef, elements = {}) {
     if (documentRef?.querySelector?.('dialog[open]')) {
         return true;
     }
-    return isVisible(elements.settingsPopover)
-        || isVisible(elements.installCounterNotice)
+    return isVisible(elements.installCounterNotice)
+        || isVisible(elements.settingsPopover)
         || Boolean(elements.error?.classList?.contains?.('visible'));
 }
 
@@ -24,7 +24,7 @@ export function observeBlockingMainUi({
         attributes: true,
         subtree: true,
     });
-    [elements.settingsPopover, elements.installCounterNotice].filter(Boolean).forEach((element) => {
+    [elements.installCounterNotice, elements.settingsPopover].filter(Boolean).forEach((element) => {
         observer.observe(element, {
             attributeFilter: ['aria-hidden', 'hidden'],
             attributes: true,
@@ -40,6 +40,7 @@ export function observeBlockingMainUi({
 }
 
 export function createRenderSurfaceVisibilityController({
+    canShowMainCanvas = () => true,
     documentRef,
     elements = {},
     invokeQuietly,
@@ -56,16 +57,16 @@ export function createRenderSurfaceVisibilityController({
 
     async function applyCurrentVisibility() {
         if (!isActive?.()) {
-            setMainCanvasVisible(true);
+            setMainCanvasVisible(canShowMainCanvas());
             return false;
         }
         if (hasBlockingMainUi(documentRef, elements)) {
-            await invokeQuietly('hide_render_surface');
-            setMainCanvasVisible(true);
+            await invokeQuietly('park_render_surface');
+            setMainCanvasVisible(canShowMainCanvas());
             return false;
         }
-        const shown = await invokeQuietly('show_render_surface');
-        setMainCanvasVisible(!shown);
+        const shown = await invokeQuietly('restore_render_surface');
+        setMainCanvasVisible(!shown && canShowMainCanvas());
         return shown;
     }
 
@@ -74,7 +75,12 @@ export function createRenderSurfaceVisibilityController({
         return syncChain;
     }
 
+    function canReveal() {
+        return canShowMainCanvas() && !hasBlockingMainUi(documentRef, elements);
+    }
+
     return {
+        canReveal,
         setMainCanvasVisible,
         sync,
     };

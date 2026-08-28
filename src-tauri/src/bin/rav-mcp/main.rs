@@ -7,6 +7,7 @@ mod rpc;
 mod stdio_transport;
 mod support;
 mod tool_registry;
+mod vm_tool_registry;
 mod websocket;
 
 use bridge::Bridge;

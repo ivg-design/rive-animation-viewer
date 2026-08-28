@@ -198,6 +198,61 @@ describe('rive/instance-controller', () => {
         expect(callbacks.logEvent).toHaveBeenCalledWith('native', 'statechange', 'State machine changed state.', stateChangeEvent);
     });
 
+    it.each([
+        ['named', 'Board'],
+        ['runtime list index', 0],
+    ])('rebinds the %s ViewModel instance before restoring an in-place reset snapshot', async (_label, instanceKey) => {
+        const elements = createElements();
+        Object.defineProperty(elements.canvasContainer, 'clientWidth', { configurable: true, value: 640 });
+        Object.defineProperty(elements.canvasContainer, 'clientHeight', { configurable: true, value: 360 });
+        const named = { name: 'Board' };
+        const indexed = { index: 0 };
+        const restoreOrder = [];
+        let config;
+        let instance;
+        const runtime = {
+            Alignment: { Center: Symbol('Center') },
+            Fit: { Contain: Symbol('Contain') },
+            Layout: class Layout { constructor(props) { Object.assign(this, props); } },
+            Rive: vi.fn((nextConfig) => {
+                config = nextConfig;
+                instance = {
+                    bindViewModelInstance: vi.fn(() => restoreOrder.push('bind')),
+                    defaultViewModel: () => ({
+                        instanceByIndex: (index) => index === 0 ? indexed : null,
+                        instanceByName: (name) => name === 'Board' ? named : null,
+                    }),
+                    reset: vi.fn(() => config.onLoad()),
+                    resizeDrawingSurfaceToCanvas: vi.fn(),
+                    viewModelInstance: null,
+                };
+                return instance;
+            }),
+        };
+        const restore = vi.fn(() => restoreOrder.push('restore'));
+        const controller = createRiveInstanceController({
+            callbacks: {
+                ensureRuntime: vi.fn().mockResolvedValue(runtime),
+                hideError: vi.fn(), logEvent: vi.fn(), populateArtboardSwitcher: vi.fn(), refreshInfoStrip: vi.fn(),
+                renderVmInputControls: vi.fn(), resetPlaybackChips: vi.fn(), resetVmInputControls: vi.fn(),
+                setVmControlBaselineSnapshot: vi.fn(), showError: vi.fn(), syncArtboardStateAfterLoad: vi.fn(),
+                syncArtboardStateFromConfig: vi.fn(), updateInfo: vi.fn(), updatePlaybackChips: vi.fn(),
+            },
+            elements,
+            getCurrentFileBuffer: () => new ArrayBuffer(4),
+            getCurrentRuntime: () => 'webgl2',
+            windowRef: window,
+        });
+
+        await controller.loadRiveAnimation('blob:demo', 'demo.riv');
+        expect(controller.resetRiveInstance({ autoplay: true, viewModelInstanceName: instanceKey }, {
+            beforeUserOnLoad: restore,
+        })).toBe(true);
+
+        expect(instance.bindViewModelInstance).toHaveBeenCalledWith(instanceKey === 0 ? indexed : named);
+        expect(restoreOrder).toEqual(['bind', 'restore']);
+    });
+
     it('resizes and cleans up the active instance', async () => {
         const elements = createElements();
         const cleanupOrder = [];
@@ -479,5 +534,193 @@ describe('rive/instance-controller', () => {
         controller.cleanupInstance();
 
         expect(controller.getRiveInstance()).toBeNull();
+    });
+
+    it('cancels superseded loads so stale onLoad callbacks cannot activate a child surface', async () => {
+        const elements = createElements();
+        Object.defineProperty(elements.canvasContainer, 'clientWidth', { configurable: true, value: 640 });
+        Object.defineProperty(elements.canvasContainer, 'clientHeight', { configurable: true, value: 360 });
+        const configs = [];
+        const instances = [];
+        const runtime = {
+            EventType: { RiveEvent: 'rive-event' },
+            Layout: class Layout { constructor(config) { Object.assign(this, config); } },
+            Rive: vi.fn((config) => {
+                configs.push(config);
+                const instance = {
+                    cleanup: vi.fn(),
+                    off: vi.fn(),
+                    on: vi.fn(),
+                    pause: vi.fn(),
+                    resizeDrawingSurfaceToCanvas: vi.fn(),
+                    stateMachineNames: [],
+                };
+                instances.push(instance);
+                return instance;
+            }),
+        };
+        const activateAuthoritativeSurface = vi.fn(async () => true);
+        const firstLoaded = vi.fn();
+        const firstError = vi.fn();
+        const secondLoaded = vi.fn();
+        const controller = createRiveInstanceController({
+            callbacks: {
+                activateAuthoritativeSurface,
+                detectDefaultStateMachineName: vi.fn().mockResolvedValue(null),
+                ensureRuntime: vi.fn().mockResolvedValue(runtime),
+                populateArtboardSwitcher: vi.fn(),
+                resetVmInputControls: vi.fn(),
+            },
+            elements,
+            getEditorConfig: () => ({ autoplay: false }),
+            isAuthoritativeChildMode: () => true,
+            windowRef: window,
+        });
+
+        await controller.loadRiveAnimation('blob:first', 'first.riv', {
+            onLoaded: firstLoaded,
+            onLoadError: firstError,
+        });
+        await controller.loadRiveAnimation('blob:second', 'second.riv', {
+            forceAutoplay: true,
+            onLoaded: secondLoaded,
+        });
+        expect(firstError).toHaveBeenCalledWith(expect.objectContaining({ message: 'Animation load superseded.' }));
+        expect(instances[0].cleanup).toHaveBeenCalledOnce();
+
+        configs[0].onLoad();
+        await Promise.resolve();
+        expect(activateAuthoritativeSurface).not.toHaveBeenCalled();
+        expect(firstLoaded).not.toHaveBeenCalled();
+
+        configs[1].onLoad();
+        await vi.waitFor(() => expect(secondLoaded).toHaveBeenCalledOnce());
+        expect(activateAuthoritativeSurface).toHaveBeenCalledOnce();
+        expect(activateAuthoritativeSurface).toHaveBeenCalledWith({ autoplay: true });
+        expect(controller.getRiveInstance()).toBe(instances[1]);
+    });
+
+    it('does not publish a stale activation error when a newer load supersedes an in-flight child activation', async () => {
+        const elements = createElements();
+        Object.defineProperty(elements.canvasContainer, 'clientWidth', { configurable: true, value: 640 });
+        Object.defineProperty(elements.canvasContainer, 'clientHeight', { configurable: true, value: 360 });
+        const configs = [];
+        const runtime = {
+            EventType: { RiveEvent: 'rive-event' },
+            Layout: class Layout { constructor(config) { Object.assign(this, config); } },
+            Rive: vi.fn((config) => {
+                configs.push(config);
+                return {
+                    cleanup: vi.fn(),
+                    off: vi.fn(),
+                    on: vi.fn(),
+                    pause: vi.fn(),
+                    resizeDrawingSurfaceToCanvas: vi.fn(),
+                    stateMachineNames: [],
+                };
+            }),
+        };
+        let settleFirstActivation;
+        const activateAuthoritativeSurface = vi.fn()
+            .mockImplementationOnce(() => new Promise((resolve) => {
+                settleFirstActivation = resolve;
+            }))
+            .mockResolvedValueOnce(true);
+        const showError = vi.fn();
+        const firstError = vi.fn();
+        const controller = createRiveInstanceController({
+            callbacks: {
+                activateAuthoritativeSurface,
+                detectDefaultStateMachineName: vi.fn().mockResolvedValue(null),
+                ensureRuntime: vi.fn().mockResolvedValue(runtime),
+                populateArtboardSwitcher: vi.fn(),
+                resetVmInputControls: vi.fn(),
+                showError,
+            },
+            elements,
+            getEditorConfig: () => ({ autoplay: true }),
+            isAuthoritativeChildMode: () => true,
+            windowRef: window,
+        });
+
+        await controller.loadRiveAnimation('blob:first', 'first.riv', { onLoadError: firstError });
+        configs[0].onLoad();
+        await vi.waitFor(() => expect(activateAuthoritativeSurface).toHaveBeenCalledOnce());
+
+        await controller.loadRiveAnimation('blob:second', 'second.riv');
+        expect(firstError).toHaveBeenCalledTimes(1);
+        settleFirstActivation(false);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(showError).not.toHaveBeenCalledWith(expect.stringContaining('did not complete activation'));
+        expect(firstError).toHaveBeenCalledTimes(1);
+    });
+
+    it('restores the last committed hidden plumbing and suppresses its duplicate user asset loader after child rejection', async () => {
+        const elements = createElements();
+        Object.defineProperty(elements.canvasContainer, 'clientWidth', { configurable: true, value: 640 });
+        Object.defineProperty(elements.canvasContainer, 'clientHeight', { configurable: true, value: 360 });
+        const configs = [];
+        const instances = [];
+        const runtime = {
+            EventType: { RiveEvent: 'rive-event' },
+            Layout: class Layout { constructor(config) { Object.assign(this, config); } },
+            Rive: vi.fn((config) => {
+                configs.push(config);
+                const instance = {
+                    cleanup: vi.fn(),
+                    off: vi.fn(),
+                    on: vi.fn(),
+                    pause: vi.fn(),
+                    resizeDrawingSurfaceToCanvas: vi.fn(),
+                    stateMachineNames: [],
+                };
+                instances.push(instance);
+                return instance;
+            }),
+        };
+        const userAssetLoader = vi.fn(() => true);
+        const populateArtboardSwitcher = vi.fn();
+        const renderVmInputControls = vi.fn();
+        const activateAuthoritativeSurface = vi.fn()
+            .mockResolvedValueOnce(true)
+            .mockResolvedValueOnce(false);
+        const controller = createRiveInstanceController({
+            callbacks: {
+                activateAuthoritativeSurface,
+                detectDefaultStateMachineName: vi.fn().mockResolvedValue(null),
+                ensureRuntime: vi.fn().mockResolvedValue(runtime),
+                populateArtboardSwitcher,
+                renderVmInputControls,
+                resetVmInputControls: vi.fn(),
+            },
+            elements,
+            getEditorConfig: () => ({ assetLoader: userAssetLoader }),
+            isAuthoritativeChildMode: () => true,
+            windowRef: window,
+        });
+
+        await controller.loadRiveAnimation('blob:committed', 'committed.riv');
+        configs[0].onLoad();
+        await vi.waitFor(() => expect(activateAuthoritativeSurface).toHaveBeenCalledTimes(1));
+        expect(controller.getRiveInstance()).toBe(instances[0]);
+
+        await controller.loadRiveAnimation('blob:rejected', 'rejected.riv', {
+            configOverrides: { autoplay: false },
+        });
+        expect(configs[1].assetLoader({ isImage: false }, new Uint8Array())).toBe(false);
+        expect(userAssetLoader).not.toHaveBeenCalled();
+        configs[1].onLoad();
+        await vi.waitFor(() => expect(activateAuthoritativeSurface).toHaveBeenCalledTimes(2));
+        expect(activateAuthoritativeSurface).toHaveBeenNthCalledWith(1, { autoplay: true });
+        expect(activateAuthoritativeSurface).toHaveBeenNthCalledWith(2, { autoplay: false });
+
+        await vi.waitFor(() => expect(instances[1].cleanup).toHaveBeenCalledOnce());
+        expect(instances[0].cleanup).not.toHaveBeenCalled();
+        expect(controller.getRiveInstance()).toBe(instances[0]);
+        expect(window.riveInst).toBe(instances[0]);
+        expect(renderVmInputControls).toHaveBeenCalled();
+        expect(populateArtboardSwitcher).toHaveBeenCalled();
     });
 });

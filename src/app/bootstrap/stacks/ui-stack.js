@@ -4,6 +4,7 @@ import { createMcpSetupController } from '../../ui/mcp-setup.js';
 import { createAboutDialogController } from '../../ui/about/about-dialog.js';
 import { createCodeEditorController } from '../../ui/code-editor.js';
 import { createConsoleModeController } from '../../ui/console/console-mode-controller.js';
+import { createOperationsDiagnosticsController } from '../../ui/operations/diagnostics-controller.js';
 import { createScriptConsoleController } from '../../ui/script-console.js';
 import { createStatusController } from '../../ui/status/status-controller.js';
 import { createWindowChromeController } from '../../ui/window/window-chrome.js';
@@ -29,6 +30,7 @@ export function createUiStack({
         initLucideIcons,
         isTauriEnvironment,
         refreshCurrentState,
+        requestUiOverlay,
         handleResize,
         loadRiveAnimation,
         logEvent: externalLogEvent,
@@ -62,6 +64,7 @@ export function createUiStack({
         getBridgeConnected: () => window._mcpBridge?.connected,
         getTauriInvoker,
         initLucideIcons,
+        requestUiOverlay,
     });
 
     const scriptConsoleController = createScriptConsoleController({
@@ -72,6 +75,13 @@ export function createUiStack({
             renderEventLog: eventLogController.renderEventLog,
         },
         elements,
+    });
+
+    const operationsDiagnosticsController = createOperationsDiagnosticsController({
+        elements,
+        getTauriEventListener,
+        getTauriInvoker,
+        onOpenChange: (isOpen) => consoleModeController?.handleOperationsDiagnosticsOpenChange(isOpen),
     });
 
     const codeEditorController = createCodeEditorController({
@@ -142,6 +152,7 @@ export function createUiStack({
                 const invoke = getTauriInvoker();
                 return invoke ? (url) => invoke('open_external_url', { url }) : null;
             },
+            requestUiOverlay,
             getTauriEventListener,
             resolveAppVersion,
         },
@@ -155,6 +166,7 @@ export function createUiStack({
         },
         elements,
         eventLogController,
+        operationsDiagnosticsController,
         scriptConsoleController,
     });
 
@@ -173,6 +185,7 @@ export function createUiStack({
         consoleModeController,
         ensureEditorReady,
         eventLogController,
+        operationsDiagnosticsController,
         getEditorCode,
         getEditorConfig,
         getEventLogEntries,

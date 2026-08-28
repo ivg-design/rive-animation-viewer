@@ -12,7 +12,9 @@ use crate::app::support::home_dir;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
-use crate::app::constants::{DEFAULT_MCP_PORT, MCP_CLIENT_LAUNCHER_NAME};
+use crate::app::constants::{
+    is_official_app_identifier, DEFAULT_MCP_PORT, ISOLATED_DEV_MCP_PORT, MCP_CLIENT_LAUNCHER_NAME,
+};
 use crate::app::state::McpBridgeManager;
 use crate::app::support::ensure_parent_directory;
 
@@ -153,6 +155,16 @@ pub fn normalize_mcp_port(port: Option<u16>) -> u16 {
     port.filter(|value| *value > 0).unwrap_or(DEFAULT_MCP_PORT)
 }
 
+/// Isolated development instances must never inherit or persist the production
+/// MCP endpoint. Keep this boundary here so every load/save path shares it.
+pub fn normalize_mcp_port_for_identifier(identifier: &str, port: Option<u16>) -> u16 {
+    if !is_official_app_identifier(identifier) {
+        ISOLATED_DEV_MCP_PORT
+    } else {
+        normalize_mcp_port(port)
+    }
+}
+
 pub fn build_mcp_args(port: u16) -> Vec<String> {
     vec!["--stdio-only".into(), "--port".into(), port.to_string()]
 }
@@ -184,12 +196,12 @@ pub fn load_saved_mcp_port(app: &tauri::AppHandle) -> u16 {
         .ok()
         .and_then(|path| fs::read_to_string(path).ok())
         .and_then(|raw| raw.trim().parse::<u16>().ok())
-        .map(|port| normalize_mcp_port(Some(port)))
-        .unwrap_or(DEFAULT_MCP_PORT)
+        .map(|port| normalize_mcp_port_for_identifier(&app.config().identifier, Some(port)))
+        .unwrap_or_else(|| normalize_mcp_port_for_identifier(&app.config().identifier, None))
 }
 
 pub fn persist_mcp_port(app: &tauri::AppHandle, port: u16) -> Result<(), String> {
-    let normalized = normalize_mcp_port(Some(port));
+    let normalized = normalize_mcp_port_for_identifier(&app.config().identifier, Some(port));
     let path = mcp_port_config_path(app)?;
     ensure_parent_directory(&path)?;
     fs::write(&path, format!("{normalized}\n"))

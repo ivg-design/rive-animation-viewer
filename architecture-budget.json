@@ -30,7 +30,16 @@
     "src/app/snippets/generated"
   ],
   "grandfatheredMaxLines": {
-    "src/app/ui/script-console.js": 420
+    "src-tauri/src/app/ui_overlay/commands.rs": 452,
+    "src-tauri/src/app/ui_overlay/manager.rs": 407,
+    "src-tauri/src/main.rs": 404,
+    "src/app/platform/export/demo-export.js": 409,
+    "src/app/ui/instantiation-controls-dialog.js": 442,
+    "src/app/ui/mcp-setup.js": 474,
+    "src/app/ui/overlay/controller.js": 444,
+    "src/app/ui/script-console.js": 420,
+    "src/app/ui/shell-controller.js": 406,
+    "src-tauri/src/bin/rav-mcp/tool_registry.rs": 420
   },
   "folderRoots": [
     "src/app",

@@ -36,6 +36,7 @@
         };
         const EVENT_LOG_LIMIT = 500;
         const VM_CONTROL_SYNC_INTERVAL_MS = 120;
+        const VM_TOPOLOGY_SYNC_INTERVAL_MS = 1000;
         const VM_DEPTH_COLORS = ['#C4F82A', '#38BDF8', '#A78BFA', '#FB923C', '#F472B6', '#34D399'];
         const ALLOWED_CONTROL_KEYS = new Set(
             (CONTROL_SELECTION_KEYS || CONTROL_SNAPSHOT.map(function (entry) {
@@ -72,6 +73,14 @@
         let vmListTopologySignature = null;
         let isRenderingVmControls = false;
         let pendingControlSnapshot = new Map();
+        let pendingRenderSurfaceReset = null;
+        let renderSurfaceUserCallbacksActive = !isRenderSurfaceMode;
+        let pendingRenderSurfaceOnLoad = null;
+        // The visible renderer alone owns live image bytes.  Retain a copied
+        // command per image path so an in-place reset never asks the hidden
+        // parent to decode or recreate those images.
+        let renderSurfaceImageSnapshot = new Map();
+        let renderSurfaceAdvanceRevision = 0;
         let lastFpsUpdate = 0;
         let frameCount = 0;
         let isFallbackFullscreenMode = false;

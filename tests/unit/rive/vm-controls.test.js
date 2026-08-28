@@ -325,8 +325,8 @@ describe('rive/vm-controls', () => {
             descriptor: { kind: 'image', name: 'avatar', path: 'avatar' },
             documentRef: document,
             getEmbeddedImageAssets: () => [
-                { name: 'sample-raster-a', bytes: new Uint8Array([1, 2]) },
-                { name: 'sample-raster-b', bytes: new Uint8Array([3, 4]) },
+                { key: 'sample-a', name: 'sample-raster-a', bytes: new Uint8Array([1, 2]) },
+                { key: 'sample-b', name: 'sample-raster-b', bytes: new Uint8Array([3, 4]) },
             ],
             getLoadedRuntime: () => ({ decodeImage }),
             inputContainer: container,
@@ -338,7 +338,11 @@ describe('rive/vm-controls', () => {
         const fileInput = container.querySelector('input[type="file"]');
         const assetSelect = container.querySelector('.vm-image-asset-select');
         expect(fileInput?.accept).toBe('image/*');
-        expect(fileInput?.hidden).toBe(true);
+        // WebKit ignores programmatic file-picker activation for inputs that
+        // are `hidden`/`display:none`. Keep it visually hidden by CSS while
+        // leaving it eligible for the user-initiated select action.
+        expect(fileInput?.hidden).toBe(false);
+        expect(fileInput?.classList.contains('vm-image-file-input')).toBe(true);
         expect(fileInput?.tabIndex).toBe(-1);
         expect(assetSelect?.getAttribute('aria-label')).toBe('Image source for avatar');
         expect(container.querySelector('button')).toBeNull();
@@ -396,6 +400,424 @@ describe('rive/vm-controls', () => {
         ));
     });
 
+    it('sends image bytes and clear actions to the authoritative child without decoding in the parent', async () => {
+        const container = document.createElement('div');
+        const mutations = [];
+        const listener = (event) => mutations.push(event.detail);
+        document.addEventListener('rav:vm-control-mutated', listener);
+        appendVmImageControl({
+            descriptor: { kind: 'image', name: 'avatar', path: 'avatar', source: 'view-model' },
+            documentRef: document,
+            getEmbeddedImageAssets: () => [{ key: 'asset-a', name: 'A', bytes: new Uint8Array([1, 2, 3]) }],
+            getLoadedRuntime: () => null,
+            inputContainer: container,
+            isAuthoritativeChildMode: true,
+            logEvent: vi.fn(),
+            registerVmControlBinding: vi.fn(),
+            resolveControlAccessor: () => ({ value: null }),
+        });
+
+        const select = container.querySelector('.vm-image-asset-select');
+        select.value = 'embedded:0';
+        select.dispatchEvent(new Event('change'));
+        await vi.waitFor(() => expect(mutations).toHaveLength(1));
+        expect(mutations[0]).toEqual(expect.objectContaining({
+            action: 'set-image',
+            imageSelection: { kind: 'embedded', key: 'asset-a', label: 'A' },
+            kind: 'image',
+            value: [1, 2, 3],
+        }));
+
+        select.value = '__clear__';
+        select.dispatchEvent(new Event('change'));
+        expect(mutations[1]).toEqual(expect.objectContaining({
+            action: 'clear-image',
+            imageSelection: null,
+            value: null,
+        }));
+        document.removeEventListener('rav:vm-control-mutated', listener);
+    });
+
+    it('restores the acknowledged image selection when recovery rejects set or clear before dispatch', async () => {
+        const container = document.createElement('div');
+        const onRemoteMutationFailure = vi.fn();
+        appendVmImageControl({
+            canMutateRemoteControls: () => false,
+            descriptor: {
+                kind: 'image',
+                metadata: { kind: 'embedded', key: 'asset-a', label: 'A' },
+                name: 'avatar',
+                path: 'avatar',
+                source: 'view-model',
+            },
+            documentRef: document,
+            getEmbeddedImageAssets: () => [
+                { key: 'asset-a', name: 'A', bytes: new Uint8Array([1]) },
+                { key: 'asset-b', name: 'B', bytes: new Uint8Array([2]) },
+            ],
+            getLoadedRuntime: () => null,
+            inputContainer: container,
+            isAuthoritativeChildMode: true,
+            logEvent: vi.fn(),
+            onRemoteMutationFailure,
+            registerVmControlBinding: vi.fn(),
+            resolveControlAccessor: () => ({ value: null }),
+        });
+        const select = container.querySelector('.vm-image-asset-select');
+
+        select.value = 'embedded:1';
+        select.dispatchEvent(new Event('change'));
+        await vi.waitFor(() => expect(onRemoteMutationFailure).toHaveBeenCalledTimes(1));
+        expect(select.value).toBe('embedded:0');
+
+        select.value = '__clear__';
+        select.dispatchEvent(new Event('change'));
+        expect(onRemoteMutationFailure).toHaveBeenCalledTimes(2);
+        expect(select.value).toBe('embedded:0');
+    });
+
+    it('uses the native image picker when supplied and keeps paths out of the image mutation', async () => {
+        const container = document.createElement('div');
+        const bindings = [];
+        const mutations = [];
+        const listener = (event) => mutations.push(event.detail);
+        const pickImageFile = vi.fn().mockResolvedValue({
+            bytes: [7, 8, 9],
+            name: 'replacement.avif',
+            path: '/private/never-forwarded/replacement.avif',
+        });
+        document.addEventListener('rav:vm-control-mutated', listener);
+        appendVmImageControl({
+            descriptor: { kind: 'image', name: 'avatar', path: 'avatar', source: 'view-model' },
+            documentRef: document,
+            getLoadedRuntime: () => null,
+            inputContainer: container,
+            isAuthoritativeChildMode: true,
+            logEvent: vi.fn(),
+            pickImageFile,
+            registerVmControlBinding: (_descriptor, binding) => bindings.push(binding),
+            resolveControlAccessor: () => ({ value: null }),
+        });
+
+        const select = container.querySelector('.vm-image-asset-select');
+        const input = container.querySelector('input[type="file"]');
+        const inputClick = vi.spyOn(input, 'click');
+        select.value = '__open__';
+        select.dispatchEvent(new Event('change'));
+
+        await vi.waitFor(() => expect(mutations).toHaveLength(1));
+        expect(pickImageFile).toHaveBeenCalledOnce();
+        expect(inputClick).not.toHaveBeenCalled();
+        expect(mutations[0]).toEqual(expect.objectContaining({
+            action: 'set-image',
+            imageSelection: { kind: 'file', label: 'replacement.avif' },
+            kind: 'image',
+            value: [7, 8, 9],
+        }));
+        expect(JSON.stringify(mutations[0])).not.toContain('/private/');
+        // The parent must not publish metadata before the dedicated renderer
+        // has acknowledged decode + property assignment.
+        expect(select.value).toBe('');
+        expect(select.querySelector('option[data-image-file-option]')).toBeNull();
+        bindings[0].syncImageSelection({ kind: 'file', label: 'replacement.avif' });
+        expect(select.value).toBe('__file__');
+        expect(select.selectedOptions[0]?.textContent).toBe('replacement.avif');
+        document.removeEventListener('rav:vm-control-mutated', listener);
+    });
+
+    it('treats native image-picker cancellation as a no-op', async () => {
+        const container = document.createElement('div');
+        const pickImageFile = vi.fn().mockResolvedValue(null);
+        appendVmImageControl({
+            descriptor: { kind: 'image', name: 'avatar', path: 'avatar' },
+            documentRef: document,
+            getLoadedRuntime: () => ({ decodeImage: vi.fn() }),
+            inputContainer: container,
+            logEvent: vi.fn(),
+            pickImageFile,
+            registerVmControlBinding: vi.fn(),
+            resolveControlAccessor: () => ({ value: null }),
+        });
+        const select = container.querySelector('.vm-image-asset-select');
+        select.value = '__open__';
+        select.dispatchEvent(new Event('change'));
+        await vi.waitFor(() => expect(pickImageFile).toHaveBeenCalledOnce());
+        expect(select.value).toBe('');
+        expect(select.querySelector('option[data-image-file-option]')).toBeNull();
+    });
+
+    it('restores the prior embedded or file selection when the native picker cancels or errors', async () => {
+        const container = document.createElement('div');
+        const onRemoteMutationFailure = vi.fn();
+        const pickImageFile = vi.fn()
+            .mockResolvedValueOnce(null)
+            .mockRejectedValueOnce(new Error('dialog unavailable'));
+        appendVmImageControl({
+            descriptor: {
+                kind: 'image',
+                metadata: { kind: 'file', label: 'current.webp' },
+                name: 'avatar',
+                path: 'avatar',
+            },
+            documentRef: document,
+            getLoadedRuntime: () => ({ decodeImage: vi.fn() }),
+            inputContainer: container,
+            logEvent: vi.fn(),
+            onRemoteMutationFailure,
+            pickImageFile,
+            registerVmControlBinding: vi.fn(),
+            resolveControlAccessor: () => ({ value: null }),
+        });
+
+        const select = container.querySelector('.vm-image-asset-select');
+        select.value = '__open__';
+        select.dispatchEvent(new Event('change'));
+        await vi.waitFor(() => expect(pickImageFile).toHaveBeenCalledTimes(1));
+        expect(select.value).toBe('__file__');
+        expect(select.selectedOptions[0]?.textContent).toBe('current.webp');
+
+        select.value = '__open__';
+        select.dispatchEvent(new Event('change'));
+        await vi.waitFor(() => expect(pickImageFile).toHaveBeenCalledTimes(2));
+        expect(select.value).toBe('__file__');
+        expect(select.selectedOptions[0]?.textContent).toBe('current.webp');
+        expect(onRemoteMutationFailure).toHaveBeenCalledWith('Unable to open image file: dialog unavailable');
+    });
+
+    it('keeps each native image picker single-flight until it settles', async () => {
+        const container = document.createElement('div');
+        let resolvePicker;
+        const pickImageFile = vi.fn(() => new Promise((resolve) => {
+            resolvePicker = resolve;
+        }));
+        appendVmImageControl({
+            descriptor: { kind: 'image', name: 'avatar', path: 'avatar' },
+            documentRef: document,
+            getLoadedRuntime: () => ({ decodeImage: vi.fn() }),
+            inputContainer: container,
+            logEvent: vi.fn(),
+            pickImageFile,
+            registerVmControlBinding: vi.fn(),
+            resolveControlAccessor: () => ({ value: null }),
+        });
+
+        const select = container.querySelector('.vm-image-asset-select');
+        const openOption = select.querySelector('option[value="__open__"]');
+        select.value = '__open__';
+        select.dispatchEvent(new Event('change'));
+        select.value = '__open__';
+        select.dispatchEvent(new Event('change'));
+
+        expect(pickImageFile).toHaveBeenCalledOnce();
+        expect(openOption.disabled).toBe(true);
+        expect(select.getAttribute('aria-busy')).toBe('true');
+
+        resolvePicker(null);
+        await vi.waitFor(() => expect(select.hasAttribute('aria-busy')).toBe(false));
+        expect(openOption.disabled).toBe(false);
+    });
+
+    it('accepts the canonical image ACK when focus returns from the native picker', async () => {
+        const container = document.createElement('div');
+        const bindings = [];
+        const mutations = [];
+        let resolvePicker;
+        const pickImageFile = vi.fn(() => new Promise((resolve) => {
+            resolvePicker = resolve;
+        }));
+        const listener = (event) => mutations.push(event.detail);
+        document.addEventListener('rav:vm-control-mutated', listener);
+        appendVmImageControl({
+            descriptor: { kind: 'image', name: 'avatar', path: 'avatar', source: 'view-model' },
+            documentRef: document,
+            getLoadedRuntime: () => null,
+            inputContainer: container,
+            isAuthoritativeChildMode: true,
+            logEvent: vi.fn(),
+            pickImageFile,
+            registerVmControlBinding: (_descriptor, binding) => bindings.push(binding),
+            resolveControlAccessor: () => ({ value: null }),
+        });
+
+        const select = container.querySelector('.vm-image-asset-select');
+        select.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+        select.value = '__open__';
+        select.dispatchEvent(new Event('change'));
+        // Native selects may emit a trailing click after change. It must not
+        // reopen the guard and trap the authoritative image ACK.
+        select.dispatchEvent(new Event('click', { bubbles: true }));
+        select.dispatchEvent(new Event('focus'));
+        expect(bindings[0].isInteractionActive()).toBe(false);
+        bindings[0].syncImageSelection(null);
+        resolvePicker({ bytes: [7, 8, 9], name: 'replacement.webp' });
+        await vi.waitFor(() => expect(mutations).toHaveLength(1));
+
+        // macOS may deliver blur/focus around the sheet closing before the
+        // authoritative child publishes its confirmed image metadata.
+        select.dispatchEvent(new Event('blur'));
+        select.dispatchEvent(new Event('focus'));
+        bindings[0].syncImageSelection({ kind: 'file', label: 'replacement.webp' });
+
+        expect(bindings[0].isInteractionActive()).toBe(false);
+        expect(select.value).toBe('__file__');
+        expect(select.selectedOptions[0]?.textContent).toBe('replacement.webp');
+        document.removeEventListener('rav:vm-control-mutated', listener);
+    });
+
+    it('restores acknowledged embedded and file image selections after a control rerender', () => {
+        const container = document.createElement('div');
+        const bindings = [];
+        appendVmImageControl({
+            descriptor: {
+                kind: 'image',
+                metadata: { kind: 'embedded', key: 'funkos_9', label: 'funkos_9' },
+                name: 'main_im',
+                path: 'main_im',
+            },
+            documentRef: document,
+            getEmbeddedImageAssets: () => [
+                { key: 'other', name: 'other', bytes: new Uint8Array([1]) },
+                { key: 'funkos_9', name: 'funkos_9', bytes: new Uint8Array([2]) },
+            ],
+            getLoadedRuntime: () => null,
+            inputContainer: container,
+            logEvent: vi.fn(),
+            registerVmControlBinding: (_descriptor, binding) => bindings.push(binding),
+            resolveControlAccessor: () => ({ value: null }),
+        });
+
+        const select = container.querySelector('.vm-image-asset-select');
+        expect(select.value).toBe('embedded:1');
+        bindings[0].syncImageSelection({ kind: 'file', label: 'portrait.png' });
+        expect(select.value).toBe('__file__');
+        expect(select.selectedOptions[0].textContent).toBe('portrait.png');
+        bindings[0].syncImageSelection(null);
+        expect(select.value).toBe('');
+        expect(select.querySelector('option[data-image-file-option]')).toBeNull();
+    });
+
+    it('defers canonical image-selector updates while its native popup is active', () => {
+        const container = document.createElement('div');
+        const bindings = [];
+        appendVmImageControl({
+            descriptor: {
+                kind: 'image',
+                metadata: { kind: 'embedded', key: 'asset-a', label: 'A' },
+                name: 'avatar',
+                path: 'avatar',
+            },
+            documentRef: document,
+            getEmbeddedImageAssets: () => [
+                { key: 'asset-a', name: 'A', bytes: new Uint8Array([1]) },
+                { key: 'asset-b', name: 'B', bytes: new Uint8Array([2]) },
+            ],
+            getLoadedRuntime: () => null,
+            inputContainer: container,
+            logEvent: vi.fn(),
+            registerVmControlBinding: (_descriptor, binding) => bindings.push(binding),
+            resolveControlAccessor: () => ({ value: null }),
+        });
+
+        const select = container.querySelector('.vm-image-asset-select');
+        expect(select.value).toBe('embedded:0');
+        select.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+        expect(bindings[0].isInteractionActive()).toBe(true);
+
+        bindings[0].syncImageSelection({ kind: 'embedded', key: 'asset-b', label: 'B' });
+        expect(select.value).toBe('embedded:0');
+
+        select.dispatchEvent(new Event('blur'));
+        expect(bindings[0].isInteractionActive()).toBe(false);
+        expect(select.value).toBe('embedded:1');
+    });
+
+    it('keeps the user image choice instead of a canonical tick deferred behind the popup', async () => {
+        const container = document.createElement('div');
+        const bindings = [];
+        const mutations = [];
+        const listener = (event) => mutations.push(event.detail);
+        document.addEventListener('rav:vm-control-mutated', listener);
+        appendVmImageControl({
+            descriptor: { kind: 'image', name: 'avatar', path: 'avatar', source: 'view-model' },
+            documentRef: document,
+            getEmbeddedImageAssets: () => [
+                { key: 'asset-a', name: 'A', bytes: new Uint8Array([1]) },
+                { key: 'asset-b', name: 'B', bytes: new Uint8Array([2]) },
+            ],
+            getLoadedRuntime: () => null,
+            inputContainer: container,
+            isAuthoritativeChildMode: true,
+            logEvent: vi.fn(),
+            registerVmControlBinding: (_descriptor, binding) => bindings.push(binding),
+            resolveControlAccessor: () => ({ value: null }),
+        });
+
+        const select = container.querySelector('.vm-image-asset-select');
+        select.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+        bindings[0].syncImageSelection({ kind: 'embedded', key: 'asset-a', label: 'A' });
+        select.value = 'embedded:1';
+        select.dispatchEvent(new Event('change'));
+
+        await vi.waitFor(() => expect(mutations).toHaveLength(1));
+        expect(select.value).toBe('');
+        expect(mutations[0]).toEqual(expect.objectContaining({
+            imageSelection: { kind: 'embedded', key: 'asset-b', label: 'B' },
+            value: [2],
+        }));
+        bindings[0].syncImageSelection({ kind: 'embedded', key: 'asset-b', label: 'B' });
+        expect(select.value).toBe('embedded:1');
+        document.removeEventListener('rav:vm-control-mutated', listener);
+    });
+
+    it('keeps the last acknowledged image metadata while a remote set or clear awaits its child ACK', async () => {
+        const container = document.createElement('div');
+        const bindings = [];
+        const mutations = [];
+        const listener = (event) => mutations.push(event.detail);
+        document.addEventListener('rav:vm-control-mutated', listener);
+        appendVmImageControl({
+            descriptor: {
+                kind: 'image',
+                metadata: { kind: 'file', label: 'last-good.webp' },
+                name: 'avatar',
+                path: 'rows/0/avatar',
+                source: 'view-model',
+            },
+            documentRef: document,
+            getEmbeddedImageAssets: () => [
+                { key: 'replacement', name: 'Replacement', bytes: new Uint8Array([7, 8, 9]) },
+            ],
+            getLoadedRuntime: () => null,
+            inputContainer: container,
+            isAuthoritativeChildMode: true,
+            logEvent: vi.fn(),
+            registerVmControlBinding: (_descriptor, binding) => bindings.push(binding),
+            resolveControlAccessor: () => ({ value: null }),
+        });
+        const select = container.querySelector('.vm-image-asset-select');
+        expect(select.selectedOptions[0]?.textContent).toBe('last-good.webp');
+
+        select.value = 'embedded:0';
+        select.dispatchEvent(new Event('change'));
+        await vi.waitFor(() => expect(mutations).toHaveLength(1));
+        expect(select.selectedOptions[0]?.textContent).toBe('last-good.webp');
+
+        select.value = '__clear__';
+        select.dispatchEvent(new Event('change'));
+        expect(mutations).toHaveLength(2);
+        expect(select.selectedOptions[0]?.textContent).toBe('last-good.webp');
+
+        // A rejected command has no canonical delta, so the selector and its
+        // nested identity remain exactly on the last applied child state.
+        bindings[0].syncImageSelection({ kind: 'file', label: 'last-good.webp' });
+        expect(select.selectedOptions[0]?.textContent).toBe('last-good.webp');
+        expect(mutations.map((mutation) => mutation.descriptor.path)).toEqual([
+            'rows/0/avatar',
+            'rows/0/avatar',
+        ]);
+        document.removeEventListener('rav:vm-control-mutated', listener);
+    });
+
     it('keeps the most recently selected image when decodes resolve out of order', async () => {
         const accessor = { value: null };
         const container = document.createElement('div');
@@ -427,6 +849,84 @@ describe('rive/vm-controls', () => {
         pending[0](imageA);
         await vi.waitFor(() => expect(imageA.unref).toHaveBeenCalledOnce());
         expect(accessor.value).toBe(imageB);
+    });
+
+    it('ignores a deferred native picker result from a prior VM-control render', async () => {
+        const elements = createVmElements();
+        const accessor = { value: null };
+        const pickerResolvers = [];
+        const imageA = { unref: vi.fn() };
+        const imageB = { unref: vi.fn() };
+        const decodeImage = vi.fn(async (bytes) => (bytes[0] === 2 ? imageB : imageA));
+        const controller = createVmControlsController({
+            callbacks: { initLucideIcons: vi.fn(), logEvent: vi.fn() },
+            elements,
+            getLoadedRuntime: () => ({ decodeImage }),
+            getRiveInstance: () => ({
+                stateMachineNames: [],
+                viewModelInstance: {
+                    image: (name) => (name === 'avatar' ? accessor : null),
+                    properties: [{ name: 'avatar' }],
+                },
+            }),
+            pickImageFile: vi.fn(() => new Promise((resolve) => pickerResolvers.push(resolve))),
+            setIntervalFn: vi.fn(() => 'image-control-timer'),
+        });
+
+        controller.renderVmInputControls();
+        let select = elements.vmControlsTree.querySelector('.vm-image-asset-select');
+        select.value = '__open__';
+        select.dispatchEvent(new Event('change'));
+        await vi.waitFor(() => expect(pickerResolvers).toHaveLength(1));
+
+        controller.renderVmInputControls();
+        select = elements.vmControlsTree.querySelector('.vm-image-asset-select');
+        select.value = '__open__';
+        select.dispatchEvent(new Event('change'));
+        await vi.waitFor(() => expect(pickerResolvers).toHaveLength(2));
+
+        pickerResolvers[1]({ bytes: [2], name: 'new.png' });
+        await vi.waitFor(() => expect(accessor.value).toBe(imageB));
+        pickerResolvers[0]({ bytes: [1], name: 'stale.png' });
+        await Promise.resolve();
+
+        expect(accessor.value).toBe(imageB);
+        expect(decodeImage).toHaveBeenCalledTimes(1);
+        expect(select.value).toBe('__file__');
+        expect(select.selectedOptions[0]?.textContent).toBe('new.png');
+    });
+
+    it('does not dispatch a stale authoritative picker result after its image control is disposed', async () => {
+        const container = document.createElement('div');
+        const bindings = [];
+        const mutations = [];
+        let resolvePicker;
+        const onMutation = (event) => mutations.push(event.detail);
+        document.addEventListener('rav:vm-control-mutated', onMutation);
+        appendVmImageControl({
+            descriptor: { kind: 'image', name: 'avatar', path: 'avatar', source: 'view-model' },
+            documentRef: document,
+            getLoadedRuntime: () => null,
+            inputContainer: container,
+            isAuthoritativeChildMode: true,
+            logEvent: vi.fn(),
+            pickImageFile: vi.fn(() => new Promise((resolve) => { resolvePicker = resolve; })),
+            registerVmControlBinding: (_descriptor, binding) => bindings.push(binding),
+            resolveControlAccessor: () => ({ value: null }),
+        });
+        const select = container.querySelector('.vm-image-asset-select');
+        select.value = '__open__';
+        select.dispatchEvent(new Event('change'));
+        await vi.waitFor(() => expect(resolvePicker).toBeTypeOf('function'));
+
+        bindings[0].dispose();
+        resolvePicker({ bytes: [1, 2, 3], name: 'stale.png' });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(mutations).toEqual([]);
+        expect(select.querySelector('option[data-image-file-option]')).toBeNull();
+        document.removeEventListener('rav:vm-control-mutated', onMutation);
     });
 
     it('covers helper edge cases for safe calls, list accessors, and input kind detection', () => {
@@ -616,6 +1116,35 @@ describe('rive/vm-controls', () => {
         expect(harness.elements.vmControlsCount.textContent).toBe('0');
         expect(harness.elements.vmControlsEmpty.textContent).toBe('No animation loaded.');
         expect(harness.clearIntervalFn).toHaveBeenCalledWith('timer-1');
+    });
+
+    it('keeps image descriptors in export snapshots without serializing runtime image objects', () => {
+        const elements = createVmElements();
+        const opaqueImage = { runtimeHandle: 42 };
+        const imageAccessor = { value: opaqueImage };
+        const rootVm = {
+            image: (name) => (name === 'hero' ? imageAccessor : null),
+            properties: [{ name: 'hero' }],
+        };
+        const controller = createVmControlsController({
+            callbacks: { initLucideIcons: vi.fn(), logEvent: vi.fn() },
+            clearIntervalFn: vi.fn(),
+            elements,
+            getCurrentRuntime: () => 'webgl2',
+            getEmbeddedImageAssets: () => [],
+            getLoadedRuntime: () => ({ decodeImage: vi.fn() }),
+            getRiveInstance: () => ({ viewModelInstance: rootVm }),
+            setIntervalFn: vi.fn(() => 'timer'),
+        });
+
+        controller.renderVmInputControls();
+
+        expect(controller.captureVmControlSnapshot()).toEqual([{
+            descriptor: expect.objectContaining({ kind: 'image', path: 'hero' }),
+            enumValues: undefined,
+            kind: 'image',
+            value: null,
+        }]);
     });
 
     it('rerenders only when mutable list topology changes and keeps scalar sync active', () => {

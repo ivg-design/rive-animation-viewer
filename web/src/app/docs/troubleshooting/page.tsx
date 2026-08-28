@@ -38,8 +38,9 @@ export default function Troubleshooting() {
       <h2>The Finder icon did not change</h2>
       <ul>
         <li>The current UTI and icon declarations require the signed installed app to replace the older bundle and launch once</li>
-        <li>Use Finder&apos;s Open With menu to select Rive Animation Viewer for <code>.riv</code> files</li>
+        <li>Open RAV Settings and check <strong>Default .riv App</strong>; it names the currently resolved application or another installed RAV copy. Use <strong>MAKE DEFAULT</strong> when another app owns either identifier, or <strong>REPAIR ICON</strong> when this exact RAV copy is already default</li>
         <li>Finder and Launch Services may retain cached document artwork until the app has launched and the folder is reopened</li>
+        <li>Default-app and document-icon registration do not repair Quick Look previews, which are supplied by a separate system extension</li>
       </ul>
 
       <h2>The Windows .riv icon did not change</h2>

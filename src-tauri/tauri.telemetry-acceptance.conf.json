@@ -1,0 +1,20 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "RAV Telemetry Acceptance",
+  "mainBinaryName": "rav-telemetry-acceptance",
+  "identifier": "app.rive.animation.viewer.telemetry-acceptance",
+  "build": {
+    "beforeBuildCommand": null
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": false,
+    "targets": [
+      "app"
+    ],
+    "fileAssociations": null,
+    "macOS": {
+      "infoPlist": "Info.telemetry-acceptance.plist"
+    }
+  }
+}

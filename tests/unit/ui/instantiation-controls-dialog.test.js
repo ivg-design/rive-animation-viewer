@@ -330,4 +330,103 @@ describe('ui/instantiation-controls-dialog', () => {
         expect(elements.instantiationControlsTree.textContent).toContain('playerName (string)');
         expect(elements.instantiationSelectionSummary.textContent).toContain('0 of 2');
     });
+
+    it('resends same-size reordered list topology until the overlay confirms delivery', async () => {
+        const elements = buildElements();
+        let overlayDefinition;
+        const listItem = (index, label) => ({
+            children: [],
+            inputs: [{
+                descriptor: { kind: 'number', name: 'score', path: `rows/${index}/score` },
+                kind: 'number',
+                name: 'score',
+                path: `rows/${index}/score`,
+            }],
+            kind: 'instance',
+            label,
+            path: `rows/${index}`,
+        });
+        let currentHierarchy = {
+            children: [{
+                children: [listItem(0, 'Alice'), listItem(1, 'Bob')],
+                inputs: [],
+                kind: 'list',
+                label: 'rows [2]',
+                path: 'rows',
+            }],
+            inputs: [],
+            kind: 'controls',
+            label: 'Controls',
+            path: '__controls__',
+        };
+        const controller = createInstantiationControlsDialogController({
+            callbacks: {
+                getCurrentFileName: () => 'dynamic.riv',
+                getTauriInvoker: () => vi.fn(),
+                initLucideIcons: vi.fn(),
+                requestUiOverlay: vi.fn(async (definition) => {
+                    overlayDefinition = definition;
+                    return true;
+                }),
+            },
+            elements,
+            serializeControlHierarchy: () => currentHierarchy,
+        });
+
+        controller.setup();
+        await expect(controller.openDialog()).resolves.toEqual({
+            open: true,
+            overlay: true,
+            selectionCount: 0,
+        });
+        const initial = overlayDefinition.getState();
+        overlayDefinition.onStateSynced(initial);
+
+        currentHierarchy = {
+            ...currentHierarchy,
+            children: [{
+                ...currentHierarchy.children[0],
+                children: [listItem(0, 'Bob'), listItem(1, 'Alice')],
+            }],
+        };
+        document.dispatchEvent(new CustomEvent('rav:vm-topology-changed'));
+
+        const firstAttempt = overlayDefinition.getState({ incremental: true });
+        const retryAttempt = overlayDefinition.getState({ incremental: true });
+        expect(firstAttempt.hierarchy.children[0].children.map((node) => node.label))
+            .toEqual(['Bob', 'Alice']);
+        expect(retryAttempt.hierarchy).toBe(currentHierarchy);
+
+        overlayDefinition.onStateSynced(retryAttempt);
+        expect(overlayDefinition.getState({ incremental: true })).not.toHaveProperty('hierarchy');
+    });
+
+    it('captures and reapplies export tree scroll position across overlay state updates', async () => {
+        const elements = buildElements();
+        let overlayDefinition;
+        const controller = createInstantiationControlsDialogController({
+            callbacks: {
+                getCurrentFileName: () => 'scroll-test.riv',
+                getTauriInvoker: () => vi.fn(),
+                initLucideIcons: vi.fn(),
+                requestUiOverlay: vi.fn(async (definition) => {
+                    overlayDefinition = definition;
+                    return true;
+                }),
+            },
+            elements,
+            serializeControlHierarchy: () => ({
+                children: [],
+                inputs: [],
+                kind: 'controls',
+                label: 'Controls',
+                path: '__controls__',
+            }),
+        });
+
+        await controller.openDialog();
+        expect(overlayDefinition.getState().treeScrollTop).toBe(0);
+        await overlayDefinition.handleAction({ action: 'tree-scroll', value: 347 });
+        expect(overlayDefinition.getState({ incremental: true }).treeScrollTop).toBe(347);
+    });
 });

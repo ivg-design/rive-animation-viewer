@@ -42,6 +42,10 @@ export function formatResultSummary(command, result) {
     if (!result || typeof result !== 'object') {
         return String(result ?? 'ok');
     }
+    if (result.applied === false && result.status) {
+        const message = result.message ? `: ${result.message}` : '';
+        return `${result.status}${message}`;
+    }
     if (command === 'rav_status') {
         const file = result.file?.name || 'none';
         const runtimeName = result.runtime?.name || '?';
@@ -56,7 +60,7 @@ export function formatResultSummary(command, result) {
     if (command === 'rav_vm_get') {
         return `${result.path} = ${JSON.stringify(result.value)}`;
     }
-    if (command === 'rav_vm_set') {
+    if (command === 'rav_vm_set' || command === 'rav_vm_set_image' || command === 'rav_vm_clear_image') {
         return `${result.path} ← ${JSON.stringify(result.value)}`;
     }
     if (command === 'rav_open_file' && result.file) {

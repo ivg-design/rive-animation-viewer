@@ -300,6 +300,11 @@ describe('ui/shell-controller', () => {
             height: 540,
         }));
 
+        elements.canvasSizeWidthInput.value = '19250';
+        elements.canvasSizeWidthInput.dispatchEvent(new Event('change'));
+        expect(elements.canvasSizeWidthInput.value).toBe('1200');
+        expect(setCurrentCanvasSizing).toHaveBeenCalledTimes(2);
+
         currentCanvasSizing = {
             mode: 'fixed',
             width: 1200,

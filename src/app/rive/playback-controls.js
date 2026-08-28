@@ -1,5 +1,6 @@
 import { buildPlaybackContext, buildPlaybackStatusLabel } from './playback-status.js';
 import { dispatchPlaybackCommand } from './control-events.js';
+import { buildPlaybackResetContract } from './reset-contract.js';
 
 export function createPlaybackController({
     callbacks = {},
@@ -8,6 +9,7 @@ export function createPlaybackController({
     getCurrentFileUrl = () => null,
     getPlaybackState = () => ({ currentPlaybackName: null, currentPlaybackType: null }),
     getRiveInstance = () => null,
+    isAuthoritativeChildMode = () => false,
     now = () => globalThis.performance.now(),
 } = {}) {
     const {
@@ -15,6 +17,7 @@ export function createPlaybackController({
         captureVmControlSnapshot = () => [],
         loadRiveAnimation = async () => {},
         logEvent = () => {},
+        requestAuthoritativeCommand = async () => ({ applied: false, status: 'unavailable' }),
         resetRiveInstance = () => false,
         showError = () => {},
         updateInfo = () => {},
@@ -52,48 +55,66 @@ export function createPlaybackController({
         }
     }
 
-    function play() {
+    async function play() {
         const riveInstance = getRiveInstance();
-        console.log('[rive-viewer] play() called, riveInstance:', !!riveInstance);
-        if (!riveInstance) {
-            console.warn('[rive-viewer] play() called but no riveInstance');
+        const authoritativeChildMode = Boolean(isAuthoritativeChildMode());
+        if (!riveInstance && !authoritativeChildMode) {
             return;
         }
 
         const playbackState = getPlaybackState();
-        if (!riveInstance.isPlaying && playbackState.currentPlaybackType === 'animation' && playbackState.currentPlaybackName) {
-            riveInstance.stop();
-            riveInstance.play(playbackState.currentPlaybackName);
+        if (authoritativeChildMode) {
+            const result = await requestAuthoritativeCommand('play', {
+                name: playbackState.currentPlaybackName || undefined,
+            });
+            if (!result?.applied) {
+                showError(`Unable to start playback: ${result?.message || result?.status || 'unknown error'}`);
+                return result;
+            }
         } else {
-            riveInstance.play();
+            if (!riveInstance.isPlaying && playbackState.currentPlaybackType === 'animation' && playbackState.currentPlaybackName) {
+                riveInstance.stop();
+                riveInstance.play(playbackState.currentPlaybackName);
+            } else {
+                riveInstance.play();
+            }
         }
         updateInfo(buildPlaybackStatusLabel(buildPlaybackContext({
             playbackState,
             riveInstance,
         }), 'Playing'));
         logEvent('ui', 'play', 'Playback started from UI.');
-        dispatchPlaybackCommand(documentRef, 'play');
+        if (!authoritativeChildMode) dispatchPlaybackCommand(documentRef, 'play');
+        return { applied: true, status: 'applied' };
     }
 
-    function pause() {
+    async function pause() {
         const riveInstance = getRiveInstance();
-        console.log('[rive-viewer] pause() called, riveInstance:', !!riveInstance);
-        if (!riveInstance) {
+        const authoritativeChildMode = Boolean(isAuthoritativeChildMode());
+        if (!riveInstance && !authoritativeChildMode) {
             return;
         }
-        riveInstance.pause();
+        if (authoritativeChildMode) {
+            const result = await requestAuthoritativeCommand('pause');
+            if (!result?.applied) {
+                showError(`Unable to pause playback: ${result?.message || result?.status || 'unknown error'}`);
+                return result;
+            }
+        } else {
+            riveInstance.pause();
+        }
         updateInfo(buildPlaybackStatusLabel(buildPlaybackContext({
             playbackState: getPlaybackState(),
             riveInstance,
         }), 'Paused'));
         logEvent('ui', 'pause', 'Playback paused from UI.');
-        dispatchPlaybackCommand(documentRef, 'pause');
+        if (!authoritativeChildMode) dispatchPlaybackCommand(documentRef, 'pause');
+        return { applied: true, status: 'applied' };
     }
 
     async function reset() {
         const currentFileUrl = getCurrentFileUrl();
         const currentFileName = getCurrentFileName();
-        console.log('[rive-viewer] reset() called, riveInstance:', !!getRiveInstance());
         if (!currentFileUrl || !currentFileName) {
             showError('Please load a Rive file first');
             return;
@@ -102,21 +123,28 @@ export function createPlaybackController({
         const viewModelSnapshot = captureVmControlSnapshot();
         let restoredControls = 0;
         const playbackState = getPlaybackState();
-        const resetParams = {
-            artboard: playbackState.currentArtboard || undefined,
-            animations: playbackState.currentPlaybackType === 'animation'
-                ? playbackState.currentPlaybackName || undefined
-                : undefined,
-            stateMachines: playbackState.currentPlaybackType === 'stateMachine'
-                ? playbackState.currentPlaybackName || undefined
-                : undefined,
-            autoplay: true,
-            autoBind: true,
-        };
+        const resetParams = buildPlaybackResetContract({
+            artboard: playbackState.currentArtboard,
+            playbackName: playbackState.currentPlaybackName,
+            playbackType: playbackState.currentPlaybackType,
+            viewModelInstanceKey: playbackState.currentVmInstanceName,
+        });
         updateInfo(`Restarting ${currentFileName}...`);
         logEvent('ui', 'reset', `Restarting animation with autoplay (${viewModelSnapshot.length} controls captured).`);
 
         try {
+            if (isAuthoritativeChildMode()) {
+                const result = await requestAuthoritativeCommand('reset', {
+                    params: resetParams,
+                    snapshot: viewModelSnapshot,
+                });
+                if (!result?.applied) {
+                    throw new Error(result?.message || result?.status || 'Playback surface rejected reset.');
+                }
+                updateInfo(`Restarted ${currentFileName}`);
+                logEvent('ui', 'reset-complete', `Animation restarted with ${viewModelSnapshot.length} controls restored.`);
+                return result;
+            }
             const resetInPlace = resetRiveInstance(resetParams, {
                 beforeUserOnLoad: () => {
                     restoredControls = applyVmControlSnapshot(viewModelSnapshot);

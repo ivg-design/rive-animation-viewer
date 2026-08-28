@@ -17,7 +17,8 @@ const CONNECT_TIMEOUT_MS = 2000;
 const WATCHDOG_INTERVAL_MS = 1500;
 const PORT_SYNC_TIMEOUT_MS = 800;
 const COMMAND_ACTIVITY_WINDOW_MS = 30_000;
-const updaterAcceptanceMode = window.__RAV_UPDATER_ACCEPTANCE__ === true;
+const restrictedMcpMode = window.__RAV_UPDATER_ACCEPTANCE__ === true
+    || window.__RAV_TELEMETRY_ACCEPTANCE__ === true;
 
 const state = {
     activeCommandCount: 0,
@@ -28,7 +29,7 @@ const state = {
     connectionPhase: 'waiting',
     connectPromise: null,
     connectionAttempts: 0,
-    enabled: !updaterAcceptanceMode,
+    enabled: !restrictedMcpMode,
     maxReconnectDelay: MAX_RECONNECT_DELAY_MS,
     lastCommandAt: null,
     mcpClientCount: 0,
@@ -135,6 +136,8 @@ const commandHandlers = createMcpCommandHandlers({
     assertMcpScriptAccess,
     buildViewModelSnapshot,
     documentRef: document,
+    getCanvasBackgroundStateSnapshot: () => window._mcpGetCanvasBackgroundState?.(),
+    getRenderSurfaceController: () => window._mcpGetRenderSurfaceController?.(),
     windowRef: window,
 });
 
@@ -219,7 +222,7 @@ window._mcpBridge = {
     },
 
     enable() {
-        if (updaterAcceptanceMode || state.enabled) {
+        if (restrictedMcpMode || state.enabled) {
             return;
         }
         state.enabled = true;
@@ -248,7 +251,7 @@ window._mcpBridge = {
     },
 
     async toggle() {
-        if (updaterAcceptanceMode) {
+        if (restrictedMcpMode) {
             return false;
         }
         if (state.enabled) {
@@ -260,7 +263,7 @@ window._mcpBridge = {
     },
 
     reconnect() {
-        if (updaterAcceptanceMode) {
+        if (restrictedMcpMode) {
             return Promise.resolve(false);
         }
         state.connectionPhase = 'waiting';
@@ -270,7 +273,7 @@ window._mcpBridge = {
     },
 
     setPort(nextPort) {
-        if (updaterAcceptanceMode) {
+        if (restrictedMcpMode) {
             return state.port;
         }
         const normalizedPort = normalizeBridgePort(nextPort);
@@ -297,7 +300,7 @@ window._mcpBridge = {
 };
 
 transport.syncState();
-if (!updaterAcceptanceMode) {
+if (!restrictedMcpMode) {
     window.addEventListener('focus', () => transport.reconnectNow());
     window.addEventListener('pageshow', () => transport.reconnectNow());
     window.addEventListener('online', () => transport.reconnectNow());

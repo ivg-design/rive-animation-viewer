@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAV UI Overlay</title>
+    <link rel="stylesheet" href="./styles/11-ui-overlay.css">
+</head>
+<body class="ui-overlay-body">
+    <main id="ui-overlay-root" class="ui-overlay-root" aria-live="off">
+        <p id="ui-overlay-action-error" class="ui-overlay-action-error" role="alert" hidden></p>
+        <section id="ui-overlay-settings" class="settings-popover ui-overlay-settings" role="dialog" aria-modal="true" aria-label="Settings" hidden>
+            <div class="ui-overlay-settings-body">
+            <div class="settings-row">
+                <label class="settings-label" for="runtime-version-select">Runtime Ver</label>
+                <div class="settings-controls settings-controls-runtime">
+                    <select id="runtime-version-select" class="header-select settings-select runtime-version-select"></select>
+                </div>
+            </div>
+            <div class="settings-row settings-row-runtime-custom" id="runtime-version-custom-row" hidden>
+                <label class="settings-label" for="runtime-version-custom-input">Custom</label>
+                <div class="settings-controls settings-controls-runtime">
+                    <input id="runtime-version-custom-input" class="settings-input" type="text" placeholder="Version, e.g. 2.35.0" autocomplete="off" spellcheck="false">
+                    <button id="runtime-version-apply-btn" class="settings-toggle" type="button">SET</button>
+                </div>
+            </div>
+            <div class="settings-row">
+                <label class="settings-label" for="canvas-color-input">BG Color</label>
+                <div class="settings-controls">
+                    <input id="canvas-color-input" class="color-input" type="color" value="#0d1117">
+                    <button id="canvas-color-reset-btn" class="settings-toggle" type="button">NO BG</button>
+                </div>
+            </div>
+            <div class="settings-row settings-row-canvas-size">
+                <span class="settings-label">Canvas Size</span>
+                <div class="settings-controls settings-controls-canvas-size">
+                    <button id="canvas-size-auto-btn" class="settings-toggle" type="button">AUTO</button>
+                    <button id="canvas-size-fixed-btn" class="settings-toggle" type="button">FIXED</button>
+                </div>
+            </div>
+            <div class="settings-row settings-row-canvas-size-inputs">
+                <label class="settings-label" for="canvas-size-width-input">Pixels</label>
+                <div class="settings-controls settings-controls-canvas-size settings-controls-canvas-size-fields">
+                    <input id="canvas-size-width-input" class="settings-input settings-input-canvas-size" type="number" min="1" max="8192" step="1" inputmode="numeric">
+                    <span class="settings-dimension-sep" aria-hidden="true">×</span>
+                    <input id="canvas-size-height-input" class="settings-input settings-input-canvas-size" type="number" min="1" max="8192" step="1" inputmode="numeric">
+                    <button id="canvas-size-lock-btn" class="settings-toggle" type="button">LOCK</button>
+                </div>
+            </div>
+            <div class="settings-row settings-row-canvas-size-meta">
+                <span class="settings-label">Aspect</span>
+                <div class="settings-controls settings-controls-canvas-size-meta">
+                    <span id="canvas-size-aspect-value" class="settings-note settings-note-value">--</span>
+                    <span id="canvas-size-mode-note" class="settings-note"></span>
+                </div>
+            </div>
+            <div class="settings-row settings-row-default-riv-app">
+                <span class="settings-label">Default .riv App</span>
+                <div class="settings-controls settings-controls-default-riv-app">
+                    <span id="default-riv-app-status" class="settings-note settings-default-riv-app-status" role="status" aria-live="polite">CHECKING…</span>
+                    <button id="default-riv-app-action-btn" class="settings-toggle settings-toggle-default-riv-app" type="button" disabled>UNAVAILABLE</button>
+                </div>
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">Anonymous Usage</span>
+                <div class="settings-controls">
+                    <button id="install-counter-enabled-btn" class="settings-toggle" type="button" disabled>UNAVAILABLE</button>
+                </div>
+            </div>
+            <div class="settings-row settings-row-about">
+                <span class="settings-label">About</span>
+                <div class="settings-controls">
+                    <button id="settings-about-btn" class="settings-toggle" type="button">OPEN</button>
+                </div>
+            </div>
+            </div>
+        </section>
+        <section id="ui-overlay-about" class="about-dialog ui-overlay-dialog" role="dialog" aria-modal="true" aria-label="About RAV" hidden>
+            <div class="about-dialog-content">
+                <div class="about-dialog-hero">
+                    <div class="about-dialog-hero-brand">
+                        <div class="about-dialog-appmark" aria-hidden="true">
+                            <img src="./icons/app-icon.png" alt="" class="about-dialog-appmark-image">
+                        </div>
+                        <div class="about-dialog-hero-copy">
+                            <p class="about-dialog-kicker">RAV // Desktop</p>
+                            <h2 data-overlay-about-name>Rive Animation Viewer</h2>
+                            <p class="about-dialog-summary-text">Inspect, drive, export, and automate .riv files with live editor injection, ViewModel tooling, a JavaScript REPL, and MCP control.</p>
+                        </div>
+                    </div>
+                    <div class="about-dialog-hero-side">
+                        <button type="button" class="icon-btn icon-btn-ghost rav-modal-close ui-overlay-close" data-overlay-close aria-label="Close dialog">×</button>
+                        <div class="about-dialog-build-pill">v<span data-overlay-about-version></span> · <span data-overlay-about-build></span></div>
+                        <div class="about-dialog-runtime-line"><span class="dot dot-sm" aria-hidden="true"></span><span data-overlay-about-runtime></span></div>
+                    </div>
+                </div>
+                <div class="about-dialog-body">
+                    <section class="about-dialog-card about-dialog-card-build">
+                        <div class="about-dialog-card-heading"><h3 class="about-dialog-section-title">Build Matrix</h3></div>
+                        <dl class="about-dialog-grid about-dialog-grid-build" data-overlay-about-build-grid></dl>
+                    </section>
+                    <section class="about-dialog-card about-dialog-card-links">
+                        <div class="about-dialog-card-heading"><h3 class="about-dialog-section-title">Links</h3></div>
+                        <div class="about-dialog-links" data-overlay-about-links></div>
+                    </section>
+                    <section class="about-dialog-card about-dialog-card-credits">
+                        <div class="about-dialog-card-heading"><h3 class="about-dialog-section-title">Credits + Stack</h3></div>
+                        <dl class="about-dialog-grid about-dialog-grid-credits" data-overlay-about-credits></dl>
+                    </section>
+                    <section class="about-dialog-card about-dialog-card-dependencies">
+                        <div class="about-dialog-card-heading"><h3 class="about-dialog-section-title">Dependencies</h3><span class="about-dialog-card-detail" data-overlay-about-dependency-status></span></div>
+                        <div class="about-dialog-dependencies" data-overlay-about-dependencies></div>
+                    </section>
+                </div>
+            </div>
+        </section>
+        <section id="ui-overlay-mcp" class="mcp-setup-dialog ui-overlay-dialog" role="dialog" aria-modal="true" aria-label="MCP Setup" hidden>
+            <div class="mcp-setup-content">
+                <div class="mcp-setup-header">
+                    <h2>MCP Setup</h2>
+                    <button type="button" class="icon-btn icon-btn-ghost rav-modal-close ui-overlay-close" data-overlay-close aria-label="Close dialog">×</button>
+                </div>
+                <div class="mcp-setup-body">
+                    <p class="mcp-setup-intro">Connect AI tools to RAV using the bundled Model Context Protocol server.</p>
+                    <div class="mcp-node-status" data-overlay-mcp-node>
+                        <span class="mcp-node-dot"></span>
+                        <span class="mcp-node-label" data-overlay-mcp-node-label>Checking bundled MCP sidecar...</span>
+                    </div>
+                    <div class="mcp-setup-port-row">
+                        <span class="mcp-setup-port-label">Script Access</span>
+                        <div class="mcp-setup-port-controls">
+                            <button type="button" class="mcp-install-btn" data-overlay-mcp-script-access>OFF</button>
+                        </div>
+                    </div>
+                    <p class="mcp-script-access-note" data-overlay-mcp-script-note></p>
+                    <div class="mcp-setup-port-row">
+                        <label class="mcp-setup-port-label" for="overlay-mcp-port">MCP Port</label>
+                        <div class="mcp-setup-port-controls">
+                            <input id="overlay-mcp-port" type="number" class="settings-input mcp-port-input" min="1" max="65535" step="1" inputmode="numeric">
+                            <button type="button" class="mcp-install-btn" data-overlay-mcp-port-apply>SET</button>
+                        </div>
+                    </div>
+                    <div class="mcp-setup-path-section">
+                        <h3>Server path</h3>
+                        <div class="mcp-snippet-block">
+                            <div class="mcp-snippet-block-header"><button type="button" class="mcp-copy-btn" data-overlay-mcp-copy="server-path">COPY</button></div>
+                            <pre class="mcp-setup-path-code" data-overlay-mcp-path></pre>
+                        </div>
+                    </div>
+                    <div class="mcp-setup-snippets" data-overlay-mcp-targets></div>
+                </div>
+            </div>
+        </section>
+        <section id="ui-overlay-export" class="instantiation-controls-dialog ui-overlay-dialog" role="dialog" aria-modal="true" aria-label="Snippet and Export Controls" hidden>
+            <div class="instantiation-controls-content">
+                <div class="instantiation-controls-header">
+                    <div>
+                        <h2>Snippet &amp; Export Controls</h2>
+                        <p>Choose exactly which bound ViewModel and state-machine values should be serialized into generated snippets and exported demos.</p>
+                    </div>
+                    <button type="button" class="icon-btn icon-btn-ghost rav-modal-close ui-overlay-close" data-overlay-close aria-label="Close dialog">×</button>
+                </div>
+                <div class="instantiation-controls-body">
+                    <div class="instantiation-controls-toolbar">
+                        <span class="instantiation-selection-summary" data-overlay-export-summary>Loading controls…</span>
+                        <div class="instantiation-controls-toolbar-actions">
+                            <button type="button" class="btn-compact" data-overlay-export-preset="changed">CHANGED ONLY</button>
+                            <button type="button" class="btn-compact" data-overlay-export-preset="all">SELECT ALL</button>
+                            <button type="button" class="btn-compact" data-overlay-export-preset="none">CLEAR</button>
+                            <select class="header-select header-select-compact" data-overlay-export-package aria-label="Snippet package source">
+                                <option value="cdn">SNIPPET: CDN</option>
+                                <option value="local">SNIPPET: LOCAL</option>
+                            </select>
+                            <select class="header-select header-select-compact" data-overlay-export-mode aria-label="Snippet mode">
+                                <option value="compact">MODE: COMPACT</option>
+                                <option value="scaffold">MODE: SCAFFOLD</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="instantiation-controls-grid">
+                        <section class="instantiation-controls-panel">
+                            <p class="instantiation-controls-note">Branch checkboxes select every nested control. Individual line items only affect that one serialized value.</p>
+                            <div class="instantiation-controls-tree" data-overlay-export-tree></div>
+                        </section>
+                        <section class="instantiation-preview-panel">
+                            <div class="instantiation-preview-header">
+                                <span class="instantiation-preview-status" data-overlay-export-preview-status></span>
+                                <button type="button" class="btn-compact" data-overlay-export-copy disabled>COPY</button>
+                            </div>
+                            <pre class="instantiation-preview-output" data-overlay-export-preview-output></pre>
+                        </section>
+                    </div>
+                </div>
+                <div class="instantiation-controls-footer">
+                    <button type="button" class="btn btn-muted" data-overlay-export-generate>GENERATE SNIPPET</button>
+                    <button type="button" class="btn btn-primary" data-overlay-export-submit>EXPORT</button>
+                </div>
+            </div>
+        </section>
+    </main>
+    <script type="module" src="./src/app/ui/overlay/entry.js"></script>
+</body>
+</html>

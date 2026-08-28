@@ -5,6 +5,7 @@ import { createShellController } from '../../ui/shell-controller.js';
 import { createInstantiationControlsDialogController } from '../../ui/instantiation-controls-dialog.js';
 import { createRenderSurfaceController } from '../../platform/render-surface/controller.js';
 import { createInstallCounterController } from '../../platform/install-counter/controller.js';
+import { createDefaultRivAppController } from '../../platform/default-riv-app/controller.js';
 
 export function createPlatformStack({
     elements,
@@ -27,6 +28,7 @@ export function createPlatformStack({
         getCurrentFileBuffer,
         getCurrentFileMimeType,
         getCurrentFileName,
+        getCurrentFilePreferenceId,
         getCurrentFileUrl,
         getCurrentCanvasSizing,
         getCurrentLayoutAlignment,
@@ -68,6 +70,7 @@ export function createPlatformStack({
         resetArtboardSwitcherState,
         resetToDefaultArtboard,
         resetVmInputControls,
+        restoreFileSessionUi,
         serializeControlHierarchy,
         serializeVmHierarchy,
         setCurrentFile,
@@ -83,6 +86,7 @@ export function createPlatformStack({
         showError,
         showMcpSetup,
         switchArtboard,
+        switchVmInstance,
         toggleInstantiationControlsDialog,
         toggleLiveConfigSource,
         updateInfo,
@@ -106,11 +110,14 @@ export function createPlatformStack({
             refreshInfoStrip,
             resetArtboardSwitcherState,
             resetVmInputControls,
+            restoreFileSessionUi,
             showError,
         },
         elements,
     });
 
+    let installCounterController = null;
+    let defaultRivAppController = null;
     const shellController = createShellController({
         callbacks: {
             ensureRuntime,
@@ -123,10 +130,14 @@ export function createPlatformStack({
             getCurrentRuntime,
             getEventLogFilterState,
             getRiveInstance,
+            getTauriEventListener,
             getTauriInvoker,
+            getInstallCounterStatus: () => installCounterController?.getStatusSnapshot?.() || null,
+            getDefaultRivAppStatus: () => defaultRivAppController?.getStatusSnapshot?.() || null,
             handleResize,
             loadRiveAnimation,
             logEvent,
+            isTauriEnvironment,
             reloadCurrentAnimation: refreshCurrentState,
             refreshInfoStrip,
             setCurrentCanvasSizing,
@@ -134,6 +145,11 @@ export function createPlatformStack({
             setCurrentLayoutFit,
             setCurrentMcpPort,
             setCurrentRuntime,
+            setInstallCounterEnabled: (enabled) => (
+                installCounterController?.setEnabled?.(enabled) ?? Promise.resolve(false)
+            ),
+            makeRavDefaultForRiv: () => defaultRivAppController?.apply?.() ?? Promise.resolve(false),
+            refreshDefaultRivAppStatus: () => defaultRivAppController?.refresh?.() ?? Promise.resolve(null),
             showError,
             updateInfo,
             updateVersionInfo,
@@ -153,6 +169,7 @@ export function createPlatformStack({
         getArtboardStateSnapshot,
         getCurrentFileBuffer,
         getCurrentFileName,
+        getCurrentFilePreferenceId,
         getCurrentCanvasSizing,
         getCurrentLayoutAlignment,
         getCurrentLayoutFit,
@@ -190,7 +207,14 @@ export function createPlatformStack({
         elements,
     });
 
-    const installCounterController = createInstallCounterController({
+    installCounterController = createInstallCounterController({
+        elements,
+        getTauriInvoker,
+        isTauriEnvironment,
+        logEvent,
+    });
+
+    defaultRivAppController = createDefaultRivAppController({
         elements,
         getTauriInvoker,
         isTauriEnvironment,
@@ -205,6 +229,7 @@ export function createPlatformStack({
             getTauriInvoker,
             initLucideIcons,
             logEvent,
+            requestUiOverlay: (request) => shellController.openUiOverlay(request),
             showError,
             updateInfo,
         },
@@ -222,6 +247,7 @@ export function createPlatformStack({
             exportDemoToPath: (outputPath, options) => demoExportController.exportDemoToPath(outputPath, options),
             openIsolatedPlayback: (options) => demoExportController.openIsolatedPlayback(options),
             getArtboardStateSnapshot,
+            getCanvasBackgroundStateSnapshot,
             getCurrentFileBuffer,
             getCurrentFileMimeType,
             getCurrentFileName,
@@ -232,6 +258,7 @@ export function createPlatformStack({
             ),
             getLiveConfigState,
             getRenderSurfaceState: () => renderSurfaceController.getState(),
+            getRenderSurfaceController: () => renderSurfaceController,
             getRuntimeSourceText,
             getRuntimeVersion,
             getScriptConsoleEntries: (limit) => scriptConsoleController.readCaptured(limit),
@@ -268,14 +295,17 @@ export function createPlatformStack({
             reset,
             resetToDefaultArtboard,
             setCurrentFile,
+            stageCurrentFile: (...args) => fileSessionController.stageCurrentFile(...args),
             setCurrentCanvasSizing,
             setCanvasSizingState: (nextState, message) => shellController?.applyCanvasSizingState?.(nextState, message),
             setEditorCode,
             setLiveConfigSource,
+            setInstallCounterEnabled: (enabled) => installCounterController.setEnabled(enabled),
             setSidebarVisibility,
             setVmExplorerSnippetEnabled,
             showMcpSetup,
             switchArtboard,
+            switchVmInstance,
             toggleInstantiationControlsDialog,
             toggleLiveConfigSource,
         },
@@ -288,6 +318,7 @@ export function createPlatformStack({
         globalBindingsController,
         instantiationControlsDialogController,
         installCounterController,
+        defaultRivAppController,
         renderSurfaceController,
         shellController,
     };

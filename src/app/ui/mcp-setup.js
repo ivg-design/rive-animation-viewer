@@ -6,6 +6,7 @@ import {
     buildGenericSnippet,
     setCopyHandlers,
 } from './mcp/snippets.js';
+import { measureDialogOverlay } from './overlay/dialog-bounds.js';
 
 export function createMcpSetupController({
     elements,
@@ -13,6 +14,7 @@ export function createMcpSetupController({
     getBridgeConnected = () => false,
     getTauriInvoker,
     initLucideIcons,
+    requestUiOverlay = null,
     windowRef = globalThis.window,
 }) {
     let handlersBound = false;
@@ -48,6 +50,14 @@ export function createMcpSetupController({
         }
     }
 
+    async function invokeDesktopStrict(command, args = {}) {
+        const invoke = getTauriInvoker();
+        if (typeof invoke !== 'function') {
+            throw new Error('The desktop MCP bridge is unavailable.');
+        }
+        return await invoke(command, args);
+    }
+
     function isScriptAccessEnabled() {
         try {
             return windowRef.localStorage?.getItem(MCP_SCRIPT_ACCESS_STORAGE_KEY) === 'true';
@@ -55,7 +65,6 @@ export function createMcpSetupController({
             return false;
         }
     }
-
     function setScriptAccessEnabled(enabled) {
         const normalized = Boolean(enabled);
         try {
@@ -222,6 +231,107 @@ export function createMcpSetupController({
         }
     }
 
+    function captureOverlayState() {
+        const targetLabels = {
+            'claude-code': 'Claude Code (CLI)',
+            'claude-desktop': 'Claude Desktop',
+            codex: 'Codex (CLI/Desktop)',
+        };
+        const snippetElements = {
+            'claude-code': elements.snippetClaudeCode,
+            'claude-desktop': elements.snippetClaudeDesktop,
+            codex: elements.snippetCodex,
+        };
+        return {
+            node: {
+                className: elements.mcpNodeStatus?.className || '',
+                label: elements.mcpNodeLabel?.textContent || 'MCP unavailable',
+                path: elements.mcpServerPathDisplay?.textContent || '',
+                port: Number(elements.mcpPortInput?.value) || currentPort,
+                portDraft: elements.mcpPortInput?.value ?? String(currentPort),
+            },
+            scriptAccess: {
+                enabled: isScriptAccessEnabled(),
+                note: elements.mcpScriptAccessNote?.textContent || '',
+            },
+            targets: Array.from(targetStatusElements.keys()).map((id) => ({
+                id,
+                installDisabled: Boolean(targetInstallButtons.get(id)?.disabled),
+                installLabel: targetInstallButtons.get(id)?.textContent || 'INSTALL',
+                label: targetLabels[id],
+                removeHidden: Boolean(targetRemoveButtons.get(id)?.hidden),
+                snippet: snippetElements[id]?.textContent || '',
+                status: targetStatusElements.get(id)?.textContent || 'Detecting…',
+                statusClassName: targetStatusElements.get(id)?.className || '',
+            })),
+            genericSnippet: elements.snippetGeneric?.textContent || '',
+            claudeDesktopCopy: elements.mcpClaudeDesktopCopy?.textContent || '',
+        };
+    }
+
+    async function applyPort(nextValue) {
+        const nextPort = Number.parseInt(String(nextValue || '').trim(), 10);
+        if (!Number.isInteger(nextPort) || nextPort < 1 || nextPort > 65535) return false;
+        const resolvedPort = Number(await invokeDesktopStrict('set_mcp_port', { port: nextPort }));
+        if (!Number.isInteger(resolvedPort) || resolvedPort < 1 || resolvedPort > 65535) {
+            throw new Error('RAV did not confirm the requested MCP port.');
+        }
+        currentPort = resolvedPort;
+        if (elements.mcpPortInput) elements.mcpPortInput.value = String(currentPort);
+        await refreshSetupStatus();
+        return true;
+    }
+
+    async function handleOverlayAction({ action, value }) {
+        if (action === 'script-access-toggle') {
+            setScriptAccessEnabled(!isScriptAccessEnabled());
+            return null;
+        }
+        if (action === 'port-apply') {
+            if (!await applyPort(value)) {
+                throw new Error('Enter a valid MCP port between 1 and 65535.');
+            }
+            return null;
+        }
+        if (action === 'port-draft') {
+            if (elements.mcpPortInput) elements.mcpPortInput.value = String(value || '');
+            return null;
+        }
+        if (action === 'client-install' && targetInstallButtons.has(value)) {
+            const result = await invokeDesktopStrict('install_mcp_client', { target: value, port: currentPort });
+            if (result?.installed !== true) {
+                throw new Error(`RAV did not confirm installation for ${value}.`);
+            }
+            await refreshSetupStatus();
+            return null;
+        }
+        if (action === 'client-remove' && targetRemoveButtons.has(value)) {
+            const result = await invokeDesktopStrict('remove_mcp_client', { target: value });
+            if (result?.installed !== false) {
+                throw new Error(`RAV did not confirm removal for ${value}.`);
+            }
+            await refreshSetupStatus();
+            return null;
+        }
+        if (action === 'copy') {
+            const state = captureOverlayState();
+            const text = value === 'server-path'
+                ? state.node.path
+                : value === 'generic'
+                ? state.genericSnippet
+                    : state.targets.find((target) => target.id === value)?.snippet;
+            if (!text) {
+                throw new Error('The requested MCP configuration is unavailable.');
+            }
+            const writeText = windowRef.navigator?.clipboard?.writeText;
+            if (typeof writeText !== 'function') {
+                throw new Error('Clipboard access is unavailable.');
+            }
+            await writeText.call(windowRef.navigator.clipboard, text);
+        }
+        return null;
+    }
+
     function setPortHandlers() {
         const input = elements.mcpPortInput;
         const button = elements.mcpPortApplyButton;
@@ -229,27 +339,15 @@ export function createMcpSetupController({
             return;
         }
 
-        const applyPort = async () => {
-            const nextPort = Number.parseInt(String(input.value || '').trim(), 10);
-            if (!Number.isInteger(nextPort) || nextPort < 1 || nextPort > 65535) {
+        const applyCurrentPort = async () => {
+            if (!await applyPort(input.value)) {
                 input.value = String(currentPort);
                 return;
             }
-
-            const originalText = button.textContent;
-            button.disabled = true;
-            button.textContent = 'SETTING';
-            const resolvedPort = await invokeDesktop('set_mcp_port', { port: nextPort });
-            if (resolvedPort) {
-                currentPort = Number(resolvedPort) || nextPort;
-                input.value = String(currentPort);
-            }
-            button.textContent = originalText;
-            await refreshSetupStatus();
         };
 
         button.onclick = () => {
-            applyPort().catch(() => {
+            applyCurrentPort().catch(() => {
                 button.textContent = 'FAILED';
                 setTimeout(() => {
                     button.textContent = 'SET';
@@ -275,7 +373,12 @@ export function createMcpSetupController({
                 button.disabled = true;
                 const originalText = button.textContent;
                 button.textContent = 'ADDING';
-                const result = await invokeDesktop('install_mcp_client', { target, port: currentPort });
+                let result = null;
+                try {
+                    result = await invokeDesktopStrict('install_mcp_client', { target, port: currentPort });
+                } catch {
+                    /* The visible FAILED state below is the recovery path for native failures. */
+                }
                 if (!result?.installed) {
                     button.textContent = 'FAILED';
                     setTimeout(() => {
@@ -309,7 +412,12 @@ export function createMcpSetupController({
                 button.disabled = true;
                 const originalText = button.textContent;
                 button.textContent = 'REMOVING';
-                const result = await invokeDesktop('remove_mcp_client', { target });
+                let result = null;
+                try {
+                    result = await invokeDesktopStrict('remove_mcp_client', { target });
+                } catch {
+                    /* The visible FAILED state below is the recovery path for native failures. */
+                }
                 if (result?.installed !== false) {
                     button.textContent = 'FAILED';
                     setTimeout(() => {
@@ -338,12 +446,25 @@ export function createMcpSetupController({
             handlersBound = true;
         }
 
-        dialog.showModal();
         initLucideIcons();
         elements.mcpNodeLabel && (elements.mcpNodeLabel.textContent = getBridgeEnabled() ? 'MCP ready' : 'MCP disabled');
+        if (typeof requestUiOverlay === 'function') {
+            await refreshSetupStatus();
+            const opened = await requestUiOverlay({
+                bounds: measureDialogOverlay({ dialog }),
+                getState: captureOverlayState,
+                handleAction: handleOverlayAction,
+                purpose: 'mcp',
+                restoreFocusTarget: elements.mcpSetupButton,
+            });
+            if (opened) return { open: true, overlay: true };
+        }
+        dialog.showModal();
+        dialog.ownerDocument?.activeElement?.blur?.();
         windowRef.setTimeout(() => {
             void refreshSetupStatus();
         }, 0);
+        return { open: true, overlay: false };
     }
 
     return {

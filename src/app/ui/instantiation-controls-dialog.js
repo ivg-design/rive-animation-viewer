@@ -1,10 +1,36 @@
 import { controlSelectionKeyForDescriptor } from '../rive/vm-controls.js';
 import {
     collectNodeInputKeys,
+    collectTreeNodeInputKeys,
     countConcreteControls,
     renderControlHierarchyTree,
     sanitizeSelection,
 } from './export/control-tree.js';
+import { measureDialogOverlay } from './overlay/dialog-bounds.js';
+
+function buildControlHierarchyTopologySignature(currentHierarchy) {
+    const topology = [];
+    const visit = (node, parentKey = '') => {
+        if (!node) return;
+        const nodeIdentity = `${parentKey}>${node.kind || ''}:${node.path || ''}:${node.label || ''}`;
+        topology.push(['node', nodeIdentity]);
+        (node.inputs || []).forEach((input) => {
+            const descriptor = input?.descriptor || input || {};
+            topology.push([
+                'input',
+                nodeIdentity,
+                descriptor.source || input?.source || '',
+                descriptor.stateMachineName || input?.stateMachineName || '',
+                descriptor.path || input?.path || '',
+                descriptor.name || input?.name || '',
+                descriptor.kind || input?.kind || '',
+            ]);
+        });
+        (node.children || []).forEach((child) => visit(child, nodeIdentity));
+    };
+    visit(currentHierarchy);
+    return JSON.stringify(topology);
+}
 
 export function createInstantiationControlsDialogController({
     callbacks = {},
@@ -22,6 +48,7 @@ export function createInstantiationControlsDialogController({
         getTauriInvoker = () => null,
         initLucideIcons = () => {},
         logEvent = () => {},
+        requestUiOverlay = null,
         showError = () => {},
         updateInfo = () => {},
     } = callbacks;
@@ -32,7 +59,11 @@ export function createInstantiationControlsDialogController({
     let selectedControlKeys = null;
     let currentPreviewText = '';
     let expandedBranchKeys = new Set();
-
+    let hierarchyRevision = 0;
+    let hierarchySignature = '';
+    let overlayHierarchyRevision = null;
+    let overlayOpen = false;
+    let overlayTreeScrollTop = 0;
     function getDialog() {
         return elements.instantiationControlsDialog;
     }
@@ -109,7 +140,7 @@ export function createInstantiationControlsDialogController({
     function setSelection(nextSelection) {
         selectedControlKeys = sanitizeSelection(nextSelection, currentAvailableKeys);
         clearPreview();
-        renderTree();
+        if (!overlayOpen) renderTree();
         updateSelectionSummary();
     }
 
@@ -129,6 +160,11 @@ export function createInstantiationControlsDialogController({
 
         currentHierarchy = serializeControlHierarchy();
         currentAvailableKeys = collectNodeInputKeys(currentHierarchy);
+        const nextSignature = buildControlHierarchyTopologySignature(currentHierarchy);
+        if (nextSignature !== hierarchySignature) {
+            hierarchySignature = nextSignature;
+            hierarchyRevision += 1;
+        }
         if (selectedControlKeys === null) {
             selectedControlKeys = sanitizeSelection(getChangedControlKeySet(), currentAvailableKeys);
         } else {
@@ -189,29 +225,125 @@ export function createInstantiationControlsDialogController({
         return true;
     }
 
-    async function exportDemoFromDialog() {
+    async function exportDemoFromDialog({ strictResult = false } = {}) {
         if (!ensureDialogState()) {
             return null;
         }
 
-        const outputPath = await createDemoBundle({
+        const bundleOptions = {
             packageSource: elements.instantiationPackageSourceSelect?.value === 'local' ? 'local' : 'cdn',
             snippetMode: getSnippetMode(),
             selectedControlKeys: getSelectedControlKeys() || [],
-        });
-        if (outputPath) {
+        };
+        if (strictResult) bundleOptions.strictResult = true;
+        const outputPath = await createDemoBundle(bundleOptions);
+        if (outputPath && (!strictResult || outputPath.status === 'saved')) {
             getDialog()?.close();
         }
         return outputPath;
+    }
+
+    function captureOverlayState({ incremental = false } = {}) {
+        const includeHierarchy = !incremental || overlayHierarchyRevision !== hierarchyRevision;
+        const renderedSummary = elements.instantiationSelectionSummary?.textContent?.trim();
+        let selectionSummary = renderedSummary;
+        if (!selectionSummary) {
+            const counts = countConcreteControls(currentHierarchy, selectedControlKeys || new Set());
+            selectionSummary = `${counts.selected} of ${counts.total} controls selected.`;
+        }
+        const state = {
+            expandedBranchKeys: Array.from(expandedBranchKeys),
+            exportEnabled: Boolean(getTauriInvoker()),
+            hierarchyRevision,
+            packageSource: elements.instantiationPackageSourceSelect?.value || 'cdn',
+            previewStatus: currentPreviewText ? 'Snippet preview is ready.' : 'Snippet preview not generated yet.',
+            previewText: currentPreviewText,
+            selectedControlKeys: getSelectedControlKeys() || [],
+            selectionSummary,
+            snippetMode: getSnippetMode(),
+            treeScrollTop: overlayTreeScrollTop,
+        };
+        if (includeHierarchy) {
+            state.hierarchy = currentHierarchy;
+        }
+        return state;
+    }
+
+    function markOverlayStateSynced(state) {
+        if (Object.hasOwn(state || {}, 'hierarchy')) {
+            overlayHierarchyRevision = Number(state.hierarchyRevision);
+        }
+    }
+
+    async function handleOverlayAction({ action, value }) {
+        if (action === 'selection-toggle' && value?.key) {
+            const nextSelection = new Set(selectedControlKeys || []);
+            if (value.selected) nextSelection.add(value.key);
+            else nextSelection.delete(value.key);
+            setSelection(nextSelection);
+        } else if (action === 'branch-selection' && value?.branchKey) {
+            const nextSelection = new Set(selectedControlKeys || []);
+            collectTreeNodeInputKeys(currentHierarchy, value.branchKey).forEach((key) => {
+                if (value.selected) nextSelection.add(key);
+                else nextSelection.delete(key);
+            });
+            setSelection(nextSelection);
+        } else if (action === 'selection-preset') {
+            if (value === 'changed') setSelection(getChangedControlKeySet());
+            if (value === 'all') setSelection(new Set(currentAvailableKeys));
+            if (value === 'none') setSelection(new Set());
+        } else if (action === 'branch-expanded' && value?.key) {
+            if (value.expanded) expandedBranchKeys.add(value.key);
+            else expandedBranchKeys.delete(value.key);
+        } else if (action === 'tree-scroll') {
+            overlayTreeScrollTop = Math.max(0, Number(value) || 0);
+        } else if (action === 'package-source') {
+            if (elements.instantiationPackageSourceSelect) {
+                elements.instantiationPackageSourceSelect.value = value === 'local' ? 'local' : 'cdn';
+            }
+            clearPreview();
+        } else if (action === 'snippet-mode') {
+            if (elements.instantiationSnippetModeSelect) {
+                elements.instantiationSnippetModeSelect.value = value === 'scaffold' ? 'scaffold' : 'compact';
+            }
+            clearPreview();
+        } else if (action === 'generate-preview') {
+            await generateSnippetPreview();
+        } else if (action === 'copy-preview') {
+            await copyPreviewToClipboard();
+        } else if (action === 'export') {
+            const result = await exportDemoFromDialog({ strictResult: true });
+            if (result?.status === 'saved') return { close: true };
+            if (result?.status === 'cancelled') return null;
+            throw new Error('Export did not return a completion status.');
+        }
+        return null;
     }
 
     async function openDialog() {
         if (!ensureDialogState()) {
             return { open: false };
         }
-        renderTree();
         renderPreview();
+        if (typeof requestUiOverlay === 'function') {
+            const opened = await requestUiOverlay({
+                bounds: measureDialogOverlay({ dialog: getDialog() }),
+                getState: captureOverlayState,
+                handleAction: handleOverlayAction,
+                onClose: () => { overlayOpen = false; },
+                onStateSynced: markOverlayStateSynced,
+                purpose: 'export',
+                restoreFocusTarget: elements.demoBundleButton,
+                syncDelays: [0],
+            });
+            if (opened) {
+                overlayOpen = true;
+                return { open: true, overlay: true, selectionCount: selectedControlKeys.size };
+            }
+        }
+        renderTree();
         getDialog()?.showModal();
+        getDialog()?.ownerDocument?.activeElement?.blur?.();
         initLucideIcons();
         return { open: true, selectionCount: selectedControlKeys.size };
     }
@@ -241,7 +373,14 @@ export function createInstantiationControlsDialogController({
 
     function setup() {
         documentRef.addEventListener('rav:vm-topology-changed', () => {
-            if (!getDialog()?.open || !ensureDialogState()) {
+            if ((!getDialog()?.open && !overlayOpen) || !ensureDialogState()) {
+                return;
+            }
+            if (overlayOpen) {
+                const EventCtor = documentRef.defaultView?.CustomEvent || globalThis.CustomEvent;
+                documentRef.dispatchEvent(new EventCtor('rav:ui-overlay-state-dirty', {
+                    detail: { purpose: 'export' },
+                }));
                 return;
             }
             renderTree();

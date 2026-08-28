@@ -179,7 +179,12 @@ impl UiOverlayActionRequest {
             (_, "focus-target") => is_bounded_text(&self.value, 128),
             (
                 "settings",
-                "close" | "about" | "canvas-transparent" | "canvas-lock" | "telemetry-toggle",
+                "close"
+                | "about"
+                | "canvas-transparent"
+                | "canvas-lock"
+                | "telemetry-toggle"
+                | "default-riv-app-apply",
             ) => self.value.is_null(),
             ("settings", "runtime-select" | "runtime-custom-apply") => {
                 is_bounded_text(&self.value, 128)

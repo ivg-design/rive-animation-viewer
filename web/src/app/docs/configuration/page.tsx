@@ -19,8 +19,15 @@ export default function Configuration() {
         <li><strong>Canvas Size</strong> &mdash; AUTO (fills viewport) or FIXED (explicit pixels)</li>
         <li><strong>Pixels</strong> &mdash; width and height inputs with aspect-ratio LOCK</li>
         <li><strong>Anonymous Usage</strong> &mdash; enables or disables anonymous installed-version reporting</li>
+        <li><strong>Default .riv App</strong> &mdash; shows the application macOS currently resolves for both Rive content identifiers, with deliberate MAKE DEFAULT or REPAIR ICON actions when available</li>
         <li><strong>About</strong> &mdash; opens build metadata, credits, dependencies, product links, and the Privacy Policy</li>
       </ol>
+
+      <p className="text-sm text-[var(--text-dim)]">
+        The default-app row changes double-click/open-with handling and document registration only.
+        Finder can repaint cached icons later, and Quick Look previews are supplied by a separate
+        macOS provider.
+      </p>
 
       <p className="text-sm text-[var(--text-dim)]">
         For the script editor, supported config keys, APPLY behavior, internal vs editor
@@ -36,7 +43,7 @@ export default function Configuration() {
 
       <h2>Runtime Version</h2>
       <p>
-        RAV 2.5.1 defaults to <strong>Latest (auto)</strong> and resolves the current npm runtime
+        RAV 2.5.2 defaults to <strong>Latest (auto)</strong> and resolves the current npm runtime
         before playback. If version discovery is unavailable, 2.39.2 is the fallback.
         Live RAV MCP comparison previously proved that Web 2.40.0 / runtime-v0.1.271 can
         double-offset nested, data-bound images in both WebGL2 and Canvas, so that exact version

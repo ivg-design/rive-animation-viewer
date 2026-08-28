@@ -1,56 +1,13 @@
-        function clamp(value, min, max) {
-            return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
-        }
-
-        function argbToColorMeta(value) {
-            var rawValue = Number.isFinite(Number(value)) ? Number(value) >>> 0 : 0xff000000;
-            var alpha = (rawValue >>> 24) & 255;
-            var red = (rawValue >>> 16) & 255;
-            var green = (rawValue >>> 8) & 255;
-            var blue = rawValue & 255;
-            return {
-                hex: '#' + toHexByte(red) + toHexByte(green) + toHexByte(blue),
-                alphaPercent: Math.round((alpha / 255) * 100),
-            };
-        }
-
-        function toHexByte(value) {
-            return clamp(Math.round(value), 0, 255).toString(16).padStart(2, '0');
-        }
-
-        function hexToRgb(hex) {
-            var cleanHex = String(hex || '').trim().replace('#', '');
-            if (!/^[0-9a-fA-F]{6}$/.test(cleanHex)) return { r: 0, g: 0, b: 0 };
-            return {
-                r: parseInt(cleanHex.slice(0, 2), 16),
-                g: parseInt(cleanHex.slice(2, 4), 16),
-                b: parseInt(cleanHex.slice(4, 6), 16),
-            };
-        }
-
-        function rgbAlphaToArgb(red, green, blue, alpha) {
-            return (
-                ((clamp(alpha, 0, 255) & 255) << 24) |
-                ((clamp(red, 0, 255) & 255) << 16) |
-                ((clamp(green, 0, 255) & 255) << 8) |
-                (clamp(blue, 0, 255) & 255)
-            ) >>> 0;
-        }
-
-        /* ── Rive animation loading ──────────────────────────── */
-
         function loadAnimation() {
             if (!els.canvas || !els.canvasContainer) {
                 showError('Canvas element not found.');
                 return;
             }
-
             updateInfo('Loading animation...');
             logEvent('native', 'load-start', 'Loading embedded animation.');
             resetEmbeddedImageAssets();
-
+            reportRenderSurfaceLoadStage('begin');
             try {
-                // Locate the Rive constructor from the runtime
                 var rive = window.rive || window.RiveModule;
                 if (!rive || typeof rive.Rive !== 'function') {
                     // Try global constructor
@@ -61,11 +18,8 @@
                         return;
                     }
                 }
-
-                // Clean up previous instance
                 cleanupInstance();
                 loadedRiveRuntime = rive;
-
                 // Decode embedded animation from base64
                 var base64Data = CONFIG.animationBase64;
                 var binaryString = atob(base64Data);
@@ -75,13 +29,22 @@
                 }
                 var animationBlob = new Blob([bytes], { type: 'application/octet-stream' });
                 var animationUrl = URL.createObjectURL(animationBlob);
-
+                reportRenderSurfaceLoadStage('animation-decoded');
                 resizeCanvas();
-
                 // Build Rive config
                 var configuredStateMachines = normalizeStateMachineSelection(CONFIG.stateMachines);
+                var configuredAnimations = normalizeStateMachineSelection(CONFIG.animations);
                 var userSpecifiedStateMachines = configuredStateMachines.length > 0;
+                var userSpecifiedAnimations = configuredAnimations.length > 0;
                 var didRestartForStateMachine = false;
+                var hasEmittedInitialLoad = false;
+                setRenderSurfacePlaybackTarget({
+                    name: userSpecifiedAnimations
+                        ? configuredAnimations[0]
+                        : (userSpecifiedStateMachines ? configuredStateMachines[0] : null),
+                    type: userSpecifiedAnimations ? 'animation' : (userSpecifiedStateMachines ? 'stateMachine' : null),
+                    vmInstanceKey: CONFIG.viewModelInstanceName == null ? null : CONFIG.viewModelInstanceName,
+                });
                 var appliedEditorConfig = resolveStandaloneEditorConfig(
                     CONFIG.editorCode,
                     CONFIG.instantiationSourceMode,
@@ -92,7 +55,6 @@
                 var reportAppliedEditorCallbackError = function (error) {
                     logEvent('native', 'editor-callback-error', 'Applied editor callback failed: ' + (error.message || error));
                 };
-
                 var riveConfig = Object.assign({}, appliedEditorConfig, {
                     src: animationUrl,
                     canvas: els.canvas,
@@ -104,17 +66,19 @@
                             : true),
                 });
                 riveConfig.assetLoader = composeEmbeddedImageAssetLoader(riveConfig.assetLoader);
-
                 if (CONFIG.artboardName) {
                     riveConfig.artboard = CONFIG.artboardName;
                 }
-
                 if (userSpecifiedStateMachines) {
                     riveConfig.stateMachines = configuredStateMachines.length === 1
                         ? configuredStateMachines[0]
                         : configuredStateMachines;
                 }
-
+                if (userSpecifiedAnimations) {
+                    riveConfig.animations = configuredAnimations.length === 1
+                        ? configuredAnimations[0]
+                        : configuredAnimations;
+                }
                 // Set layout
                 if (rive.Layout) {
                     var appliedLayoutProps = appliedEditorConfig.layout && typeof appliedEditorConfig.layout === 'object'
@@ -130,11 +94,11 @@
                 if (isCanvasBackgroundTransparent() && CONFIG.runtimeName !== 'canvas' && typeof riveConfig.useOffscreenRenderer === 'undefined') {
                     riveConfig.useOffscreenRenderer = true;
                 }
-
                 riveConfig.onLoad = function () {
+                    reportRenderSurfaceLoadStage('rive-onload');
                     var callbackArgs = Array.prototype.slice.call(arguments);
                     // Auto-detect state machine if none specified
-                    if (!didRestartForStateMachine && !userSpecifiedStateMachines) {
+                    if (!didRestartForStateMachine && !userSpecifiedStateMachines && !userSpecifiedAnimations) {
                         var detectedSmName = null;
                         try {
                             var artboard = riveInstance && riveInstance.artboard;
@@ -146,17 +110,14 @@
                                 }
                             }
                         } catch (e) { /* noop */ }
-
                         if (!detectedSmName) {
                             var names = Array.isArray(riveInstance && riveInstance.stateMachineNames) ? riveInstance.stateMachineNames : [];
                             if (names.length > 0) detectedSmName = names[0];
                         }
-
                         if (detectedSmName) {
                             didRestartForStateMachine = true;
                             clearRiveEventListeners();
                             try { riveInstance.cleanup(); } catch (e) { /* noop */ }
-
                             // Fresh canvas for WebGL context
                             els.canvasContainer.innerHTML = '';
                             var newCanvas = document.createElement('canvas');
@@ -164,7 +125,6 @@
                             els.canvasContainer.appendChild(newCanvas);
                             els.canvas = newCanvas;
                             resizeCanvas();
-
                             riveConfig.canvas = newCanvas;
                             riveConfig.stateMachines = detectedSmName;
                             riveInstance = new rive.Rive(riveConfig);
@@ -173,11 +133,9 @@
                             return;
                         }
                     }
-
                     hideError();
                     resizeCanvas();
                     if (riveInstance) riveInstance.resizeDrawingSurfaceToCanvas();
-
                     var smNames = Array.isArray(riveInstance && riveInstance.stateMachineNames) ? riveInstance.stateMachineNames : [];
                     var activeStateMachine = 'none';
                     if (riveConfig.stateMachines) {
@@ -187,34 +145,81 @@
                     } else if (smNames.length > 0) {
                         activeStateMachine = smNames[0];
                     }
-
-                    var statusMsg = smNames.length > 0
-                        ? 'Loaded - state machine "' + activeStateMachine + '" active'
-                        : 'Loaded - no state machines';
+                    var activeAnimation = userSpecifiedAnimations ? configuredAnimations[0] : null;
+                    var statusMsg = activeAnimation
+                        ? 'Loaded - animation "' + activeAnimation + '" active'
+                        : (smNames.length > 0
+                            ? 'Loaded - state machine "' + activeStateMachine + '" active'
+                            : 'Loaded - no state machines');
                     updateInfo(statusMsg);
                     logEvent('native', 'load', 'Animation loaded successfully.');
-
-                    bindViewModelInstanceByKey(riveInstance, CONFIG.viewModelInstanceName);
-                    applyControlSnapshot(currentControlSnapshot);
+                    var requestedVmInstanceKey = window.__ravRenderSurfaceTarget
+                        ? window.__ravRenderSurfaceTarget.vmInstanceKey
+                        : CONFIG.viewModelInstanceName;
+                    var explicitBindingRequested = requestedVmInstanceKey !== null && typeof requestedVmInstanceKey !== 'undefined';
+                    // Some runtime builds emit onLoad from an in-place reset.
+                    // That is not the reset lifecycle: bootstrap rebinds the
+                    // requested instance immediately after reset returns, then
+                    // the reset barrier restores snapshots. Do not let this
+                    // incidental callback restore against the old binding.
+                    var resetTransactionPending = isRenderSurfaceMode && Boolean(pendingRenderSurfaceReset);
+                    var bindingApplied = resetTransactionPending
+                        ? false
+                        : (explicitBindingRequested
+                            ? bindViewModelInstanceByKey(riveInstance, requestedVmInstanceKey)
+                            : Boolean(resolveVmRootInstance()));
+                    if (!resetTransactionPending) {
+                        applyControlSnapshot(currentControlSnapshot);
+                    }
+                    // An in-place reset can happen to emit onLoad in some
+                    // runtime builds, but it is not the reset completion
+                    // signal. The command starts its own post-reset frame
+                    // barrier so this remains a normal load-only branch.
                     // The dedicated child renderer retains the exact runtime,
                     // config, asset loader and control snapshot but never
                     // creates the standalone's DOM control tree.
                     if (!isRenderSurfaceMode) renderVmControls();
+                    invokeRenderSurfaceAwareEditorCallback(
+                        appliedEditorConfig.onLoad,
+                        callbackArgs,
+                        reportAppliedEditorCallbackError,
+                        { deferUntilActivation: true }
+                    );
                     if (isRenderSurfaceMode && typeof window.__ravRenderSurfaceEmit === 'function') {
-                        window.__ravRenderSurfaceEmit('render-surface:loaded', {
-                            fileName: CONFIG.fileName || null,
-                            runtimeName: CONFIG.runtimeName || null,
-                            runtimeVersion: CONFIG.runtimeVersion || null,
-                        });
+                        if (hasEmittedInitialLoad) {
+                            publishRenderSurfaceCanonicalState(true, 'reload');
+                        } else {
+                            hasEmittedInitialLoad = true;
+                            // Publish only the bounded static/playback bootstrap.
+                            // The full Properties topology stays gated until the
+                            // parent has transported the prepare-frame ACK.
+                            publishRenderSurfaceCanonicalState(true, 'load');
+                            announceRenderSurfaceFirstFrame({
+                                binding: {
+                                    applied: bindingApplied,
+                                    key: explicitBindingRequested ? requestedVmInstanceKey : null,
+                                    requested: explicitBindingRequested,
+                                },
+                                fileName: CONFIG.fileName || null,
+                                firstFrame: true,
+                                protocolVersion: 2,
+                                runtimeName: CONFIG.runtimeName || null,
+                                runtimeVersion: CONFIG.runtimeVersion || null,
+                            });
+                        }
                     }
-                    invokeStandaloneEditorCallback(appliedEditorConfig.onLoad, riveInstance, callbackArgs, reportAppliedEditorCallbackError);
                 };
-
                 riveConfig.onLoadError = function (error) {
                     var errorMsg = (error && error.message) || String(error);
+                    reportRenderSurfaceLoadStage('rive-onload-error', errorMsg);
                     showError('Error loading animation: ' + errorMsg);
                     logEvent('native', 'loaderror', 'Load error: ' + errorMsg);
-                    invokeStandaloneEditorCallback(appliedEditorConfig.onLoadError, riveInstance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
+                    if (pendingRenderSurfaceReset) pendingRenderSurfaceReset.reject(error);
+                    invokeRenderSurfaceAwareEditorCallback(
+                        appliedEditorConfig.onLoadError,
+                        Array.prototype.slice.call(arguments),
+                        reportAppliedEditorCallbackError
+                    );
                     if (isRenderSurfaceMode && typeof window.__ravRenderSurfaceEmit === 'function') {
                         window.__ravRenderSurfaceEmit('render-surface:error', {
                             phase: 'load',
@@ -222,65 +227,74 @@
                         });
                     }
                 };
-
                 riveConfig.onPlay = function (event) {
                     logEvent('native', 'play', 'Playback started by runtime.', event);
-                    invokeStandaloneEditorCallback(appliedEditorConfig.onPlay, riveInstance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
+                    invokeRenderSurfaceAwareEditorCallback(appliedEditorConfig.onPlay, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
+                    recordRenderSurfaceTimelinePlay(event);
+                    publishRenderSurfaceCanonicalState(true, 'play');
                 };
-
                 riveConfig.onPause = function (event) {
                     logEvent('native', 'pause', 'Playback paused by runtime.', event);
-                    invokeStandaloneEditorCallback(appliedEditorConfig.onPause, riveInstance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
+                    invokeRenderSurfaceAwareEditorCallback(appliedEditorConfig.onPause, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
+                    publishRenderSurfaceCanonicalState(true, 'pause');
                 };
-
                 riveConfig.onStop = function (event) {
                     logEvent('native', 'stop', 'Playback stopped by runtime.', event);
-                    invokeStandaloneEditorCallback(appliedEditorConfig.onStop, riveInstance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
+                    invokeRenderSurfaceAwareEditorCallback(appliedEditorConfig.onStop, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
+                    recordRenderSurfaceTimelineStop(event);
+                    publishRenderSurfaceCanonicalState(true, 'stop');
                 };
-
                 riveConfig.onLoop = function (event) {
                     logEvent('native', 'loop', 'Loop event emitted by runtime.', event);
-                    invokeStandaloneEditorCallback(appliedEditorConfig.onLoop, riveInstance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
+                    invokeRenderSurfaceAwareEditorCallback(appliedEditorConfig.onLoop, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
                 };
-
                 riveConfig.onStateChange = function (event) {
                     logEvent('native', 'statechange', 'State machine changed state.', event);
-                    invokeStandaloneEditorCallback(appliedEditorConfig.onStateChange, riveInstance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
+                    invokeRenderSurfaceAwareEditorCallback(appliedEditorConfig.onStateChange, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
+                    publishRenderSurfaceCanonicalState(true, 'state-change');
                 };
-
-                riveConfig.onAdvance = function (event) {
+                riveConfig.onAdvance = function (event) { renderSurfaceAdvanceRevision += 1;
                     updatePlaybackChips();
                     retryPendingControlSnapshot();
-                    invokeStandaloneEditorCallback(appliedEditorConfig.onAdvance, riveInstance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
+                    recordRenderSurfaceTimelineAdvance();
+                    invokeRenderSurfaceAwareEditorCallback(appliedEditorConfig.onAdvance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
+                    // Fixed-size cached-accessor reads revisit 999 controls in
+                    // about one second at 60fps without an O(file-size) frame.
+                    observeRenderSurfaceControlBudget(getRenderSurfaceBridgeState());
+                    publishRenderSurfaceCanonicalState(false, 'advance');
                 };
-
                 // Remove undefined keys
                 Object.keys(riveConfig).forEach(function (key) {
                     if (riveConfig[key] === undefined) delete riveConfig[key];
                 });
-
                 riveInstance = new rive.Rive(riveConfig);
+                reportRenderSurfaceLoadStage('rive-constructed');
                 window.riveInst = riveInstance;
                 attachRiveUserEventListeners(rive, riveInstance);
-
             } catch (error) {
+                reportRenderSurfaceLoadStage('construction-error', error && (error.message || error));
                 showError('Error initializing Rive: ' + (error.message || error));
                 logEvent('native', 'init-error', 'Error initializing runtime instance.');
             }
         }
-
         function normalizeStateMachineSelection(value) {
             if (!value) return [];
             if (typeof value === 'string') return [value];
             if (Array.isArray(value)) return value.filter(function (v) { return typeof v === 'string' && v; });
             return [];
         }
-
         function cleanupInstance() {
             clearRiveEventListeners();
             resetPlaybackChips();
             stopVmControlSync();
             clearVmControlBindings();
+            if (isRenderSurfaceMode) {
+                var bridgeState = getRenderSurfaceBridgeState();
+                cleanupRenderSurfaceTopologySubscriptions(bridgeState);
+                resetRenderSurfaceControlObserver(bridgeState);
+                bridgeState.topologyTracker = null;
+                bridgeState.topologyDirty = true;
+            }
             vmListTopologySignature = null;
             pendingControlSnapshot.clear();
             if (riveInstance && riveInstance.cleanup) {
@@ -290,29 +304,23 @@
             window.riveInst = null;
             loadedRiveRuntime = null;
         }
-
         /* ── Rive event listeners ────────────────────────────── */
-
         function clearRiveEventListeners() {
             riveEventUnsubscribers.forEach(function (unsub) {
                 try { unsub(); } catch (e) { /* noop */ }
             });
             riveEventUnsubscribers = [];
         }
-
         function attachRiveUserEventListeners(runtime, instance) {
             clearRiveEventListeners();
             if (!runtime || !runtime.EventType || !instance || typeof instance.on !== 'function') return;
-
             var eventType = runtime.EventType.RiveEvent;
             if (!eventType) return;
-
             var listener = function (event) {
                 var payload = (event && event.data) || event;
                 var eventName = (payload && payload.name) || (event && event.name) || 'unknown';
                 logEvent('rive-user', eventName, '', payload);
             };
-
             instance.on(eventType, listener);
             riveEventUnsubscribers.push(function () {
                 if (typeof instance.off === 'function') {
@@ -320,21 +328,17 @@
                 }
             });
         }
-
         /* ── VM controls rendering orchestration ─────────────── */
-
         function renderVmControls() {
             if (isRenderingVmControls) return;
             var countEl = els.vmControlsCount;
             var emptyEl = els.vmControlsEmpty;
             var treeEl = els.vmControlsTree;
             if (!countEl || !emptyEl || !treeEl) return;
-
             isRenderingVmControls = true;
             try {
                 treeEl.innerHTML = '';
                 clearVmControlBindings();
-
                 // Prefer the current runtime tree so converter-driven lists cannot go stale.
                 var rootVm = resolveVmRootInstance();
                 vmListTopologySignature = buildVmListTopologySignature(rootVm);
@@ -344,14 +348,11 @@
                         ? JSON.parse(JSON.stringify(VM_HIERARCHY))
                         : null);
                 var vmHierarchy = filterHierarchyNode(liveVmHierarchy);
-
                 var stateMachineHierarchy = filterHierarchyNode(buildStateMachineHierarchy());
                 var vmTotal = vmHierarchy ? countHierarchyInputs(vmHierarchy) : 0;
                 var smTotal = stateMachineHierarchy ? countHierarchyInputs(stateMachineHierarchy) : 0;
                 var totalControls = vmTotal + smTotal;
-
                 countEl.textContent = String(totalControls);
-
                 if (!totalControls) {
                     emptyEl.hidden = false;
                     emptyEl.textContent = 'No writable ViewModel or state machine inputs were found.';
@@ -359,9 +360,7 @@
                     else startVmControlSync();
                     return;
                 }
-
                 emptyEl.hidden = true;
-
                 // Filter out root-level VM inputs duplicated in child VMs.
                 if (vmHierarchy && vmHierarchy.children && vmHierarchy.children.length && vmHierarchy.inputs) {
                     var childPaths = new Set();
@@ -372,12 +371,10 @@
                     vmHierarchy.children.forEach(collectChildPaths);
                     vmHierarchy.inputs = vmHierarchy.inputs.filter(function (inp) { return !childPaths.has(inp.path); });
                 }
-
                 if (vmHierarchy) treeEl.appendChild(createVmSectionElement(vmHierarchy, true, 0));
                 if (stateMachineHierarchy && stateMachineHierarchy.totalInputs) {
                     treeEl.appendChild(createVmSectionElement(stateMachineHierarchy, false, 0));
                 }
-
                 startVmControlSync();
                 syncVmControlBindings(true);
                 initLucideIcons();
@@ -385,5 +382,4 @@
                 isRenderingVmControls = false;
             }
         }
-
     })();

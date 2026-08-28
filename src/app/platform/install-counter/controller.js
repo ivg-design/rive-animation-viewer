@@ -43,6 +43,14 @@ export function createInstallCounterController({
             button.textContent = !currentStatus.available ? 'UNAVAILABLE' : (currentStatus.enabled ? 'ON' : 'OFF');
             button.classList.toggle('is-active', currentStatus.available && currentStatus.enabled);
         }
+        const EventCtor = documentRef?.defaultView?.CustomEvent || globalThis.CustomEvent;
+        documentRef?.dispatchEvent?.(new EventCtor('rav:ui-overlay-state-dirty', {
+            detail: { purpose: 'settings' },
+        }));
+    }
+
+    function getStatusSnapshot() {
+        return { ...currentStatus, busy };
     }
 
     function clearNoticeTimer() {
@@ -90,12 +98,14 @@ export function createInstallCounterController({
 
     async function acknowledgeNotice() {
         const invoke = getTauriInvoker();
-        if (typeof invoke !== 'function') return;
+        if (typeof invoke !== 'function') return false;
         try {
             const status = await invoke(ACKNOWLEDGE_NOTICE_COMMAND, {});
             render(status);
+            return currentStatus.noticeRequired === false;
         } catch (error) {
             logEvent('ui', 'install-counter-notice-failed', 'Anonymous usage notice could not be recorded.', error);
+            return false;
         }
     }
 
@@ -232,5 +242,5 @@ export function createInstallCounterController({
         documentRef?.removeEventListener('visibilitychange', onVisibilityChange);
     }
 
-    return { setup, dispose };
+    return { setup, dispose, acknowledgeNotice, getStatusSnapshot, setEnabled };
 }

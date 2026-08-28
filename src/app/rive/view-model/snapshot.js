@@ -174,7 +174,7 @@ export function createVmSnapshotController({
         const snapshot = [];
         const seen = new Set();
         bindings.forEach((binding) => {
-            if (!binding || binding.kind === 'image') {
+            if (!binding) {
                 return;
             }
 
@@ -189,7 +189,13 @@ export function createVmSnapshotController({
                 return;
             }
 
-            let value = binding.kind === 'trigger' ? null : accessor.value;
+            // Image accessors can hold opaque runtime objects that must never
+            // be cloned or exported. Keep the descriptor in the snapshot so
+            // image-only files still expose their controls, while representing
+            // the initial authored/cleared state with a serializable null.
+            let value = binding.kind === 'trigger' || binding.kind === 'image'
+                ? null
+                : accessor.value;
             let enumValues = null;
             if (binding.kind === 'number') {
                 const numericValue = Number(value);
@@ -208,6 +214,8 @@ export function createVmSnapshotController({
                 }
                 value = numericColor >>> 0;
             } else if (binding.kind === 'trigger') {
+                value = null;
+            } else if (binding.kind === 'image') {
                 value = null;
             }
 

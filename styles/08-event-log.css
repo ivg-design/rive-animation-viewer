@@ -109,6 +109,11 @@
     background: #16200d;
 }
 
+#rav-operations-tab.is-active {
+    color: var(--neon);
+    background: #20260d;
+}
+
 .event-filter-toggle {
     height: 24px;
     padding: 0 8px;
@@ -304,4 +309,29 @@
 
 .event-log-list .empty-state {
     padding: 8px 6px;
+}
+
+.event-log-panel.rav-console-mode #event-log-filter-controls,
+.event-log-panel.rav-console-mode #script-console-summary-right,
+.event-log-panel.rav-console-mode #event-log-list,
+.event-log-panel.rav-console-mode #script-console-view {
+    display: none !important;
+}
+
+.event-log-panel:not(.rav-console-mode) #rav-operations-summary-right,
+.event-log-panel:not(.rav-console-mode) #rav-operations-view {
+    display: none !important;
+}
+
+.rav-operations-summary-right {
+    justify-content: flex-end;
+}
+
+.rav-operations-view {
+    min-height: 0;
+}
+
+.event-row-kind.rav {
+    color: var(--neon);
+    background: #c4f82a20;
 }

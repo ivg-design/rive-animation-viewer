@@ -1,25 +1,21 @@
-import {
-    populateArtboardSwitcherUi,
-    populatePlaybackSelectUi,
-    populateVmInstanceSelectUi,
-} from './artboards/ui-population.js';
-import { parsePlaybackTarget } from './artboards/playback-target.js';
+import { populateArtboardSwitcherUi, populatePlaybackSelectUi,
+    populateVmInstanceSelectUi } from './artboards/ui-population.js';
+import { buildPlaybackResetParams, parsePlaybackTarget } from './artboards/playback-target.js';
+import { createLatestLoadTransition, waitForRiveLoad } from './artboards/load-transition.js';
 import { createLatestSelectionScheduler } from './artboards/selection-scheduler.js';
-import {
-    buildArtboardSelectionSummary,
-    buildPlaybackContext,
-    buildPlaybackStatusLabel,
-} from './playback-status.js';
+import { createSelectionInteractionGuard } from './artboards/selection-interaction.js';
+import { createArtboardSelectionUi } from './artboards/selection-ui.js';
+import { setupArtboardSwitcher as setupArtboardSwitcherUi } from './artboards/setup.js';
+import { buildArtboardStateSnapshot, resolveImplicitVmInstanceKey, selectionAfterLoad,
+    selectionFromCanonical, selectionFromConfig } from './artboards/selection-state.js';
+import { buildPlaybackStatusLabel } from './playback-status.js';
 import { normalizeStateMachineSelection } from './default-state-machine.js';
 import { dispatchPlaybackCommand } from './control-events.js';
-import {
-    AUTO_BOUND_VM_INSTANCE_KEY,
-    buildViewModelInstanceLoadOverrides,
-    loadAndBindViewModelInstance,
-} from './view-model/instances.js';
-
+import { buildPlaybackResetContract, normalizeResetViewModelInstanceKey } from './reset-contract.js';
+import { normalizeLoadErrorMessage } from './instances/load-settlement.js';
+import { AUTO_BOUND_VM_INSTANCE_KEY, buildViewModelInstanceLoadOverrides,
+    loadAndBindViewModelInstance } from './view-model/instances.js';
 export { parsePlaybackTarget } from './artboards/playback-target.js';
-
 export function createArtboardSwitcherController({
     elements,
     callbacks = {},
@@ -27,6 +23,7 @@ export function createArtboardSwitcherController({
     getCurrentFileName = () => null,
     getCurrentFileUrl = () => null,
     getRiveInstance = () => null,
+    isAuthoritativeChildMode = () => false,
     setTimeoutFn = globalThis.setTimeout?.bind(globalThis),
 } = {}) {
     const {
@@ -37,7 +34,6 @@ export function createArtboardSwitcherController({
         showError = () => {},
         updateInfo = () => {},
     } = callbacks;
-
     let currentArtboardName = null;
     let currentPlaybackType = null;
     let currentPlaybackName = null;
@@ -45,9 +41,68 @@ export function createArtboardSwitcherController({
     let defaultArtboardName = null;
     let defaultPlaybackKey = null;
     let fileContentsCache = null;
+    let canonicalStateListenerAttached = false;
     const scheduleSelectionChange = createLatestSelectionScheduler(setTimeoutFn);
+    const loadTransition = createLatestLoadTransition();
+    // A staged child is built asynchronously while the old child can still
+    // publish canonical ticks. Keep the requested selection authoritative
+    // until its load either commits or rolls back; otherwise an old tick can
+    // leak back into the export context used to build the replacement child.
+    let requestedSelectionTransitionId = null;
+    let confirmedSelection = getSelection();
 
+    function hasRequestedSelectionInFlight() {
+        return requestedSelectionTransitionId !== null;
+    }
+
+    function beginRequestedSelection() {
+        const transitionId = loadTransition.begin();
+        requestedSelectionTransitionId = transitionId;
+        return transitionId;
+    }
+    function settleRequestedSelection(transitionId) {
+        if (requestedSelectionTransitionId === transitionId) {
+            requestedSelectionTransitionId = null;
+            return true;
+        }
+        return false;
+    }
+    function getSelection() {
+        return {
+            artboardName: currentArtboardName,
+            playbackType: currentPlaybackType,
+            playbackName: currentPlaybackName,
+            vmInstanceName: currentVmInstanceName,
+        };
+    }
+    function setSelection(selection) {
+        currentArtboardName = selection.artboardName;
+        currentPlaybackType = selection.playbackType;
+        currentPlaybackName = selection.playbackName;
+        currentVmInstanceName = selection.vmInstanceName;
+    }
+    function confirmSelection() {
+        confirmedSelection = getSelection();
+    }
+    function restoreConfirmedSelection() {
+        setSelection(confirmedSelection);
+        selectionInteractionGuard.request();
+    }
+    const { getStatusContext, syncSelectionControls, updateSelectionSummary } = createArtboardSelectionUi({
+        elements,
+        getRiveInstance,
+        getSelection,
+        populatePlaybackSelect,
+        populateVmInstanceSelect,
+    });
+    const selectionInteractionGuard = createSelectionInteractionGuard({
+        documentRef,
+        elements,
+        onSyncRequested: syncSelectionControls,
+        scheduleFn: setTimeoutFn,
+    });
     function resetForNewFile() {
+        requestedSelectionTransitionId = null;
         currentArtboardName = null;
         currentPlaybackType = null;
         currentPlaybackName = null;
@@ -55,6 +110,7 @@ export function createArtboardSwitcherController({
         defaultArtboardName = null;
         defaultPlaybackKey = null;
         fileContentsCache = null;
+        if (!hasRequestedSelectionInFlight()) confirmSelection();
         updateSelectionSummary();
     }
 
@@ -64,70 +120,24 @@ export function createArtboardSwitcherController({
         animations = null,
         hasConfiguredAnimation = false,
     } = {}) {
-        if (artboard) {
-            currentArtboardName = artboard;
-        }
-        if (configuredStateMachines.length) {
-            currentPlaybackType = 'stateMachine';
-            currentPlaybackName = configuredStateMachines[0];
-        } else if (hasConfiguredAnimation) {
-            currentPlaybackType = 'animation';
-            currentPlaybackName = Array.isArray(animations) ? animations[0] : animations;
-        }
+        const selection = selectionFromConfig({ artboard, configuredStateMachines, animations, hasConfiguredAnimation });
+        currentArtboardName = selection.artboardName || currentArtboardName;
+        currentPlaybackType = selection.playbackType || currentPlaybackType;
+        currentPlaybackName = selection.playbackName || currentPlaybackName;
+        if (!hasRequestedSelectionInFlight()) confirmSelection();
     }
 
     function syncStateAfterLoad(riveInstance, config = {}) {
-        currentArtboardName = riveInstance?.artboard?.name || currentArtboardName || config.artboard || null;
-        const configuredStateMachines = normalizeStateMachineSelection(config.stateMachines);
-        const configuredAnimations = normalizeStateMachineSelection(config.animations);
-        const playingStateMachines = normalizeStateMachineSelection(riveInstance?.playingStateMachineNames);
-        const playingAnimations = normalizeStateMachineSelection(riveInstance?.playingAnimationNames);
-        if (playingStateMachines.length) {
-            currentPlaybackType = 'stateMachine';
-            currentPlaybackName = playingStateMachines[0];
-        } else if (playingAnimations.length) {
-            currentPlaybackType = 'animation';
-            currentPlaybackName = playingAnimations[0];
-        } else if (configuredStateMachines.length) {
-            currentPlaybackType = 'stateMachine';
-            currentPlaybackName = configuredStateMachines[0];
-        } else if (configuredAnimations.length) {
-            currentPlaybackType = 'animation';
-            currentPlaybackName = configuredAnimations[0];
-        } else {
-            currentPlaybackType = null;
-            currentPlaybackName = null;
-        }
+        const selection = selectionAfterLoad(riveInstance, config);
+        currentArtboardName = selection.artboardName || currentArtboardName;
+        currentPlaybackType = selection.playbackType;
+        currentPlaybackName = selection.playbackName;
+        // A candidate hidden instance reports its configured selection before
+        // the visible child confirms activation. Do not promote that staged
+        // selection to the rollback baseline: a later binding/activation
+        // rejection must restore the last visible child, not the candidate.
+        if (!hasRequestedSelectionInFlight()) confirmSelection();
         updateSelectionSummary();
-    }
-
-    function getStatusContext() {
-        return buildPlaybackContext({
-            playbackState: {
-                currentArtboard: currentArtboardName,
-                currentPlaybackName,
-                currentPlaybackType,
-                currentVmInstanceName,
-            },
-            riveInstance: getRiveInstance(),
-        });
-    }
-
-    function updateSelectionSummary() {
-        const summaryElement = elements.artboardSelectionSummary;
-        if (!summaryElement) {
-            return;
-        }
-
-        const riveInstance = getRiveInstance();
-        if (!riveInstance || !currentArtboardName) {
-            summaryElement.textContent = '';
-            summaryElement.hidden = true;
-            return;
-        }
-
-        summaryElement.textContent = buildArtboardSelectionSummary(getStatusContext());
-        summaryElement.hidden = false;
     }
 
     function populateArtboardSwitcher() {
@@ -168,11 +178,49 @@ export function createArtboardSwitcherController({
         updateSelectionSummary();
     }
 
-    async function switchArtboard(artboardName, playbackTarget) {
+    function syncStateFromCanonical(state) {
+        if (!state || !isAuthoritativeChildMode()) return false;
+        // The active child stays authoritative only until a replacement has
+        // been requested. Its ticks must not replace the target artboard,
+        // playback, or explicit ViewModel selection while the new render
+        // context is being constructed.
+        if (hasRequestedSelectionInFlight()) return false;
+        const selection = selectionFromCanonical(state, getSelection());
+        const selectionChanged = selection.artboardName !== currentArtboardName
+            || selection.playbackType !== currentPlaybackType
+            || selection.playbackName !== currentPlaybackName
+            || selection.vmInstanceName !== currentVmInstanceName;
+        currentArtboardName = selection.artboardName;
+        currentPlaybackType = selection.playbackType;
+        currentPlaybackName = selection.playbackName;
+        currentVmInstanceName = selection.vmInstanceName;
+        confirmSelection();
+        // Canonical value deltas arrive continuously from the visible child.
+        // Rebuilding native <select> options for an unchanged selection closes
+        // its open popup in WebKit, so only reconcile selection controls when
+        // the selection itself actually changed.
+        if (selectionChanged) selectionInteractionGuard.request();
+        updateSelectionSummary();
+        return true;
+    }
+
+    async function switchArtboard(artboardName, playbackTarget, options = {}) {
         if (!getCurrentFileUrl() || !getCurrentFileName()) {
             return;
         }
-
+        // An explicit instance key belongs to the current artboard's default
+        // ViewModel definition. Retain it for playback changes on that same
+        // artboard, but never carry it implicitly into a different artboard:
+        // the same name or runtime-list index can be absent or mean something
+        // else there. Callers may still provide an explicit target-artboard
+        // override; null deliberately selects the runtime auto-bound instance.
+        const hasVmInstanceOverride = Object.prototype.hasOwnProperty.call(
+            options || {},
+            'viewModelInstanceKey',
+        );
+        const viewModelInstanceKey = hasVmInstanceOverride
+            ? options.viewModelInstanceKey
+            : resolveImplicitVmInstanceKey(artboardName, getSelection(), confirmedSelection);
         const { type: playbackType, name: playbackName } = parsePlaybackTarget(playbackTarget);
         logEvent(
             'ui',
@@ -180,85 +228,63 @@ export function createArtboardSwitcherController({
             `Switching to artboard "${artboardName}" ${playbackType ? `with ${playbackType} "${playbackName}"` : '(auto)'}.`,
         );
         updateInfo(`Switching to "${artboardName}"...`);
-
-        const previousState = {
-            artboardName: currentArtboardName,
-            playbackType: currentPlaybackType,
-            playbackName: currentPlaybackName,
-            vmInstanceName: currentVmInstanceName,
-        };
-
+        const transitionId = beginRequestedSelection();
         currentArtboardName = artboardName;
         currentPlaybackType = playbackType;
         currentPlaybackName = playbackName;
-        currentVmInstanceName = null;
+        currentVmInstanceName = normalizeResetViewModelInstanceKey(viewModelInstanceKey);
 
-        const overrides = { artboard: artboardName, autoplay: true, autoBind: true };
-        if (playbackType === 'stateMachine' && playbackName) {
-            overrides.stateMachines = playbackName;
-            delete overrides.animations;
-        } else if (playbackType === 'animation' && playbackName) {
-            overrides.animations = playbackName;
-            delete overrides.stateMachines;
+        const overrides = buildPlaybackResetParams(artboardName, playbackType, playbackName);
+        if (currentVmInstanceName !== null) {
+            overrides.autoBind = false;
         }
-
         try {
-            await new Promise((resolve, reject) => {
-                let settled = false;
-                const resolveOnce = () => {
-                    if (!settled) {
-                        settled = true;
-                        resolve();
-                    }
-                };
-                const rejectOnce = (error) => {
-                    if (!settled) {
-                        settled = true;
-                        reject(error || new Error('Switch failed'));
-                    }
-                };
-
-                loadRiveAnimation(getCurrentFileUrl(), getCurrentFileName(), {
-                    forceAutoplay: true,
-                    configOverrides: overrides,
-                    onLoaded: resolveOnce,
-                    onLoadError: rejectOnce,
-                }).catch(rejectOnce);
+            await waitForRiveLoad(loadRiveAnimation, getCurrentFileUrl(), getCurrentFileName(), {
+                forceAutoplay: true,
+                configOverrides: overrides,
             });
+            if (!loadTransition.isCurrent(transitionId)) return;
+            settleRequestedSelection(transitionId);
+            confirmSelection();
             updateSelectionSummary();
             updateInfo(buildPlaybackStatusLabel(getStatusContext(), 'Loaded'));
         } catch (error) {
-            currentArtboardName = previousState.artboardName;
-            currentPlaybackType = previousState.playbackType;
-            currentPlaybackName = previousState.playbackName;
-            currentVmInstanceName = previousState.vmInstanceName;
+            if (!loadTransition.isCurrent(transitionId)) return;
+            settleRequestedSelection(transitionId);
+            restoreConfirmedSelection();
             updateSelectionSummary();
-            showError(`Failed to switch artboard: ${error?.message || error}`);
+            showError(`Failed to switch artboard: ${normalizeLoadErrorMessage(error)}`);
         }
     }
 
-    function resetToDefaultArtboard() {
+    async function resetToDefaultArtboard() {
         if (!defaultArtboardName) {
             showError('No default artboard. Reload the file.');
             return;
         }
-
         const playbackTarget = defaultPlaybackKey || null;
         const { type: playbackType, name: playbackName } = parsePlaybackTarget(playbackTarget);
-        const resetParams = {
+        const retainedVmInstanceKey = normalizeResetViewModelInstanceKey(
+            resolveImplicitVmInstanceKey(defaultArtboardName, getSelection(), confirmedSelection),
+        );
+        const resetParams = buildPlaybackResetContract({
             artboard: defaultArtboardName,
-            animations: playbackType === 'animation' ? playbackName || undefined : undefined,
-            stateMachines: playbackType === 'stateMachine' ? playbackName || undefined : undefined,
-            autoplay: true,
-            autoBind: true,
-        };
+            playbackName,
+            playbackType,
+            viewModelInstanceKey: retainedVmInstanceKey,
+        });
         logEvent('ui', 'artboard-reset', `Reset to default artboard "${defaultArtboardName}".`);
+        if (isAuthoritativeChildMode()) {
+            await switchArtboard(defaultArtboardName, playbackTarget, { viewModelInstanceKey: retainedVmInstanceKey });
+            return;
+        }
         try {
             if (resetRiveInstance(resetParams)) {
                 currentArtboardName = defaultArtboardName;
                 currentPlaybackType = playbackType;
                 currentPlaybackName = playbackName;
-                currentVmInstanceName = null;
+                currentVmInstanceName = retainedVmInstanceKey;
+                confirmSelection();
                 dispatchPlaybackCommand(documentRef, 'reset', {
                     params: resetParams,
                     snapshot: [],
@@ -268,29 +294,33 @@ export function createArtboardSwitcherController({
                 return;
             }
         } catch (error) {
-            showError(`Failed to reset default artboard: ${error?.message || error}`);
+            showError(`Failed to reset default artboard: ${normalizeLoadErrorMessage(error)}`);
             return;
         }
-
         currentPlaybackType = null;
         currentPlaybackName = null;
-        switchArtboard(defaultArtboardName, playbackTarget);
+        await switchArtboard(defaultArtboardName, playbackTarget, { viewModelInstanceKey: retainedVmInstanceKey });
     }
 
     async function switchVmInstance(instanceKey) {
-        if (!getCurrentFileUrl() || !getCurrentFileName() || !instanceKey) {
+        if (!getCurrentFileUrl() || !getCurrentFileName()
+            || instanceKey === null || typeof instanceKey === 'undefined' || instanceKey === '') {
             return;
         }
-
         if (instanceKey === AUTO_BOUND_VM_INSTANCE_KEY) {
             const playbackTarget = currentPlaybackName
                 ? `${currentPlaybackType === 'animation' ? 'anim' : 'sm'}:${currentPlaybackName}`
                 : null;
-            await switchArtboard(currentArtboardName, playbackTarget);
+            await switchArtboard(currentArtboardName, playbackTarget, { viewModelInstanceKey: null });
             return;
         }
 
-        const previousVmInstanceName = currentVmInstanceName;
+        const transitionId = beginRequestedSelection();
+
+        // Retain the explicit request while a replacement child is being
+        // prepared. This includes the valid numeric key 0; only the separate
+        // Auto option maps to null.
+        currentVmInstanceName = instanceKey;
 
         const overrides = buildViewModelInstanceLoadOverrides({
             artboardName: currentArtboardName,
@@ -309,6 +339,7 @@ export function createArtboardSwitcherController({
                 instanceKey,
                 loadRiveAnimation,
                 onBound: (definition) => {
+                    if (!loadTransition.isCurrent(transitionId)) return;
                     currentVmInstanceName = instanceKey;
                     logEvent(
                         'ui',
@@ -317,60 +348,29 @@ export function createArtboardSwitcherController({
                     );
                 },
             });
+            if (!loadTransition.isCurrent(transitionId)) return;
+            settleRequestedSelection(transitionId);
+            confirmSelection();
             updateSelectionSummary();
             updateInfo(buildPlaybackStatusLabel(getStatusContext(), 'Loaded'));
         } catch (error) {
-            currentVmInstanceName = previousVmInstanceName;
-            populateVmInstanceSelect();
-            showError(`Failed to switch ViewModel instance: ${error?.message || error}`);
+            if (!loadTransition.isCurrent(transitionId)) return;
+            settleRequestedSelection(transitionId);
+            restoreConfirmedSelection();
+            showError(`Failed to switch ViewModel instance: ${normalizeLoadErrorMessage(error)}`);
         }
     }
 
     function setupArtboardSwitcher() {
-        const artboardSelect = elements.artboardSelect;
-        const playbackSelect = elements.playbackSelect;
-        const viewModelSelect = elements.vmInstanceSelect;
-        const resetButton = elements.artboardResetBtn;
-
-        if (artboardSelect) {
-            artboardSelect.addEventListener('change', () => {
-                const nextArtboard = artboardSelect.value;
-                scheduleSelectionChange(() => {
-                    populatePlaybackSelect();
-                    const playbackTarget = elements.playbackSelect?.value || null;
-                    switchArtboard(nextArtboard, playbackTarget);
-                });
-            });
-        }
-
-        if (playbackSelect) {
-            playbackSelect.addEventListener('change', () => {
-                const nextPlayback = playbackSelect.value;
-                scheduleSelectionChange(() => {
-                    const artboard = elements.artboardSelect?.value || currentArtboardName;
-                    switchArtboard(artboard, nextPlayback);
-                });
-            });
-        }
-
-        if (viewModelSelect) {
-            viewModelSelect.addEventListener('change', () => {
-                const nextInstance = viewModelSelect.value;
-                scheduleSelectionChange(() => {
-                    switchVmInstance(nextInstance);
-                });
-            });
-        }
-
-        if (resetButton) {
-            resetButton.addEventListener('click', () => {
-                resetToDefaultArtboard();
-            });
-        }
+        selectionInteractionGuard.setup();
+        setupArtboardSwitcherUi({ documentRef, elements, getCurrentArtboardName: () => currentArtboardName,
+            isAuthoritativeChildMode, populatePlaybackSelect, resetToDefaultArtboard,
+            scheduleSelectionChange, shouldAttachCanonicalStateListener: () => !canonicalStateListenerAttached,
+            markCanonicalStateListenerAttached: () => { canonicalStateListenerAttached = true; },
+            switchArtboard, switchVmInstance, syncStateFromCanonical });
     }
-
     function getStateSnapshot() {
-        return {
+        return buildArtboardStateSnapshot({
             contents: fileContentsCache,
             currentArtboard: currentArtboardName,
             currentPlaybackName,
@@ -378,7 +378,7 @@ export function createArtboardSwitcherController({
             currentVmInstanceName,
             defaultArtboard: defaultArtboardName,
             defaultPlaybackKey,
-        };
+        });
     }
 
     return {
@@ -393,6 +393,7 @@ export function createArtboardSwitcherController({
         switchArtboard,
         switchVmInstance,
         syncStateAfterLoad,
+        syncStateFromCanonical,
         syncStateFromConfig,
     };
 }

@@ -36,6 +36,7 @@ async function decodeBridgeMessageData(data) {
 export function createMcpBridgeTransport({
     beforeConnect = async () => {},
     commandHandlers,
+    commandTimeoutMs = 20_000,
     connectTimeoutMs = 2000,
     getBridgeUrl,
     getEnabled,
@@ -59,6 +60,21 @@ export function createMcpBridgeTransport({
 } = {}) {
     let connectTimeoutTimer = null;
     let connectStartedAt = 0;
+
+    function runCommandWithDeadline(handler, params) {
+        let timeoutId = null;
+        const timeout = new Promise((_resolve, reject) => {
+            timeoutId = windowRef.setTimeout(() => {
+                reject(new Error('MCP command timed out before the app completed it.'));
+            }, commandTimeoutMs);
+        });
+        return Promise.race([
+            Promise.resolve().then(() => handler(params)),
+            timeout,
+        ]).finally(() => {
+            if (timeoutId !== null) windowRef.clearTimeout(timeoutId);
+        });
+    }
 
     function syncState() {
         const state = getState();
@@ -171,7 +187,7 @@ export function createMcpBridgeTransport({
                 onCommandStart(command);
                 const startedAt = performance.now();
                 try {
-                    const result = await handler(params || {});
+                    const result = await runCommandWithDeadline(handler, params || {});
                     const elapsed = Math.round(performance.now() - startedAt);
                     mcpLog('reply', `${command.replace(/^rav_/, '')} → ${formatResultSummary(command, result)}  (${elapsed}ms)`, undefined, windowRef);
                     nextSocket.send(JSON.stringify({ id, result }));

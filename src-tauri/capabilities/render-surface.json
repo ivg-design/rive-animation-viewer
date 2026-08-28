@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "render-surface-capability",
+  "description": "Event-only IPC for isolated playback WebViews.",
+  "webviews": [
+    "render-surface-*"
+  ],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:event:allow-emit",
+    "core:event:allow-emit-to"
+  ]
+}

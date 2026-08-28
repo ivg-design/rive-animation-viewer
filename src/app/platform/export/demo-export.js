@@ -8,6 +8,7 @@ import {
     buildEffectiveInstantiationDescriptor,
     buildWebInstantiationResult,
 } from './web-instantiation.js';
+import { createRenderSourceIdentityResolver } from './render-source-identity.js';
 
 export function arrayBufferToBase64(buffer) {
     if (!(buffer instanceof ArrayBuffer)) {
@@ -85,6 +86,7 @@ export function createDemoExportController({
     captureVmControlSnapshot = () => [],
     getCurrentFileBuffer = () => null,
     getCurrentFileName = () => null,
+    getCurrentFilePreferenceId = () => null,
     getCurrentCanvasSizing = () => null,
     getCurrentLayoutAlignment = () => 'center',
     getCurrentLayoutFit = () => 'contain',
@@ -111,6 +113,7 @@ export function createDemoExportController({
         showError = () => {},
         updateInfo = () => {},
     } = callbacks;
+    const resolveRenderSourceIdentity = createRenderSourceIdentityResolver();
 
     function resolveSelectedControlKeys(selectedControlKeys) {
         const explicitKeys = Array.isArray(selectedControlKeys)
@@ -279,6 +282,10 @@ export function createDemoExportController({
             payload,
             runtimeName,
             runtimeVersion: selectedRuntimeSemver,
+            sourceIdentity: await resolveRenderSourceIdentity(
+                currentFileBuffer,
+                getCurrentFilePreferenceId(),
+            ),
         };
     }
 
@@ -300,19 +307,25 @@ export function createDemoExportController({
     }
 
     async function createDemoBundle(options = {}) {
+        const strictResult = options.strictResult === true;
+        const exportOptions = { ...options };
+        delete exportOptions.strictResult;
         const invoke = getTauriInvoker();
         if (!invoke) {
-            showError('Demo bundles can only be created inside the desktop app.');
+            const message = 'Demo bundles can only be created inside the desktop app.';
+            showError(message);
+            if (strictResult) throw new Error(message);
             return null;
         }
 
         const runtimeName = getCurrentRuntime();
         let context;
         try {
-            context = await buildExportContext(options);
+            context = await buildExportContext(exportOptions);
         } catch (error) {
             const message = String(error?.message || error || 'Failed to create demo bundle.');
             showError(message);
+            if (strictResult) throw new Error(message);
             if (message.startsWith('Runtime data') || message.startsWith('Please load')) {
                 return null;
             }
@@ -331,16 +344,20 @@ export function createDemoExportController({
             const outputPath = await invoke('make_demo_bundle', { payload: context.payload });
             updateInfo(`Demo bundle saved to: ${outputPath}`);
             logEvent('ui', 'demo-build-success', `Demo bundle saved: ${outputPath}`);
+            if (strictResult) return { outputPath, status: 'saved' };
             return outputPath;
         } catch (error) {
             const message = String(error?.message || error || '');
             if (message.toLowerCase().includes('cancel')) {
                 updateInfo('Export cancelled.');
                 logEvent('ui', 'demo-build-cancelled', 'Export cancelled by user.');
+                if (strictResult) return { status: 'cancelled' };
                 return null;
             }
-            showError(`Failed to create demo bundle: ${message}`);
+            const failureMessage = `Failed to create demo bundle: ${message}`;
+            showError(failureMessage);
             logEvent('ui', 'demo-build-failed', 'Failed to build demo bundle.', error);
+            if (strictResult) throw new Error(failureMessage);
             return null;
         }
     }

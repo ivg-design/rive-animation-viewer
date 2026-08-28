@@ -11,11 +11,13 @@ export function createEditorConsoleCommands({
             const filtered = source && source !== 'all'
                 ? entries.filter((entry) => entry.source === source)
                 : entries;
+            // Event logs are appended in chronological order. Return the most
+            // recent window while retaining that order within the window.
+            const selected = limit > 0 ? filtered.slice(-limit) : [];
             return {
                 total: entries.length,
-                returned: Math.min(limit, filtered.length),
-                entries: filtered
-                    .slice(0, limit)
+                returned: selected.length,
+                entries: selected
                     .map((entry) => createSafeInspectPreview(entry, {
                         maxArrayItems: 24,
                         maxDepth: 4,
@@ -66,6 +68,15 @@ export function createEditorConsoleCommands({
             select.value = fit;
             select.dispatchEvent(new Event('change', { bubbles: true }));
             return { ok: true, fit };
+        },
+
+        async rav_set_alignment({ alignment }) {
+            if (!alignment) throw new Error('alignment is required');
+            const select = documentRef.getElementById('alignment-select');
+            if (!select) throw new Error('Alignment selector not found');
+            select.value = alignment;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            return { ok: true, alignment };
         },
 
         async rav_set_canvas_color({ color }) {

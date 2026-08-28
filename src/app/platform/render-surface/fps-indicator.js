@@ -12,8 +12,6 @@ export function setRenderSurfaceFpsState(documentRef, active, fps = null) {
     fpsChip.dataset.renderSurfaceActive = 'true';
     fpsChip.title = 'Dedicated playback renderer FPS; visual frame capture remains the performance acceptance test.';
     const hasFps = fps !== null && fps !== undefined && Number.isFinite(Number(fps));
-    const label = hasFps
-        ? `${Math.round(Number(fps))} FPS`
-        : '<span class="fps-chip-pending-label">ISOLATED</span>';
+    const label = hasFps ? `${Math.round(Number(fps))} FPS` : '-- FPS';
     fpsChip.innerHTML = `<span class="dot"></span>${label}`;
 }

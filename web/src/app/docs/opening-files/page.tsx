@@ -22,15 +22,22 @@ export default function OpeningFiles() {
         On macOS, current RAV releases declare both the official
         <code>app.rive.editor.rive-file</code> UTI and the legacy
         <code>app.rive.animation.viewer.riv</code> compatibility UTI as alternate Viewer types,
-        with the dedicated <code>RiveFileIcon.icns</code> assigned to both. Use Open With or an
-        existing Finder association to open any <code>.riv</code> file directly. If RAV is already
-        running, the file is routed into the existing window; RAV does not claim the default handler.
+        with the dedicated <code>RiveFileIcon.icns</code> assigned to both. RAV does not silently
+        replace your chosen default app during installation. To choose it deliberately, open
+        Settings and use <strong>MAKE DEFAULT</strong> beside <strong>Default .riv App</strong>.
+        The live status checks both identifiers and names the resolved application, including
+        another installed RAV copy. <strong>REPAIR ICON</strong> re-registers the installed
+        app&apos;s document declarations when RAV is already the default. If RAV is running, a
+        double-clicked file is queued into the existing window and replaces playback after the
+        new surface is ready.
       </p>
       <p>
         After an app update, the first launch of the new version refreshes that installed bundle&apos;s
         Launch Services registration once for the version and schema, without restarting Finder or
         changing the Viewer/Alternate rank. The declarations include the dedicated document icon
-        resource and support both the current and legacy RAV file identifiers.
+        resource and support both the current and legacy RAV file identifiers. Finder can repaint a
+        cached document icon later than the registration itself; this setting does not install or
+        repair a separate Quick Look preview provider.
       </p>
       <p>
         On Windows, both the NSIS setup executable and MSI package install a dedicated

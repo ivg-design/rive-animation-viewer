@@ -1,5 +1,27 @@
 import { AUTO_BOUND_VM_INSTANCE_KEY } from '../view-model/instances.js';
 
+function reconcileSelectOptions(select, options, selectedValue, documentRef = globalThis.document) {
+    if (!select) return;
+    const next = options.map(({ value, label }) => ({ value: String(value), label: String(label) }));
+    const current = Array.from(select.options).map((option) => ({ value: option.value, label: option.textContent }));
+    const unchanged = current.length === next.length
+        && current.every((option, index) => option.value === next[index].value && option.label === next[index].label);
+    if (!unchanged) {
+        const fragment = documentRef.createDocumentFragment();
+        next.forEach(({ value, label }) => {
+            const option = documentRef.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            fragment.appendChild(option);
+        });
+        select.replaceChildren(fragment);
+    }
+    if (selectedValue !== null && typeof selectedValue !== 'undefined'
+        && next.some((option) => option.value === String(selectedValue))) {
+        select.value = String(selectedValue);
+    }
+}
+
 export function populateArtboardSwitcherUi({
     currentArtboardName,
     defaultArtboardName,
@@ -23,16 +45,12 @@ export function populateArtboardSwitcherUi({
     }
 
     fileContentsCache = contents;
-    artboardSelect.innerHTML = '';
     const artboards = contents.artboards;
-    artboards.forEach((artboard) => {
+    const artboardOptions = artboards.map((artboard) => {
         const name = typeof artboard === 'string' ? artboard : artboard.name;
-        const option = document.createElement('option');
-        option.value = name;
-        option.textContent = name;
-        option.selected = name === currentArtboardName;
-        artboardSelect.appendChild(option);
+        return { value: name, label: name };
     });
+    reconcileSelectOptions(artboardSelect, artboardOptions, currentArtboardName);
 
     if (defaultArtboardName === null) {
         defaultArtboardName = currentArtboardName || (artboards[0]?.name ?? artboards[0]);
@@ -60,7 +78,6 @@ export function populatePlaybackSelectUi({
         return { defaultPlaybackKey };
     }
 
-    select.innerHTML = '';
     const selectedArtboardName = elements.artboardSelect?.value || currentArtboardName;
     const artboards = fileContentsCache?.artboards || [];
     const artboard = artboards.find((entry) => {
@@ -71,31 +88,22 @@ export function populatePlaybackSelectUi({
         return { defaultPlaybackKey };
     }
 
+    const options = [];
     (artboard.stateMachines || []).forEach((stateMachine) => {
         const name = typeof stateMachine === 'string' ? stateMachine : stateMachine.name;
-        const option = documentRef.createElement('option');
-        option.value = `sm:${name}`;
-        option.textContent = name;
-        select.appendChild(option);
+        options.push({ value: `sm:${name}`, label: name });
     });
 
     (artboard.animations || []).forEach((animation) => {
         const name = typeof animation === 'string' ? animation : animation.name;
-        const option = documentRef.createElement('option');
-        option.value = `anim:${name}`;
-        option.textContent = name;
-        select.appendChild(option);
+        options.push({ value: `anim:${name}`, label: name });
     });
-
-    if (currentPlaybackName) {
-        const currentKey = currentPlaybackType === 'animation'
+    const currentKey = currentPlaybackName
+        ? (currentPlaybackType === 'animation'
             ? `anim:${currentPlaybackName}`
-            : `sm:${currentPlaybackName}`;
-        const match = Array.from(select.options).find((option) => option.value === currentKey);
-        if (match) {
-            select.value = currentKey;
-        }
-    }
+            : `sm:${currentPlaybackName}`)
+        : select.value;
+    reconcileSelectOptions(select, options, currentKey, documentRef);
 
     if (defaultPlaybackKey === null && select.options.length > 0) {
         defaultPlaybackKey = select.value;
@@ -117,8 +125,6 @@ export function populateVmInstanceSelectUi({
         return;
     }
 
-    select.innerHTML = '';
-
     try {
         const viewModelDefinition = typeof riveInstance.defaultViewModel === 'function'
             ? riveInstance.defaultViewModel()
@@ -139,39 +145,29 @@ export function populateVmInstanceSelectUi({
         const instanceNames = Array.isArray(viewModelDefinition.instanceNames)
             ? viewModelDefinition.instanceNames
             : [];
+        const instances = Array.from({ length: instanceCount }, (_unused, index) => {
+            const authoredName = typeof instanceNames[index] === 'string'
+                ? instanceNames[index].trim()
+                : '';
+            return {
+                label: authoredName || `Instance ${index + 1}`,
+                key: authoredName || String(index),
+            };
+        });
 
-        const autoBoundOption = documentRef.createElement('option');
-        autoBoundOption.value = AUTO_BOUND_VM_INSTANCE_KEY;
-        autoBoundOption.textContent = instanceCount === 1
-            ? `${instanceNames[0] || 'Instance 1'} (auto)`
-            : 'Default instance (auto)';
-        select.appendChild(autoBoundOption);
-
-        if (instanceNames.length > 0) {
-            instanceNames.forEach((name) => {
-                const option = documentRef.createElement('option');
-                option.value = name;
-                option.textContent = name;
-                select.appendChild(option);
-            });
-        } else {
-            for (let index = 0; index < instanceCount; index += 1) {
-                const option = documentRef.createElement('option');
-                option.value = String(index);
-                option.textContent = `Instance ${index + 1}`;
-                select.appendChild(option);
-            }
-        }
+        const options = [{
+            value: AUTO_BOUND_VM_INSTANCE_KEY,
+            label: instanceCount === 1 ? `${instances[0].label} (auto)` : 'Default instance (auto)',
+        }, ...instances.map(({ key, label }) => ({ value: key, label }))];
 
         const normalizedSelection = selectedInstanceKey === null || typeof selectedInstanceKey === 'undefined'
             ? AUTO_BOUND_VM_INSTANCE_KEY
             : String(selectedInstanceKey);
-        const match = Array.from(select.options).find((option) => option.value === normalizedSelection);
-        if (match) {
-            select.value = normalizedSelection;
-        } else {
-            select.value = AUTO_BOUND_VM_INSTANCE_KEY;
-        }
+        reconcileSelectOptions(select, options,
+            options.some((option) => String(option.value) === normalizedSelection)
+                ? normalizedSelection
+                : AUTO_BOUND_VM_INSTANCE_KEY,
+        documentRef);
 
         row.hidden = false;
     } catch (error) {

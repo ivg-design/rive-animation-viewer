@@ -12,15 +12,33 @@ import { updateStringInputRows } from './ui/binding-sync.js';
 
 export function createVmControlRowFactory({
     documentRef,
+    canMutateRemoteControls = () => true,
     fireStateMachineTriggerByName,
     getRiveInstance,
     getEmbeddedImageAssets = () => [],
     getLoadedRuntime = () => null,
+    getVmControlRenderEpoch = () => 0,
+    isAuthoritativeChildMode = false,
     logEvent,
+    onRemoteMutationFailure = () => {},
+    pickImageFile = null,
     registerVmControlBinding,
     resolveControlAccessor,
     resolveVmAccessor,
 }) {
+    const relayRemoteMutation = (detail) => {
+        if (!isAuthoritativeChildMode) return false;
+        if (!canMutateRemoteControls()) {
+            onRemoteMutationFailure('Playback controls are unavailable while the renderer is recovering.');
+            // Consume the change event so it cannot write the hidden parent.
+            return true;
+        }
+        if (!dispatchVmControlMutation(documentRef, detail)) {
+            onRemoteMutationFailure('Unable to send the control change to the playback surface.');
+        }
+        return true;
+    };
+
     return function createVmControlRow(descriptor) {
         const row = documentRef.createElement('div');
         row.className = 'vm-control-row';
@@ -47,6 +65,10 @@ export function createVmControlRowFactory({
                 if (!Number.isFinite(nextValue)) {
                     return;
                 }
+                if (relayRemoteMutation({ descriptor, kind: 'number', value: nextValue })) {
+                    logEvent('ui', 'vm-number', `Requested ${descriptor.path} = ${nextValue}`);
+                    return;
+                }
                 const liveAccessor = resolveControlAccessor({ ...descriptor, kind: 'number' });
                 if (liveAccessor) {
                     liveAccessor.value = nextValue;
@@ -63,6 +85,10 @@ export function createVmControlRowFactory({
             checkbox.checked = Boolean(accessor?.value);
             checkbox.disabled = isDisabled;
             checkbox.addEventListener('change', () => {
+                if (relayRemoteMutation({ descriptor, kind: 'boolean', value: checkbox.checked })) {
+                    logEvent('ui', 'vm-boolean', `Requested ${descriptor.path} = ${checkbox.checked}`);
+                    return;
+                }
                 const liveAccessor = resolveControlAccessor({ ...descriptor, kind: 'boolean' });
                 if (liveAccessor) {
                     liveAccessor.value = checkbox.checked;
@@ -82,6 +108,10 @@ export function createVmControlRowFactory({
                 updateStringInputRows(textInput, textInput.value);
             });
             textInput.addEventListener('change', () => {
+                if (relayRemoteMutation({ descriptor, kind: 'string', value: textInput.value })) {
+                    logEvent('ui', 'vm-string', `Requested ${descriptor.path} = ${textInput.value}`);
+                    return;
+                }
                 const liveAccessor = resolveVmAccessor(descriptor.path, 'string');
                 if (liveAccessor) {
                     liveAccessor.value = textInput.value;
@@ -93,6 +123,16 @@ export function createVmControlRowFactory({
             inputContainer.appendChild(textInput);
         } else if (descriptor.kind === 'enum') {
             const select = documentRef.createElement('select');
+            let enumInteractionActive = false;
+            let onEnumInteractionEnd = () => {};
+            const beginEnumInteraction = () => {
+                enumInteractionActive = true;
+            };
+            const endEnumInteraction = () => {
+                if (!enumInteractionActive) return;
+                enumInteractionActive = false;
+                onEnumInteractionEnd();
+            };
             const values = Array.isArray(accessor?.values) ? accessor.values : [];
             values.forEach((value) => {
                 const option = documentRef.createElement('option');
@@ -110,15 +150,36 @@ export function createVmControlRowFactory({
                 select.value = accessor.value;
             }
             select.disabled = isDisabled || values.length === 0;
+            select.addEventListener('pointerdown', beginEnumInteraction);
+            select.addEventListener('mousedown', beginEnumInteraction);
+            select.addEventListener('touchstart', beginEnumInteraction, { passive: true });
+            select.addEventListener('focus', beginEnumInteraction);
+            select.addEventListener('keydown', (event) => {
+                if ([' ', 'ArrowDown', 'ArrowUp', 'Enter', 'F4'].includes(event.key)) beginEnumInteraction();
+            });
+            select.addEventListener('blur', endEnumInteraction);
             select.addEventListener('change', () => {
+                if (relayRemoteMutation({ descriptor, kind: 'enum', value: select.value })) {
+                    logEvent('ui', 'vm-enum', `Requested ${descriptor.path} = ${select.value}`);
+                    endEnumInteraction();
+                    return;
+                }
                 const liveAccessor = resolveVmAccessor(descriptor.path, 'enum');
                 if (liveAccessor) {
                     liveAccessor.value = select.value;
                     logEvent('ui', 'vm-enum', `Set ${descriptor.path} = ${select.value}`);
                     dispatchVmControlMutation(documentRef, { descriptor, kind: 'enum', value: select.value });
                 }
+                endEnumInteraction();
             });
-            registerVmControlBinding(descriptor, { input: select, kind: 'enum' });
+            registerVmControlBinding(descriptor, {
+                input: select,
+                isInteractionActive: () => enumInteractionActive,
+                kind: 'enum',
+                setInteractionEndHandler: (handler) => {
+                    onEnumInteractionEnd = typeof handler === 'function' ? handler : () => {};
+                },
+            });
             inputContainer.appendChild(select);
         } else if (descriptor.kind === 'color') {
             const colorWrap = documentRef.createElement('div');
@@ -139,14 +200,19 @@ export function createVmControlRowFactory({
             alphaInput.disabled = isDisabled;
 
             const applyColor = () => {
-                const liveAccessor = resolveVmAccessor(descriptor.path, 'color');
-                if (!liveAccessor) {
-                    return;
-                }
                 const rgb = hexToRgb(colorInput.value);
                 const alphaPercent = clamp(Number(alphaInput.value), 0, 100);
                 alphaInput.value = String(Math.round(alphaPercent));
                 const alpha = Math.round((alphaPercent / 100) * 255);
+                const colorValue = rgbAlphaToArgb(rgb.r, rgb.g, rgb.b, alpha);
+                if (relayRemoteMutation({ descriptor, kind: 'color', value: colorValue })) {
+                    logEvent('ui', 'vm-color', `Requested ${descriptor.path} color ${colorInput.value} (${alphaPercent}%).`);
+                    return;
+                }
+                const liveAccessor = resolveVmAccessor(descriptor.path, 'color');
+                if (!liveAccessor) {
+                    return;
+                }
                 if (typeof liveAccessor.argb === 'function') {
                     liveAccessor.argb(alpha, rgb.r, rgb.g, rgb.b);
                     logEvent('ui', 'vm-color', `Set ${descriptor.path} color to ${colorInput.value} (${alphaPercent}%).`);
@@ -157,7 +223,6 @@ export function createVmControlRowFactory({
                     });
                     return;
                 }
-                const colorValue = rgbAlphaToArgb(rgb.r, rgb.g, rgb.b, alpha);
                 liveAccessor.value = colorValue;
                 logEvent('ui', 'vm-color', `Set ${descriptor.path} color to ${colorInput.value} (${alphaPercent}%).`);
                 dispatchVmControlMutation(documentRef, { descriptor, kind: 'color', value: colorValue });
@@ -175,13 +240,19 @@ export function createVmControlRowFactory({
             colorWrap.appendChild(alphaInput);
             inputContainer.appendChild(colorWrap);
         } else if (descriptor.kind === 'image') {
+            const renderEpoch = getVmControlRenderEpoch();
             appendVmImageControl({
+                canMutateRemoteControls,
                 descriptor,
                 documentRef,
                 getLoadedRuntime,
                 getEmbeddedImageAssets,
                 inputContainer,
+                isControlCurrent: () => getVmControlRenderEpoch() === renderEpoch,
+                isAuthoritativeChildMode,
                 logEvent,
+                onRemoteMutationFailure,
+                pickImageFile,
                 registerVmControlBinding,
                 resolveControlAccessor,
             });
@@ -191,6 +262,14 @@ export function createVmControlRowFactory({
             button.textContent = 'Fire';
             button.disabled = isDisabled;
             button.addEventListener('click', () => {
+                if (relayRemoteMutation({
+                    action: 'fire',
+                    descriptor,
+                    kind: 'trigger',
+                })) {
+                    logEvent('ui', 'vm-trigger', `Requested trigger ${descriptor.path}`);
+                    return;
+                }
                 const liveAccessor = resolveControlAccessor({ ...descriptor, kind: 'trigger' });
                 const riveInstance = getRiveInstance();
                 if (shouldResumePlaybackForTrigger(riveInstance)) {
@@ -238,11 +317,17 @@ export function createVmSectionElementFactory({
     documentRef,
     createVmControlRow,
     getDepthColor,
+    getSectionDisclosureKey = (node) => `${node?.kind || 'vm'}:${node?.path || '<unknown>'}`,
+    getSectionOpenState = (_node, isTopLevel) => Boolean(isTopLevel),
 }) {
     return function createVmSectionElement(node, isTopLevel = false, depth = 0) {
         const section = documentRef.createElement('details');
         section.className = 'vm-section';
-        section.open = Boolean(isTopLevel);
+        // The controller owns the state because this factory is deliberately
+        // stateless. Rebuilding a compatible canonical hierarchy must not
+        // make a user reopen every nested/list branch.
+        section.dataset.vmDisclosureKey = getSectionDisclosureKey(node);
+        section.open = Boolean(getSectionOpenState(node, isTopLevel));
 
         const depthColor = getDepthColor(depth);
         const summary = documentRef.createElement('summary');

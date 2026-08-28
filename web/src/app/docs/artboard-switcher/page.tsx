@@ -18,8 +18,10 @@ export default function ArtboardSwitcher() {
 
       <h2>Artboard Dropdown</h2>
       <p>
-        Lists every artboard in the loaded file. Selecting a different artboard tears down
-        the current Rive instance and creates a new one. Playback starts automatically.
+        Lists every artboard in the loaded file. RAV prepares a replacement playback surface
+        while keeping the last confirmed frame visible, then swaps only after the requested
+        artboard, playback target, and ViewModel instance are ready. Rapid changes discard stale
+        requests instead of flashing an intermediate surface.
       </p>
 
       <h2>Playback Dropdown</h2>
@@ -27,6 +29,13 @@ export default function ArtboardSwitcher() {
         Shows the exact authored state machine and timeline animation names available on
         the selected artboard. Labels preserve original capitalization and formatting.
         State machines are listed first.
+      </p>
+
+      <h2>Timeline Progress</h2>
+      <p>
+        When the selected target is a timeline animation, the toolbar shows current and total
+        progress. Select the readout to switch between frames and seconds. The meter is hidden
+        for state machines and keeps a reserved footprint so surrounding controls do not shift.
       </p>
 
       <h2>VM Instance Selector</h2>
@@ -39,8 +48,9 @@ export default function ArtboardSwitcher() {
 
       <h2>Reset to Default</h2>
       <p>
-        The <strong>DEFAULT</strong> button returns to the artboard and state machine that
-        were detected when the file was first loaded.
+        The <strong>DEFAULT</strong> button returns to the artboard, playback target, and
+        ViewModel binding detected when the file was first loaded. Playback and Properties are
+        restored together on the confirmed visible surface.
       </p>
 
       <h2>Export Behavior</h2>

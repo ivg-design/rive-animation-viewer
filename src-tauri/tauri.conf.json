@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Rive Animation Viewer",
-  "version": "2.5.1",
+  "version": "2.5.2",
   "identifier": "app.rive.animation.viewer",
   "build": {
     "beforeBuildCommand": "npm run build",
@@ -14,7 +14,9 @@
     "withGlobalTauri": true,
     "security": {
       "capabilities": [
-        "main-capability"
+        "main-capability",
+        "render-surface-capability",
+        "ui-overlay-capability"
       ],
       "csp": null
     },
@@ -58,7 +60,7 @@
     },
     "macOS": {
       "hardenedRuntime": true,
-      "infoPlist": "Info.plist"
+      "infoPlist": "Info.production.plist"
     },
     "fileAssociations": [
       {

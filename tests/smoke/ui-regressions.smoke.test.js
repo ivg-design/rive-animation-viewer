@@ -81,6 +81,27 @@ describe('ui regression smoke', () => {
         expect(demoBaseCss).toContain('.event-log-body::-webkit-scrollbar');
     });
 
+    it('keeps the Properties viewport horizontally contained and focus-safe', () => {
+        const workspaceCss = readFileSync(path.join(repoRoot, 'styles', '03-workspace.css'), 'utf8');
+        const propertiesCss = readFileSync(path.join(repoRoot, 'styles', '07-properties.css'), 'utf8');
+        const imageControlCss = readFileSync(path.join(repoRoot, 'styles', '07-properties-images.css'), 'utf8');
+        const viewportController = readFileSync(
+            path.join(repoRoot, 'src', 'app', 'ui', 'layout', 'properties-panel-viewport.js'),
+            'utf8',
+        );
+
+        expect(workspaceCss).toMatch(/\.panel\s*\{[^}]*min-width:\s*0;/);
+        expect(propertiesCss).toMatch(/\.properties-panel-body\s*\{[^}]*overflow-x:\s*hidden;/);
+        expect(propertiesCss).toMatch(/\.properties-panel-body > \*,[\s\S]*?\.vm-control-row,[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;/);
+        expect(propertiesCss).toMatch(/\.vm-child-nodes\s*\{[^}]*width:\s*calc\(100% - 8px\);/);
+        expect(propertiesCss).toMatch(/\.vm-section-header > span[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/);
+        expect(propertiesCss).toContain('max-width: 100%;');
+        expect(imageControlCss).toMatch(/\.vm-image-control\s*\{[^}]*position:\s*relative;/);
+        expect(imageControlCss).toMatch(/\.vm-image-file-input\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0 auto auto 0;[^}]*width:\s*1px;[^}]*height:\s*1px;[^}]*overflow:\s*hidden;[^}]*pointer-events:\s*none;/);
+        expect(viewportController).toContain("viewport.addEventListener('focusin', scheduleReset);");
+        expect(viewportController).toContain("viewport.addEventListener('scroll', resetHorizontalPosition);");
+    });
+
     it('uses overflow-safe flex centering for fixed canvases', () => {
         const workspaceCss = readFileSync(path.join(repoRoot, 'styles', '03-workspace.css'), 'utf8');
         const renderSurfaceCss = readFileSync(
@@ -116,12 +137,25 @@ describe('ui regression smoke', () => {
             'utf8',
         );
         const fpsChipRule = headerCss.match(/\.fps-chip\s*\{([^}]*)\}/)?.[1] || '';
-        const pendingLabelRule = headerCss.match(/\.fps-chip-pending-label\s*\{([^}]*)\}/)?.[1] || '';
-
         expect(fpsChipRule).toContain('flex: 0 0 80px;');
         expect(fpsChipRule).toContain('width: 80px;');
-        expect(pendingLabelRule).toContain('font-size: 8px;');
-        expect(fpsIndicator).toContain('fps-chip-pending-label">ISOLATED');
+        expect(fpsIndicator).toContain("const label = hasFps ? `${Math.round(Number(fps))} FPS` : '-- FPS'");
+    });
+
+    it('fully skins the timeline progress control instead of inheriting native WebView chrome', () => {
+        const timelineCss = readFileSync(
+            path.join(repoRoot, 'styles', '01-timeline-progress.css'),
+            'utf8',
+        );
+        const progressRule = timelineCss.match(/\.timeline-progress-bar\s*\{([^}]*)\}/)?.[1] || '';
+
+        expect(progressRule).toContain('-webkit-appearance: none;');
+        expect(progressRule).toContain('appearance: none;');
+        expect(progressRule).toContain('border: 0;');
+        expect(progressRule).toContain('background: var(--bg-elevated);');
+        expect(timelineCss).toContain('.timeline-progress-bar::-webkit-progress-bar');
+        expect(timelineCss).toContain('.timeline-progress-bar::-webkit-progress-value');
+        expect(timelineCss).toContain('.timeline-progress-bar::-moz-progress-bar');
     });
 
     it('keeps the main app header on the custom titlebar contract', () => {
@@ -175,6 +209,9 @@ describe('ui regression smoke', () => {
         expect(topCardRule).toContain('align-self: stretch;');
         expect(topCardRule).toContain('height: 100%;');
         expect(linksRule).toContain('grid-template-columns: repeat(4, minmax(0, 1fr));');
+        expect(aboutCss).not.toMatch(
+            /@media[^\{]*max-height[^\{]*\{[\s\S]*?\.about-dialog-body\s*\{[\s\S]*?(?:grid-template-columns|overflow-y)/,
+        );
     });
 
     it('keeps the Tauri window capability wired for drag, minimize, maximize, and close', () => {
@@ -188,10 +225,15 @@ describe('ui regression smoke', () => {
         const mcpBridgeClient = readFileSync(path.join(repoRoot, 'src', 'app', 'platform', 'mcp', 'bridge-client.js'), 'utf8');
         const windowControls = readFileSync(path.join(repoRoot, 'src-tauri', 'src', 'app', 'window', 'controls.rs'), 'utf8');
         const capability = JSON.parse(readFileSync(path.join(repoRoot, 'src-tauri', 'capabilities', 'default.json'), 'utf8'));
+        const renderSurfaceCapability = JSON.parse(readFileSync(
+            path.join(repoRoot, 'src-tauri', 'capabilities', 'render-surface.json'),
+            'utf8',
+        ));
         const mainWindow = tauriConfig.app.windows[0];
         const windowsMainWindow = tauriWindowsConfig.app.windows[0];
 
         expect(tauriConfig.app.security.capabilities).toContain('main-capability');
+        expect(tauriConfig.app.security.capabilities).toContain('render-surface-capability');
         expect(tauriConfig.app.macOSPrivateApi).toBe(false);
         expect(tauriConfig.bundle.macOS.hardenedRuntime).toBe(true);
         expect(tauriConfig.bundle.macOS.signingIdentity).toBeUndefined();
@@ -219,7 +261,9 @@ describe('ui regression smoke', () => {
         expect(mainRs).toContain('WebviewWindowBuilder::from_config');
         expect(mainRs).toContain('.incognito(true)');
         expect(mainRs).toContain('window.__RAV_UPDATER_ACCEPTANCE__ = true;');
-        expect(mcpBridgeClient).toContain('if (!updaterAcceptanceMode)');
+        expect(mcpBridgeClient).toContain('window.__RAV_UPDATER_ACCEPTANCE__ === true');
+        expect(mcpBridgeClient).toContain('window.__RAV_TELEMETRY_ACCEPTANCE__ === true');
+        expect(mcpBridgeClient).toContain('if (!restrictedMcpMode)');
         expect(mcpCommandsRs).toContain('MCP bridge changes are disabled during updater acceptance');
         expect(mcpBridgeRs).toContain('kill_spawned_mcp_bridge');
         expect(updaterRs).toContain('if !acceptance.is_enabled()');
@@ -233,13 +277,22 @@ describe('ui regression smoke', () => {
         expect(cargoToml).toContain("[target.'cfg(target_os = \"windows\")'.dependencies]");
         expect(cargoToml).toContain('windows-sys');
         expect(capability.identifier).toBe('main-capability');
-        expect(capability.windows).toContain('main');
+        expect(capability.webviews).toContain('main');
         expect(capability.permissions).toEqual(expect.arrayContaining([
             'core:window:allow-close',
             'core:window:allow-minimize',
             'core:window:allow-start-dragging',
             'core:window:allow-toggle-maximize',
         ]));
+        expect(renderSurfaceCapability.identifier).toBe('render-surface-capability');
+        expect(renderSurfaceCapability.webviews).toEqual(['render-surface-*']);
+        expect(renderSurfaceCapability.permissions).toEqual([
+            'core:event:allow-listen',
+            'core:event:allow-unlisten',
+            'core:event:allow-emit',
+            'core:event:allow-emit-to',
+        ]);
+        expect(renderSurfaceCapability.permissions).not.toContain('core:default');
     });
 
     it('does not retain whole-window transparency or click-through implementation symbols', () => {
@@ -321,7 +374,7 @@ describe('ui regression smoke', () => {
         expect(bootstrap).toContain('container.scrollTop = offsets.top;');
         expect(bootstrap).toContain('currentControlSnapshot = JSON.parse(JSON.stringify(resetSnapshot));');
         expect(bootstrap).toContain('riveInstance.reset(resetParams);');
-        expect(bootstrap).toContain('applyControlSnapshot(currentControlSnapshot);');
+        expect(riveLoader).toContain('applyControlSnapshot(currentControlSnapshot);');
         expect(bootstrap).not.toContain('setupTransparencyControls');
         expect(preamble).not.toContain('DEMO_TRANSPARENCY_TOGGLE_ENABLED');
     });

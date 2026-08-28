@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#0d1117">
     <link rel="icon" type="image/png" href="icons/app-icon.png">
     <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="./vendor/lucide.min.js"></script>
 </head>
 <body>
     <div class="app-shell">
@@ -22,11 +22,9 @@
                         <strong class="brand-text brand-text-compact">R.A.V.</strong>
                     </div>
                 </div>
-
                 <div class="titlebar-center" id="window-titlebar-center" data-tauri-drag-region>
                     <div id="header-file-meta" class="header-file-meta" hidden></div>
                 </div>
-
                 <div class="titlebar-right" data-tauri-drag-region="false">
                     <div id="window-controls" class="window-controls" hidden data-tauri-drag-region="false">
                         <button type="button" id="window-maximize-btn" class="window-control-btn window-control-btn-maximize" data-window-control="maximize" data-tauri-drag-region="false" aria-label="Maximize window" title="Maximize window">
@@ -50,7 +48,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="toolbar-row" role="toolbar" aria-label="Animation controls">
                 <div class="toolbar-left">
                     <input type="file" id="file-input" accept=".riv">
@@ -59,7 +56,6 @@
                         <span>OPEN</span>
                     </button>
                 </div>
-
                 <div class="toolbar-center">
                     <button type="button" id="reset-btn" class="icon-btn" title="Reset" aria-label="Reset">
                         <i data-lucide="rotate-ccw" class="lucide-16"></i>
@@ -96,8 +92,12 @@
                         <option value="bottomRight">ALIGN: BOTTOM RIGHT</option>
                     </select>
                     <div class="fps-chip" id="fps-chip"><span class="dot"></span>-- FPS</div>
+                    <div class="timeline-progress" id="timeline-progress" data-unit="frames" aria-hidden="true">
+                        <div class="timeline-progress-readout" id="timeline-progress-readout" aria-live="off">-- / -- FR</div>
+                        <progress class="timeline-progress-bar" id="timeline-progress-bar" max="1" value="0" aria-label="Timeline progress"></progress>
+                        <button type="button" class="timeline-progress-unit" id="timeline-progress-unit" aria-label="Show timeline time in seconds">FRAMES</button>
+                    </div>
                 </div>
-
                 <div class="toolbar-right">
                     <div class="header-right-actions">
                         <div class="settings-wrapper">
@@ -173,6 +173,13 @@
                                     <span class="settings-note" id="canvas-size-mode-note">Canvas follows the viewer size.</span>
                                 </div>
                             </div>
+                            <div class="settings-row settings-row-default-riv-app">
+                                <span class="settings-label">Default .riv App</span>
+                                <div class="settings-controls settings-controls-default-riv-app">
+                                    <span id="default-riv-app-status" class="settings-note settings-default-riv-app-status" role="status" aria-live="polite">CHECKING…</span>
+                                    <button type="button" id="default-riv-app-action-btn" class="settings-toggle settings-toggle-default-riv-app" disabled>UNAVAILABLE</button>
+                                </div>
+                            </div>
                             <div class="settings-row">
                                 <label class="settings-label" for="install-counter-enabled-btn">Anonymous Usage</label>
                                 <div class="settings-controls"><button type="button" id="install-counter-enabled-btn" class="settings-toggle" aria-pressed="false" title="Enable or disable anonymous usage" disabled>UNAVAILABLE</button></div>
@@ -190,14 +197,11 @@
                 </div>
             </div>
         </header>
-
         <div class="error" id="error-message"></div>
-
         <aside class="install-counter-notice" id="install-counter-notice" role="region" aria-live="polite" aria-atomic="true" aria-labelledby="install-counter-notice-title" aria-describedby="install-counter-notice-description" tabindex="-1" hidden>
             <button type="button" class="install-counter-notice-dismiss" id="install-counter-notice-dismiss-btn" aria-label="Close notice" title="Close">×</button><div class="install-counter-notice-kicker">PRIVACY NOTICE</div><div class="install-counter-notice-title" id="install-counter-notice-title">Version reporting is on</div>
             <p id="install-counter-notice-description">RAV sends an anonymous notice of the installed version. You can turn this off in Settings.</p><div class="install-counter-notice-actions"><button type="button" class="install-counter-notice-button" id="install-counter-notice-privacy-btn">PRIVACY POLICY</button></div>
         </aside>
-
         <div class="workspace left-hidden" id="main-grid">
             <aside class="panel code-panel" id="config-panel">
                 <div class="panel-heading">
@@ -229,7 +233,6 @@
                     <div class="version-info" id="version-info">Loading runtime versions...</div>
                 </div>
             </aside>
-
             <div class="panel-resizer" id="left-resizer" aria-hidden="true"></div>
             <section class="panel center-panel" id="center-panel">
                 <div id="canvas-container" class="canvas-drop-target" aria-label="Rive canvas drop zone">
@@ -240,7 +243,6 @@
                         <p>DROP FILE OR CLICK OPEN</p>
                     </div>
                 </div>
-
                 <div class="runtime-strip" id="runtime-strip">
                     <div class="runtime-strip-left">
                         <button type="button" id="show-left-panel-btn" class="workspace-edge-toggle workspace-edge-toggle-left" title="Show Script Panel" aria-label="Show Script Panel" hidden>
@@ -264,19 +266,17 @@
                         </button>
                     </div>
                 </div>
-
                 <div class="panel-resizer panel-resizer-horizontal" id="center-resizer" aria-hidden="true"></div>
 
                 <button type="button" id="show-event-log-btn" class="workspace-edge-toggle workspace-edge-toggle-bottom" title="Show Event Console" aria-label="Show Event Console" hidden>
                     <i data-lucide="chevron-up" class="lucide-14"></i>
                 </button>
-
                 <div class="event-log-panel" id="event-log-panel" hidden>
                     <div class="event-log-header" id="event-log-header">
                         <div class="event-log-summary-left">
                             <div class="console-mode-toggle" role="group" aria-label="Console mode toggle">
                                 <button type="button" id="event-console-tab" class="console-mode-tab is-active" aria-pressed="true">Events</button>
-                                <button type="button" id="script-console-tab" class="console-mode-tab" aria-pressed="false">JS</button>
+                                <button type="button" id="script-console-tab" class="console-mode-tab" aria-pressed="false">JS</button><button type="button" id="rav-operations-tab" class="console-mode-tab" aria-pressed="false" title="RAV application operations" hidden>RAV</button>
                             </div>
                             <span class="pill" id="event-log-count">0</span>
                         </div>
@@ -320,6 +320,9 @@
                                 </button>
                             </div>
                         </div>
+                        <div class="event-log-summary-right rav-operations-summary-right" id="rav-operations-summary-right" hidden><input type="search" id="rav-operations-search" class="event-filter-search" placeholder="SEARCH RAV">
+                            <div class="console-toolbar-actions" role="group" aria-label="RAV diagnostics actions"><button type="button" id="rav-operations-refresh-btn" class="event-filter-toggle" title="Reload persisted RAV operations">REFRESH</button><button type="button" id="rav-operations-copy-btn" class="event-filter-toggle console-copy-btn" title="Copy visible RAV operations">COPY</button><button type="button" id="rav-operations-clear-btn" class="event-filter-toggle console-clear-btn" title="Clear persisted RAV operations">CLEAR</button></div>
+                        </div>
                     </div>
                     <div class="event-log-body" id="event-log-body">
                         <div class="event-log-list" id="event-log-list"></div>
@@ -332,12 +335,11 @@
                                 <input type="text" id="script-console-repl-input" class="script-console-repl-input" placeholder="Type JS and press Enter" autocomplete="off" spellcheck="false">
                             </div>
                         </div>
+                        <div class="rav-operations-view" id="rav-operations-view" aria-label="RAV application diagnostics" hidden><div class="event-log-list" id="rav-operations-list"></div></div>
                     </div>
                 </div>
             </section>
-
             <div class="panel-resizer" id="right-resizer" aria-hidden="true"></div>
-
             <aside class="panel properties-panel" id="right-panel">
                 <div class="panel-heading panel-heading-mirrored">
                     <button type="button" id="toggle-right-panel-btn" class="icon-btn panel-toggle-btn" title="Hide Properties Panel" aria-label="Hide Properties Panel" aria-pressed="true">
@@ -392,7 +394,6 @@
             </aside>
         </div>
     </div>
-
     <script type="module" src="src/app/main-entry.js"></script>
 </body>
 </html>

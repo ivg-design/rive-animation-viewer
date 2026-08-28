@@ -1,12 +1,15 @@
 use base64::{engine::general_purpose::STANDARD, Engine};
+use rfd::AsyncFileDialog;
 use std::{
     fs,
     path::{Path, PathBuf},
 };
+use tauri::{State, Window};
 
-use crate::app::state::DemoBundlePayload;
+use crate::app::state::{DemoBundlePayload, NativeDialogState};
 
 const DEMO_TEMPLATE_SHELL: &str = include_str!("../demo-template/shell.html");
+const LUCIDE_SCRIPT: &str = include_str!("../../../vendor/lucide.min.js");
 const DEMO_TEMPLATE_MARKUP: &str = include_str!("../demo-template/markup.html");
 const DEMO_TEMPLATE_STYLES: &str = concat!(
     include_str!("../demo-template/css/base.css"),
@@ -24,7 +27,13 @@ const DEMO_TEMPLATE_STYLES: &str = concat!(
 const DEMO_TEMPLATE_APP_JS: &str = concat!(
     include_str!("../demo-template/js/core/preamble.js"),
     "\n",
+    include_str!("../demo-template/js/core/color-utils.js"),
+    "\n",
     include_str!("../demo-template/js/core/layout.js"),
+    "\n",
+    include_str!("../demo-template/js/vm/image/load-diagnostics.js"),
+    "\n",
+    include_str!("../demo-template/js/core/render-surface-bridge.js"),
     "\n",
     include_str!("../demo-template/js/core/bootstrap.js"),
     "\n",
@@ -38,17 +47,37 @@ const DEMO_TEMPLATE_APP_JS: &str = concat!(
     "\n",
     include_str!("../demo-template/js/vm/accessors.js"),
     "\n",
+    include_str!("../demo-template/js/vm/reset-contract.js"),
+    "\n",
+    include_str!("../demo-template/js/vm/image/validation.js"),
+    "\n",
+    include_str!("../demo-template/js/vm/image-reset.js"),
+    "\n",
     include_str!("../demo-template/js/vm/hierarchy.js"),
+    "\n",
+    include_str!("../demo-template/js/vm/topology-watch.js"),
+    "\n",
+    include_str!("../demo-template/js/vm/timeline-state.js"),
+    "\n",
+    include_str!("../demo-template/js/vm/canonical-state.js"),
+    "\n",
+    include_str!("../demo-template/js/vm/canonical-publication.js"),
     "\n",
     include_str!("../demo-template/js/vm/controls-render.js"),
     "\n",
     include_str!("../demo-template/js/vm/sync.js"),
     "\n",
+    include_str!("../demo-template/js/core/load/first-frame.js"),
+    "\n",
     include_str!("../demo-template/js/core/rive-loader.js"),
 );
 
 #[tauri::command]
-pub async fn make_demo_bundle(payload: DemoBundlePayload) -> Result<String, String> {
+pub async fn make_demo_bundle(
+    payload: DemoBundlePayload,
+    window: Window,
+    dialog_state: State<'_, NativeDialogState>,
+) -> Result<String, String> {
     let suggested = format!(
         "{}-demo.html",
         payload
@@ -56,13 +85,18 @@ pub async fn make_demo_bundle(payload: DemoBundlePayload) -> Result<String, Stri
             .replace(|c: char| !c.is_ascii_alphanumeric(), "-")
     );
 
-    let save_path = rfd::FileDialog::new()
+    let _lease = dialog_state.try_acquire()?;
+    let save_handle = AsyncFileDialog::new()
         .set_title("Save Rive Demo Viewer")
         .set_file_name(&suggested)
         .add_filter("HTML File", &["html"])
-        .save_file();
+        .set_parent(&window)
+        .save_file()
+        .await;
 
-    let path = save_path.ok_or_else(|| "Save canceled".to_string())?;
+    let path = save_handle
+        .map(|handle| handle.path().to_path_buf())
+        .ok_or_else(|| "Save canceled".to_string())?;
 
     let html = build_demo_html(&payload).map_err(|error| error.to_string())?;
     fs::write(&path, html).map_err(|error| error.to_string())?;
@@ -154,6 +188,7 @@ pub fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json
     let config_json = serde_json::to_string(&config)?;
     let escaped_config = escape_embedded_script_json(&config_json);
     let escaped_runtime = escape_script_end_tags(&payload.runtime_script);
+    let escaped_lucide = escape_script_end_tags(LUCIDE_SCRIPT);
     let canvas_color = payload.canvas_color.as_deref().unwrap_or("#0d1117");
     let runtime_display = if payload.runtime_name == "canvas" {
         "Canvas"
@@ -177,6 +212,7 @@ pub fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json
         .replace("__DEMO_STYLES__", DEMO_TEMPLATE_STYLES)
         .replace("__DEMO_MARKUP__", DEMO_TEMPLATE_MARKUP)
         .replace("__DEMO_APP_JS__", DEMO_TEMPLATE_APP_JS)
+        .replace("__LUCIDE_SCRIPT__", &escaped_lucide)
         .replace("__TITLE__", &title)
         .replace("__CANVAS_COLOR__", canvas_color)
         .replace("__CONFIG_JSON__", &escaped_config)
@@ -310,10 +346,8 @@ mod tests {
             html.contains("\"editorCode\":\"({ onLoad: () => window.__editorApplied = true })\"")
         );
         assert!(html.contains("function resolveStandaloneEditorConfig"));
-        assert!(html.contains("invokeStandaloneEditorCallback(appliedEditorConfig.onLoad"));
-        assert!(
-            html.contains("bindViewModelInstanceByKey(riveInstance, CONFIG.viewModelInstanceName)")
-        );
+        assert!(html.contains("invokeRenderSurfaceAwareEditorCallback("));
+        assert!(html.contains("bindViewModelInstanceByKey(riveInstance, requestedVmInstanceKey)"));
         assert!(html.contains("typeof appliedEditorConfig.autoBind === 'boolean'"));
     }
 

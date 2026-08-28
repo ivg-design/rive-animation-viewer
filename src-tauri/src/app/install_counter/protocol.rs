@@ -1,9 +1,8 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use base64::Engine;
 use reqwest::Url;
 use serde::Serialize;
+#[cfg(test)]
 use sha2::{Digest, Sha256};
 
 #[derive(Debug, Serialize)]
@@ -13,8 +12,13 @@ pub(super) struct CounterPayload {
     pub(super) event: &'static str,
     pub(super) token: String,
     pub(super) release: String,
+    pub(super) preference_generation: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) period: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) status: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) establish_install: Option<bool>,
 }
 
 pub(super) fn validate_endpoint(value: &str) -> Result<Url, String> {
@@ -66,16 +70,7 @@ pub(super) fn utc_month(now: SystemTime) -> String {
     format!("{year:04}-{month:02}")
 }
 
-pub(super) fn monthly_token(secret: &str, period: &str) -> Result<String, String> {
-    let secret = URL_SAFE_NO_PAD
-        .decode(secret)
-        .map_err(|_| "counter activity secret is invalid".to_string())?;
-    let mut message = b"rav:monthly-active:v1:".to_vec();
-    message.extend_from_slice(period.as_bytes());
-    let digest = hmac_sha256(&secret, &message);
-    Ok(URL_SAFE_NO_PAD.encode(&digest[..16]))
-}
-
+#[cfg(test)]
 pub(super) fn hmac_sha256(key: &[u8], message: &[u8]) -> [u8; 32] {
     const BLOCK_SIZE: usize = 64;
     let mut block_key = [0_u8; BLOCK_SIZE];

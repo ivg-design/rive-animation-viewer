@@ -313,6 +313,9 @@ describe('platform/demo-export', () => {
             runtimeVersion: '2.1.0',
         }));
         await expect(controller.createDemoBundle()).resolves.toBeNull();
+        await expect(controller.createDemoBundle({ strictResult: true })).resolves.toEqual({
+            status: 'cancelled',
+        });
 
         expect(updateInfo).toHaveBeenCalledWith('Building demo bundle...');
         expect(updateInfo).toHaveBeenCalledWith('Export cancelled.');
@@ -356,6 +359,8 @@ describe('platform/demo-export', () => {
             'Runtime data for webgl2 is not ready yet. Please wait for it to finish loading.',
         );
         await expect(failingInvokeController.createDemoBundle()).resolves.toBeNull();
+        await expect(failingInvokeController.createDemoBundle({ strictResult: true }))
+            .rejects.toThrow('Failed to create demo bundle: disk full');
 
         expect(showError).toHaveBeenCalledWith('Failed to create demo bundle: disk full');
         expect(logEvent).toHaveBeenCalledWith('ui', 'demo-build-failed', 'Failed to build demo bundle.', expect.any(Error));

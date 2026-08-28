@@ -2,6 +2,7 @@ import { createPlatformStack } from './platform-stack.js';
 import { createRiveStack } from './rive-stack.js';
 import { createRuntimeStack } from './runtime-stack.js';
 import { createUiStack } from './ui-stack.js';
+import { buildPlaybackContext, buildPlaybackStatusLabel } from '../../rive/playback-status.js';
 
 export function createControllerStack({
     elements,
@@ -54,6 +55,7 @@ export function createControllerStack({
     } = callbacks;
     let runtimeStack = null;
     let runtimeLoaderController = null;
+    let platformStack = null;
 
     const uiStack = createUiStack({
         elements,
@@ -75,6 +77,7 @@ export function createControllerStack({
             isTauriEnvironment,
             loadRiveAnimation,
             refreshCurrentState: (...args) => getRefreshCurrentState()(...args),
+            requestUiOverlay: (request) => platformStack?.shellController?.openUiOverlay?.(request) ?? false,
             resolveAppVersion,
             setCurrentCanvasSizing,
             showError,
@@ -132,6 +135,10 @@ export function createControllerStack({
     const riveStack = createRiveStack({
         elements,
         callbacks: {
+            activateAuthoritativeSurface: (options) => (
+                platformStack?.renderSurfaceController?.loadCurrentAnimationForSelection?.(options)
+                ?? platformStack?.renderSurfaceController?.loadCurrentAnimation?.(options) ?? false
+            ),
             ensureRuntime,
             getCurrentFileBuffer,
             getCurrentFileName,
@@ -143,19 +150,27 @@ export function createControllerStack({
             getLoadedRuntime,
             getLiveConfig: uiStack.getLiveConfig,
             getRiveInstance,
+            getRenderSurfaceAuthority: () => platformStack?.renderSurfaceController?.getState?.() || null,
+            getRenderSurfaceCanonicalState: () => platformStack?.renderSurfaceController?.getCanonicalState?.() || null,
+            getTauriInvoker,
             hideError,
             initLucideIcons,
             applyCanvasBackground,
             isCanvasBackgroundTransparent,
+            isAuthoritativeChildMode: isTauriEnvironment,
             loadRiveAnimation,
             logEvent: uiStack.logEvent,
+            requestAuthoritativeCommand: (...args) => (
+                platformStack?.renderSurfaceController?.requestCommand?.(...args)
+                ?? Promise.resolve({ applied: false, status: 'unavailable' })
+            ),
             refreshInfoStrip: callbacks.refreshInfoStrip,
             showError,
             updateInfo,
         },
     });
 
-    const platformStack = createPlatformStack({
+    platformStack = createPlatformStack({
         elements,
         callbacks: {
             applyCodeAndReload: uiStack.applyCodeAndReload,
@@ -176,6 +191,7 @@ export function createControllerStack({
             getCurrentFileBuffer,
             getCurrentFileMimeType,
             getCurrentFileName,
+            getCurrentFilePreferenceId,
             getCurrentFileUrl,
             getCurrentCanvasSizing,
             getCurrentLayoutAlignment,
@@ -217,6 +233,24 @@ export function createControllerStack({
             resetArtboardSwitcherState: riveStack.resetArtboardSwitcherState,
             resetToDefaultArtboard: riveStack.resetToDefaultArtboard,
             resetVmInputControls: riveStack.resetVmInputControls,
+            restoreFileSessionUi: () => {
+                const canonicalState = platformStack?.renderSurfaceController?.getCanonicalState?.();
+                if (canonicalState) {
+                    riveStack.syncArtboardStateFromCanonical?.(canonicalState);
+                }
+                riveStack.populateArtboardSwitcher?.();
+                riveStack.renderVmInputControls?.();
+                // The hidden candidate reports its selection before the
+                // visible child confirms a first frame. When that child is
+                // rejected, restore the footer from the retained canonical
+                // session rather than leaving the candidate's artboard/SM
+                // label visible beside the restored file and properties.
+                updateInfo(buildPlaybackStatusLabel(buildPlaybackContext({
+                    playbackState: riveStack.getArtboardStateSnapshot?.() || {},
+                    riveInstance: getRiveInstance(),
+                })));
+                callbacks.refreshInfoStrip?.();
+            },
             serializeControlHierarchy: riveStack.serializeControlHierarchy,
             serializeVmHierarchy: riveStack.serializeVmHierarchy,
             setCurrentFile: (...args) => platformStack.fileSessionController?.setCurrentFile(...args),
@@ -232,6 +266,7 @@ export function createControllerStack({
             showError,
             showMcpSetup: uiStack.showMcpSetup,
             switchArtboard: riveStack.switchArtboard,
+            switchVmInstance: riveStack.switchVmInstance,
             toggleInstantiationControlsDialog: (action) => platformStack.instantiationControlsDialogController?.toggleDialog(action),
             toggleLiveConfigSource: uiStack.toggleLiveConfigSource,
             updateInfo,
