@@ -1,6 +1,7 @@
 import {
     argbToColorMeta,
     buildVmHierarchy,
+    controlSnapshotKeyForDescriptor,
     controlSelectionKeyForDescriptor,
     createVmControlsController,
     formatVmListItemLabel,
@@ -1527,5 +1528,73 @@ describe('rive/vm-controls', () => {
         expect(shouldResumePlaybackForTrigger({ isPlaying: false })).toBe(true);
         expect(shouldResumePlaybackForTrigger({ isStopped: true })).toBe(true);
         expect(shouldResumePlaybackForTrigger({})).toBe(true);
+    });
+
+    it('keeps named global ViewModels in independently collapsed, scoped trees', () => {
+        const elements = createVmElements();
+        const themeShared = { value: 1 };
+        const sessionShared = { value: 2 };
+        const rootShared = { value: 3 };
+        const globals = {
+            Session: {
+                number: (name) => (name === 'shared' ? sessionShared : null),
+                properties: [{ name: 'shared' }],
+            },
+            Theme: {
+                number: (name) => (name === 'shared' ? themeShared : null),
+                properties: [{ name: 'shared' }],
+            },
+        };
+        const riveInstance = {
+            globalViewModelInstance: vi.fn((name) => globals[name] || null),
+            globalViewModelNames: vi.fn(() => ['Theme', 'Session']),
+            stateMachineNames: [],
+            viewModelInstance: {
+                number: (name) => (name === 'shared' ? rootShared : null),
+                properties: [{ name: 'shared' }],
+            },
+        };
+        const controller = createVmControlsController({
+            callbacks: { initLucideIcons: vi.fn(), logEvent: vi.fn() },
+            elements,
+            getRiveInstance: () => riveInstance,
+            setIntervalFn: vi.fn(() => 'global-vm-timer'),
+        });
+
+        controller.renderVmInputControls();
+
+        expect(elements.vmControlsCount.textContent).toBe('3');
+        const globalSection = elements.vmControlsTree.firstElementChild;
+        expect(globalSection.classList.contains('vm-global-view-models')).toBe(true);
+        expect(globalSection.open).toBe(false);
+        const globalChildren = Array.from(globalSection.querySelector(':scope > .vm-section-body').children)
+            .filter((child) => child.matches('details.vm-section'));
+        expect(globalChildren).toHaveLength(2);
+        expect(globalChildren.every((section) => section.open === false)).toBe(true);
+
+        globalSection.open = true;
+        globalChildren[0].open = true;
+        const globalInput = globalChildren[0].querySelector('input[type="number"]');
+        globalInput.value = '10';
+        globalInput.dispatchEvent(new Event('change'));
+        expect(themeShared.value).toBe(10);
+        expect(sessionShared.value).toBe(2);
+        expect(rootShared.value).toBe(3);
+
+        const snapshot = controller.captureVmControlSnapshot();
+        expect(snapshot).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                descriptor: expect.objectContaining({ globalViewModelName: 'Theme', source: 'global-view-model' }),
+            }),
+            expect.objectContaining({
+                descriptor: expect.objectContaining({ globalViewModelName: 'Session', source: 'global-view-model' }),
+            }),
+        ]));
+        expect(new Set(snapshot.map((entry) => controlSnapshotKeyForDescriptor(entry.descriptor))).size)
+            .toBe(snapshot.length);
+        expect(controller.serializeControlHierarchy().children[0]).toMatchObject({
+            kind: 'global-view-models',
+            label: 'Global ViewModels',
+        });
     });
 });

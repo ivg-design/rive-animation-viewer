@@ -1,5 +1,8 @@
 function disclosureKeyForNode(node) {
-    return `${node?.kind || 'vm'}:${node?.path || '<unknown>'}`;
+    const globalScope = node?.source === 'global-view-model'
+        ? `gvm:${encodeURIComponent(node.globalViewModelName || '')}:`
+        : '';
+    return `${globalScope}${node?.kind || 'vm'}:${node?.path || '<unknown>'}`;
 }
 
 function disclosureTopologySignature(hierarchy) {

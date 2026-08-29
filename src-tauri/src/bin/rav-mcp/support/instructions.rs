@@ -8,6 +8,9 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 3. **rav_get_artboards** / **rav_get_state_machines** — Discover what's in the file.
 4. **rav_get_vm_tree** — Inspect the ViewModel hierarchy (properties, types, paths, current values).
 5. Use **rav_vm_get** / **rav_vm_set** / **rav_vm_fire** to read, write, and fire ViewModel properties by path.
+6. Use **rav_get_global_vm_tree** and **rav_global_vm_get/set/fire** for named file-level global ViewModels; always pass both the global ViewModel name and its property path.
+7. Use **rav_global_vm_set_image** / **rav_global_vm_clear_image** for global ViewModel image properties; image writes require the authoritative desktop playback surface.
+8. Use **rav_capture_canvas** when you need PNG image content from the canvas exactly as RAV rendered it.
 
 ## Key Concepts
 

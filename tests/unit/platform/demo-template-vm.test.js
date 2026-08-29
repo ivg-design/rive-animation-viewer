@@ -37,6 +37,17 @@ describe('render surface pointer relay', () => {
     });
 });
 
+describe('render surface canvas capture', () => {
+    it('keeps capture on the child canvas with background compositing and bounded retries', () => {
+        expect(bootstrapSource).toContain("type === 'capture-canvas'");
+        expect(bootstrapSource).toContain('window.getComputedStyle(canvas)');
+        expect(bootstrapSource).toContain('context.fillStyle = backgroundColor');
+        expect(bootstrapSource).toContain('attempts <= 4');
+        expect(bootstrapSource).toContain('12 * 1024 * 1024');
+        expect(bootstrapSource).toContain("emitToMain('render-surface:capture'");
+    });
+});
+
 function validPngBytes(tag = 0, width = 1, height = 1) {
     return [
         0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
@@ -81,6 +92,10 @@ function createDemoVmHarness(riveInstance, {
             if (descriptor.source === 'state-machine') {
                 return 'sm:' + (descriptor.stateMachineName || '') + ':' + (descriptor.name || '') + ':' + (descriptor.kind || '');
             }
+            if (descriptor.source === 'global-view-model') {
+                return 'gvm:' + encodeURIComponent(descriptor.globalViewModelName || '') + ':'
+                    + (descriptor.path || '') + ':' + (descriptor.kind || '');
+            }
             return 'vm:' + (descriptor.path || '') + ':' + (descriptor.kind || '');
         }
         function controlSelectionKeyForDescriptor(descriptor) {
@@ -91,6 +106,16 @@ function createDemoVmHarness(riveInstance, {
         function normalizeControlSelectionKey(key) {
             if (typeof key !== 'string') return null;
             const trimmed = key.trim();
+            if (trimmed.startsWith('gvm:')) {
+                const firstSeparator = trimmed.indexOf(':', 4);
+                const kindSeparator = trimmed.lastIndexOf(':');
+                if (firstSeparator <= 4 || kindSeparator <= firstSeparator) return trimmed || null;
+                const path = trimmed.slice(firstSeparator + 1, kindSeparator)
+                    .split('/')
+                    .map((segment) => /^(0|[1-9]\\d*)$/.test(segment) ? '*' : segment)
+                    .join('/');
+                return trimmed.slice(0, firstSeparator + 1) + path + ':' + trimmed.slice(kindSeparator + 1);
+            }
             if (!trimmed.startsWith('vm:')) return trimmed || null;
             const kindSeparator = trimmed.lastIndexOf(':');
             if (kindSeparator <= 3) return trimmed || null;
@@ -125,7 +150,7 @@ function createDemoVmHarness(riveInstance, {
         function renderVmControls() {
             topologyRenderCount += 1;
             const rootVm = resolveVmRootInstance();
-            vmListTopologySignature = buildVmListTopologySignature(rootVm);
+            vmListTopologySignature = buildAllVmTopologySignature();
             renderedHierarchy = filterHierarchyNode(buildVmHierarchy(rootVm));
         }
         ${syncSource}
@@ -137,11 +162,12 @@ function createDemoVmHarness(riveInstance, {
             captureRenderSurfacePlayback,
             captureRenderSurfaceCommandCanonicalDelta,
             captureChangedRenderSurfaceControls,
+            captureRenderSurfaceControlsHierarchy: () => captureRenderSurfaceControlsHierarchy(getRenderSurfaceBridgeState()),
             filterHierarchyNode,
             formatVmListItemLabel,
             getRenderSurfaceObserverDiagnostics,
             initializeTopology: () => {
-                vmListTopologySignature = buildVmListTopologySignature(resolveVmRootInstance());
+                vmListTopologySignature = buildAllVmTopologySignature();
                 return vmListTopologySignature;
             },
             invalidateRenderSurfaceCanonicalBindingsForReset,
@@ -2441,6 +2467,45 @@ describe('exported demo ViewModel snapshot runtime', () => {
         }));
     });
 
+    it('rebuilds canonical hierarchy when a named global ViewModel list grows', () => {
+        const rows = [];
+        const list = {
+            get length() { return rows.length; },
+            instanceAt: (index) => rows[index] || null,
+        };
+        const theme = {
+            list: (name) => (name === 'rows' ? list : null),
+            properties: [{ name: 'rows' }],
+        };
+        const harness = createDemoVmHarness({
+            globalViewModelInstance: (name) => (name === 'Theme' ? theme : null),
+            globalViewModelNames() {
+                if (arguments.length) throw new Error('globalViewModelNames takes no arguments');
+                return ['Theme'];
+            },
+            stateMachineNames: [],
+            viewModelInstance: { properties: [] },
+        }, { renderSurfaceMode: true });
+
+        expect(harness.publishRenderSurfaceCanonicalState(true, 'initial')).toEqual(expect.objectContaining({
+            stateType: 'snapshot', topologyRevision: 1,
+        }));
+
+        const enabled = { value: false };
+        rows.push({
+            boolean: (name) => (name === 'enabled' ? enabled : null),
+            properties: [{ name: 'enabled' }],
+        });
+        const refreshed = harness.publishRenderSurfaceCanonicalState(true, 'global-list-growth', true);
+        const globalInput = refreshed.controlsHierarchy.children[0].children[0].children[0].children[0].inputs[0];
+        expect(refreshed).toEqual(expect.objectContaining({ stateType: 'snapshot', topologyRevision: 2 }));
+        expect(globalInput).toEqual(expect.objectContaining({
+            globalViewModelName: 'Theme',
+            path: 'rows/0/enabled',
+            source: 'global-view-model',
+        }));
+    });
+
     it('uses presence and monotonic receipts for image and trigger changes', () => {
         const image = { value: null };
         const trigger = { trigger: vi.fn() };
@@ -3051,7 +3116,7 @@ describe('exported demo ViewModel snapshot runtime', () => {
         };
         const harness = createDemoVmHarness(riveInstance);
 
-        expect(harness.initializeTopology()).toContain('["list","rows",0]');
+        expect(JSON.parse(harness.initializeTopology()).root).toContain('["list","rows",0]');
         expect(harness.syncVmControlTopology()).toBe(false);
 
         rows.push(null);

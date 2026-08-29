@@ -52,14 +52,23 @@ async function updatePackageJson(newVersion) {
 }
 
 async function updateTauriConfig(newVersion) {
-  const configPath = path.join(root, 'src-tauri', 'tauri.conf.json');
-  const config = JSON.parse(await fs.readFile(configPath, 'utf8'));
-  if (typeof config.version !== 'string') {
-    throw new Error('tauri.conf.json does not contain a string version');
+  for (const relativePath of ['tauri.conf.json', 'tauri.flicker-test.conf.json']) {
+    const configPath = path.join(root, 'src-tauri', relativePath);
+    const config = JSON.parse(await fs.readFile(configPath, 'utf8'));
+    if (typeof config.version !== 'string') {
+      throw new Error(`${relativePath} does not contain a string version`);
+    }
+    config.version = newVersion;
+    if (relativePath === 'tauri.flicker-test.conf.json') {
+      config.productName = `RAV ${newVersion} DEV`;
+      config.mainBinaryName = `rav-${newVersion}-dev`;
+      (config.app?.windows || []).forEach((windowConfig) => {
+        if (windowConfig.label === 'main') windowConfig.title = `RAV ${newVersion} DEV`;
+      });
+    }
+    await fs.writeFile(configPath, JSON.stringify(config, null, 2) + '\n');
+    console.log(`✓ Updated ${relativePath}: ${newVersion}`);
   }
-  config.version = newVersion;
-  await fs.writeFile(configPath, JSON.stringify(config, null, 2) + '\n');
-  console.log(`✓ Updated tauri.conf.json: ${newVersion}`);
 }
 
 async function updateCargoToml(newVersion) {

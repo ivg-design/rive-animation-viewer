@@ -24,7 +24,6 @@ export function createVmControlRowFactory({
     pickImageFile = null,
     registerVmControlBinding,
     resolveControlAccessor,
-    resolveVmAccessor,
 }) {
     const relayRemoteMutation = (detail) => {
         if (!isAuthoritativeChildMode) return false;
@@ -112,7 +111,7 @@ export function createVmControlRowFactory({
                     logEvent('ui', 'vm-string', `Requested ${descriptor.path} = ${textInput.value}`);
                     return;
                 }
-                const liveAccessor = resolveVmAccessor(descriptor.path, 'string');
+                const liveAccessor = resolveControlAccessor({ ...descriptor, kind: 'string' });
                 if (liveAccessor) {
                     liveAccessor.value = textInput.value;
                     logEvent('ui', 'vm-string', `Set ${descriptor.path} = ${textInput.value}`);
@@ -164,7 +163,7 @@ export function createVmControlRowFactory({
                     endEnumInteraction();
                     return;
                 }
-                const liveAccessor = resolveVmAccessor(descriptor.path, 'enum');
+                const liveAccessor = resolveControlAccessor({ ...descriptor, kind: 'enum' });
                 if (liveAccessor) {
                     liveAccessor.value = select.value;
                     logEvent('ui', 'vm-enum', `Set ${descriptor.path} = ${select.value}`);
@@ -209,7 +208,7 @@ export function createVmControlRowFactory({
                     logEvent('ui', 'vm-color', `Requested ${descriptor.path} color ${colorInput.value} (${alphaPercent}%).`);
                     return;
                 }
-                const liveAccessor = resolveVmAccessor(descriptor.path, 'color');
+                const liveAccessor = resolveControlAccessor({ ...descriptor, kind: 'color' });
                 if (!liveAccessor) {
                     return;
                 }
@@ -323,6 +322,9 @@ export function createVmSectionElementFactory({
     return function createVmSectionElement(node, isTopLevel = false, depth = 0) {
         const section = documentRef.createElement('details');
         section.className = 'vm-section';
+        if (node?.kind === 'global-view-models') {
+            section.classList.add('vm-global-view-models');
+        }
         // The controller owns the state because this factory is deliberately
         // stateless. Rebuilding a compatible canonical hierarchy must not
         // make a user reopen every nested/list branch.

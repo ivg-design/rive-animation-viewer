@@ -10,10 +10,10 @@
  *
  * Usage:
  *   node scripts/isolated-dev-mcp-acceptance-harness.mjs \
- *     --sidecar /absolute/path/to/RAV\ 2.5.2\ DEV.app/Contents/MacOS/rav-mcp \
+ *     --sidecar /absolute/path/to/RAV\ 2.5.3\ DEV.app/Contents/MacOS/rav-mcp \
  *     --port 9278 \
  *     --expected-build b0217-20260827-0000-abcdef0 \
- *     --expected-version 2.5.2 \
+ *     --expected-version 2.5.3 \
  *     --expected-channel dev \
  *     --expected-sidecar-sha256 <64 lowercase hex characters> \
  *     --expected-scenario-sha256 <64 lowercase hex characters> \

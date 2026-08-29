@@ -18,9 +18,11 @@ export const RENDER_SURFACE_COMMAND_RESULT_EVENT = 'rav:render-surface-command-r
 const CANONICAL_STATE_EVENT = 'rav:render-surface-state';
 const COMMAND_ACK_TIMEOUT_MS = 3_000;
 const LONG_COMMAND_ACK_TIMEOUT_MS = 10_000;
+const CAPTURE_COMMAND_ACK_TIMEOUT_MS = 60_000;
 const CANONICAL_BASELINE_TIMEOUT_MS = 10_000;
 
 export function renderSurfaceCommandTimeoutMs(type) {
+    if (type === 'capture-canvas') return CAPTURE_COMMAND_ACK_TIMEOUT_MS;
     return type === 'reset' || type === 'vm-image-set'
         ? LONG_COMMAND_ACK_TIMEOUT_MS
         : COMMAND_ACK_TIMEOUT_MS;

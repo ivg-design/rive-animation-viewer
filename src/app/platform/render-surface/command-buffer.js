@@ -4,11 +4,11 @@ function coalesceKey(type, payload = {}) {
     if (type === 'play' || type === 'pause') return 'playback';
     if (type === 'presentation') return 'presentation';
     if (type === 'reset') return 'reset';
-    if (type === 'vm-image-set') return `${type}:${payload.path || ''}`;
+    if (type === 'vm-image-set') return `${type}:${payload.source || 'view-model'}:${payload.globalViewModelName || ''}:${payload.path || ''}`;
     if (type !== 'vm-set' && type !== 'sm-set') return null;
     return type === 'sm-set'
         ? `${type}:${payload.stateMachineName || ''}:${payload.name || ''}:${payload.kind || ''}`
-        : `${type}:${payload.path || ''}:${payload.kind || ''}`;
+        : `${type}:${payload.source || 'view-model'}:${payload.globalViewModelName || ''}:${payload.path || ''}:${payload.kind || ''}`;
 }
 
 export function createRenderSurfaceCommandBuffer({ onSupersede = () => {} } = {}) {

@@ -109,7 +109,6 @@
     gap: 4px;
     min-height: 0;
 }
-
 /* VM section (collapsible ViewModel group) */
 .vm-section {
     border: 1px solid var(--border);
@@ -117,7 +116,9 @@
     background: var(--bg-void);
     overflow: visible;
 }
-
+.vm-global-view-models {
+    border-color: color-mix(in srgb, var(--neon) 42%, var(--border));
+}
 .vm-section-header {
     list-style: none;
     cursor: pointer;

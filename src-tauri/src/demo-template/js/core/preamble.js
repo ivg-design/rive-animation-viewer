@@ -92,6 +92,9 @@
             if (descriptor.source === 'state-machine') {
                 return 'sm:' + (descriptor.stateMachineName || '') + ':' + (descriptor.name || '') + ':' + (descriptor.kind || '');
             }
+            if (descriptor.source === 'global-view-model') {
+                return 'gvm:' + encodeURIComponent(descriptor.globalViewModelName || '') + ':' + (descriptor.path || '') + ':' + (descriptor.kind || '');
+            }
             return 'vm:' + (descriptor.path || '') + ':' + (descriptor.kind || '');
         }
 
@@ -104,14 +107,15 @@
         function normalizeControlSelectionKey(key) {
             if (typeof key !== 'string') return null;
             var trimmed = key.trim();
-            if (trimmed.indexOf('vm:') !== 0) return trimmed || null;
+            if (trimmed.indexOf('vm:') !== 0 && trimmed.indexOf('gvm:') !== 0) return trimmed || null;
             var kindSeparator = trimmed.lastIndexOf(':');
-            if (kindSeparator <= 3) return trimmed || null;
-            var path = trimmed.slice(3, kindSeparator)
+            var pathStart = trimmed.indexOf('gvm:') === 0 ? trimmed.indexOf(':', 4) + 1 : 3;
+            if (kindSeparator <= pathStart) return trimmed || null;
+            var path = trimmed.slice(pathStart, kindSeparator)
                 .split('/')
                 .map(function (segment) { return /^(0|[1-9]\d*)$/.test(segment) ? '*' : segment; })
                 .join('/');
-            return 'vm:' + path + ':' + trimmed.slice(kindSeparator + 1);
+            return trimmed.slice(0, pathStart) + path + ':' + trimmed.slice(kindSeparator + 1);
         }
 
         function clampCanvasDimension(value, fallback) {

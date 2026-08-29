@@ -10,6 +10,7 @@ const CHILD_LOADED_EVENT = 'render-surface:loaded';
 const CHILD_ERROR_EVENT = 'render-surface:error';
 const CHILD_DIAGNOSTIC_EVENT = 'render-surface:diagnostic';
 const CHILD_METRICS_EVENT = 'render-surface:metrics';
+const CHILD_CAPTURE_EVENT = 'render-surface:capture';
 
 export function createRenderSurfaceActivationLifecycle({
     getProtocolVersion = () => 1,
@@ -150,6 +151,7 @@ export function registerRenderSurfaceControllerListeners({
             [CHILD_LOADED_EVENT, gateStartupReceipt(CHILD_LOADED_EVENT, handlers.handleChildLoaded)],
             [CHILD_ERROR_EVENT, gateStartupReceipt(CHILD_ERROR_EVENT, handlers.handleChildError)],
             [CHILD_METRICS_EVENT, handlers.handleChildMetrics],
+            [CHILD_CAPTURE_EVENT, handlers.handleChildCapture || (() => {})],
         ],
         unlistenCallbacks,
     });

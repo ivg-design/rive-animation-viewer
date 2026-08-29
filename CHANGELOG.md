@@ -2,6 +2,18 @@
 
 All notable released changes to this project are documented in this file.
 
+## [2.5.3] - 2026-08-28
+
+### Added
+
+- **Global ViewModel controls** — RAV discovers every global ViewModel used by the loaded file and displays them in a separate, initially collapsed section above the artboard-bound ViewModel. Each global ViewModel has its own independently collapsible tree, and same-path properties remain scoped to the correct global instance.
+- **Global ViewModel MCP tools** — MCP can list global trees, read and set named global properties, and fire named global triggers without falling back to the artboard-bound ViewModel.
+- **Rendered-canvas capture** — `rav_capture_canvas` returns the visible authoritative playback surface as PNG image content, including its rendered background, bounded downscaling, and capture metadata.
+
+### Changed
+
+- **Isolated DEV build** — The 2.5.3 DEV app retains the 2.5.2 native overlay/WebView stack, uses a distinct app identity and frontend output, and reserves MCP port `9278` instead of production port `9274`.
+
 ## [2.5.2] - 2026-08-27
 
 ### Added

@@ -17,6 +17,7 @@ export function normalizeControlSnapshot(controlSnapshot = []) {
                 path: entry.descriptor.path,
                 source: entry.descriptor.source,
                 stateMachineName: entry.descriptor.stateMachineName,
+                globalViewModelName: entry.descriptor.globalViewModelName,
             },
             enumValues: Array.isArray(entry.enumValues)
                 ? entry.enumValues.map((value) => String(value ?? '').trim()).filter(Boolean)
@@ -25,12 +26,13 @@ export function normalizeControlSnapshot(controlSnapshot = []) {
             value: (entry.kind || entry.descriptor.kind) === 'trigger' ? null : entry.value,
         }))
         .sort((left, right) => {
-            const leftSortKey = left.descriptor.source === 'state-machine'
-                ? `sm:${left.descriptor.stateMachineName || ''}/${left.descriptor.name || ''}`
-                : `vm:${left.descriptor.path || ''}`;
-            const rightSortKey = right.descriptor.source === 'state-machine'
-                ? `sm:${right.descriptor.stateMachineName || ''}/${right.descriptor.name || ''}`
-                : `vm:${right.descriptor.path || ''}`;
+            const sortKey = (entry) => entry.descriptor.source === 'state-machine'
+                ? `sm:${entry.descriptor.stateMachineName || ''}/${entry.descriptor.name || ''}`
+                : entry.descriptor.source === 'global-view-model'
+                    ? `gvm:${entry.descriptor.globalViewModelName || ''}/${entry.descriptor.path || ''}`
+                    : `vm:${entry.descriptor.path || ''}`;
+            const leftSortKey = sortKey(left);
+            const rightSortKey = sortKey(right);
             return leftSortKey.localeCompare(rightSortKey);
         });
 }

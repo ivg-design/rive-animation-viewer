@@ -48,6 +48,7 @@ describe('platform/mcp-bridge', () => {
         delete window._mcpLogEvent;
         delete window._mcpUpdateStatus;
         delete window.__RAV_MCP_PORT__;
+        delete window.__RAV_ISOLATED_DEV__;
         delete window.__RAV_UPDATER_ACCEPTANCE__;
         delete window.__RAV_TELEMETRY_ACCEPTANCE__;
         delete window.__TAURI__;
@@ -147,6 +148,41 @@ describe('platform/mcp-bridge', () => {
         expect(FakeWebSocket.instances).toHaveLength(2);
         expect(FakeWebSocket.instances[1].url).toBe('ws://127.0.0.1:9310');
         expect(window._mcpBridge.port).toBe(9310);
+    });
+
+    it('uses the reserved isolated DEV port before native synchronization', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        vi.stubGlobal('setInterval', vi.fn(() => 1));
+        vi.stubGlobal('clearInterval', vi.fn());
+        window.__RAV_ISOLATED_DEV__ = true;
+        window._mcpLogEvent = vi.fn();
+        window._mcpUpdateStatus = vi.fn();
+
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-isolated-dev');
+        await flushBridgeMicrotasks();
+
+        expect(FakeWebSocket.instances[0].url).toBe('ws://127.0.0.1:9278');
+        expect(window._mcpBridge.port).toBe(9278);
+    });
+
+    it('ignores a stored production port in an isolated DEV bundle', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        vi.stubGlobal('setInterval', vi.fn(() => 1));
+        vi.stubGlobal('clearInterval', vi.fn());
+        vi.stubGlobal('localStorage', {
+            clear: vi.fn(),
+            getItem: vi.fn(() => '9274'),
+            setItem: vi.fn(),
+        });
+        window.__RAV_ISOLATED_DEV__ = true;
+        window._mcpLogEvent = vi.fn();
+        window._mcpUpdateStatus = vi.fn();
+
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-isolated-dev-stored-production');
+        await flushBridgeMicrotasks();
+
+        expect(FakeWebSocket.instances[0].url).toBe('ws://127.0.0.1:9278');
+        expect(window._mcpBridge.port).toBe(9278);
     });
 
     it('restarts a pending reconnect attempt while desktop port sync is still pending', async () => {

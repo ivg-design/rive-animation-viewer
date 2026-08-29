@@ -7,7 +7,7 @@ const source = readFileSync(installer, 'utf8');
 describe('isolated DEV installer safety contract', () => {
   it('pins the isolated identity and stable target while rejecting production', () => {
     expect(source).toContain('app.rive.animation.viewer.flicker-test');
-    expect(source).toContain('${RAV_DEV_TARGET:-${HOME}/Desktop/RAV 2.5.2 DEV.app}');
+    expect(source).toContain('${RAV_DEV_TARGET:-${HOME}/Desktop/RAV 2.5.3 DEV.app}');
     expect(source).toContain('/Applications/Rive Animation Viewer.app');
     expect(source).toContain('source bundle identifier');
     expect(source).toContain('source and stable target must be different paths');

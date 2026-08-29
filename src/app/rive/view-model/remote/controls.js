@@ -11,6 +11,7 @@ function normalizeRemoteInput(input) {
         name: descriptor.name || input?.name || '',
         path: descriptor.path || input?.path || '',
         source: descriptor.source || input?.source,
+        globalViewModelName: descriptor.globalViewModelName || input?.globalViewModelName,
         stateMachineName: descriptor.stateMachineName || input?.stateMachineName,
         value: input?.value,
         present: Boolean(input?.present),
@@ -32,6 +33,8 @@ function normalizeRemoteNode(node) {
         kind: node.kind || 'vm',
         label: node.label || '',
         path: node.path || '',
+        source: node.source,
+        globalViewModelName: node.globalViewModelName,
     };
 }
 

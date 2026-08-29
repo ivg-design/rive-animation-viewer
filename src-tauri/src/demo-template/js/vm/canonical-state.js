@@ -64,6 +64,7 @@
                     name: descriptor.name,
                     path: descriptor.path,
                     source: descriptor.source,
+                    globalViewModelName: descriptor.globalViewModelName,
                     stateMachineName: descriptor.stateMachineName,
                     values: descriptor.kind === 'enum' ? readEnumValues(accessor) : [],
                 };
@@ -88,6 +89,8 @@
                 label: node.label || '',
                 path: node.path || '',
                 kind: node.kind || 'vm',
+                source: node.source,
+                globalViewModelName: node.globalViewModelName,
                 inputs: inputs,
                 children: (node.children || [])
                     .map(function (child) { return canonicalizeControlHierarchyNode(child, bridgeState); })
@@ -101,13 +104,24 @@
             resetRenderSurfaceControlObserver(bridgeState);
             var rootVm = resolveVmRootInstance();
             var vmHierarchy = rootVm ? filterHierarchyNode(buildVmHierarchy(rootVm)) : null;
+            var globalVmHierarchies = getGlobalViewModelNames().map(function (name) {
+                var instance = resolveGlobalVmRootInstance(name);
+                return instance ? filterHierarchyNode(buildVmHierarchy(instance, name)) : null;
+            }).filter(Boolean);
+            var globalVmGroup = globalVmHierarchies.length ? {
+                label: 'Global ViewModels',
+                path: '__global_view_models__',
+                kind: 'global-view-models',
+                inputs: [],
+                children: globalVmHierarchies,
+            } : null;
             var smHierarchy = filterHierarchyNode(buildStateMachineHierarchy());
             return {
                 label: 'Controls',
                 path: '<controls>',
                 kind: 'controls',
                 inputs: [],
-                children: [vmHierarchy, smHierarchy]
+                children: [globalVmGroup, vmHierarchy, smHierarchy]
                     .filter(Boolean)
                     .map(function (node) { return canonicalizeControlHierarchyNode(node, bridgeState); }),
             };

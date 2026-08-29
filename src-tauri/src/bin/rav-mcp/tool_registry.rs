@@ -367,6 +367,11 @@ pub fn tools_list() -> Value {
                 "required": ["code"],
                 "additionalProperties": false
             }
+        },
+        {
+            "name": "rav_capture_canvas",
+            "description": "Capture the visible RAV render surface as a PNG image with dimensions and renderer metadata.",
+            "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
         }
     ]).as_array().cloned().unwrap_or_default());
     Value::Array(tools)

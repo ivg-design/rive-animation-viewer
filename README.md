@@ -7,6 +7,7 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 - Current public release: `2.5.2`.
 - Public downloads and the normal public `latest.json` updater feed deliver 2.5.2.
 - Release source: the exact `chore(release): v2.5.2` commit on `main`.
+- Current development line: `2.5.3 DEV` (not published to the production updater feed).
 - macOS downloads and updater apps are Developer ID signed, notarized, and stapled; updater payloads retain their separate update signatures.
 
 ## Regression Gates
@@ -314,7 +315,7 @@ args = ["--stdio-only", "--port", "9274"]
 
 Open the RAV desktop app and enable the MCP bridge. The **MCP** chip is muted and crossed out when disabled, yellow while connecting, red after a bridge failure, green when healthy and ready, and blue for 30 seconds after an agent command arrives. From then on, your MCP client can control RAV whenever both are running.
 
-#### Available Tools (36)
+#### Available Tools (43)
 
 | Tool | Description |
 |------|-------------|
@@ -326,6 +327,9 @@ Open the RAV desktop app and enable the MCP bridge. The **MCP** chip is muted an
 | `rav_switch_artboard` / `rav_reset_artboard` | Switch artboard/animation, reset to default |
 | `rav_get_vm_tree` | Full ViewModel hierarchy |
 | `rav_vm_get` / `rav_vm_set` / `rav_vm_fire` | Read, write, and fire ViewModel properties |
+| `rav_get_global_vm_tree` | List every named file-level global ViewModel and its hierarchy |
+| `rav_global_vm_get` / `rav_global_vm_set` / `rav_global_vm_fire` | Read, write, or fire a property in a specifically named global ViewModel |
+| `rav_global_vm_set_image` / `rav_global_vm_clear_image` | Set or clear a named global ViewModel image through authoritative playback |
 | `rav_get_event_log` | Recent event log entries (filterable by source) |
 | `rav_get_editor_code` / `rav_set_editor_code` | Read/write the script editor |
 | `rav_apply_code` | Apply editor code and reload animation (`Script Access` required) |
@@ -333,6 +337,7 @@ Open the RAV desktop app and enable the MCP bridge. The **MCP** chip is muted an
 | `rav_set_layout` / `rav_set_alignment` | Set layout fit mode and nine-way canvas alignment |
 | `rav_set_canvas_color` | Set background color or transparent |
 | `rav_set_canvas_size` | Set canvas sizing mode (`auto` or explicit pixels) and optional aspect lock |
+| `rav_capture_canvas` | Capture the authoritative rendered canvas as PNG image content with render metadata |
 | `rav_export_demo` | Export standalone HTML demo |
 | `rav_export_demo_visual` | Drive the visible export dialog with exact control selection, package source, snippet mode, and output path |
 | `generate_web_instantiation_code` | Generate the canonical live web-instantiation snippet (`local` npm package or `cdn`) with `window.ravRive` helpers and current control values. Preferred over hand-writing snippets from scratch. |
@@ -352,6 +357,7 @@ Open the RAV desktop app and enable the MCP bridge. The **MCP** chip is muted an
 - `rav_status` reports the active instantiation source and whether the editor draft is dirty.
 - `rav_status` also reports the active canvas sizing mode and explicit pixel size when the canvas is fixed.
 - ViewModel paths are slash-separated. Dynamic list items use a zero-based live index such as `rows/0/playerName`; call `rav_get_vm_tree` again after the controlling count changes before addressing newly added or removed rows.
+- Global ViewModel tools require both the file-level ViewModel name and its property path, preventing collisions when multiple globals expose the same path.
 - `generate_web_instantiation_code` always reflects what is actually running.
 - `generate_web_instantiation_code` defaults to the CDN form unless you explicitly request `package_source: "local"`.
 - Generated snippets restore only the checked ViewModel/state-machine values on load, round numbers to 2 decimals, annotate enum choices inline, and expose helper methods on `window.ravRive`.

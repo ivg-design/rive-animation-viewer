@@ -1,4 +1,7 @@
-import { createRenderSurfaceCommandRelay } from '../../../src/app/platform/render-surface/command-buffer.js';
+import {
+    createRenderSurfaceCommandBuffer,
+    createRenderSurfaceCommandRelay,
+} from '../../../src/app/platform/render-surface/command-buffer.js';
 import {
     createRenderSurfaceProtocol,
     renderSurfaceCommandTimeoutMs,
@@ -45,12 +48,100 @@ function imageControlHierarchy(metadata = null, present = false) {
     };
 }
 
+function globalControlHierarchy() {
+    const globalInput = (globalViewModelName, value) => ({
+        descriptor: {
+            globalViewModelName,
+            kind: 'number',
+            name: 'shared',
+            path: 'shared',
+            source: 'global-view-model',
+        },
+        globalViewModelName,
+        kind: 'number',
+        name: 'shared',
+        path: 'shared',
+        source: 'global-view-model',
+        value,
+    });
+    return {
+        children: [{
+            children: [{
+                children: [],
+                globalViewModelName: 'Theme',
+                inputs: [globalInput('Theme', 1)],
+                kind: 'global-view-model',
+                label: 'Theme',
+                path: '<root>',
+                source: 'global-view-model',
+            }, {
+                children: [],
+                globalViewModelName: 'Session',
+                inputs: [globalInput('Session', 2)],
+                kind: 'global-view-model',
+                label: 'Session',
+                path: '<root>',
+                source: 'global-view-model',
+            }],
+            inputs: [],
+            kind: 'global-view-models',
+            label: 'Global ViewModels',
+            path: '__global_view_models__',
+        }],
+        inputs: [],
+        kind: 'controls',
+        label: 'Controls',
+        path: '<controls>',
+    };
+}
+
 describe('platform/render-surface/protocol', () => {
+    it('keeps global ViewModel command buffering and canonical deltas scope-specific', () => {
+        const buffer = createRenderSurfaceCommandBuffer();
+        buffer.enqueue('vm-set', {
+            globalViewModelName: 'Theme', kind: 'number', path: 'shared', source: 'global-view-model', value: 1,
+        });
+        buffer.enqueue('vm-set', {
+            globalViewModelName: 'Session', kind: 'number', path: 'shared', source: 'global-view-model', value: 2,
+        });
+        buffer.enqueue('vm-set', {
+            globalViewModelName: 'Theme', kind: 'number', path: 'shared', source: 'global-view-model', value: 3,
+        });
+        expect(buffer.drain().map((entry) => entry.payload.value)).toEqual([2, 3]);
+
+        const protocol = createRenderSurfaceProtocol({
+            canSend: () => true,
+            documentRef: document,
+            invokeQuietly: vi.fn(async () => true),
+            windowRef: window,
+        });
+        protocol.beginSession('global-scope', 2);
+        protocol.handleState({ payload: {
+            controlsHierarchy: globalControlHierarchy(),
+            sessionId: 'global-scope',
+            stateRevision: 1,
+            topologyRevision: 1,
+        } });
+        expect(protocol.activateSession('global-scope')).toBe(true);
+        protocol.handleState({ payload: {
+            controlChanges: [{ key: 'gvm:Theme:shared:number', kind: 'number', value: 10 }, {
+                key: 'gvm:Session:shared:number', kind: 'number', value: 20,
+            }],
+            sessionId: 'global-scope',
+            stateRevision: 2,
+            stateType: 'delta',
+            topologyRevision: 1,
+        } });
+        const globalTrees = protocol.getState().canonicalState.controlsHierarchy.children[0].children;
+        expect(globalTrees.map((tree) => tree.inputs[0].value)).toEqual([10, 20]);
+    });
+
     it.each([
         ['pause', 3_000],
         ['vm-set', 3_000],
         ['reset', 10_000],
         ['vm-image-set', 10_000],
+        ['capture-canvas', 60_000],
     ])('uses the bounded %s acknowledgement timeout', (type, expectedTimeout) => {
         expect(renderSurfaceCommandTimeoutMs(type)).toBe(expectedTimeout);
     });

@@ -3,7 +3,8 @@ use std::time::Duration;
 
 use crate::bridge::Bridge;
 use crate::support::constants::{
-    DEFAULT_PROTOCOL_VERSION, FILE_OPEN_COMMAND_TIMEOUT_MS, SERVER_NAME, SERVER_VERSION,
+    CAPTURE_COMMAND_TIMEOUT_MS, DEFAULT_PROTOCOL_VERSION, FILE_OPEN_COMMAND_TIMEOUT_MS,
+    SERVER_NAME, SERVER_VERSION,
 };
 use crate::support::instructions::SERVER_INSTRUCTIONS;
 use crate::tool_registry::tools_list;
@@ -25,6 +26,41 @@ fn jsonrpc_result(id: Value, result: Value) -> Value {
         "id": id,
         "result": result,
     })
+}
+
+fn format_tool_result(name: &str, result: Value) -> Value {
+    if name == "rav_capture_canvas" {
+        let image = result.get("image").cloned().unwrap_or(Value::Null);
+        let data = image
+            .get("data")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let mime_type = image
+            .get("mimeType")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if data.is_empty() || mime_type != "image/png" {
+            return json!({
+                "content": [{
+                    "type": "text",
+                    "text": "Error: RAV returned an invalid canvas screenshot payload"
+                }],
+                "isError": true
+            });
+        }
+        let metadata = result.get("metadata").cloned().unwrap_or_else(|| json!({}));
+        let text = serde_json::to_string_pretty(&json!({ "metadata": metadata }))
+            .unwrap_or_else(|_| "{\"metadata\":{}}".into());
+        return json!({ "content": [{"type":"text","text":text}, {"type":"image","data":data,"mimeType":mime_type}], "structuredContent": {"metadata": metadata}, "isError": false });
+    }
+    let text = result.as_str().map(str::to_owned).unwrap_or_else(|| {
+        serde_json::to_string_pretty(&result).unwrap_or_else(|_| result.to_string())
+    });
+    let mut payload = json!({"content":[{"type":"text","text":text}],"isError":false});
+    if !result.is_string() {
+        payload["structuredContent"] = result;
+    }
+    payload
 }
 
 pub async fn handle_request(bridge: &Bridge, request: Value) -> Value {
@@ -92,31 +128,20 @@ pub async fn handle_request(bridge: &Bridge, request: Value) -> Value {
                         Duration::from_millis(FILE_OPEN_COMMAND_TIMEOUT_MS),
                     )
                     .await
+            } else if name == "rav_capture_canvas" {
+                bridge
+                    .send_command_with_timeout(
+                        name,
+                        arguments,
+                        Duration::from_millis(CAPTURE_COMMAND_TIMEOUT_MS),
+                    )
+                    .await
             } else {
                 bridge.send_command(name, arguments).await
             };
 
             match command_result {
-                Ok(result) => {
-                    let text = if let Some(text) = result.as_str() {
-                        text.to_string()
-                    } else {
-                        serde_json::to_string_pretty(&result).unwrap_or_else(|_| result.to_string())
-                    };
-                    let mut payload = json!({
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": text
-                            }
-                        ],
-                        "isError": false
-                    });
-                    if !result.is_string() {
-                        payload["structuredContent"] = result;
-                    }
-                    jsonrpc_result(id, payload)
-                }
+                Ok(result) => jsonrpc_result(id, format_tool_result(name, result)),
                 Err(error) => jsonrpc_result(
                     id,
                     json!({
@@ -132,5 +157,35 @@ pub async fn handle_request(bridge: &Bridge, request: Value) -> Value {
             }
         }
         _ => jsonrpc_error(id, -32601, format!("Method not found: {}", method)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::format_tool_result;
+    use serde_json::json;
+
+    #[test]
+    fn canvas_capture_requires_nonempty_png_content() {
+        let valid = format_tool_result(
+            "rav_capture_canvas",
+            json!({
+                "image": {"data": "iVBORw0KGgo=", "mimeType": "image/png"},
+                "metadata": {"width": 320}
+            }),
+        );
+        assert_eq!(valid["isError"], false);
+        assert_eq!(valid["content"][1]["type"], "image");
+        assert_eq!(valid["content"][1]["data"], "iVBORw0KGgo=");
+
+        for invalid in [
+            json!({}),
+            json!({"image": {"data": "", "mimeType": "image/png"}}),
+            json!({"image": {"data": "abc", "mimeType": "image/jpeg"}}),
+        ] {
+            let result = format_tool_result("rav_capture_canvas", invalid);
+            assert_eq!(result["isError"], true);
+            assert_eq!(result["content"].as_array().map(Vec::len), Some(1));
+        }
     }
 }

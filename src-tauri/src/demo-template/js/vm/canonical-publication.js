@@ -86,8 +86,8 @@
 
 	        function observeRenderSurfaceControlBudget(bridgeState, budget) {
 	            if (!bridgeState || !bridgeState.canonicalPublishingEnabled || !bridgeState.initialSnapshotPublished) return 0;
-	            var rootVm = resolveVmRootInstance();
-	            if (bridgeState.topologyTracker && bridgeState.topologyTracker.root !== rootVm) {
+	            if (bridgeState.topologyTracker
+	                && renderSurfaceTopologyChanged(bridgeState, false)) {
 	                bridgeState.topologyDirty = true;
 	                scheduleRenderSurfaceCanonicalRefresh('topology-root', true);
 	                return 0;

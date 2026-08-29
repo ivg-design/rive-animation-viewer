@@ -57,6 +57,16 @@ export function formatResultSummary(command, result) {
     if (command === 'rav_get_vm_tree') {
         return `${result.paths?.length || 0} paths, ${result.inputs?.length || 0} inputs`;
     }
+    if (command === 'rav_get_global_vm_tree') {
+        return `${result.count || 0} global ViewModels`;
+    }
+    if (command === 'rav_global_vm_get') {
+        return `${result.name}/${result.path} = ${JSON.stringify(result.value)}`;
+    }
+    if (command === 'rav_global_vm_set' || command === 'rav_global_vm_fire'
+        || command === 'rav_global_vm_set_image' || command === 'rav_global_vm_clear_image') {
+        return `${result.name}/${result.path}`;
+    }
     if (command === 'rav_vm_get') {
         return `${result.path} = ${JSON.stringify(result.value)}`;
     }

@@ -34,7 +34,7 @@ function formatControlComment(entry) {
 
 function buildVmOverrideObjectLines(controlSnapshot = [], { activeKeys = null, snippetMode = 'compact' } = {}) {
     const vmEntries = normalizeControlSnapshot(controlSnapshot).filter(
-        (entry) => entry.descriptor.source !== 'state-machine' && entry.kind !== 'trigger' && entry.descriptor.path,
+        (entry) => !['state-machine', 'global-view-model'].includes(entry.descriptor.source) && entry.kind !== 'trigger' && entry.descriptor.path,
     );
     if (!vmEntries.length) {
         return ['  // Add any ViewModel overrides here.', '  // Example: "card-vm/title": "Revenue",'];
@@ -61,6 +61,35 @@ function buildVmOverrideObjectLines(controlSnapshot = [], { activeKeys = null, s
         }
         const line = `  ${JSON.stringify(path)}: ${formatControlValueLiteral(entry)}, // ${formatControlComment(entry)}`;
         lines.push(maybeCommentLine(line, snippetMode !== 'scaffold' || isSelectedEntry(entry, activeKeys)));
+    });
+    return lines;
+}
+
+function buildGlobalVmOverrideObjectLines(controlSnapshot = [], { activeKeys = null, snippetMode = 'compact' } = {}) {
+    const entries = normalizeControlSnapshot(controlSnapshot).filter((entry) => (
+        entry.descriptor.source === 'global-view-model'
+        && entry.descriptor.globalViewModelName
+        && entry.kind !== 'trigger'
+        && entry.descriptor.path
+    ));
+    if (!entries.length) return ['  // "GlobalVM": { "property": "value" },'];
+    const groups = new Map();
+    entries.forEach((entry) => {
+        const name = entry.descriptor.globalViewModelName;
+        if (!groups.has(name)) groups.set(name, []);
+        groups.get(name).push(entry);
+    });
+    const lines = [];
+    [...groups.keys()].sort().forEach((name, index) => {
+        if (index) lines.push('');
+        const groupEntries = groups.get(name);
+        const groupEnabled = snippetMode !== 'scaffold' || groupEntries.some((entry) => isSelectedEntry(entry, activeKeys));
+        lines.push(maybeCommentLine(`  ${JSON.stringify(name)}: {`, groupEnabled));
+        groupEntries.forEach((entry) => {
+            const line = `    ${JSON.stringify(entry.descriptor.path)}: ${formatControlValueLiteral(entry)}, // ${formatControlComment(entry)}`;
+            lines.push(maybeCommentLine(line, snippetMode !== 'scaffold' || (groupEnabled && isSelectedEntry(entry, activeKeys))));
+        });
+        lines.push(maybeCommentLine('  },', groupEnabled));
     });
     return lines;
 }
@@ -98,7 +127,7 @@ function buildStateMachineOverrideObjectLines(controlSnapshot = [], { activeKeys
 
 function buildVmTriggerLines(controlSnapshot = [], { activeKeys = null, snippetMode = 'compact' } = {}) {
     const triggerEntries = normalizeControlSnapshot(controlSnapshot).filter(
-        (entry) => entry.descriptor.source !== 'state-machine' && entry.kind === 'trigger' && entry.descriptor.path,
+        (entry) => !['state-machine', 'global-view-model'].includes(entry.descriptor.source) && entry.kind === 'trigger' && entry.descriptor.path,
     );
     if (!triggerEntries.length) {
         return ['  // Add any VM triggers you want available for manual firing.', '  // "card-vm/refresh",'];
@@ -116,6 +145,20 @@ function buildVmTriggerLines(controlSnapshot = [], { activeKeys = null, snippetM
         lines.push(maybeCommentLine(`  ${JSON.stringify(entry.descriptor.path)}, // trigger`, snippetMode !== 'scaffold' || isSelectedEntry(entry, activeKeys)));
     });
     return lines;
+}
+
+function buildGlobalVmTriggerLines(controlSnapshot = [], { activeKeys = null, snippetMode = 'compact' } = {}) {
+    const entries = normalizeControlSnapshot(controlSnapshot).filter((entry) => (
+        entry.descriptor.source === 'global-view-model'
+        && entry.descriptor.globalViewModelName
+        && entry.kind === 'trigger'
+        && entry.descriptor.path
+    ));
+    if (!entries.length) return ['  // { name: "GlobalVM", path: "refresh" },'];
+    return entries.map((entry) => maybeCommentLine(
+        `  { name: ${JSON.stringify(entry.descriptor.globalViewModelName)}, path: ${JSON.stringify(entry.descriptor.path)} }, // trigger`,
+        snippetMode !== 'scaffold' || isSelectedEntry(entry, activeKeys),
+    ));
 }
 
 function buildStateMachineTriggerLines(controlSnapshot = [], { activeKeys = null, snippetMode = 'compact' } = {}) {
@@ -145,6 +188,7 @@ export function buildControlHelperLines(controlSnapshot = [], { selectedControlK
         '  // =============================================================================',
         '  // CONTROL OVERRIDES',
         '  // - VM_OVERRIDES applies ViewModel values on load.',
+        '  // - GLOBAL_VM_OVERRIDES applies named file-level global ViewModel values on load.',
         '  // - STATE_MACHINE_OVERRIDES applies state machine input values on load.',
         '  // - VM_TRIGGER_PATHS / STATE_MACHINE_TRIGGER_INPUTS keep trigger targets handy.',
         '  // - Triggers are NOT auto-fired on load. Call ravRive.fireConfiguredTriggers()',
@@ -157,12 +201,20 @@ export function buildControlHelperLines(controlSnapshot = [], { selectedControlK
         ...buildVmOverrideObjectLines(controlSnapshot, { activeKeys, snippetMode: effectiveSnippetMode }),
         '  };',
         '',
+        '  const GLOBAL_VM_OVERRIDES = {',
+        ...buildGlobalVmOverrideObjectLines(controlSnapshot, { activeKeys, snippetMode: effectiveSnippetMode }),
+        '  };',
+        '',
         '  const STATE_MACHINE_OVERRIDES = {',
         ...buildStateMachineOverrideObjectLines(controlSnapshot, { activeKeys, snippetMode: effectiveSnippetMode }),
         '  };',
         '',
         '  const VM_TRIGGER_PATHS = [',
         ...buildVmTriggerLines(controlSnapshot, { activeKeys, snippetMode: effectiveSnippetMode }),
+        '  ];',
+        '',
+        '  const GLOBAL_VM_TRIGGER_PATHS = [',
+        ...buildGlobalVmTriggerLines(controlSnapshot, { activeKeys, snippetMode: effectiveSnippetMode }),
         '  ];',
         '',
         '  const STATE_MACHINE_TRIGGER_INPUTS = [',
@@ -187,6 +239,11 @@ export function buildControlUsageExamples(controlSnapshot = []) {
             : JSON.stringify(entry.value);
 
         if (entry.kind === 'trigger') {
+            if (descriptor.source === 'global-view-model' && descriptor.globalViewModelName && descriptor.path) {
+                const example = `window.ravRive.fireGlobalVmTrigger(${JSON.stringify(descriptor.globalViewModelName)}, ${JSON.stringify(descriptor.path)});`;
+                if (!seen.has(example)) { seen.add(example); examples.push(example); }
+                return;
+            }
             if (descriptor.source === 'state-machine' && descriptor.stateMachineName && descriptor.name) {
                 const example = `window.ravRive.fireStateMachineInput(${JSON.stringify(descriptor.stateMachineName)}, ${JSON.stringify(descriptor.name)});`;
                 if (!seen.has(example)) {
@@ -211,6 +268,12 @@ export function buildControlUsageExamples(controlSnapshot = []) {
                 seen.add(example);
                 examples.push(example);
             }
+            return;
+        }
+
+        if (descriptor.source === 'global-view-model' && descriptor.globalViewModelName && descriptor.path) {
+            const example = `window.ravRive.setGlobalVmValue(${JSON.stringify(descriptor.globalViewModelName)}, ${JSON.stringify(descriptor.path)}, ${valueLiteral}, ${JSON.stringify(entry.kind)});`;
+            if (!seen.has(example)) { seen.add(example); examples.push(example); }
             return;
         }
 

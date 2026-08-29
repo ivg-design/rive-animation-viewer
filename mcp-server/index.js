@@ -8,6 +8,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { sendCommand } from './bridge.js';
 import { SERVER_INSTRUCTIONS } from './instructions.js';
+import { formatToolResult } from './tool-result.js';
 import { TOOLS } from './tools/index.js';
 
 const server = new Server(
@@ -37,10 +38,7 @@ server.setRequestHandler(
 
     try {
       const result = await sendCommand(name, args || {});
-      const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
-      return {
-        content: [{ type: 'text', text }],
-      };
+      return formatToolResult(name, result);
     } catch (error) {
       return {
         content: [{ type: 'text', text: `Error: ${error.message}` }],

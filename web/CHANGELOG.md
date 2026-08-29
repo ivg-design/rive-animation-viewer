@@ -2,6 +2,17 @@
 
 All notable released changes to this project are documented in this file.
 
+## [2.5.3] - 2026-08-28
+
+### Added
+
+- **Global ViewModels** — Files can expose multiple global ViewModels alongside the artboard-bound ViewModel. RAV shows the global collection above the regular controls, collapsed by default, with a separate expandable tree for every global instance.
+- **MCP inspection and capture** — MCP can inspect, read, set, and fire named global ViewModel controls and capture the currently rendered RAV canvas as PNG image content.
+
+### Changed
+
+- **Development isolation** — The 2.5.3 DEV bundle preserves the 2.5.2 native overlay ordering while using an isolated app identity, build output, local server, and MCP bridge port.
+
 ## [2.5.2] - 2026-08-27
 
 ### Added

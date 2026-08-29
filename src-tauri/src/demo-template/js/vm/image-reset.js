@@ -1,6 +1,6 @@
         function renderSurfaceImageSnapshotKey(descriptor) {
             if (!descriptor || typeof descriptor !== 'object') return null;
-            return String(descriptor.source || 'view-model') + ':' + String(descriptor.path || descriptor.name || '');
+            return String(descriptor.source || 'view-model') + ':' + String(descriptor.globalViewModelName || '') + ':' + String(descriptor.path || descriptor.name || '');
         }
 
         function normalizeRenderSurfaceImageSelection(selection) {
@@ -121,7 +121,9 @@
 
         function applyRenderSurfaceImageCommand(rawDescriptor, remember) {
             var imageDescriptor = rawDescriptor && typeof rawDescriptor === 'object' ? rawDescriptor : {};
-            var imageAccessor = resolveLiveAccessor(imageDescriptor.path, 'image');
+            var imageAccessor = imageDescriptor.source === 'global-view-model'
+                ? resolveGlobalVmAccessor(imageDescriptor.globalViewModelName, imageDescriptor.path, 'image')
+                : resolveLiveAccessor(imageDescriptor.path, 'image');
             if (!imageAccessor || !('value' in imageAccessor)) {
                 return Promise.reject(new Error('Image control is unavailable.'));
             }

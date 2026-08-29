@@ -16,6 +16,9 @@ function controlKey(input) {
     if (descriptor?.source === 'state-machine') {
         return `sm:${descriptor.stateMachineName || ''}:${descriptor.name || ''}:${kind}`;
     }
+    if (descriptor?.source === 'global-view-model') {
+        return `gvm:${encodeURIComponent(descriptor.globalViewModelName || '')}:${descriptor.path || ''}:${kind}`;
+    }
     return descriptor?.path ? `vm:${descriptor.path}:${kind}` : null;
 }
 

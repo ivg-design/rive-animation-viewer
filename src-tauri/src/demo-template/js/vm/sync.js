@@ -10,6 +10,8 @@
                 var descriptor = binding.descriptor || {};
                 var key = (descriptor.source === 'state-machine'
                     ? 'sm:' + (descriptor.stateMachineName || '') + ':' + (descriptor.name || '') + ':' + (binding.kind || '')
+                    : descriptor.source === 'global-view-model'
+                        ? 'gvm:' + encodeURIComponent(descriptor.globalViewModelName || '') + ':' + (descriptor.path || '') + ':' + (binding.kind || '')
                     : 'vm:' + (descriptor.path || '') + ':' + (binding.kind || ''));
                 if (!key || seen.has(key)) return;
 
@@ -23,6 +25,7 @@
                         name: descriptor.name,
                         path: descriptor.path,
                         source: descriptor.source,
+                        globalViewModelName: descriptor.globalViewModelName,
                         stateMachineName: descriptor.stateMachineName,
                     },
                     kind: binding.kind,
@@ -62,7 +65,9 @@
                     }
                     return;
                 }
-                var accessor = resolveLiveAccessor(descriptor.path, kind);
+                var accessor = descriptor.source === 'global-view-model'
+                    ? resolveGlobalVmAccessor(descriptor.globalViewModelName, descriptor.path, kind)
+                    : resolveLiveAccessor(descriptor.path, kind);
                 if (!accessor || !('value' in accessor)) return;
                 accessor.value = entry.value;
                 pendingControlSnapshot.delete(key);
@@ -79,6 +84,7 @@
                     name: descriptor.name,
                     kind: descriptor.kind,
                     source: descriptor.source,
+                    globalViewModelName: descriptor.globalViewModelName,
                     stateMachineName: descriptor.stateMachineName,
                 },
                 kind: binding.kind,
@@ -171,7 +177,7 @@
         }
 
         function syncVmControlTopology() {
-            var nextSignature = buildVmListTopologySignature(resolveVmRootInstance());
+            var nextSignature = buildAllVmTopologySignature();
             if (nextSignature === vmListTopologySignature) {
                 return false;
             }

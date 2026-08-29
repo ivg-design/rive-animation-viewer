@@ -1,4 +1,17 @@
-export const DEFAULT_MCP_BRIDGE_PORT = 9274;
+export const PRODUCTION_MCP_BRIDGE_PORT = 9274;
+export const ISOLATED_DEV_MCP_BRIDGE_PORT = 9278;
+
+function resolveBundledBridgePort(windowRef = globalThis.window) {
+    const vitePort = Number.parseInt(import.meta.env?.VITE_RAV_MCP_PORT || '', 10);
+    if (Number.isInteger(vitePort) && vitePort > 0 && vitePort <= 65535) {
+        return vitePort;
+    }
+    return windowRef?.__RAV_ISOLATED_DEV__ === true
+        ? ISOLATED_DEV_MCP_BRIDGE_PORT
+        : PRODUCTION_MCP_BRIDGE_PORT;
+}
+
+export const DEFAULT_MCP_BRIDGE_PORT = resolveBundledBridgePort();
 
 export function normalizeBridgePort(value) {
     const parsed = Number.parseInt(String(value ?? ''), 10);
@@ -8,6 +21,12 @@ export function normalizeBridgePort(value) {
 }
 
 export function readInitialBridgePort(windowRef = globalThis.window) {
+    if (windowRef?.__RAV_ISOLATED_DEV__ === true) {
+        return ISOLATED_DEV_MCP_BRIDGE_PORT;
+    }
+    if (DEFAULT_MCP_BRIDGE_PORT !== PRODUCTION_MCP_BRIDGE_PORT) {
+        return DEFAULT_MCP_BRIDGE_PORT;
+    }
     const explicitPort = windowRef?.__RAV_MCP_PORT__;
     if (explicitPort) {
         return normalizeBridgePort(explicitPort);
