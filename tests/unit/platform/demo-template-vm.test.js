@@ -1737,6 +1737,71 @@ describe('exported demo ViewModel snapshot runtime', () => {
         }
     });
 
+    it('falls back when idle callbacks starve and keeps initial and refresh publications single-shot', () => {
+        const frames = [];
+        const idleTasks = [];
+        const timers = [];
+        const previousRaf = window.requestAnimationFrame;
+        const previousIdle = window.requestIdleCallback;
+        const previousSetTimeout = window.setTimeout;
+        window.requestAnimationFrame = (callback) => { frames.push(callback); return frames.length; };
+        window.requestIdleCallback = (callback, options) => {
+            idleTasks.push({ callback, options });
+            return idleTasks.length;
+        };
+        window.setTimeout = (callback, delay) => {
+            timers.push({ callback, delay });
+            return timers.length;
+        };
+        try {
+            const root = {
+                number: (name) => (name === 'speed' ? { value: 42 } : null),
+                properties: [{ name: 'speed' }],
+            };
+            const harness = createDemoVmHarness({
+                artboard: { name: 'Fallback' },
+                stateMachineNames: [],
+                viewModelInstance: root,
+            }, { deferCanonicalUntilActivation: true, renderSurfaceMode: true });
+
+            harness.publishRenderSurfaceCanonicalState(true, 'load');
+            expect(harness.scheduleRenderSurfaceInitialCanonicalState()).toBe(true);
+            frames.shift()();
+            expect(idleTasks).toHaveLength(1);
+            expect(timers).toHaveLength(1);
+            expect(timers[0].delay).toBe(1000);
+
+            // The staged WebView never runs its idle callback. The independent
+            // timer must still publish the first complete snapshot.
+            timers.shift().callback();
+            expect(harness.emitted.map(({ payload }) => payload.reason)).toEqual(['load', 'activation']);
+
+            // If the idle callback arrives late, its once guard must prevent a
+            // duplicate canonical state.
+            idleTasks.shift().callback();
+            expect(harness.emitted.map(({ payload }) => payload.reason)).toEqual(['load', 'activation']);
+
+            expect(harness.scheduleRenderSurfaceCanonicalRefresh('fallback-refresh', true)).toBe(true);
+            frames.shift()();
+            expect(idleTasks).toHaveLength(1);
+            expect(timers).toHaveLength(1);
+            timers.shift().callback();
+            expect(harness.emitted.map(({ payload }) => payload.reason)).toEqual([
+                'load', 'activation', 'fallback-refresh',
+            ]);
+            idleTasks.shift().callback();
+            expect(harness.emitted.map(({ payload }) => payload.reason)).toEqual([
+                'load', 'activation', 'fallback-refresh',
+            ]);
+        } finally {
+            if (typeof previousRaf === 'function') window.requestAnimationFrame = previousRaf;
+            else delete window.requestAnimationFrame;
+            if (typeof previousIdle === 'function') window.requestIdleCallback = previousIdle;
+            else delete window.requestIdleCallback;
+            window.setTimeout = previousSetTimeout;
+        }
+    });
+
     it('starts activation after two presentation opportunities even when a static artboard does not advance', async () => {
         const onLoadStart = riveLoaderSource.indexOf('riveConfig.onLoad = function');
         const onLoadEnd = riveLoaderSource.indexOf('riveConfig.onLoadError = function', onLoadStart);

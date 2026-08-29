@@ -177,6 +177,26 @@
             return state;
         }
 
+        // requestIdleCallback's timeout is only a scheduling hint. A staged
+        // WebView can remain busy indefinitely and never deliver the idle
+        // callback, so pair it with an independent timer. Both paths share a
+        // once guard so the fallback cannot publish a second canonical state
+        // when an idle callback eventually arrives as well.
+        function scheduleRenderSurfaceIdleWithFallback(callback) {
+            var didRun = false;
+            var runOnce = function () {
+                if (didRun) return;
+                didRun = true;
+                callback();
+            };
+            if (typeof window.requestIdleCallback === 'function') {
+                window.requestIdleCallback(runOnce, { timeout: 1000 });
+                window.setTimeout(runOnce, 1000);
+                return;
+            }
+            window.setTimeout(runOnce, 0);
+        }
+
         function scheduleRenderSurfaceInitialCanonicalState() {
             if (!isRenderSurfaceMode || !riveInstance) return false;
             var bridgeState = getRenderSurfaceBridgeState();
@@ -210,20 +230,15 @@
                     }
                 }
             };
-            var scheduleIdle = function () {
-                if (typeof window.requestIdleCallback === 'function') {
-                    window.requestIdleCallback(publishInitialSnapshot, { timeout: 1000 });
-                    return;
-                }
-                window.setTimeout(publishInitialSnapshot, 0);
-            };
             var scheduleFrame = typeof window.requestAnimationFrame === 'function'
                 ? window.requestAnimationFrame.bind(window)
                 : function (callback) { return window.setTimeout(callback, 0); };
             // The prepare-frame ACK is transported before this function runs.
             // Cross one more presentation opportunity so the parent can commit
             // native visibility before the eventual controls discovery task.
-            scheduleFrame(scheduleIdle);
+            scheduleFrame(function () {
+                scheduleRenderSurfaceIdleWithFallback(publishInitialSnapshot);
+            });
             return true;
         }
 
@@ -253,16 +268,11 @@
                     }
                 }
             };
-            var scheduleIdle = function () {
-                if (typeof window.requestIdleCallback === 'function') {
-                    window.requestIdleCallback(publishRefresh, { timeout: 1000 });
-                    return;
-                }
-                window.setTimeout(publishRefresh, 0);
-            };
             var scheduleFrame = typeof window.requestAnimationFrame === 'function'
                 ? window.requestAnimationFrame.bind(window)
                 : function (callback) { return window.setTimeout(callback, 0); };
-            scheduleFrame(scheduleIdle);
+            scheduleFrame(function () {
+                scheduleRenderSurfaceIdleWithFallback(publishRefresh);
+            });
             return true;
         }
