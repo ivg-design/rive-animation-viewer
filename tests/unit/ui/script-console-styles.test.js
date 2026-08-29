@@ -4,6 +4,17 @@ import path from 'node:path';
 const css = readFileSync(path.resolve(process.cwd(), 'styles/09-script-console.css'), 'utf8');
 
 describe('script console dark semantic palette', () => {
+    it('keeps Eruda\'s virtual-list measurement layer rendered but invisible', () => {
+        const fakeLogsRule = css.match(
+            /\.script-console-output \.luna-console-fake-logs\s*\{([\s\S]*?)\}/,
+        )?.[1] || '';
+
+        expect(fakeLogsRule).toMatch(/display:\s*block\s*!important;/);
+        expect(fakeLogsRule).toMatch(/position:\s*absolute\s*!important;/);
+        expect(fakeLogsRule).toMatch(/visibility:\s*hidden\s*!important;/);
+        expect(fakeLogsRule).not.toMatch(/^\s*display:\s*none/m);
+    });
+
     it('overrides vendor light semantic row fills, text, and borders', () => {
         expect(css).toMatch(
             /\.script-console-output \.luna-console-log-item\.luna-console-info\s*\{[\s\S]*?color:\s*#c8d3e6\s*!important;[\s\S]*?background:\s*#111827\s*!important;[\s\S]*?border-bottom-color:\s*#263249\s*!important;/,

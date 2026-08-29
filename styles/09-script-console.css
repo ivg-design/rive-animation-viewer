@@ -109,7 +109,15 @@ body.js-console-mode > .eruda-container:not(.rav-eruda) {
 }
 
 .script-console-output .luna-console-fake-logs {
-    display: none !important;
+    /* Eruda moves new rows into this invisible layer to measure them before
+     * virtualizing the visible list. `display: none` makes every measured row
+     * zero-sized and causes the real log viewport to oscillate empty/full as
+     * startup messages arrive. Keep the layer rendered but never visible. */
+    display: block !important;
+    position: absolute !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    width: 100% !important;
 }
 
 .script-console-output .luna-console-logs {
