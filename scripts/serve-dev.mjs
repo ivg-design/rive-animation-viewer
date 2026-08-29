@@ -5,11 +5,22 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const viteBin = path.join(root, 'node_modules', 'vite', 'bin', 'vite.js');
+const args = process.argv.slice(2);
+const portIndex = args.indexOf('--port');
+const port = portIndex >= 0 ? Number.parseInt(args[portIndex + 1] || '', 10) : 1421;
+const open = args.includes('--open');
+
+if (!Number.isInteger(port) || port < 1 || port > 65535) {
+  console.error('Usage: node scripts/serve-dev.mjs [--port <1-65535>] [--open]');
+  process.exit(2);
+}
+
 const child = spawn(process.execPath, [
   viteBin,
   '--host', '0.0.0.0',
-  '--port', '1421',
+  '--port', String(port),
   '--strictPort',
+  ...(open ? ['--open'] : []),
 ], {
   cwd: root,
   stdio: 'inherit',

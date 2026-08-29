@@ -6,14 +6,21 @@ import {
     buildGenericSnippet,
     setCopyHandlers,
 } from './mcp/snippets.js';
+import {
+    createMcpSetupStatusResolver,
+    renderMcpEndpointStatus,
+    resolveMcpBridgePort,
+} from './mcp/setup-status.js';
 import { measureDialogOverlay } from './overlay/dialog-bounds.js';
 
 export function createMcpSetupController({
     elements,
     getBridgeEnabled = () => true,
     getBridgeConnected = () => false,
+    getBridgePort = () => null,
     getTauriInvoker,
     initLucideIcons,
+    isDesktop = () => typeof getTauriInvoker() === 'function',
     requestUiOverlay = null,
     windowRef = globalThis.window,
 }) {
@@ -36,19 +43,11 @@ export function createMcpSetupController({
         ['claude-code', elements.mcpRemoveClaudeCodeButton],
         ['claude-desktop', elements.mcpRemoveClaudeDesktopButton],
     ]);
-
-    async function invokeDesktop(command, args = {}) {
-        const invoke = getTauriInvoker();
-        if (!invoke) {
-            return null;
-        }
-        try {
-            return await invoke(command, args);
-        } catch (error) {
-            console.warn(`[rive-viewer] ${command} failed:`, error);
-            return null;
-        }
-    }
+    const requestSetupStatus = createMcpSetupStatusResolver({
+        getTauriInvoker,
+        isDesktop,
+        scheduleTimeout: windowRef?.setTimeout?.bind(windowRef),
+    });
 
     async function invokeDesktopStrict(command, args = {}) {
         const invoke = getTauriInvoker();
@@ -97,27 +96,17 @@ export function createMcpSetupController({
         }
     }
 
-    function renderBundledServerStatus(serverPath) {
-        const statusEl = elements.mcpNodeStatus;
-        const labelEl = elements.mcpNodeLabel;
-        if (!statusEl || !labelEl) {
-            return;
-        }
-
-        statusEl.classList.remove('is-installed', 'is-disabled', 'is-missing', 'is-connected');
-        if (serverPath) {
-            statusEl.classList.add(getBridgeEnabled() ? 'is-installed' : 'is-disabled');
-            statusEl.classList.toggle('is-connected', Boolean(getBridgeConnected()));
-            labelEl.textContent = getBridgeEnabled() ? 'MCP ready' : 'MCP disabled';
-            statusEl.title = getBridgeConnected()
-                ? 'The app is actively connected to the bundled MCP bridge.'
-                : 'The bundled MCP bridge is ready and listening for MCP clients.';
-            return;
-        }
-
-        statusEl.classList.add('is-missing');
-        labelEl.textContent = 'Bundled MCP sidecar not found beside the app executable';
-        statusEl.title = 'Bundled MCP sidecar not found beside the app executable.';
+    function renderBundledServerStatus(serverPath, { confirmedMissing = false } = {}) {
+        renderMcpEndpointStatus({
+            bridgeConnected: Boolean(getBridgeConnected()),
+            bridgeEnabled: getBridgeEnabled(),
+            confirmedMissing,
+            currentPort,
+            desktop: isDesktop(),
+            labelEl: elements.mcpNodeLabel,
+            serverPath,
+            statusEl: elements.mcpNodeStatus,
+        });
     }
 
     function populateSnippets(serverPath, port) {
@@ -194,10 +183,15 @@ export function createMcpSetupController({
             return refreshPromise;
         }
         refreshPromise = (async () => {
-        const setupStatus = await invokeDesktop('get_mcp_setup_status');
-        mcpServerResolvedPath = setupStatus?.serverPath || setupStatus?.server_path || mcpServerResolvedPath;
+        currentPort = resolveMcpBridgePort(getBridgePort(), currentPort);
+        const { confirmedMissing, setupStatus } = await requestSetupStatus();
+        if (confirmedMissing) {
+            mcpServerResolvedPath = null;
+        } else {
+            mcpServerResolvedPath = setupStatus?.serverPath || setupStatus?.server_path || mcpServerResolvedPath;
+        }
         currentPort = setupStatus?.port || currentPort;
-        renderBundledServerStatus(mcpServerResolvedPath);
+        renderBundledServerStatus(mcpServerResolvedPath, { confirmedMissing });
         populateSnippets(mcpServerResolvedPath, currentPort);
         if (elements.mcpPortInput) {
             elements.mcpPortInput.value = String(currentPort);
@@ -447,7 +441,8 @@ export function createMcpSetupController({
         }
 
         initLucideIcons();
-        elements.mcpNodeLabel && (elements.mcpNodeLabel.textContent = getBridgeEnabled() ? 'MCP ready' : 'MCP disabled');
+        currentPort = resolveMcpBridgePort(getBridgePort(), currentPort);
+        renderBundledServerStatus(mcpServerResolvedPath);
         if (typeof requestUiOverlay === 'function') {
             await refreshSetupStatus();
             const opened = await requestUiOverlay({

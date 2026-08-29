@@ -199,7 +199,7 @@ path-resolution failure.
 
 ```bash
 npm install
-npm start  # Opens browser at http://localhost:1420
+npm start  # Opens the browser DEV viewer at http://localhost:1420; MCP uses isolated port 9278
 ```
 
 ## Features

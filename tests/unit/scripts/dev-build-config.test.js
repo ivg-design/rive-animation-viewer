@@ -29,7 +29,11 @@ describe('isolated 2.5.3 DEV build', () => {
         expect(read('scripts/build-dist.mjs')).toContain("'overlay.html'");
         expect(devBuilder).toContain("APP_BUILD_CHANNEL: 'dev'");
         expect(devBuilder).toContain("APP_DIST_DIR: 'dist-dev'");
-        expect(devServer).toContain("'--port', '1421'");
+        expect(pkg.scripts.start).toContain('serve-dev.mjs --port 1420 --open');
+        expect(pkg.scripts.serve).toContain('serve-dev.mjs --port 1420');
+        expect(pkg.scripts['serve:dev']).toContain('serve-dev.mjs --port 1421');
+        expect(pkg.scripts.dev).toContain('serve-dev.mjs --port 1420');
+        expect(devServer).toContain("'--port', String(port)");
         expect(devServer).toContain("VITE_RAV_MCP_PORT: '9278'");
         expect(nativeConstants).toContain('pub const DEFAULT_MCP_PORT: u16 = 9274;');
         expect(nativeConstants).toContain('pub const ISOLATED_DEV_MCP_PORT: u16 = 9278;');
