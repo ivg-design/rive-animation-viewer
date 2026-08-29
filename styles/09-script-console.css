@@ -194,6 +194,56 @@ body.js-console-mode > .eruda-container:not(.rav-eruda) {
     background: #f5a62308 !important;
 }
 
+/* Eruda's stock semantic rows use pale light-theme fills. Keep the complete
+ * row dark as well as its content: styling only .luna-console-log-content
+ * leaves the vendor .luna-console-log-item background visible around it. */
+.script-console-output .luna-console-log-item.luna-console-info {
+    color: #c8d3e6 !important;
+    background: #111827 !important;
+    border-top-color: #263249 !important;
+    border-bottom-color: #263249 !important;
+}
+
+.script-console-output .luna-console-log-item.luna-console-warn {
+    color: #ffd166 !important;
+    background: #2a210f !important;
+    border-top-color: #7a5a124d !important;
+    border-bottom-color: #7a5a124d !important;
+}
+
+.script-console-output .luna-console-log-item.luna-console-error {
+    color: #ff9aa6 !important;
+    background: #2b1218 !important;
+    border-top-color: #7a26344d !important;
+    border-bottom-color: #7a26344d !important;
+}
+
+/* Eruda promotes the newest plain log row to selected and applies its light
+ * #ecf1f8 fill. Startup logs are plain rows, so explicitly keep that state
+ * inside the RAV palette without changing warning/error semantics. */
+.script-console-output .luna-console-log-container.luna-console-selected .luna-console-log-item:not(.luna-console-warn):not(.luna-console-error) {
+    color: #eef3ff !important;
+    background: #1d2634 !important;
+    border-top-color: #34435c !important;
+    border-bottom-color: #34435c !important;
+}
+
+.script-console-output .luna-console-log-item:is(.luna-console-info, .luna-console-warn, .luna-console-error) .luna-console-log-content {
+    color: inherit !important;
+    background: transparent !important;
+}
+
+.script-console-output .luna-console-log-item a {
+    color: #9fb7ff !important;
+    text-decoration-color: #9fb7ff99;
+}
+
+.script-console-output .luna-console-log-item a:hover,
+.script-console-output .luna-console-log-item a:focus-visible {
+    color: var(--neon) !important;
+    text-decoration-color: currentColor;
+}
+
 .script-console-output .luna-object-viewer {
     color: var(--text-dim) !important;
 }
