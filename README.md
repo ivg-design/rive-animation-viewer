@@ -4,10 +4,9 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Current public release: `2.5.2`.
-- Public downloads and the normal public `latest.json` updater feed deliver 2.5.2.
-- Release source: the exact `chore(release): v2.5.2` commit on `main`.
-- Current development line: `2.5.3 DEV` (not published to the production updater feed).
+- Prepared release candidate: `2.5.3` (awaiting signed GitHub build and updater acceptance).
+- Until 2.5.3 is published, public downloads and the normal public `latest.json` updater feed continue to deliver 2.5.2.
+- Release source will be the exact `chore(release): v2.5.3` commit on `main`.
 - macOS downloads and updater apps are Developer ID signed, notarized, and stapled; updater payloads retain their separate update signatures.
 
 ## Regression Gates
@@ -22,6 +21,13 @@ The repo now has explicit prebuild guards for the surfaces that were regressing 
 - `cargo check --manifest-path src-tauri/Cargo.toml` validates the native Tauri layer
 
 These gates materially reduce regression risk, but they are still code- and DOM-contract tests, not full visual snapshot coverage. If we want pixel-level guarantees from this point forward, the next step is adding screenshot-based desktop smoke tests for the packaged app window.
+
+## 2.5.3 Global VM and Canvas Capture
+
+- **Global VM controls**: A collapsed `GLOBAL VM` section sits above `ROOT VM`. Every file-level global ViewModel used by the animation has its own independently expandable tree, so global and artboard-bound controls can be inspected and changed together.
+- **Complete MCP discovery**: Fresh MCP activation advertises 49 unique tools. Six named global-VM operations inspect, read, write, fire, set images, and clear images without colliding with the root VM.
+- **Rendered-canvas screenshots**: `rav_capture_canvas` returns the authoritative RAV canvas as PNG image content with exact byte length, dimensions, renderer, surface, background, and bounded-downscale metadata.
+- **Stable RAV chrome**: Native flyouts clip their dark backgrounds to the rounded yellow frame. Console warning and error rows use the RAV palette, and first-open JS-console virtualization no longer flickers between painted and blank rows.
 
 ## 2.5.2 Reliability Update
 
@@ -315,18 +321,21 @@ args = ["--stdio-only", "--port", "9274"]
 
 Open the RAV desktop app and enable the MCP bridge. The **MCP** chip is muted and crossed out when disabled, yellow while connecting, red after a bridge failure, green when healthy and ready, and blue for 30 seconds after an agent command arrives. From then on, your MCP client can control RAV whenever both are running.
 
-#### Available Tools (43)
+#### Available Tools (49)
 
 | Tool | Description |
 |------|-------------|
 | `rav_status` | App status: file, runtime, playback, ViewModel summary |
+| `rav_set_anonymous_usage` | Enable or disable anonymous version reporting through the Settings preference controller |
 | `rav_open_file` | Open a .riv file by absolute path |
 | `rav_play` / `rav_pause` / `rav_reset` | Playback controls |
 | `rav_get_artboards` | List artboard names |
 | `rav_get_state_machines` | List state machine names |
 | `rav_switch_artboard` / `rav_reset_artboard` | Switch artboard/animation, reset to default |
+| `rav_switch_vm_instance` | Bind a specific authored or runtime/list ViewModel instance key |
 | `rav_get_vm_tree` | Full ViewModel hierarchy |
 | `rav_vm_get` / `rav_vm_set` / `rav_vm_fire` | Read, write, and fire ViewModel properties |
+| `rav_vm_set_image` / `rav_vm_clear_image` | Set or clear an image on the authoritative root ViewModel |
 | `rav_get_global_vm_tree` | List every named file-level global ViewModel and its hierarchy |
 | `rav_global_vm_get` / `rav_global_vm_set` / `rav_global_vm_fire` | Read, write, or fire a property in a specifically named global ViewModel |
 | `rav_global_vm_set_image` / `rav_global_vm_clear_image` | Set or clear a named global ViewModel image through authoritative playback |
@@ -338,6 +347,7 @@ Open the RAV desktop app and enable the MCP bridge. The **MCP** chip is muted an
 | `rav_set_canvas_color` | Set background color or transparent |
 | `rav_set_canvas_size` | Set canvas sizing mode (`auto` or explicit pixels) and optional aspect lock |
 | `rav_capture_canvas` | Capture the authoritative rendered canvas as PNG image content with render metadata |
+| `rav_open_isolated_playback` | Open the current animation in an ordinary isolated diagnostic WebView |
 | `rav_export_demo` | Export standalone HTML demo |
 | `rav_export_demo_visual` | Drive the visible export dialog with exact control selection, package source, snippet mode, and output path |
 | `generate_web_instantiation_code` | Generate the canonical live web-instantiation snippet (`local` npm package or `cdn`) with `window.ravRive` helpers and current control values. Preferred over hand-writing snippets from scratch. |

@@ -85,7 +85,7 @@ function globalControlHierarchy() {
             }],
             inputs: [],
             kind: 'global-view-models',
-            label: 'Global ViewModels',
+            label: 'Global VM',
             path: '__global_view_models__',
         }],
         inputs: [],

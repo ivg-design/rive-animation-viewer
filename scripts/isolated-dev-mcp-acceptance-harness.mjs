@@ -34,6 +34,12 @@ const ISOLATED_PORT = 9278;
 const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_POLL_MS = 100;
 const DEFAULT_POLL_TIMEOUT_MS = 3_000;
+const EXPECTED_TOOL_COUNT = 49;
+const REQUIRED_NEW_TOOLS = [
+    'rav_get_global_vm_tree', 'rav_global_vm_get', 'rav_global_vm_set',
+    'rav_global_vm_fire', 'rav_global_vm_set_image', 'rav_global_vm_clear_image',
+    'rav_capture_canvas',
+];
 
 class AssertionError extends Error {
     constructor(message, receipt = {}) {
@@ -279,11 +285,19 @@ function createMcpClient(sidecar, port, timeoutMs) {
             if (response.error) throw new Error(`MCP initialize failed: ${response.error.message}`);
             child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' })}\n`);
         },
-        async tool(name, args = {}) {
+        async rawTool(name, args = {}) {
             const response = await request('tools/call', { name, arguments: args });
             if (response.error) throw new Error(`${name}: ${response.error.message}`);
             if (response.result?.isError) throw new McpToolError(name, response.result);
-            return payloadOf(response.result);
+            return response.result;
+        },
+        async tool(name, args = {}) {
+            return payloadOf(await this.rawTool(name, args));
+        },
+        async listTools() {
+            const response = await request('tools/list');
+            if (response.error) throw new Error(`tools/list failed: ${response.error.message}`);
+            return response.result;
         },
         close() {
             for (const { resolve } of pending.values()) resolve({ error: { message: 'client closed' } });
@@ -439,6 +453,24 @@ async function main() {
 
     try {
         await client.initialize();
+        const listed = await client.listTools();
+        const listedTools = Array.isArray(listed?.tools) ? listed.tools : [];
+        const listedNames = listedTools.map((tool) => tool?.name);
+        assertion(listedTools.length === EXPECTED_TOOL_COUNT,
+            `tools/list: expected exactly ${EXPECTED_TOOL_COUNT} tools, got ${listedTools.length}.`, { count: listedTools.length });
+        assertion(listedNames.every((name) => typeof name === 'string' && name.length > 0),
+            'tools/list: every advertised tool must have a non-empty name.', { listedNames });
+        assertion(new Set(listedNames).size === listedNames.length,
+            'tools/list: advertised tool names must be unique.', { listedNames });
+        assertion(REQUIRED_NEW_TOOLS.every((name) => listedNames.includes(name)),
+            'tools/list: required GVM/capture tools are not all advertised.', {
+                missing: REQUIRED_NEW_TOOLS.filter((name) => !listedNames.includes(name)),
+            });
+        addPass('tools/list: exact 49 unique tools including GVM/capture names', {
+            count: listedTools.length,
+            required: REQUIRED_NEW_TOOLS,
+            names: listedNames,
+        });
         const before = compactStatus(await status());
         const expectedApp = receipt.target.expectedApp;
         assertion(before.app.build === expectedApp.build
@@ -722,6 +754,65 @@ async function main() {
         } else addSkip('vm color signed two-way round-trip', 'No color fixture path provided in scenario.');
 
         for (const kind of ['boolean', 'number', 'enum']) await setAndVerify(kind, controls[kind]);
+
+        const global = scenario.globalViewModel;
+        assertion(global?.file && global?.name && global?.path,
+            'global VM: scenario requires file, name, and path for tree/get/set/restore coverage.', { global });
+        await openFixtureForTest(global, 'global VM');
+        const globalTree = await client.tool('rav_get_global_vm_tree');
+        const globalGroup = globalTree?.globalViewModels?.find?.((entry) => entry.name === global.name
+            || entry.globalViewModelName === global.name);
+        const globalInput = globalGroup?.inputs?.find?.((entry) => entry.path === global.path);
+        assertion(globalGroup && globalInput,
+            'global VM: tree did not expose the configured global ViewModel property.', {
+                name: global.name, path: global.path, tree: globalTree,
+            });
+        const originalGlobal = await client.tool('rav_global_vm_get', { name: global.name, path: global.path });
+        assertion(originalGlobal.name === global.name && originalGlobal.path === global.path,
+            'global VM: get returned the wrong canonical identity.', { originalGlobal });
+        assertion(global.value !== undefined, 'global VM: scenario requires a mutation value.', { global });
+        try {
+            const writtenGlobal = await client.tool('rav_global_vm_set', {
+                name: global.name, path: global.path, value: global.value,
+            });
+            const changedGlobal = await client.tool('rav_global_vm_get', { name: global.name, path: global.path });
+            assertion(writtenGlobal.applied !== false && changedGlobal.value === global.value,
+                'global VM: set/get did not round-trip the requested value.', {
+                    writtenGlobal, changedGlobal, requested: global.value,
+                });
+        } finally {
+            await client.tool('rav_global_vm_set', {
+                name: global.name, path: global.path, value: originalGlobal.value,
+            });
+        }
+        const restoredGlobal = await client.tool('rav_global_vm_get', { name: global.name, path: global.path });
+        assertion(restoredGlobal.value === originalGlobal.value,
+            'global VM: restore did not return the original value.', { originalGlobal, restoredGlobal });
+        addPass('global VM tree/get/set/restore', {
+            globalViewModelName: global.name, path: global.path, kind: originalGlobal.kind,
+            original: originalGlobal.value, requested: global.value, restored: restoredGlobal.value,
+        });
+
+        const captureRaw = await client.rawTool('rav_capture_canvas');
+        const captureMetadata = captureRaw?.structuredContent?.metadata
+            || payloadOf(captureRaw)?.metadata || {};
+        const captureImage = captureRaw?.content?.find?.((entry) => entry?.type === 'image');
+        assertion(captureImage?.mimeType === 'image/png' && typeof captureImage.data === 'string'
+            && captureImage.data.length > 0,
+        'capture: rav_capture_canvas did not return a non-empty PNG image.', { captureRaw });
+        const captureBytes = Buffer.from(captureImage.data, 'base64');
+        assertion(captureBytes.length >= 8
+            && captureBytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])),
+        'capture: decoded image does not have a valid PNG signature.', { mimeType: captureImage.mimeType });
+        assertion(Number.isInteger(captureMetadata.pngByteLength)
+            && captureMetadata.pngByteLength === captureBytes.length,
+        'capture: decoded PNG byte length does not match metadata.', {
+            decodedByteLength: captureBytes.length, metadataByteLength: captureMetadata.pngByteLength,
+        });
+        addPass('capture: valid PNG byte length matches metadata', {
+            mimeType: captureImage.mimeType, decodedByteLength: captureBytes.length,
+            metadataByteLength: captureMetadata.pngByteLength,
+        });
 
         if (scenario.listGrowth?.triggerPath && scenario.listGrowth?.newItemPath) {
             const config = scenario.listGrowth;

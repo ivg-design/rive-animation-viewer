@@ -56,7 +56,7 @@ describe('platform/mcp authoritative render-surface contract', () => {
         const requestCommand = vi.fn(async () => ({ applied: true, status: 'applied' }));
         const harness = makeHarness(requestCommand);
         harness.canonicalState.controlsHierarchy.children.unshift({
-            kind: 'global-view-models', label: 'Global ViewModels', path: '__global_view_models__', inputs: [],
+            kind: 'global-view-models', label: 'Global VM', path: '__global_view_models__', inputs: [],
             children: [{
                 kind: 'vm', label: 'GlobalLabels', globalViewModelName: 'GlobalLabels', path: '', children: [],
                 inputs: [{

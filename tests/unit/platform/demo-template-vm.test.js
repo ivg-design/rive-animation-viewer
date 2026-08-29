@@ -1741,21 +1741,37 @@ describe('exported demo ViewModel snapshot runtime', () => {
         }
     });
 
-    it('falls back when idle callbacks starve and keeps initial and refresh publications single-shot', () => {
+    it('falls back when animation frames and idle callbacks starve and publishes one initial snapshot', () => {
         const frames = [];
         const idleTasks = [];
         const timers = [];
+        let nextTimerId = 1;
         const previousRaf = window.requestAnimationFrame;
         const previousIdle = window.requestIdleCallback;
         const previousSetTimeout = window.setTimeout;
+        const previousClearTimeout = window.clearTimeout;
         window.requestAnimationFrame = (callback) => { frames.push(callback); return frames.length; };
         window.requestIdleCallback = (callback, options) => {
             idleTasks.push({ callback, options });
             return idleTasks.length;
         };
         window.setTimeout = (callback, delay) => {
-            timers.push({ callback, delay });
-            return timers.length;
+            const timer = { callback, cancelled: false, delay, id: nextTimerId, ran: false };
+            nextTimerId += 1;
+            timers.push(timer);
+            return timer.id;
+        };
+        window.clearTimeout = (id) => {
+            const timer = timers.find((candidate) => candidate.id === id);
+            if (timer) timer.cancelled = true;
+        };
+        const runTimer = (delay) => {
+            const timer = timers.find((candidate) => (
+                candidate.delay === delay && !candidate.cancelled && !candidate.ran
+            ));
+            expect(timer).toBeDefined();
+            timer.ran = true;
+            timer.callback();
         };
         try {
             const root = {
@@ -1770,26 +1786,29 @@ describe('exported demo ViewModel snapshot runtime', () => {
 
             harness.publishRenderSurfaceCanonicalState(true, 'load');
             expect(harness.scheduleRenderSurfaceInitialCanonicalState()).toBe(true);
-            frames.shift()();
-            expect(idleTasks).toHaveLength(1);
-            expect(timers).toHaveLength(1);
-            expect(timers[0].delay).toBe(1000);
+            expect(frames).toHaveLength(1);
+            expect(idleTasks).toHaveLength(0);
 
-            // The staged WebView never runs its idle callback. The independent
-            // timer must still publish the first complete snapshot.
-            timers.shift().callback();
+            // A hidden staged WebView never presents its requested frame. The
+            // independent frame-stage timer must still install the idle work.
+            runTimer(250);
+            expect(idleTasks).toHaveLength(1);
+
+            // The same WebView can also withhold idle callbacks. Its second
+            // bounded fallback must publish exactly one complete snapshot.
+            runTimer(1000);
             expect(harness.emitted.map(({ payload }) => payload.reason)).toEqual(['load', 'activation']);
 
-            // If the idle callback arrives late, its once guard must prevent a
+            // Late frame and idle callbacks share once guards and cannot emit a
             // duplicate canonical state.
+            frames.shift()();
             idleTasks.shift().callback();
             expect(harness.emitted.map(({ payload }) => payload.reason)).toEqual(['load', 'activation']);
 
             expect(harness.scheduleRenderSurfaceCanonicalRefresh('fallback-refresh', true)).toBe(true);
             frames.shift()();
             expect(idleTasks).toHaveLength(1);
-            expect(timers).toHaveLength(1);
-            timers.shift().callback();
+            runTimer(1000);
             expect(harness.emitted.map(({ payload }) => payload.reason)).toEqual([
                 'load', 'activation', 'fallback-refresh',
             ]);
@@ -1803,6 +1822,7 @@ describe('exported demo ViewModel snapshot runtime', () => {
             if (typeof previousIdle === 'function') window.requestIdleCallback = previousIdle;
             else delete window.requestIdleCallback;
             window.setTimeout = previousSetTimeout;
+            window.clearTimeout = previousClearTimeout;
         }
     });
 

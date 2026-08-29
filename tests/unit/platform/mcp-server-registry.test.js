@@ -1,17 +1,46 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { formatToolResult } from '../../../mcp-server/tool-result.js';
 import { TOOLS } from '../../../mcp-server/tools/index.js';
 
+const NEW_TOOL_NAMES = [
+    'rav_get_global_vm_tree',
+    'rav_global_vm_get',
+    'rav_global_vm_set',
+    'rav_global_vm_fire',
+    'rav_global_vm_set_image',
+    'rav_global_vm_clear_image',
+    'rav_capture_canvas',
+];
+
+function nativeToolNames() {
+    const files = [
+        'src-tauri/src/bin/rav-mcp/tool_registry.rs',
+        'src-tauri/src/bin/rav-mcp/vm_tool_registry.rs',
+    ];
+    return files.flatMap((file) => [
+        ...readFileSync(resolve(file), 'utf8').matchAll(/"name":\s*"([^"]+)"/g),
+    ].map((match) => match[1]));
+}
+
 describe('legacy MCP server registry', () => {
-    it('advertises canvas capture exactly once', () => {
+    it('matches all 49 unique native tools and advertises globals plus canvas capture', () => {
+        const names = TOOLS.map((tool) => tool.name);
+        const nativeNames = nativeToolNames();
         const captureTools = TOOLS.filter((tool) => tool.name === 'rav_capture_canvas');
+
+        expect(names).toHaveLength(49);
+        expect(new Set(names).size).toBe(49);
+        expect(new Set(nativeNames).size).toBe(49);
+        expect([...names].sort()).toEqual([...nativeNames].sort());
+        expect(names).toEqual(expect.arrayContaining(NEW_TOOL_NAMES));
         expect(captureTools).toHaveLength(1);
         expect(captureTools[0].inputSchema).toEqual({
             additionalProperties: false,
             properties: {},
             type: 'object',
         });
-        expect(new Set(TOOLS.map((tool) => tool.name)).size).toBe(TOOLS.length);
     });
 
     it('returns capture data as MCP image content instead of JSON text', () => {

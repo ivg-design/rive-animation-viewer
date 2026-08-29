@@ -1594,7 +1594,7 @@ describe('rive/vm-controls', () => {
             .toBe(snapshot.length);
         expect(controller.serializeControlHierarchy().children[0]).toMatchObject({
             kind: 'global-view-models',
-            label: 'Global ViewModels',
+            label: 'Global VM',
         });
     });
 });

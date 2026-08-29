@@ -1,20 +1,20 @@
 {
   "version": "1.1",
-  "generatedAt": "2026-08-27",
+  "generatedAt": "2026-08-29",
   "project": "RAV",
   "canonical": "https://forge.mograph.life/apps/rav/",
   "releaseStatus": {
-    "version": "2.5.2",
+    "version": "2.5.3",
     "status": "public",
     "public": true,
-    "note": "2.5.2 is the current public release and is available through the public updater feed. Configured official builds show a first-run anonymous-reporting notice and keep the opt-out in Settings; see Privacy."
+    "note": "2.5.3 is the current public release and is available through the public updater feed. It adds GLOBAL VM controls, canvas capture, and a 49-tool bundled native MCP surface. Configured official builds show a first-run anonymous-reporting notice and keep the opt-out in Settings; see Privacy."
   },
   "entities": [
     {
       "name": "RAV",
       "type": "SoftwareApplication",
       "url": "https://forge.mograph.life/apps/rav/",
-      "description": "RAV desktop Rive animation viewer. The 2.5.2 release makes file, artboard, playback-target, and ViewModel-instance replacement transactional so the last confirmed frame remains visible until its successor is ready. It adds timeline progress in frames or seconds, reliable warm file opens, two-way scalar/image/list control synchronization, explicit macOS default-app and icon controls, and a final anonymous opt-out status before reporting stops."
+      "description": "RAV desktop Rive animation viewer. The 2.5.3 release adds a collapsed GLOBAL VM collection above ROOT VM with independent global trees, six global-ViewModel MCP tools, rav_capture_canvas, and a 49-tool bundled native MCP surface."
     },
     {
       "name": "IVG Design",

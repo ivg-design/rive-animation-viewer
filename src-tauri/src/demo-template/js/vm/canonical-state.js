@@ -109,7 +109,7 @@
                 return instance ? filterHierarchyNode(buildVmHierarchy(instance, name)) : null;
             }).filter(Boolean);
             var globalVmGroup = globalVmHierarchies.length ? {
-                label: 'Global ViewModels',
+                label: 'Global VM',
                 path: '__global_view_models__',
                 kind: 'global-view-models',
                 inputs: [],
