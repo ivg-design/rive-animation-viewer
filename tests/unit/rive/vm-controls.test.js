@@ -1492,10 +1492,12 @@ describe('rive/vm-controls', () => {
             .find((button) => button.textContent === 'Fire');
 
         expect(enumSelect.textContent).toContain('(no enum values)');
+        expect(alphaInput.value).toBe('50.00');
         colorInput.value = '#445566';
         colorInput.dispatchEvent(new Event('input'));
         alphaInput.value = '25';
         alphaInput.dispatchEvent(new Event('change'));
+        expect(alphaInput.value).toBe('25.00');
         expect(colorAccessor.argb).toHaveBeenCalled();
 
         triggerButton.click();

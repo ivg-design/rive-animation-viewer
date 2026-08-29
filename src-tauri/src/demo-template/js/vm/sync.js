@@ -170,7 +170,7 @@
                     var meta = argbToColorMeta(accessor.value);
                     if (!force && (isEditingControl(binding.colorInput) || isEditingControl(binding.alphaInput))) return;
                     if (binding.colorInput.value !== meta.hex) binding.colorInput.value = meta.hex;
-                    var nextAlpha = String(meta.alphaPercent);
+                    var nextAlpha = formatVmNumber(meta.alphaPercent);
                     if (binding.alphaInput.value !== nextAlpha) binding.alphaInput.value = nextAlpha;
                 }
             });

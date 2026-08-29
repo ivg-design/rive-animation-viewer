@@ -188,7 +188,7 @@
 
                 var colorMeta = argbToColorMeta(accessor && accessor.value);
                 colorInput.value = colorMeta.hex;
-                alphaInput.value = String(colorMeta.alphaPercent);
+                alphaInput.value = formatVmNumber(colorMeta.alphaPercent);
                 colorInput.disabled = isDisabled;
                 alphaInput.disabled = isDisabled;
 
@@ -197,7 +197,8 @@
                     if (!live) return;
                     var rgb = hexToRgb(colorInput.value);
                     var alphaPercent = clamp(Number(alphaInput.value), 0, 100);
-                    alphaInput.value = String(Math.round(alphaPercent));
+                    var normalizedAlphaPercent = Math.round(alphaPercent);
+                    alphaInput.value = formatVmNumber(normalizedAlphaPercent);
                     var alpha = Math.round((alphaPercent / 100) * 255);
                     if (typeof live.argb === 'function') {
                         live.argb(alpha, rgb.r, rgb.g, rgb.b);

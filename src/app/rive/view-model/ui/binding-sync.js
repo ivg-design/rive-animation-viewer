@@ -97,7 +97,7 @@ export function syncVmBindings(
             const meta = argbToColorMeta(accessor.value);
             if (!force && (isEditingControl(binding.colorInput) || isEditingControl(binding.alphaInput))) return;
             if (binding.colorInput.value !== meta.hex) binding.colorInput.value = meta.hex;
-            const nextAlpha = String(meta.alphaPercent);
+            const nextAlpha = formatVmNumber(meta.alphaPercent);
             if (binding.alphaInput.value !== nextAlpha) binding.alphaInput.value = nextAlpha;
         }
     });

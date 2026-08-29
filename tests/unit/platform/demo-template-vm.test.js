@@ -41,7 +41,9 @@ describe('render surface VM numeric presentation', () => {
     it('keeps template controls at two decimals while runtime values remain numeric', () => {
         expect(controlsRenderSource).toContain('function formatVmNumber(value)');
         expect(controlsRenderSource).toContain('numberInput.value = formatVmNumber(accessor && accessor.value)');
+        expect(controlsRenderSource).toContain('alphaInput.value = formatVmNumber(colorMeta.alphaPercent)');
         expect(syncSource).toContain('var nextNum = formatVmNumber(numValue);');
+        expect(syncSource).toContain('var nextAlpha = formatVmNumber(meta.alphaPercent);');
     });
 });
 

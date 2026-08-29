@@ -197,14 +197,15 @@ export function createVmControlRowFactory({
 
             const colorMeta = argbToColorMeta(accessor?.value);
             colorInput.value = colorMeta.hex;
-            alphaInput.value = String(colorMeta.alphaPercent);
+            alphaInput.value = formatVmNumber(colorMeta.alphaPercent);
             colorInput.disabled = isDisabled;
             alphaInput.disabled = isDisabled;
 
             const applyColor = () => {
                 const rgb = hexToRgb(colorInput.value);
                 const alphaPercent = clamp(Number(alphaInput.value), 0, 100);
-                alphaInput.value = String(Math.round(alphaPercent));
+                const normalizedAlphaPercent = Math.round(alphaPercent);
+                alphaInput.value = formatVmNumber(normalizedAlphaPercent);
                 const alpha = Math.round((alphaPercent / 100) * 255);
                 const colorValue = rgbAlphaToArgb(rgb.r, rgb.g, rgb.b, alpha);
                 if (relayRemoteMutation({ descriptor, kind: 'color', value: colorValue })) {
