@@ -47,6 +47,7 @@ describe('render surface canvas capture', () => {
         expect(bootstrapSource).toContain("riveInstance.drawOptimization = 'alwaysDraw'");
         expect(bootstrapSource).toContain('attempts <= 4');
         expect(bootstrapSource).toContain('12 * 1024 * 1024');
+        expect(bootstrapSource).toContain("data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0");
         expect(bootstrapSource).toContain("emitToMain('render-surface:capture'");
     });
 });

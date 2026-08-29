@@ -183,7 +183,7 @@
                             width: output.width, height: output.height, scale: output.width / originalWidth,
                             downscaled: output.width !== originalWidth || output.height !== originalHeight,
                             background: { color: backgroundColor || 'transparent', composited: compositeBackground },
-                            captureAttempts: attempts, pngByteLength: Math.max(0, Math.floor(data.length * 3 / 4)),
+                            captureAttempts: attempts, pngByteLength: Math.max(0, Math.floor(data.length * 3 / 4) - (data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0)),
                             transportBase64Limit: 12 * 1024 * 1024, renderer: CONFIG.runtimeName || 'unknown',
                             runtimeVersion: CONFIG.runtimeVersion || 'unknown', frameRefreshed: true,
                             captureSurface: 'isolated-render-surface' },
