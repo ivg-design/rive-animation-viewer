@@ -57,6 +57,7 @@ dependencies = [
  "futures-util",
  "objc2-app-kit",
  "objc2-foundation",
+ "objc2-quartz-core",
  "objc2-uniform-type-identifiers",
  "raw-window-handle",
  "reqwest",
@@ -2183,6 +2184,7 @@ dependencies = [
  "objc2",
  "objc2-core-foundation",
  "objc2-foundation",
+ "objc2-quartz-core",
  "objc2-uniform-type-identifiers",
 ]
 

@@ -4,7 +4,7 @@ use tokio::{sync::oneshot, time::timeout};
 
 use super::{
     manager::UiOverlayManager,
-    trace,
+    support, trace,
     types::{
         ShowUiOverlayRequest, UiOverlayActionCompletionRequest, UiOverlayActionRequest,
         UiOverlayReadyRequest, UI_OVERLAY_MAX_STATE_BYTES,
@@ -85,11 +85,21 @@ fn start_overlay(
         .get_window(MAIN_WINDOW_LABEL)
         .ok_or_else(|| "Main native window is not available".to_string())?;
     let staged = resource.request.bounds.staged();
-    if let Err(error) = main_window.add_child(builder, staged.position(), staged.size()) {
+    let webview = match main_window.add_child(builder, staged.position(), staged.size()) {
+        Ok(webview) => webview,
+        Err(error) => {
+            let _ = manager.reject_pending(&resource.label);
+            let _ = retry_retiring_ui_overlays(app, manager);
+            trace::reason(app, "stage_failed", "native_child_create");
+            return Err(format!("Failed to create UI overlay: {error}"));
+        }
+    };
+    if let Err(error) = support::apply_native_corner_clip(&webview) {
+        let _ = webview.close();
         let _ = manager.reject_pending(&resource.label);
         let _ = retry_retiring_ui_overlays(app, manager);
-        trace::reason(app, "stage_failed", "native_child_create");
-        return Err(format!("Failed to create UI overlay: {error}"));
+        trace::reason(app, "stage_failed", "native_corner_clip");
+        return Err(error);
     }
     trace::purpose(app, "staged", &resource.request.purpose);
     Ok((resource, ready))

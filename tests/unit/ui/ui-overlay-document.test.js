@@ -21,6 +21,7 @@ describe('native UI overlay document', () => {
     it('exposes bounded dialog semantics without forcing initial control focus', () => {
         const html = read('overlay.html');
         const css = read('styles/11-ui-overlay.css');
+        const nativeSupport = read('src-tauri/src/app/ui_overlay/support.rs');
         const controlCss = read('styles/01-header-controls.css');
         for (const id of ['settings', 'about', 'mcp', 'export']) {
             expect(html).toMatch(new RegExp(
@@ -30,6 +31,10 @@ describe('native UI overlay document', () => {
         expect(html).not.toContain('data-overlay-autofocus');
         expect(html.match(/class="[^"]*ui-overlay-close[^"]*"/g)?.length).toBe(3);
         expect(css).toMatch(/\.ui-overlay-dialog\s*\{[\s\S]*?border:\s*1px solid var\(--ui-overlay-frame\)/);
+        expect(css).toContain('--radius-md: 8px');
+        expect(nativeSupport).toContain('UI_OVERLAY_CORNER_RADIUS: f64 = 8.0');
+        expect(nativeSupport).toContain('layer.setCornerRadius(UI_OVERLAY_CORNER_RADIUS)');
+        expect(nativeSupport).toContain('layer.setMasksToBounds(true)');
         expect(controlCss).toMatch(/\.rav-modal-close\s*\{[\s\S]*?width:\s*44px[\s\S]*?border:\s*1px solid var\(--dialog-frame\)/);
         expect(controlCss).toMatch(/\.rav-modal-close:focus-visible\s*\{[\s\S]*?outline:\s*none[\s\S]*?box-shadow:/);
     });
