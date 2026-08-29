@@ -20,7 +20,7 @@ export function resolveCanvasBackground(canvas, windowRef = globalThis.window) {
     return { color: color || 'transparent', composited: !isTransparent(color) };
 }
 
-export function captureRenderedCanvas({ canvas, createCanvas, drawFrame = () => {}, windowRef = globalThis.window } = {}) {
+export function captureRenderedCanvas({ canvas, createCanvas, drawFrame = () => {}, riveInstance = null, windowRef = globalThis.window } = {}) {
     if (!canvas || !Number.isFinite(canvas.width) || !Number.isFinite(canvas.height) || canvas.width <= 0 || canvas.height <= 0) {
         throw new Error('Rendered canvas has zero pixel dimensions');
     }
@@ -28,7 +28,22 @@ export function captureRenderedCanvas({ canvas, createCanvas, drawFrame = () => 
     const originalHeight = canvas.height;
     const background = resolveCanvasBackground(canvas, windowRef);
     let scale = Math.min(1, Math.sqrt(MAX_CAPTURE_PIXELS / (originalWidth * originalHeight)));
-    drawFrame();
+    // Rive's public drawFrame() intentionally does nothing while its RAF loop
+    // owns a pending frame, and DrawOnChanged can skip a static frame after the
+    // loop is stopped. Fence the loop and temporarily request one unconditional
+    // draw so readback sees the frame that WebKit is actually compositing.
+    const canFenceRenderLoop = typeof riveInstance?.stopRendering === 'function'
+        && typeof riveInstance?.startRendering === 'function';
+    const canForceDraw = riveInstance && 'drawOptimization' in riveInstance;
+    const previousDrawOptimization = canForceDraw ? riveInstance.drawOptimization : null;
+    if (canFenceRenderLoop) riveInstance.stopRendering();
+    try {
+        if (canForceDraw) riveInstance.drawOptimization = 'alwaysDraw';
+        drawFrame();
+    } finally {
+        if (canForceDraw) riveInstance.drawOptimization = previousDrawOptimization;
+        if (canFenceRenderLoop) riveInstance.startRendering();
+    }
     for (let attempt = 1; attempt <= MAX_CAPTURE_ATTEMPTS; attempt += 1) {
         const width = Math.max(1, Math.floor(originalWidth * scale));
         const height = Math.max(1, Math.floor(originalHeight * scale));

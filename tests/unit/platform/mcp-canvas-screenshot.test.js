@@ -58,6 +58,40 @@ describe('MCP canvas screenshot', () => {
         });
     });
 
+    it('fences an active Rive render loop while refreshing the capture frame', () => {
+        const context = { clearRect: vi.fn(), drawImage: vi.fn(), fillRect: vi.fn(), fillStyle: '' };
+        const output = {
+            getContext: vi.fn(() => context),
+            height: 0,
+            toDataURL: vi.fn(() => 'data:image/png;base64,iVBORw0KGgo='),
+            width: 0,
+        };
+        const riveInstance = {
+            drawOptimization: 'drawOnChanged',
+            isPlaying: true,
+            startRendering: vi.fn(),
+            stopRendering: vi.fn(),
+        };
+        const drawFrame = vi.fn(() => {
+            expect(riveInstance.drawOptimization).toBe('alwaysDraw');
+        });
+
+        captureRenderedCanvas({
+            canvas: { height: 100, width: 100 },
+            createCanvas: () => output,
+            drawFrame,
+            riveInstance,
+            windowRef: { getComputedStyle: () => ({ backgroundColor: 'transparent' }) },
+        });
+
+        expect(riveInstance.stopRendering).toHaveBeenCalledOnce();
+        expect(drawFrame).toHaveBeenCalledOnce();
+        expect(riveInstance.startRendering).toHaveBeenCalledOnce();
+        expect(riveInstance.drawOptimization).toBe('drawOnChanged');
+        expect(riveInstance.stopRendering.mock.invocationCallOrder[0]).toBeLessThan(drawFrame.mock.invocationCallOrder[0]);
+        expect(drawFrame.mock.invocationCallOrder[0]).toBeLessThan(riveInstance.startRendering.mock.invocationCallOrder[0]);
+    });
+
     it('routes capture to the active child and rejects an unavailable command immediately', async () => {
         const sendCommand = vi.fn(async () => ({ applied: false, status: 'unavailable' }));
         captureSession = createRenderSurfaceCaptureSession({

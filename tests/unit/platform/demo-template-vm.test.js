@@ -42,6 +42,9 @@ describe('render surface canvas capture', () => {
         expect(bootstrapSource).toContain("type === 'capture-canvas'");
         expect(bootstrapSource).toContain('window.getComputedStyle(canvas)');
         expect(bootstrapSource).toContain('context.fillStyle = backgroundColor');
+        expect(bootstrapSource).toContain("riveInstance.stopRendering()");
+        expect(bootstrapSource).toContain("riveInstance.startRendering()");
+        expect(bootstrapSource).toContain("riveInstance.drawOptimization = 'alwaysDraw'");
         expect(bootstrapSource).toContain('attempts <= 4');
         expect(bootstrapSource).toContain('12 * 1024 * 1024');
         expect(bootstrapSource).toContain("emitToMain('render-surface:capture'");

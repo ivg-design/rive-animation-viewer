@@ -8,7 +8,7 @@ export function createCanvasScreenshotCommands({ documentRef = globalThis.docume
         const inst = windowRef?.riveInst;
         const canvas = documentRef?.getElementById?.('rive-canvas');
         if (!inst || !canvas) throw new Error('No rendered canvas is available');
-        const capture = captureRenderedCanvas({ canvas, createCanvas: () => documentRef.createElement('canvas'), drawFrame: () => inst.drawFrame(), windowRef });
+        const capture = captureRenderedCanvas({ canvas, createCanvas: () => documentRef.createElement('canvas'), drawFrame: () => inst.drawFrame(), riveInstance: inst, windowRef });
         const bounds = canvas.getBoundingClientRect?.();
         return { ...capture, metadata: { ...capture.metadata, source: '#rive-canvas', cssWidth: Number.isFinite(bounds?.width) ? bounds.width : null,
             cssHeight: Number.isFinite(bounds?.height) ? bounds.height : null, devicePixelRatio: windowRef.devicePixelRatio || 1,

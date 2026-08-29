@@ -146,7 +146,22 @@
                     var canvas = els.canvas;
                     if (!canvas || canvas.width <= 0 || canvas.height <= 0) throw new Error('Rendered canvas has zero pixel dimensions');
                     if (!riveInstance || typeof riveInstance.drawFrame !== 'function') throw new Error('The active Rive runtime cannot refresh the rendered frame for capture');
-                    riveInstance.drawFrame();
+                    // Rive's drawFrame() is a no-op while its playback RAF has
+                    // a pending frame, and DrawOnChanged can skip a static frame
+                    // after the loop is stopped. Fence the loop and force one
+                    // unconditional draw before reading the WebGL canvas.
+                    var canFenceRenderLoop = typeof riveInstance.stopRendering === 'function'
+                        && typeof riveInstance.startRendering === 'function';
+                    var canForceDraw = 'drawOptimization' in riveInstance;
+                    var previousDrawOptimization = canForceDraw ? riveInstance.drawOptimization : null;
+                    if (canFenceRenderLoop) riveInstance.stopRendering();
+                    try {
+                        if (canForceDraw) riveInstance.drawOptimization = 'alwaysDraw';
+                        riveInstance.drawFrame();
+                    } finally {
+                        if (canForceDraw) riveInstance.drawOptimization = previousDrawOptimization;
+                        if (canFenceRenderLoop) riveInstance.startRendering();
+                    }
                     var backgroundColor = '';
                     try { backgroundColor = window.getComputedStyle(canvas).backgroundColor || ''; } catch (error) { /* noop */ }
                     if (!backgroundColor) backgroundColor = canvas.style.backgroundColor || canvas.style.background || '';
