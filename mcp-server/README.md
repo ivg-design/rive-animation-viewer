@@ -145,7 +145,11 @@ Once connected, Claude has access to all RAV tools. Try:
 |---------------------|---------|-------------|
 | `RAV_MCP_PORT` | `9274` | WebSocket bridge port |
 
-The isolated `2.5.3 DEV` app reserves port `9278` and ignores a stored production-port value, so it can run beside the production app without sharing its bridge.
+The isolated `2.5.3 DEV` app reserves port `9278` and ignores a stored
+production-port value, so it can run beside the production app without sharing
+its bridge. If a localhost browser preview also connects to `9278`, the bridge
+keeps the packaged desktop app authoritative; legacy clients remain compatible,
+and stale replies from a non-selected preview cannot satisfy an MCP request.
 
 ## Troubleshooting
 

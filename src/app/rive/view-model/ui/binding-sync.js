@@ -8,6 +8,14 @@ export function updateStringInputRows(input, value) {
     input.rows = /\r\n|\r|\n/.test(text) ? 2 : 1;
 }
 
+// Runtime values retain their full precision; this is only the presentation
+// format used by the visible number controls. Keeping the conversion here
+// means initial render, polling, and reactive updates all use the same shape.
+export function formatVmNumber(value) {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue.toFixed(2) : '0.00';
+}
+
 export function syncVmBindings(
     bindings,
     resolveControlAccessor,
@@ -53,7 +61,7 @@ export function syncVmBindings(
         if (binding.kind === 'number') {
             const value = Number(accessor.value);
             if (!Number.isFinite(value) || (!force && isEditingControl(binding.input))) return;
-            const nextValue = String(value);
+            const nextValue = formatVmNumber(value);
             if (binding.input.value !== nextValue) binding.input.value = nextValue;
             return;
         }

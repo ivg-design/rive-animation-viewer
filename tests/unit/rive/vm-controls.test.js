@@ -1080,7 +1080,7 @@ describe('rive/vm-controls', () => {
         harness.accessors.rootString.value = 'server value';
         harness.controller.syncVmControlBindings(true);
 
-        expect(numberInput.value).toBe('99');
+        expect(numberInput.value).toBe('99.00');
         expect(textarea.value).toBe('server value');
 
         harness.accessors.rootNumber.value = 0;
@@ -1117,6 +1117,24 @@ describe('rive/vm-controls', () => {
         expect(harness.elements.vmControlsCount.textContent).toBe('0');
         expect(harness.elements.vmControlsEmpty.textContent).toBe('No animation loaded.');
         expect(harness.clearIntervalFn).toHaveBeenCalledWith('timer-1');
+    });
+
+    it('rounds visible numeric controls without rounding runtime writes', () => {
+        const harness = createVmHarness();
+        harness.controller.renderVmInputControls();
+
+        const numberInput = Array.from(harness.elements.vmControlsTree.querySelectorAll('input[type="number"]'))
+            .find((input) => input.step === 'any');
+        expect(numberInput.value).toBe('3.00');
+
+        harness.accessors.rootNumber.value = 1.239;
+        harness.controller.syncVmControlBindings(true);
+        expect(numberInput.value).toBe('1.24');
+
+        numberInput.value = '7.8912';
+        numberInput.dispatchEvent(new Event('change'));
+        expect(harness.accessors.rootNumber.value).toBe(7.8912);
+        expect(numberInput.value).toBe('7.89');
     });
 
     it('keeps image descriptors in export snapshots without serializing runtime image objects', () => {
@@ -1164,7 +1182,7 @@ describe('rive/vm-controls', () => {
         harness.intervals[0].callback();
 
         expect(findNumberInput('count')).toBe(originalCountInput);
-        expect(originalCountInput.value).toBe('42');
+        expect(originalCountInput.value).toBe('42.00');
         expect(harness.callbacks.initLucideIcons).toHaveBeenCalledTimes(1);
         expect(harness.controller.syncVmControlTopology()).toBe(false);
 
@@ -1175,7 +1193,7 @@ describe('rive/vm-controls', () => {
         expect(harness.elements.vmControlsTree.textContent).toContain('items [2]');
         expect(harness.elements.vmControlsTree.textContent).toContain('Row 1');
         expect(harness.elements.vmControlsTree.textContent).toContain('Row 2');
-        expect(findNumberInput('items/1/speed').value).toBe('24');
+        expect(findNumberInput('items/1/speed').value).toBe('24.00');
         expect(harness.callbacks.initLucideIcons).toHaveBeenCalledTimes(2);
         expect(harness.intervals).toHaveLength(1);
 
@@ -1191,7 +1209,7 @@ describe('rive/vm-controls', () => {
 
         expect(harness.elements.vmControlsCount.textContent).toBe('9');
         expect(harness.elements.vmControlsTree.textContent).toContain('items [1]');
-        expect(findNumberInput('items/0/speed').value).toBe('7');
+        expect(findNumberInput('items/0/speed').value).toBe('7.00');
     });
 
     it('pauses polling with the properties panel hidden and skips collapsed sections', () => {
@@ -1209,11 +1227,11 @@ describe('rive/vm-controls', () => {
         harness.elements.mainGrid.classList.add('right-hidden');
         harness.accessors.rootNumber.value = 41;
         harness.intervals[0].callback();
-        expect(countInput.value).toBe('3');
+        expect(countInput.value).toBe('3.00');
 
         harness.elements.mainGrid.classList.remove('right-hidden');
         harness.intervals[0].callback();
-        expect(countInput.value).toBe('41');
+        expect(countInput.value).toBe('41.00');
 
         harness.accessors.childBoolean.value = true;
         harness.intervals[0].callback();

@@ -142,7 +142,7 @@
                     var numValue = Number(accessor.value);
                     if (!Number.isFinite(numValue)) return;
                     if (!force && isEditingControl(binding.input)) return;
-                    var nextNum = String(numValue);
+                    var nextNum = formatVmNumber(numValue);
                     if (binding.input.value !== nextNum) binding.input.value = nextNum;
                     return;
                 }

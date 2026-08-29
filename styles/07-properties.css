@@ -64,7 +64,7 @@
    is staged. The rows may update their text/options, but must not reflow the
    rest of Properties between first-frame acknowledgement and canonical sync. */
 .artboard-switcher > .vm-section[open] > .vm-section-body {
-    min-height: 176px;
+    min-height: 196px;
 }
 
 .artboard-switcher .vm-control-row,
@@ -95,6 +95,15 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* The summary is populated asynchronously while a replacement artboard is
+   loading. Preserve its line box when it has no text so rapid A/B/A changes
+   do not move the playback and VM sections below the switcher. */
+.artboard-selection-summary[hidden] {
+    display: block;
+    min-height: 13px;
+    visibility: hidden;
 }
 
 .artboard-switcher-actions .btn-compact {

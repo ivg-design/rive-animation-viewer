@@ -132,6 +132,33 @@ describe('platform/mcp-bridge', () => {
         expect(FakeWebSocket.instances[1].url).toBe('ws://127.0.0.1:9411');
     });
 
+    it('identifies browser previews and desktop apps distinctly to the bridge', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        vi.stubGlobal('setInterval', vi.fn(() => 1));
+        vi.stubGlobal('clearInterval', vi.fn());
+        window._mcpLogEvent = vi.fn();
+        window._mcpUpdateStatus = vi.fn();
+
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-browser-kind');
+        await flushBridgeMicrotasks();
+        FakeWebSocket.instances[0].accept();
+        expect(JSON.parse(FakeWebSocket.instances[0].sent[0])).toEqual({
+            appKind: 'browser',
+            bridgeHello: 'rav-app',
+        });
+
+        vi.resetModules();
+        FakeWebSocket.instances = [];
+        window.__TAURI__ = { core: { invoke: vi.fn(async () => 9278) } };
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-desktop-kind');
+        await flushBridgeMicrotasks();
+        FakeWebSocket.instances[0].accept();
+        expect(JSON.parse(FakeWebSocket.instances[0].sent[0])).toEqual({
+            appKind: 'desktop',
+            bridgeHello: 'rav-app',
+        });
+    });
+
     it('reconnects immediately when the configured port changes', async () => {
         vi.stubGlobal('WebSocket', FakeWebSocket);
         vi.stubGlobal('setInterval', vi.fn(() => 1));

@@ -364,7 +364,7 @@ async function main() {
     };
     const addSkip = (name, reason) => receipt.skipped.push({ name, reason });
 
-    async function waitForHealthyFile(alias, priorSessionId = null) {
+    async function waitForHealthyFile(alias, priorSessionId = null, sessionMode = 'new') {
         const startedAt = performance.now();
         const expectedName = fixturePath(alias).split('/').at(-1);
         let latest = null;
@@ -373,12 +373,20 @@ async function main() {
             const compact = compactStatus(latest);
             if (compact.file.loaded && compact.file.name === expectedName && compact.renderSurface.health === 'active'
                 && compact.renderSurface.active && compact.renderSurface.isLoaded && compact.renderSurface.sessionId
-                && (!priorSessionId || compact.renderSurface.sessionId !== priorSessionId)) {
+                && (!priorSessionId || (sessionMode === 'same'
+                    ? compact.renderSurface.sessionId === priorSessionId
+                    : compact.renderSurface.sessionId !== priorSessionId))) {
                 return { status: latest, compact, elapsedMs: elapsed(startedAt) };
             }
             await sleep(Number(scenario.pollMs || DEFAULT_POLL_MS));
         }
-        throw new AssertionError(`Open ${alias} did not reach a new active, first-frame-ready surface.`, { latest: compactStatus(latest) });
+        const sessionExpectation = priorSessionId
+            ? (sessionMode === 'same' ? 'the same' : 'a new')
+            : 'an';
+        throw new AssertionError(`Open ${alias} did not reach ${sessionExpectation} active, first-frame-ready surface.`, {
+            expectedSessionId: sessionMode === 'same' ? priorSessionId : null,
+            latest: compactStatus(latest),
+        });
     }
 
     async function openAndAssert(alias, priorSessionId = null, label = `open ${alias}`) {
@@ -675,8 +683,14 @@ async function main() {
             });
             const playbackResetReplay = await waitForImagePresence(paths, true, 'images after playback reset');
 
-            await client.tool('rav_reset_artboard');
-            const defaultResetSurface = await waitForHealthyFile(config.file, imageSurface.renderSurface.sessionId);
+            const defaultReset = await client.tool('rav_reset_artboard');
+            assertion(defaultReset.applied !== false,
+                'images: default reset command was rejected.', { defaultReset });
+            const defaultResetSurface = await waitForHealthyFile(
+                config.file,
+                imageSurface.renderSurface.sessionId,
+                'same',
+            );
             const defaultResetReplay = await waitForImagePresence(paths, true, 'images after default reset');
 
             const awayOpened = await client.tool('rav_open_file', {
@@ -914,8 +928,8 @@ async function main() {
                     }
                     if (name === 'rav_reset_artboard') {
                         assertion(current.renderSurface.sessionId
-                            && current.renderSurface.sessionId !== beforeCommand.renderSurface.sessionId,
-                        'rav_reset_artboard: default reset did not activate a fresh authoritative session.', {
+                            && current.renderSurface.sessionId === beforeCommand.renderSurface.sessionId,
+                        'rav_reset_artboard: default reset replaced the authoritative render session.', {
                             before: beforeCommand,
                             current,
                         });

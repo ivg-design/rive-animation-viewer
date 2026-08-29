@@ -90,7 +90,8 @@ describe('isolated DEV MCP acceptance harness safety', () => {
         expect(source).not.toContain('candidatePaths.length === beforePaths.length');
         expect(source).toContain('/not found|not readable|out of bounds/i.test(stalePathError.message)');
         expect(source).toContain('current.renderSurface.sessionId === beforeCommand.renderSurface.sessionId');
-        expect(source).toContain('current.renderSurface.sessionId !== beforeCommand.renderSurface.sessionId');
+        expect(source).toContain("imageSurface.renderSurface.sessionId,\n                'same'");
+        expect(source).not.toContain('default reset did not activate a fresh authoritative session');
         expect(source).toContain('receipt.skipped.length === 0');
         expect(source).toContain('Duplicate acceptance assertion name');
     });

@@ -39,6 +39,7 @@ export function createMcpBridgeTransport({
     commandTimeoutMs = 20_000,
     connectTimeoutMs = 2000,
     getBridgeUrl,
+    getAppKind = () => 'legacy',
     getEnabled,
     getReconnectDelay,
     getSocket,
@@ -142,7 +143,10 @@ export function createMcpBridgeTransport({
                     return;
                 }
                 try {
-                    nextSocket.send(JSON.stringify({ bridgeHello: 'rav-app' }));
+                    nextSocket.send(JSON.stringify({
+                        appKind: getAppKind(),
+                        bridgeHello: 'rav-app',
+                    }));
                 } catch (error) {
                     console.warn('[rav-mcp-bridge] Failed to send bridge handshake', error);
                     nextSocket.close();

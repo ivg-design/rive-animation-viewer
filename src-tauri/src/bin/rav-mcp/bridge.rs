@@ -8,7 +8,19 @@ use tokio::time::timeout;
 use uuid::Uuid;
 
 use crate::support::constants::APP_CONNECTION_GRACE_MS;
-use crate::websocket::BridgePeerRole;
+use crate::websocket::{AppPeerKind, BridgePeerRole};
+
+#[derive(Clone)]
+struct AppPeer {
+    kind: AppPeerKind,
+    sender: mpsc::UnboundedSender<String>,
+}
+
+#[derive(Clone, Copy)]
+struct PendingClientRequest {
+    app_connection_id: u64,
+    client_id: u64,
+}
 
 #[derive(Default)]
 struct BridgeState {
@@ -16,10 +28,9 @@ struct BridgeState {
     pending: HashMap<String, oneshot::Sender<Result<Value, String>>>,
     active_connection_id: u64,
     next_connection_id: u64,
-    app_sender: Option<mpsc::UnboundedSender<String>>,
-    app_connection_id: Option<u64>,
+    app_peers: HashMap<u64, AppPeer>,
     client_senders: HashMap<u64, mpsc::UnboundedSender<String>>,
-    pending_client_requests: HashMap<String, u64>,
+    pending_client_requests: HashMap<String, PendingClientRequest>,
 }
 
 #[derive(Clone)]
@@ -163,31 +174,26 @@ impl Bridge {
         let mut outgoing = Vec::new();
         let connection_id = {
             let mut state = self.inner.lock().await;
+            let previously_selected_app = selected_app_connection_id(&state);
             state.next_connection_id += 1;
             let connection_id = state.next_connection_id;
             match role {
-                BridgePeerRole::App => {
-                    state.app_connection_id = Some(connection_id);
-                    state.app_sender = Some(sender);
-                    if let Some(app_sender) = state.app_sender.clone() {
-                        outgoing.push((app_sender, build_client_presence_payload(&state)));
+                BridgePeerRole::App(kind) => {
+                    state
+                        .app_peers
+                        .insert(connection_id, AppPeer { kind, sender });
+                    if previously_selected_app != selected_app_connection_id(&state) {
+                        reject_pending_client_requests(
+                            &mut state,
+                            &mut outgoing,
+                            "RAV connection changed",
+                        );
                     }
-                    let drained_pending: Vec<(String, u64)> =
-                        state.pending_client_requests.drain().collect();
-                    for (request_id, client_id) in drained_pending {
-                        if let Some(client_sender) = state.client_senders.get(&client_id).cloned() {
-                            outgoing.push((
-                                client_sender,
-                                json!({ "id": request_id, "error": "RAV reconnected" }).to_string(),
-                            ));
-                        }
-                    }
+                    queue_client_presence_updates(&state, &mut outgoing);
                 }
                 BridgePeerRole::Client => {
                     state.client_senders.insert(connection_id, sender);
-                    if let Some(app_sender) = state.app_sender.clone() {
-                        outgoing.push((app_sender, build_client_presence_payload(&state)));
-                    }
+                    queue_client_presence_updates(&state, &mut outgoing);
                 }
             }
             connection_id
@@ -214,16 +220,20 @@ impl Bridge {
         let sender = loop {
             let maybe_sender = {
                 let mut state = self.inner.lock().await;
-                let sender = state.app_sender.clone();
-                if sender.is_some() {
-                    state
-                        .pending_client_requests
-                        .insert(request_id.clone(), client_id);
+                let selected = selected_app_sender(&state);
+                if let Some((app_connection_id, _)) = selected.as_ref() {
+                    state.pending_client_requests.insert(
+                        request_id.clone(),
+                        PendingClientRequest {
+                            app_connection_id: *app_connection_id,
+                            client_id,
+                        },
+                    );
                 }
-                sender
+                selected
             };
-            if let Some(sender) = maybe_sender {
-                break sender;
+            if let Some((app_connection_id, sender)) = maybe_sender {
+                break (app_connection_id, sender);
             }
             if tokio::time::Instant::now() >= deadline {
                 return Err(anyhow!(
@@ -233,23 +243,37 @@ impl Bridge {
             tokio::time::sleep(Duration::from_millis(50)).await;
         };
 
-        sender
-            .send(message.to_string())
-            .map_err(|_| anyhow!("RAV bridge is unavailable"))?;
+        let (app_connection_id, sender) = sender;
+        if sender.send(message.to_string()).is_err() {
+            let mut state = self.inner.lock().await;
+            if state
+                .pending_client_requests
+                .get(&request_id)
+                .is_some_and(|pending| pending.app_connection_id == app_connection_id)
+            {
+                state.pending_client_requests.remove(&request_id);
+            }
+            return Err(anyhow!("RAV bridge is unavailable"));
+        }
+
         Ok(())
     }
 
-    pub async fn relay_app_response(&self, message: Value) {
+    pub async fn relay_app_response(&self, app_connection_id: u64, message: Value) {
         let Some(request_id) = message.get("id").and_then(Value::as_str).map(str::to_owned) else {
             return;
         };
 
         let client_sender = {
             let mut state = self.inner.lock().await;
-            let Some(client_id) = state.pending_client_requests.remove(&request_id) else {
+            let Some(pending) = state.pending_client_requests.get(&request_id).copied() else {
                 return;
             };
-            state.client_senders.get(&client_id).cloned()
+            if pending.app_connection_id != app_connection_id {
+                return;
+            }
+            state.pending_client_requests.remove(&request_id);
+            state.client_senders.get(&pending.client_id).cloned()
         };
 
         if let Some(sender) = client_sender {
@@ -267,31 +291,24 @@ impl Bridge {
         {
             let mut state = self.inner.lock().await;
             match role {
-                BridgePeerRole::App => {
-                    if state.app_connection_id != Some(connection_id) {
+                BridgePeerRole::App(_) => {
+                    if state.app_peers.remove(&connection_id).is_none() {
                         return;
                     }
-                    state.app_connection_id = None;
-                    state.app_sender = None;
-                    let drained_pending: Vec<(String, u64)> =
-                        state.pending_client_requests.drain().collect();
-                    for (request_id, client_id) in drained_pending {
-                        if let Some(client_sender) = state.client_senders.get(&client_id).cloned() {
-                            outgoing.push((
-                                client_sender,
-                                json!({ "id": request_id, "error": message.clone() }).to_string(),
-                            ));
-                        }
-                    }
+                    reject_pending_requests_for_app(
+                        &mut state,
+                        &mut outgoing,
+                        connection_id,
+                        &message,
+                    );
+                    queue_client_presence_updates(&state, &mut outgoing);
                 }
                 BridgePeerRole::Client => {
                     state.client_senders.remove(&connection_id);
                     state
                         .pending_client_requests
-                        .retain(|_, client_id| *client_id != connection_id);
-                    if let Some(app_sender) = state.app_sender.clone() {
-                        outgoing.push((app_sender, build_client_presence_payload(&state)));
-                    }
+                        .retain(|_, pending| pending.client_id != connection_id);
+                    queue_client_presence_updates(&state, &mut outgoing);
                 }
             }
         }
@@ -317,9 +334,137 @@ fn build_client_presence_payload(state: &BridgeState) -> String {
     .to_string()
 }
 
+fn selected_app_connection_id(state: &BridgeState) -> Option<u64> {
+    state
+        .app_peers
+        .iter()
+        .max_by_key(|(connection_id, peer)| (peer.kind, *connection_id))
+        .map(|(connection_id, _)| *connection_id)
+}
+
+fn selected_app_sender(state: &BridgeState) -> Option<(u64, mpsc::UnboundedSender<String>)> {
+    let connection_id = selected_app_connection_id(state)?;
+    state
+        .app_peers
+        .get(&connection_id)
+        .map(|peer| (connection_id, peer.sender.clone()))
+}
+
+fn queue_client_presence_updates(
+    state: &BridgeState,
+    outgoing: &mut Vec<(mpsc::UnboundedSender<String>, String)>,
+) {
+    let payload = build_client_presence_payload(state);
+    outgoing.extend(
+        state
+            .app_peers
+            .values()
+            .map(|peer| (peer.sender.clone(), payload.clone())),
+    );
+}
+
+fn reject_pending_client_requests(
+    state: &mut BridgeState,
+    outgoing: &mut Vec<(mpsc::UnboundedSender<String>, String)>,
+    message: &str,
+) {
+    let drained_pending: Vec<(String, PendingClientRequest)> =
+        state.pending_client_requests.drain().collect();
+    for (request_id, pending) in drained_pending {
+        if let Some(client_sender) = state.client_senders.get(&pending.client_id).cloned() {
+            outgoing.push((
+                client_sender,
+                json!({ "id": request_id, "error": message }).to_string(),
+            ));
+        }
+    }
+}
+
+fn reject_pending_requests_for_app(
+    state: &mut BridgeState,
+    outgoing: &mut Vec<(mpsc::UnboundedSender<String>, String)>,
+    app_connection_id: u64,
+    message: &str,
+) {
+    let request_ids: Vec<String> = state
+        .pending_client_requests
+        .iter()
+        .filter(|(_, pending)| pending.app_connection_id == app_connection_id)
+        .map(|(request_id, _)| request_id.clone())
+        .collect();
+    for request_id in request_ids {
+        let Some(pending) = state.pending_client_requests.remove(&request_id) else {
+            continue;
+        };
+        if let Some(client_sender) = state.client_senders.get(&pending.client_id).cloned() {
+            outgoing.push((
+                client_sender,
+                json!({ "id": request_id, "error": message }).to_string(),
+            ));
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    async fn receive_command(receiver: &mut mpsc::UnboundedReceiver<String>) -> Value {
+        loop {
+            let payload = timeout(Duration::from_millis(100), receiver.recv())
+                .await
+                .expect("bridge payload should arrive")
+                .expect("bridge sender should stay connected");
+            let value: Value = serde_json::from_str(&payload).expect("valid bridge payload");
+            if value.get("command").is_some() {
+                return value;
+            }
+        }
+    }
+
+    fn assert_no_command(receiver: &mut mpsc::UnboundedReceiver<String>) {
+        while let Ok(payload) = receiver.try_recv() {
+            let value: Value = serde_json::from_str(&payload).expect("valid bridge payload");
+            assert!(
+                value.get("command").is_none(),
+                "non-authoritative app must not receive an MCP command: {value}"
+            );
+        }
+    }
+
+    #[test]
+    fn app_selection_prioritizes_desktop_then_legacy_then_browser() {
+        let mut state = BridgeState::default();
+        let (browser, _) = mpsc::unbounded_channel();
+        state.app_peers.insert(
+            1,
+            AppPeer {
+                kind: AppPeerKind::Browser,
+                sender: browser,
+            },
+        );
+        assert_eq!(selected_app_connection_id(&state), Some(1));
+
+        let (legacy, _) = mpsc::unbounded_channel();
+        state.app_peers.insert(
+            2,
+            AppPeer {
+                kind: AppPeerKind::Legacy,
+                sender: legacy,
+            },
+        );
+        assert_eq!(selected_app_connection_id(&state), Some(2));
+
+        let (desktop, _) = mpsc::unbounded_channel();
+        state.app_peers.insert(
+            3,
+            AppPeer {
+                kind: AppPeerKind::Desktop,
+                sender: desktop,
+            },
+        );
+        assert_eq!(selected_app_connection_id(&state), Some(3));
+    }
 
     #[tokio::test(flavor = "current_thread")]
     async fn send_command_waits_for_bridge_connection_before_failing() {
@@ -356,5 +501,182 @@ mod tests {
             .expect("task result")
             .expect("command result");
         assert_eq!(result.get("ok"), Some(&Value::Bool(true)));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn desktop_peer_is_authoritative_over_browser_peer() {
+        let bridge = Bridge::new(Duration::from_millis(500));
+        let (browser_tx, mut browser_rx) = mpsc::unbounded_channel();
+        let browser_id = bridge
+            .register_bridge_peer(BridgePeerRole::App(AppPeerKind::Browser), browser_tx)
+            .await;
+        let (client_tx, mut client_rx) = mpsc::unbounded_channel();
+        let client_id = bridge
+            .register_bridge_peer(BridgePeerRole::Client, client_tx)
+            .await;
+
+        bridge
+            .relay_client_request(
+                client_id,
+                json!({
+                    "id": "browser-only",
+                    "command": "rav_status",
+                    "params": {}
+                }),
+            )
+            .await
+            .expect("browser fallback request");
+        assert_eq!(
+            receive_command(&mut browser_rx).await.get("id"),
+            Some(&Value::String("browser-only".into()))
+        );
+        bridge
+            .relay_app_response(
+                browser_id,
+                json!({
+                    "id": "browser-only",
+                    "result": { "build": "browser" }
+                }),
+            )
+            .await;
+        let browser_result: Value = serde_json::from_str(
+            &timeout(Duration::from_millis(100), client_rx.recv())
+                .await
+                .expect("browser response")
+                .expect("client should stay connected"),
+        )
+        .expect("valid client response");
+        assert_eq!(browser_result["result"]["build"], "browser");
+
+        let (desktop_tx, mut desktop_rx) = mpsc::unbounded_channel();
+        let desktop_id = bridge
+            .register_bridge_peer(BridgePeerRole::App(AppPeerKind::Desktop), desktop_tx)
+            .await;
+        bridge
+            .relay_client_request(
+                client_id,
+                json!({
+                    "id": "desktop-preferred",
+                    "command": "rav_status",
+                    "params": {}
+                }),
+            )
+            .await
+            .expect("desktop request");
+        assert_eq!(
+            receive_command(&mut desktop_rx).await.get("id"),
+            Some(&Value::String("desktop-preferred".into()))
+        );
+        assert_no_command(&mut browser_rx);
+        bridge
+            .relay_app_response(
+                desktop_id,
+                json!({
+                    "id": "desktop-preferred",
+                    "result": { "build": "desktop" }
+                }),
+            )
+            .await;
+        let desktop_result: Value = serde_json::from_str(
+            &timeout(Duration::from_millis(100), client_rx.recv())
+                .await
+                .expect("desktop response")
+                .expect("client should stay connected"),
+        )
+        .expect("valid client response");
+        assert_eq!(desktop_result["result"]["build"], "desktop");
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn stale_browser_response_cannot_satisfy_request_after_desktop_replacement() {
+        let bridge = Bridge::new(Duration::from_millis(500));
+        let (browser_tx, mut browser_rx) = mpsc::unbounded_channel();
+        let browser_id = bridge
+            .register_bridge_peer(BridgePeerRole::App(AppPeerKind::Browser), browser_tx)
+            .await;
+        let (client_tx, mut client_rx) = mpsc::unbounded_channel();
+        let client_id = bridge
+            .register_bridge_peer(BridgePeerRole::Client, client_tx)
+            .await;
+
+        bridge
+            .relay_client_request(
+                client_id,
+                json!({
+                    "id": "stale-browser-request",
+                    "command": "rav_status",
+                    "params": {}
+                }),
+            )
+            .await
+            .expect("browser request");
+        receive_command(&mut browser_rx).await;
+
+        let (desktop_tx, mut desktop_rx) = mpsc::unbounded_channel();
+        let desktop_id = bridge
+            .register_bridge_peer(BridgePeerRole::App(AppPeerKind::Desktop), desktop_tx)
+            .await;
+        let replacement_error: Value = serde_json::from_str(
+            &timeout(Duration::from_millis(100), client_rx.recv())
+                .await
+                .expect("replacement should reject in-flight request")
+                .expect("client should stay connected"),
+        )
+        .expect("valid replacement error");
+        assert_eq!(replacement_error["id"], "stale-browser-request");
+        assert_eq!(replacement_error["error"], "RAV connection changed");
+
+        bridge
+            .relay_app_response(
+                browser_id,
+                json!({
+                    "id": "stale-browser-request",
+                    "result": { "build": "browser" }
+                }),
+            )
+            .await;
+
+        bridge
+            .relay_client_request(
+                client_id,
+                json!({
+                    "id": "desktop-request",
+                    "command": "rav_status",
+                    "params": {}
+                }),
+            )
+            .await
+            .expect("desktop request");
+        receive_command(&mut desktop_rx).await;
+        bridge
+            .relay_app_response(
+                browser_id,
+                json!({
+                    "id": "desktop-request",
+                    "result": { "build": "stale-browser" }
+                }),
+            )
+            .await;
+        assert!(
+            client_rx.try_recv().is_err(),
+            "stale browser response must be ignored"
+        );
+        bridge
+            .relay_app_response(
+                desktop_id,
+                json!({
+                    "id": "desktop-request",
+                    "result": { "build": "desktop" }
+                }),
+            )
+            .await;
+        let desktop_result: Value = serde_json::from_str(
+            &timeout(Duration::from_millis(100), client_rx.recv())
+                .await
+                .expect("desktop response")
+                .expect("client should stay connected"),
+        )
+        .expect("valid desktop response");
+        assert_eq!(desktop_result["result"]["build"], "desktop");
     }
 }

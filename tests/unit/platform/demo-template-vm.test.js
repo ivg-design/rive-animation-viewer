@@ -37,6 +37,14 @@ describe('render surface pointer relay', () => {
     });
 });
 
+describe('render surface VM numeric presentation', () => {
+    it('keeps template controls at two decimals while runtime values remain numeric', () => {
+        expect(controlsRenderSource).toContain('function formatVmNumber(value)');
+        expect(controlsRenderSource).toContain('numberInput.value = formatVmNumber(accessor && accessor.value)');
+        expect(syncSource).toContain('var nextNum = formatVmNumber(numValue);');
+    });
+});
+
 describe('render surface canvas capture', () => {
     it('keeps capture on the child canvas with background compositing and bounded retries', () => {
         expect(bootstrapSource).toContain("type === 'capture-canvas'");

@@ -1,3 +1,8 @@
+        function formatVmNumber(value) {
+            var numericValue = Number(value);
+            return Number.isFinite(numericValue) ? numericValue.toFixed(2) : '0.00';
+        }
+
         function getDepthColor(depth) {
             return VM_DEPTH_COLORS[depth % VM_DEPTH_COLORS.length];
         }
@@ -93,11 +98,14 @@
                 var numberInput = document.createElement('input');
                 numberInput.type = 'number';
                 numberInput.step = 'any';
-                numberInput.value = Number.isFinite(accessor && accessor.value) ? String(accessor.value) : '0';
+                numberInput.value = formatVmNumber(accessor && accessor.value);
                 numberInput.disabled = isDisabled;
                 numberInput.addEventListener('change', function () {
                     var nextValue = Number(numberInput.value);
                     if (!Number.isFinite(nextValue)) return;
+                    // Display a stable two-decimal value while preserving the
+                    // full-precision number written to the runtime accessor.
+                    numberInput.value = formatVmNumber(nextValue);
                     var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'number', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName, stateMachineName: descriptor.stateMachineName });
                     if (live) {
                         live.value = nextValue;

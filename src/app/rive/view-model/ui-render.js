@@ -8,7 +8,7 @@ import { shouldResumePlaybackForTrigger } from './accessors.js';
 import { countAllInputs } from './hierarchy.js';
 import { appendVmImageControl } from './image-control.js';
 import { dispatchVmControlMutation } from '../control-events.js';
-import { updateStringInputRows } from './ui/binding-sync.js';
+import { formatVmNumber, updateStringInputRows } from './ui/binding-sync.js';
 
 export function createVmControlRowFactory({
     documentRef,
@@ -57,13 +57,16 @@ export function createVmControlRowFactory({
             const numberInput = documentRef.createElement('input');
             numberInput.type = 'number';
             numberInput.step = 'any';
-            numberInput.value = Number.isFinite(accessor?.value) ? String(accessor.value) : '0';
+            numberInput.value = formatVmNumber(accessor?.value);
             numberInput.disabled = isDisabled;
             numberInput.addEventListener('change', () => {
                 const nextValue = Number(numberInput.value);
                 if (!Number.isFinite(nextValue)) {
                     return;
                 }
+                // Normalize the visible field immediately, while forwarding
+                // the unrounded number to the runtime below.
+                numberInput.value = formatVmNumber(nextValue);
                 if (relayRemoteMutation({ descriptor, kind: 'number', value: nextValue })) {
                     logEvent('ui', 'vm-number', `Requested ${descriptor.path} = ${nextValue}`);
                     return;

@@ -202,6 +202,10 @@ npm install
 npm start  # Opens the browser DEV viewer at http://localhost:1420; MCP uses isolated port 9278
 ```
 
+Browser preview and packaged DEV sessions may share port `9278`, but the bridge
+always routes agent commands to the packaged desktop app while it is connected.
+The browser remains a fallback only when no desktop RAV peer is present.
+
 ## Features
 
 ### Core Viewer

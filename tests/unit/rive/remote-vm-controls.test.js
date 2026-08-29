@@ -565,7 +565,7 @@ describe('child-authoritative ViewModel controls', () => {
         expect(elements.vmControlsCount.textContent).toBe('5');
         const row = (path) => elements.vmControlsTree.querySelector(`[title="${path}"]`)?.closest('.vm-control-row');
         expect(row('enabled').querySelector('input').checked).toBe(false);
-        expect(row('speed').querySelector('input').value).toBe('12');
+        expect(row('speed').querySelector('input').value).toBe('12.00');
         expect(row('title').querySelector('textarea').value).toBe('before');
         expect(row('accent').querySelector('input[type="color"]').value).toBe('#336699');
         expect(row('mode').querySelector('select').value).toBe('line');
@@ -585,7 +585,7 @@ describe('child-authoritative ViewModel controls', () => {
         document.dispatchEvent(new CustomEvent('rav:render-surface-state', { detail: state }));
         expect(elements.vmControlsCount.textContent).toBe('5');
         expect(row('enabled').querySelector('input').checked).toBe(true);
-        expect(row('speed').querySelector('input').value).toBe('24');
+        expect(row('speed').querySelector('input').value).toBe('24.00');
         expect(row('title').querySelector('textarea').value).toBe('after');
         expect(row('accent').querySelector('input[type="color"]').value).toBe('#cc8844');
         expect(row('mode').querySelector('select').value).toBe('area');
@@ -594,7 +594,7 @@ describe('child-authoritative ViewModel controls', () => {
         state = stale;
         document.dispatchEvent(new CustomEvent('rav:render-surface-state', { detail: stale }));
         expect(elements.vmControlsCount.textContent).toBe('5');
-        expect(row('speed').querySelector('input').value).toBe('24');
+        expect(row('speed').querySelector('input').value).toBe('24.00');
         expect(mutations).toEqual([]);
 
         controller.stopVmControlSync();
