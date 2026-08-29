@@ -67,6 +67,7 @@ function expectedOpenAssertions(scenario) {
             names.push(`open sequence ${repetition + 1}/${repetitions} step ${stepIndex + 1}/${sequence.length}: ${alias}`);
         }
     }
+    names.push(`global VM: open ${scenario.globalViewModel.file}`);
     return names;
 }
 

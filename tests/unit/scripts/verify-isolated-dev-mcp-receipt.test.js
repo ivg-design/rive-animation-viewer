@@ -32,6 +32,7 @@ function fixture() {
             });
         }
     }
+    openAssertions.push({ name: 'global VM: open a', ok: true });
     const expectedSidecarSha256 = createHash('sha256').update('sidecar').digest('hex');
     const expectedScenarioSha256 = createHash('sha256').update(scenarioText).digest('hex');
     const options = {
