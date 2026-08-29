@@ -37,6 +37,31 @@ describe('render surface pointer relay', () => {
     });
 });
 
+describe('render surface VM numeric presentation', () => {
+    it('keeps template controls at two decimals while runtime values remain numeric', () => {
+        expect(controlsRenderSource).toContain('function formatVmNumber(value)');
+        expect(controlsRenderSource).toContain('numberInput.value = formatVmNumber(accessor && accessor.value)');
+        expect(controlsRenderSource).toContain('alphaInput.value = formatVmNumber(colorMeta.alphaPercent)');
+        expect(syncSource).toContain('var nextNum = formatVmNumber(numValue);');
+        expect(syncSource).toContain('var nextAlpha = formatVmNumber(meta.alphaPercent);');
+    });
+});
+
+describe('render surface canvas capture', () => {
+    it('keeps capture on the child canvas with background compositing and bounded retries', () => {
+        expect(bootstrapSource).toContain("type === 'capture-canvas'");
+        expect(bootstrapSource).toContain('window.getComputedStyle(canvas)');
+        expect(bootstrapSource).toContain('context.fillStyle = backgroundColor');
+        expect(bootstrapSource).toContain("riveInstance.stopRendering()");
+        expect(bootstrapSource).toContain("riveInstance.startRendering()");
+        expect(bootstrapSource).toContain("riveInstance.drawOptimization = 'alwaysDraw'");
+        expect(bootstrapSource).toContain('attempts <= 4');
+        expect(bootstrapSource).toContain('12 * 1024 * 1024');
+        expect(bootstrapSource).toContain("data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0");
+        expect(bootstrapSource).toContain("emitToMain('render-surface:capture'");
+    });
+});
+
 function validPngBytes(tag = 0, width = 1, height = 1) {
     return [
         0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
@@ -81,6 +106,10 @@ function createDemoVmHarness(riveInstance, {
             if (descriptor.source === 'state-machine') {
                 return 'sm:' + (descriptor.stateMachineName || '') + ':' + (descriptor.name || '') + ':' + (descriptor.kind || '');
             }
+            if (descriptor.source === 'global-view-model') {
+                return 'gvm:' + encodeURIComponent(descriptor.globalViewModelName || '') + ':'
+                    + (descriptor.path || '') + ':' + (descriptor.kind || '');
+            }
             return 'vm:' + (descriptor.path || '') + ':' + (descriptor.kind || '');
         }
         function controlSelectionKeyForDescriptor(descriptor) {
@@ -91,6 +120,16 @@ function createDemoVmHarness(riveInstance, {
         function normalizeControlSelectionKey(key) {
             if (typeof key !== 'string') return null;
             const trimmed = key.trim();
+            if (trimmed.startsWith('gvm:')) {
+                const firstSeparator = trimmed.indexOf(':', 4);
+                const kindSeparator = trimmed.lastIndexOf(':');
+                if (firstSeparator <= 4 || kindSeparator <= firstSeparator) return trimmed || null;
+                const path = trimmed.slice(firstSeparator + 1, kindSeparator)
+                    .split('/')
+                    .map((segment) => /^(0|[1-9]\\d*)$/.test(segment) ? '*' : segment)
+                    .join('/');
+                return trimmed.slice(0, firstSeparator + 1) + path + ':' + trimmed.slice(kindSeparator + 1);
+            }
             if (!trimmed.startsWith('vm:')) return trimmed || null;
             const kindSeparator = trimmed.lastIndexOf(':');
             if (kindSeparator <= 3) return trimmed || null;
@@ -125,7 +164,7 @@ function createDemoVmHarness(riveInstance, {
         function renderVmControls() {
             topologyRenderCount += 1;
             const rootVm = resolveVmRootInstance();
-            vmListTopologySignature = buildVmListTopologySignature(rootVm);
+            vmListTopologySignature = buildAllVmTopologySignature();
             renderedHierarchy = filterHierarchyNode(buildVmHierarchy(rootVm));
         }
         ${syncSource}
@@ -137,11 +176,12 @@ function createDemoVmHarness(riveInstance, {
             captureRenderSurfacePlayback,
             captureRenderSurfaceCommandCanonicalDelta,
             captureChangedRenderSurfaceControls,
+            captureRenderSurfaceControlsHierarchy: () => captureRenderSurfaceControlsHierarchy(getRenderSurfaceBridgeState()),
             filterHierarchyNode,
             formatVmListItemLabel,
             getRenderSurfaceObserverDiagnostics,
             initializeTopology: () => {
-                vmListTopologySignature = buildVmListTopologySignature(resolveVmRootInstance());
+                vmListTopologySignature = buildAllVmTopologySignature();
                 return vmListTopologySignature;
             },
             invalidateRenderSurfaceCanonicalBindingsForReset,
@@ -1711,6 +1751,91 @@ describe('exported demo ViewModel snapshot runtime', () => {
         }
     });
 
+    it('falls back when animation frames and idle callbacks starve and publishes one initial snapshot', () => {
+        const frames = [];
+        const idleTasks = [];
+        const timers = [];
+        let nextTimerId = 1;
+        const previousRaf = window.requestAnimationFrame;
+        const previousIdle = window.requestIdleCallback;
+        const previousSetTimeout = window.setTimeout;
+        const previousClearTimeout = window.clearTimeout;
+        window.requestAnimationFrame = (callback) => { frames.push(callback); return frames.length; };
+        window.requestIdleCallback = (callback, options) => {
+            idleTasks.push({ callback, options });
+            return idleTasks.length;
+        };
+        window.setTimeout = (callback, delay) => {
+            const timer = { callback, cancelled: false, delay, id: nextTimerId, ran: false };
+            nextTimerId += 1;
+            timers.push(timer);
+            return timer.id;
+        };
+        window.clearTimeout = (id) => {
+            const timer = timers.find((candidate) => candidate.id === id);
+            if (timer) timer.cancelled = true;
+        };
+        const runTimer = (delay) => {
+            const timer = timers.find((candidate) => (
+                candidate.delay === delay && !candidate.cancelled && !candidate.ran
+            ));
+            expect(timer).toBeDefined();
+            timer.ran = true;
+            timer.callback();
+        };
+        try {
+            const root = {
+                number: (name) => (name === 'speed' ? { value: 42 } : null),
+                properties: [{ name: 'speed' }],
+            };
+            const harness = createDemoVmHarness({
+                artboard: { name: 'Fallback' },
+                stateMachineNames: [],
+                viewModelInstance: root,
+            }, { deferCanonicalUntilActivation: true, renderSurfaceMode: true });
+
+            harness.publishRenderSurfaceCanonicalState(true, 'load');
+            expect(harness.scheduleRenderSurfaceInitialCanonicalState()).toBe(true);
+            expect(frames).toHaveLength(1);
+            expect(idleTasks).toHaveLength(0);
+
+            // A hidden staged WebView never presents its requested frame. The
+            // independent frame-stage timer must still install the idle work.
+            runTimer(250);
+            expect(idleTasks).toHaveLength(1);
+
+            // The same WebView can also withhold idle callbacks. Its second
+            // bounded fallback must publish exactly one complete snapshot.
+            runTimer(1000);
+            expect(harness.emitted.map(({ payload }) => payload.reason)).toEqual(['load', 'activation']);
+
+            // Late frame and idle callbacks share once guards and cannot emit a
+            // duplicate canonical state.
+            frames.shift()();
+            idleTasks.shift().callback();
+            expect(harness.emitted.map(({ payload }) => payload.reason)).toEqual(['load', 'activation']);
+
+            expect(harness.scheduleRenderSurfaceCanonicalRefresh('fallback-refresh', true)).toBe(true);
+            frames.shift()();
+            expect(idleTasks).toHaveLength(1);
+            runTimer(1000);
+            expect(harness.emitted.map(({ payload }) => payload.reason)).toEqual([
+                'load', 'activation', 'fallback-refresh',
+            ]);
+            idleTasks.shift().callback();
+            expect(harness.emitted.map(({ payload }) => payload.reason)).toEqual([
+                'load', 'activation', 'fallback-refresh',
+            ]);
+        } finally {
+            if (typeof previousRaf === 'function') window.requestAnimationFrame = previousRaf;
+            else delete window.requestAnimationFrame;
+            if (typeof previousIdle === 'function') window.requestIdleCallback = previousIdle;
+            else delete window.requestIdleCallback;
+            window.setTimeout = previousSetTimeout;
+            window.clearTimeout = previousClearTimeout;
+        }
+    });
+
     it('starts activation after two presentation opportunities even when a static artboard does not advance', async () => {
         const onLoadStart = riveLoaderSource.indexOf('riveConfig.onLoad = function');
         const onLoadEnd = riveLoaderSource.indexOf('riveConfig.onLoadError = function', onLoadStart);
@@ -2441,6 +2566,45 @@ describe('exported demo ViewModel snapshot runtime', () => {
         }));
     });
 
+    it('rebuilds canonical hierarchy when a named global ViewModel list grows', () => {
+        const rows = [];
+        const list = {
+            get length() { return rows.length; },
+            instanceAt: (index) => rows[index] || null,
+        };
+        const theme = {
+            list: (name) => (name === 'rows' ? list : null),
+            properties: [{ name: 'rows' }],
+        };
+        const harness = createDemoVmHarness({
+            globalViewModelInstance: (name) => (name === 'Theme' ? theme : null),
+            globalViewModelNames() {
+                if (arguments.length) throw new Error('globalViewModelNames takes no arguments');
+                return ['Theme'];
+            },
+            stateMachineNames: [],
+            viewModelInstance: { properties: [] },
+        }, { renderSurfaceMode: true });
+
+        expect(harness.publishRenderSurfaceCanonicalState(true, 'initial')).toEqual(expect.objectContaining({
+            stateType: 'snapshot', topologyRevision: 1,
+        }));
+
+        const enabled = { value: false };
+        rows.push({
+            boolean: (name) => (name === 'enabled' ? enabled : null),
+            properties: [{ name: 'enabled' }],
+        });
+        const refreshed = harness.publishRenderSurfaceCanonicalState(true, 'global-list-growth', true);
+        const globalInput = refreshed.controlsHierarchy.children[0].children[0].children[0].children[0].inputs[0];
+        expect(refreshed).toEqual(expect.objectContaining({ stateType: 'snapshot', topologyRevision: 2 }));
+        expect(globalInput).toEqual(expect.objectContaining({
+            globalViewModelName: 'Theme',
+            path: 'rows/0/enabled',
+            source: 'global-view-model',
+        }));
+    });
+
     it('uses presence and monotonic receipts for image and trigger changes', () => {
         const image = { value: null };
         const trigger = { trigger: vi.fn() };
@@ -3051,7 +3215,7 @@ describe('exported demo ViewModel snapshot runtime', () => {
         };
         const harness = createDemoVmHarness(riveInstance);
 
-        expect(harness.initializeTopology()).toContain('["list","rows",0]');
+        expect(JSON.parse(harness.initializeTopology()).root).toContain('["list","rows",0]');
         expect(harness.syncVmControlTopology()).toBe(false);
 
         rows.push(null);

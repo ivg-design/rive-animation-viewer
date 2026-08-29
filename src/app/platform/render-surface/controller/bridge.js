@@ -13,6 +13,7 @@ export function createRenderSurfaceBridgeHandlers({
     rejectStagedSession,
     setStagedReady,
     onChildPointerDown = () => {},
+    onChildCapture = () => false,
 }) {
     function handleChildReady(event) {
         protocol.handleReady(event);
@@ -85,6 +86,10 @@ export function createRenderSurfaceBridgeHandlers({
     }
 
     return {
+        handleChildCapture(event) {
+            if (isDisposed() || !protocol.matchesActive(event)) return false;
+            return onChildCapture(event?.payload || {});
+        },
         handleChildDiagnostic,
         handleChildError,
         handleChildMetrics,

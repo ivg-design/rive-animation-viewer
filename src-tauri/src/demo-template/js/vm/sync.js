@@ -10,6 +10,8 @@
                 var descriptor = binding.descriptor || {};
                 var key = (descriptor.source === 'state-machine'
                     ? 'sm:' + (descriptor.stateMachineName || '') + ':' + (descriptor.name || '') + ':' + (binding.kind || '')
+                    : descriptor.source === 'global-view-model'
+                        ? 'gvm:' + encodeURIComponent(descriptor.globalViewModelName || '') + ':' + (descriptor.path || '') + ':' + (binding.kind || '')
                     : 'vm:' + (descriptor.path || '') + ':' + (binding.kind || ''));
                 if (!key || seen.has(key)) return;
 
@@ -23,6 +25,7 @@
                         name: descriptor.name,
                         path: descriptor.path,
                         source: descriptor.source,
+                        globalViewModelName: descriptor.globalViewModelName,
                         stateMachineName: descriptor.stateMachineName,
                     },
                     kind: binding.kind,
@@ -62,7 +65,9 @@
                     }
                     return;
                 }
-                var accessor = resolveLiveAccessor(descriptor.path, kind);
+                var accessor = descriptor.source === 'global-view-model'
+                    ? resolveGlobalVmAccessor(descriptor.globalViewModelName, descriptor.path, kind)
+                    : resolveLiveAccessor(descriptor.path, kind);
                 if (!accessor || !('value' in accessor)) return;
                 accessor.value = entry.value;
                 pendingControlSnapshot.delete(key);
@@ -79,6 +84,7 @@
                     name: descriptor.name,
                     kind: descriptor.kind,
                     source: descriptor.source,
+                    globalViewModelName: descriptor.globalViewModelName,
                     stateMachineName: descriptor.stateMachineName,
                 },
                 kind: binding.kind,
@@ -136,7 +142,7 @@
                     var numValue = Number(accessor.value);
                     if (!Number.isFinite(numValue)) return;
                     if (!force && isEditingControl(binding.input)) return;
-                    var nextNum = String(numValue);
+                    var nextNum = formatVmNumber(numValue);
                     if (binding.input.value !== nextNum) binding.input.value = nextNum;
                     return;
                 }
@@ -164,14 +170,14 @@
                     var meta = argbToColorMeta(accessor.value);
                     if (!force && (isEditingControl(binding.colorInput) || isEditingControl(binding.alphaInput))) return;
                     if (binding.colorInput.value !== meta.hex) binding.colorInput.value = meta.hex;
-                    var nextAlpha = String(meta.alphaPercent);
+                    var nextAlpha = formatVmNumber(meta.alphaPercent);
                     if (binding.alphaInput.value !== nextAlpha) binding.alphaInput.value = nextAlpha;
                 }
             });
         }
 
         function syncVmControlTopology() {
-            var nextSignature = buildVmListTopologySignature(resolveVmRootInstance());
+            var nextSignature = buildAllVmTopologySignature();
             if (nextSignature === vmListTopologySignature) {
                 return false;
             }

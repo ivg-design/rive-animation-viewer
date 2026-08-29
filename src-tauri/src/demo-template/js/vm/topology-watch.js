@@ -65,6 +65,25 @@
             }
         }
 
+        function currentRenderSurfaceTopologyRoots(rootVm) {
+            var roots = [{ name: '<root>', instance: rootVm }];
+            getGlobalViewModelNames().sort().forEach(function (name) {
+                roots.push({ name: 'gvm:' + name, instance: resolveGlobalVmRootInstance(name) });
+            });
+            return roots;
+        }
+
+        function topologyRootsChanged(tracker, rootVm) {
+            var currentRoots = currentRenderSurfaceTopologyRoots(rootVm);
+            var trackedRoots = tracker && tracker.roots;
+            if (!Array.isArray(trackedRoots) || trackedRoots.length !== currentRoots.length) return true;
+            return currentRoots.some(function (current, index) {
+                var tracked = trackedRoots[index];
+                return !tracked || tracked.name !== current.name
+                    || runtimeIdentityChanged(tracked.instance, current.instance);
+            });
+        }
+
         function captureTopologyTrackers(rootVm, bridgeState) {
             cleanupRenderSurfaceTopologySubscriptions(bridgeState);
             bridgeState.topologyDirty = false;
@@ -75,6 +94,7 @@
                 nested: [],
                 requiresFallbackScan: false,
                 root: rootVm,
+                roots: currentRenderSurfaceTopologyRoots(rootVm),
                 stateMachines: [],
             };
             var active = new WeakSet();
@@ -108,7 +128,7 @@
                 });
                 active.delete(instance);
             }
-            walk(rootVm);
+            tracker.roots.forEach(function (entry) { walk(entry.instance); });
             var names = Array.isArray(riveInstance && riveInstance.stateMachineNames)
                 ? riveInstance.stateMachineNames.filter(Boolean)
                 : [];
@@ -128,7 +148,7 @@
         function renderSurfaceTopologyChanged(bridgeState, forceFallbackScan) {
             var tracker = bridgeState.topologyTracker;
             if (bridgeState.topologyDirty) return true;
-            if (!tracker || tracker.root !== resolveVmRootInstance()) return true;
+            if (!tracker || topologyRootsChanged(tracker, resolveVmRootInstance())) return true;
             if (!tracker.requiresFallbackScan || !forceFallbackScan) return false;
             for (var listIndex = 0; listIndex < tracker.lists.length; listIndex++) {
                 var trackedList = tracker.lists[listIndex];

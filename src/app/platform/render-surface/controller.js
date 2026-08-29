@@ -15,6 +15,7 @@ import { createRenderSurfaceEventRelay, dispatchCanonicalTimelineProgress } from
 import { createRenderSurfaceFatalRecovery } from './fatal-recovery.js';
 import { createRenderSurfaceProtocol, RENDER_SURFACE_PROTOCOL_VERSION } from './protocol.js';
 import { createRenderSurfaceVisibilityController, observeBlockingMainUi } from './visibility.js';
+import { createRenderSurfaceCaptureSession } from './capture-router.js';
 export { measureRenderSurfaceBounds } from './bounds.js';
 const LOAD_TIMEOUT_MS = 15_000;
 export const RENDER_SURFACE_AUTHORITY_EVENT = 'rav:render-surface-authority-change';
@@ -204,6 +205,12 @@ export function createRenderSurfaceController({
     const loadCurrentAnimation = loadOperation.load;
     const loadCurrentAnimationForSelection = loadOperation.loadForSelection;
     const sendCommand = (type, payload = {}) => activationCoordinator.requestCommand(type, payload);
+    const captureSession = createRenderSurfaceCaptureSession({
+        getSessionId: () => activeSessionId,
+        isActive: () => Boolean(activeSessionId) && !disposed && fatalRecovery.canAcceptCommands(),
+        sendCommand,
+        windowRef,
+    });
     const requestImageCommand = (payload = {}) => {
         imageReplayCache.capture(payload, activationCoordinator.getCommandSessionId());
         return activationCoordinator.requestCommand('vm-image-set', payload);
@@ -256,6 +263,7 @@ export function createRenderSurfaceController({
             if (typeof documentRef?.dispatchEvent !== 'function' || typeof CustomEventCtor !== 'function') return;
             documentRef.dispatchEvent(new CustomEventCtor('rav:render-surface-pointerdown', { detail }));
         },
+        onChildCapture: captureSession.handleResponse,
         protocol,
         rejectStagedSession,
         setStagedReady: (value) => { stagedReady = value; },
@@ -304,6 +312,7 @@ export function createRenderSurfaceController({
         setFpsState: setRenderSurfaceFpsState, setLoaded: (value) => { isLoaded = value; },
         setMainCanvasVisible, unlistenCallbacks, windowRef });
     function dispose() {
+        captureSession.dispose();
         loadOperation.cancel();
         activationLifecycle.dispose();
         return disposeController();

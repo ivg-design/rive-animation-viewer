@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "2.5.2"
+version = "2.5.3"
 description = "A Tauri App"
 authors = ["IVG Design"]
 license = "MIT"
@@ -33,8 +33,9 @@ uuid = { version = "1", features = ["v4"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = { version = "0.6", default-features = false, features = ["alloc"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-uniform-type-identifiers", "NSButton", "NSControl", "NSView", "NSWindow", "NSWorkspace"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-quartz-core", "objc2-uniform-type-identifiers", "NSButton", "NSControl", "NSView", "NSWindow", "NSWorkspace"] }
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSBundle", "NSError", "NSProcessInfo", "NSString", "NSURL"] }
+objc2-quartz-core = { version = "0.3", default-features = false, features = ["CALayer", "objc2-core-foundation"] }
 objc2-uniform-type-identifiers = { version = "0.3", default-features = false, features = ["std", "UTType"] }
 
 [target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]

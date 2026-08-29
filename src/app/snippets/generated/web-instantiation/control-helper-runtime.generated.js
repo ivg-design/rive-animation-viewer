@@ -12,6 +12,14 @@ function getRavVmRoot(instance = riveInst) {
   return instance?.viewModelInstance || null;
 }
 
+function getRavGlobalVmRoot(name, instance = riveInst) {
+  if (!instance || typeof name !== "string" || !name) return null;
+  let names = [];
+  try { names = instance.globalViewModelNames?.() || []; } catch { return null; }
+  if (!Array.isArray(names) || !names.includes(name)) return null;
+  try { return instance.globalViewModelInstance?.(name) || null; } catch { return null; }
+}
+
 function getRavVmAccessor(path, expectedKind, instance = riveInst) {
   const rootVm = getRavVmRoot(instance);
   if (!rootVm || typeof path !== "string" || !path) return null;
@@ -67,6 +75,12 @@ function getRavVmAccessor(path, expectedKind, instance = riveInst) {
     }
   }
   return null;
+}
+
+function getRavGlobalVmAccessor(name, path, expectedKind, instance = riveInst) {
+  const globalRoot = getRavGlobalVmRoot(name, instance);
+  if (!globalRoot) return null;
+  return getRavVmAccessor(path, expectedKind, { viewModelInstance: globalRoot });
 }
 
 function getRavStateMachineInput(stateMachineName, inputName, instance = riveInst) {
@@ -161,6 +175,18 @@ function fireRavVmTrigger(path, instance = riveInst) {
   return false;
 }
 
+function setRavGlobalVmValue(name, path, value, expectedKind, instance = riveInst) {
+  const root = getRavGlobalVmRoot(name, instance);
+  if (!root) return false;
+  return setRavVmValue(path, value, expectedKind, { viewModelInstance: root });
+}
+
+function fireRavGlobalVmTrigger(name, path, instance = riveInst) {
+  const root = getRavGlobalVmRoot(name, instance);
+  if (!root) return false;
+  return fireRavVmTrigger(path, { viewModelInstance: root });
+}
+
 function setRavStateMachineInput(stateMachineName, inputName, value, instance = riveInst) {
   const input = getRavStateMachineInput(stateMachineName, inputName, instance);
   if (!input || isRavStateMachineTriggerInput(input) || !("value" in input)) return false;
@@ -183,6 +209,14 @@ function resolveRavVmOverrides(overrides = undefined) {
   return null;
 }
 
+function resolveRavGlobalVmOverrides(overrides = undefined) {
+  if (overrides && typeof overrides === "object") return overrides;
+  if (typeof GLOBAL_VM_OVERRIDES !== "undefined"
+      && GLOBAL_VM_OVERRIDES
+      && typeof GLOBAL_VM_OVERRIDES === "object") return GLOBAL_VM_OVERRIDES;
+  return null;
+}
+
 function resolveRavStateMachineOverrides(overrides = undefined) {
   if (overrides && typeof overrides === "object") return overrides;
   if (typeof STATE_MACHINE_OVERRIDES !== "undefined"
@@ -197,6 +231,14 @@ function resolveRavVmTriggerPaths(vmTriggers = undefined) {
   if (Array.isArray(vmTriggers)) return vmTriggers;
   if (typeof VM_TRIGGER_PATHS !== "undefined" && Array.isArray(VM_TRIGGER_PATHS)) {
     return VM_TRIGGER_PATHS;
+  }
+  return [];
+}
+
+function resolveRavGlobalVmTriggerPaths(globalVmTriggers = undefined) {
+  if (Array.isArray(globalVmTriggers)) return globalVmTriggers;
+  if (typeof GLOBAL_VM_TRIGGER_PATHS !== "undefined" && Array.isArray(GLOBAL_VM_TRIGGER_PATHS)) {
+    return GLOBAL_VM_TRIGGER_PATHS;
   }
   return [];
 }
@@ -219,6 +261,18 @@ function applyRavVmOverrides(instance = riveInst, overrides = undefined) {
   return applied;
 }
 
+function applyRavGlobalVmOverrides(instance = riveInst, overrides = undefined) {
+  const resolvedOverrides = resolveRavGlobalVmOverrides(overrides);
+  if (!instance || !resolvedOverrides) return 0;
+  let applied = 0;
+  Object.entries(resolvedOverrides).forEach(([name, values]) => {
+    Object.entries(values || {}).forEach(([path, value]) => {
+      if (setRavGlobalVmValue(name, path, value, undefined, instance)) applied += 1;
+    });
+  });
+  return applied;
+}
+
 function applyRavStateMachineOverrides(instance = riveInst, overrides = undefined) {
   const resolvedOverrides = resolveRavStateMachineOverrides(overrides);
   if (!instance || !resolvedOverrides) return 0;
@@ -232,9 +286,10 @@ function applyRavStateMachineOverrides(instance = riveInst, overrides = undefine
   return applied;
 }
 
-function fireRavConfiguredTriggers(instance = riveInst, vmTriggers = undefined, stateMachineTriggers = undefined) {
+function fireRavConfiguredTriggers(instance = riveInst, vmTriggers = undefined, stateMachineTriggers = undefined, globalVmTriggers = undefined) {
   const resolvedVmTriggers = resolveRavVmTriggerPaths(vmTriggers);
   const resolvedStateMachineTriggers = resolveRavStateMachineTriggerInputs(stateMachineTriggers);
+  const resolvedGlobalVmTriggers = resolveRavGlobalVmTriggerPaths(globalVmTriggers);
   let fired = 0;
   if (Array.isArray(resolvedVmTriggers)) {
     resolvedVmTriggers.forEach((path) => {
@@ -246,11 +301,15 @@ function fireRavConfiguredTriggers(instance = riveInst, vmTriggers = undefined, 
       if (fireRavStateMachineInput(entry?.stateMachine, entry?.input, instance)) fired += 1;
     });
   }
+  resolvedGlobalVmTriggers.forEach((entry) => {
+    if (fireRavGlobalVmTrigger(entry?.name, entry?.path, instance)) fired += 1;
+  });
   return fired;
 }
 
 function createRavWebController(getInstance) {
   let pendingVmOverrides = new Map();
+  let pendingGlobalVmOverrides = new Map();
   let pendingStateMachineOverrides = new Map();
   let retryGeneration = 0;
   let advanceRetryBudget = 0;
@@ -258,6 +317,12 @@ function createRavWebController(getInstance) {
   const resetPendingSnapshot = () => {
     advanceRetryBudget = 600;
     pendingVmOverrides = new Map(Object.entries(resolveRavVmOverrides() || {}));
+    pendingGlobalVmOverrides = new Map();
+    Object.entries(resolveRavGlobalVmOverrides() || {}).forEach(([name, values]) => {
+      Object.entries(values || {}).forEach(([path, value]) => {
+        pendingGlobalVmOverrides.set(\`\${name}\\u0000\${path}\`, { name, path, value });
+      });
+    });
     pendingStateMachineOverrides = new Map();
     Object.entries(resolveRavStateMachineOverrides() || {}).forEach(([stateMachineName, inputs]) => {
       Object.entries(inputs || {}).forEach(([inputName, value]) => {
@@ -275,6 +340,12 @@ function createRavWebController(getInstance) {
         applied += 1;
       }
     });
+    pendingGlobalVmOverrides.forEach((entry, key) => {
+      if (setRavGlobalVmValue(entry.name, entry.path, entry.value, undefined, instance)) {
+        pendingGlobalVmOverrides.delete(key);
+        applied += 1;
+      }
+    });
     pendingStateMachineOverrides.forEach((entry, key) => {
       if (setRavStateMachineInput(entry.stateMachineName, entry.inputName, entry.value, instance)) {
         pendingStateMachineOverrides.delete(key);
@@ -284,7 +355,7 @@ function createRavWebController(getInstance) {
     return applied;
   };
 
-  const hasPendingSnapshot = () => pendingVmOverrides.size + pendingStateMachineOverrides.size > 0;
+  const hasPendingSnapshot = () => pendingVmOverrides.size + pendingGlobalVmOverrides.size + pendingStateMachineOverrides.size > 0;
   const prepareSnapshot = () => {
     retryGeneration += 1;
     resetPendingSnapshot();
@@ -294,9 +365,7 @@ function createRavWebController(getInstance) {
     if (!hasPendingSnapshot()) return;
     const generation = ++retryGeneration;
     let remainingFrames = 180;
-    const schedule = typeof requestAnimationFrame === "function"
-      ? requestAnimationFrame
-      : (callback) => setTimeout(callback, 16);
+    const schedule = typeof requestAnimationFrame === "function" ? requestAnimationFrame : (callback) => setTimeout(callback, 16);
     const retry = () => {
       if (generation !== retryGeneration) return;
       applyPendingSnapshot();
@@ -336,53 +405,30 @@ function createRavWebController(getInstance) {
   };
 
   return {
-    get instance() {
-      return getInstance();
-    },
-    applySnapshot() {
-      const applied = prepareSnapshot();
-      schedulePendingSnapshot();
-      return applied;
-    },
-    applyStateMachineOverrides() {
-      return applyRavStateMachineOverrides(getInstance());
-    },
-    applyVmOverrides() {
-      return applyRavVmOverrides(getInstance());
-    },
-    fireConfiguredTriggers() {
-      return fireRavConfiguredTriggers(getInstance());
-    },
-    fireStateMachineInput(stateMachineName, inputName) {
-      return fireRavStateMachineInput(stateMachineName, inputName, getInstance());
-    },
-    fireVmTrigger(path) {
-      return fireRavVmTrigger(path, getInstance());
-    },
-    getStateMachineInput(stateMachineName, inputName) {
-      return getRavStateMachineInput(stateMachineName, inputName, getInstance());
-    },
-    getVmRoot() {
-      return getRavVmRoot(getInstance());
-    },
-    resolveVmAccessor(path, expectedKind) {
-      return getRavVmAccessor(path, expectedKind, getInstance());
-    },
-    retryPendingSnapshot() {
-      return applyPendingSnapshot();
-    },
+    get instance() { return getInstance(); },
+    applySnapshot() { const applied = prepareSnapshot(); schedulePendingSnapshot(); return applied; },
+    applyStateMachineOverrides() { return applyRavStateMachineOverrides(getInstance()); },
+    applyGlobalVmOverrides() { return applyRavGlobalVmOverrides(getInstance()); },
+    applyVmOverrides() { return applyRavVmOverrides(getInstance()); },
+    fireConfiguredTriggers() { return fireRavConfiguredTriggers(getInstance()); },
+    fireStateMachineInput(name, input) { return fireRavStateMachineInput(name, input, getInstance()); },
+    fireVmTrigger(path) { return fireRavVmTrigger(path, getInstance()); },
+    fireGlobalVmTrigger(name, path) { return fireRavGlobalVmTrigger(name, path, getInstance()); },
+    getStateMachineInput(name, input) { return getRavStateMachineInput(name, input, getInstance()); },
+    getVmRoot() { return getRavVmRoot(getInstance()); },
+    getGlobalVmRoot(name) { return getRavGlobalVmRoot(name, getInstance()); },
+    resolveVmAccessor(path, kind) { return getRavVmAccessor(path, kind, getInstance()); },
+    resolveGlobalVmAccessor(name, path, kind) { return getRavGlobalVmAccessor(name, path, kind, getInstance()); },
+    retryPendingSnapshot() { return applyPendingSnapshot(); },
     retryPendingSnapshotOnAdvance() {
       if (!hasPendingSnapshot() || advanceRetryBudget <= 0) return 0;
       advanceRetryBudget -= 1;
       return applyPendingSnapshot();
     },
     runOnLoad,
-    setStateMachineInput(stateMachineName, inputName, value) {
-      return setRavStateMachineInput(stateMachineName, inputName, value, getInstance());
-    },
-    setVmValue(path, value, expectedKind) {
-      return setRavVmValue(path, value, expectedKind, getInstance());
-    },
+    setStateMachineInput(name, input, value) { return setRavStateMachineInput(name, input, value, getInstance()); },
+    setVmValue(path, value, kind) { return setRavVmValue(path, value, kind, getInstance()); },
+    setGlobalVmValue(name, path, value, kind) { return setRavGlobalVmValue(name, path, value, kind, getInstance()); },
   };
 }
 

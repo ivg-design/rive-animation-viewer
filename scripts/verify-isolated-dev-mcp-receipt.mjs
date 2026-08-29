@@ -3,7 +3,16 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 
+const REQUIRED_NEW_TOOLS = [
+    'rav_get_global_vm_tree', 'rav_global_vm_get', 'rav_global_vm_set',
+    'rav_global_vm_fire', 'rav_global_vm_set_image', 'rav_global_vm_clear_image',
+    'rav_capture_canvas',
+];
+
 export const REQUIRED_ASSERTIONS = [
+    'tools/list: exact 49 unique tools including GVM/capture names',
+    'global VM tree/get/set/restore',
+    'capture: valid PNG byte length matches metadata',
     'MCP connected to the exact isolated DEV build',
     'authored instance transition: open a',
     'authored instances -> open list',
@@ -58,10 +67,16 @@ function expectedOpenAssertions(scenario) {
             names.push(`open sequence ${repetition + 1}/${repetitions} step ${stepIndex + 1}/${sequence.length}: ${alias}`);
         }
     }
+    names.push(`global VM: open ${scenario.globalViewModel.file}`);
     return names;
 }
 
 function validateClosureScenario(scenario) {
+    const global = scenario?.globalViewModel;
+    if (!global?.file || !global?.name || !global?.path || global.value === undefined
+        || !scenario?.files?.[global.file]) {
+        fail('Pinned scenario must exercise global ViewModel tree/get/set/restore.');
+    }
     const modes = scenario?.instanceModes;
     const zeroIndex = Array.isArray(modes?.instances) ? modes.instances.indexOf(0) : -1;
     if (modes?.file !== 'numericInstance'
@@ -167,6 +182,29 @@ export function verifyReceipt(receipt, options = {}) {
     if (missing.length) fail(`Receipt is missing required assertions: ${missing.join(', ')}`);
     if (unexpected.length) fail(`Receipt contains unexpected assertions: ${unexpected.join(', ')}`);
     if (names.length !== required.length) fail('Receipt assertion inventory is incomplete.');
+
+    const toolsAssertion = receipt.assertions.find((entry) => entry.name
+        === 'tools/list: exact 49 unique tools including GVM/capture names');
+    if (toolsAssertion?.count !== 49
+        || !Array.isArray(toolsAssertion.names)
+        || toolsAssertion.names.length !== 49
+        || new Set(toolsAssertion.names).size !== 49
+        || !REQUIRED_NEW_TOOLS.every((name) => toolsAssertion.names.includes(name))) {
+        fail('tools/list receipt evidence does not prove exactly 49 unique tools and all required GVM/capture names.');
+    }
+    const globalAssertion = receipt.assertions.find((entry) => entry.name === 'global VM tree/get/set/restore');
+    if (!globalAssertion || globalAssertion.original !== globalAssertion.restored
+        || typeof globalAssertion.globalViewModelName !== 'string' || typeof globalAssertion.path !== 'string') {
+        fail('Global ViewModel receipt evidence does not prove restoration of the original value.');
+    }
+    const captureAssertion = receipt.assertions.find((entry) => entry.name
+        === 'capture: valid PNG byte length matches metadata');
+    if (!captureAssertion || captureAssertion.mimeType !== 'image/png'
+        || !Number.isInteger(captureAssertion.decodedByteLength)
+        || captureAssertion.decodedByteLength <= 0
+        || captureAssertion.decodedByteLength !== captureAssertion.metadataByteLength) {
+        fail('Canvas capture receipt evidence does not prove a valid PNG byte-length match.');
+    }
 
     return {
         assertions: names.length,

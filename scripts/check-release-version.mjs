@@ -57,6 +57,7 @@ export function collectVersions() {
   const packageJson = readJson('package.json');
   const packageLock = readJson('package-lock.json');
   const tauriConfig = readJson('src-tauri/tauri.conf.json');
+  const isolatedDevConfig = readJson('src-tauri/tauri.flicker-test.conf.json');
   const cargoToml = read('src-tauri/Cargo.toml');
   const cargoLock = read('src-tauri/Cargo.lock');
   const websiteLayout = read('web/src/app/layout.tsx');
@@ -67,6 +68,7 @@ export function collectVersions() {
     'package-lock.json': packageLock.version,
     'package-lock.json packages[""]': packageLock.packages?.['']?.version,
     'src-tauri/tauri.conf.json': tauriConfig.version,
+    'src-tauri/tauri.flicker-test.conf.json': isolatedDevConfig.version,
     'src-tauri/Cargo.toml': matchVersion(
       cargoToml,
       /^\[package\][\s\S]*?^version = "([^"]+)"/m,

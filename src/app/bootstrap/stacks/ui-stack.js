@@ -20,6 +20,7 @@ export function createUiStack({
         getCurrentFileSourcePath,
         getCurrentFileSizeBytes,
         getCurrentCanvasSizing,
+        getCurrentMcpPort,
         getCurrentRuntime,
         getCurrentRuntimeSource,
         getCurrentRuntimeVersion,
@@ -62,8 +63,10 @@ export function createUiStack({
         elements,
         getBridgeEnabled: () => window._mcpBridge?.enabled !== false,
         getBridgeConnected: () => window._mcpBridge?.connected,
+        getBridgePort: getCurrentMcpPort,
         getTauriInvoker,
         initLucideIcons,
+        isDesktop: isTauriEnvironment,
         requestUiOverlay,
     });
 

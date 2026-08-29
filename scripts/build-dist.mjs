@@ -4,7 +4,11 @@ import path from 'path';
 import { execSync, spawnSync } from 'child_process';
 
 const root = process.cwd();
-const distDir = path.join(root, 'dist');
+const outputDirectory = String(process.env.APP_DIST_DIR || 'dist').trim();
+if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(outputDirectory)) {
+  throw new Error(`Invalid APP_DIST_DIR: ${outputDirectory}`);
+}
+const distDir = path.join(root, outputDirectory);
 const buildCounterFile = path.join(root, '.cache', 'build-counter.txt');
 const pkg = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
 

@@ -117,7 +117,7 @@ describe('reactive ViewModel controller integration', () => {
             .find((row) => row.querySelector('.vm-control-label')?.title === path)
             ?.querySelector('input[type="number"]');
         const countInput = findNumberInput('count');
-        expect(countInput.value).toBe('3');
+        expect(countInput.value).toBe('3.00');
         expect(setIntervalFn).not.toHaveBeenCalled();
         expect(controller.getVmSyncDiagnostics()).toMatchObject({
             fallbackBindingCount: 0,
@@ -133,9 +133,9 @@ describe('reactive ViewModel controller integration', () => {
         firstSpeed.resetReadCount();
         count.value = 9;
         count.emit();
-        expect(countInput.value).toBe('3');
+        expect(countInput.value).toBe('3.00');
         scheduler.flush();
-        expect(countInput.value).toBe('9');
+        expect(countInput.value).toBe('9.00');
         expect(count.readCount).toBe(0);
         expect(firstSpeed.readCount).toBe(0);
 
@@ -149,7 +149,7 @@ describe('reactive ViewModel controller integration', () => {
 
         expect(elements.vmControlsCount.textContent).toBe('3');
         expect(elements.vmControlsTree.textContent).toContain('items [2]');
-        expect(findNumberInput('items/1/speed').value).toBe('24');
+        expect(findNumberInput('items/1/speed').value).toBe('24.00');
         expect(setIntervalFn).not.toHaveBeenCalled();
 
         controller.resetVmInputControls();
@@ -214,7 +214,7 @@ describe('reactive ViewModel controller integration', () => {
             .find((row) => row.querySelector('.vm-control-label')?.title === path)
             ?.querySelector('input[type="number"]');
         const countInput = findNumberInput('count');
-        expect(countInput.value).toBe('3');
+        expect(countInput.value).toBe('3.00');
         expect(count.listenerCount).toBe(0);
         expect(list.listenerCount).toBe(1);
         expect(setIntervalFn).toHaveBeenCalledOnce();
@@ -236,9 +236,9 @@ describe('reactive ViewModel controller integration', () => {
         count.value = 9;
         count.emit();
         scheduler.flush();
-        expect(countInput.value).toBe('3');
+        expect(countInput.value).toBe('3.00');
         poll();
-        expect(countInput.value).toBe('9');
+        expect(countInput.value).toBe('9.00');
 
         const speed = createObservableAccessor(24);
         items.push({
@@ -249,7 +249,7 @@ describe('reactive ViewModel controller integration', () => {
         scheduler.flush();
 
         expect(elements.vmControlsTree.textContent).toContain('items [1]');
-        expect(findNumberInput('items/0/speed').value).toBe('24');
+        expect(findNumberInput('items/0/speed').value).toBe('24.00');
         expect(count.listenerCount).toBe(0);
         expect(speed.listenerCount).toBe(0);
         expect(list.listenerCount).toBe(1);
@@ -336,17 +336,17 @@ describe('reactive ViewModel controller integration', () => {
         const input = row.querySelector('input[type="number"]');
         const section = row.closest('details.vm-section');
         expect(section.open).toBe(false);
-        expect(input.value).toBe('1');
+        expect(input.value).toBe('1.00');
         expect(childValue.listenerCount).toBe(0);
 
         childValue.value = 2;
         childValue.emit();
         scheduler.flush();
-        expect(input.value).toBe('1');
+        expect(input.value).toBe('1.00');
 
         section.open = true;
         section.dispatchEvent(new Event('toggle'));
-        expect(input.value).toBe('2');
+        expect(input.value).toBe('2.00');
         expect(childValue.listenerCount).toBe(1);
 
         childValue.off = vi.fn(() => {
@@ -398,13 +398,13 @@ describe('reactive ViewModel controller integration', () => {
         numberValue.value = 2;
         numberValue.emit();
         scheduler.flush();
-        expect(numberInput.value).toBe('1');
+        expect(numberInput.value).toBe('1.00');
         numberInput.value = '3';
         numberInput.dispatchEvent(new Event('change'));
         numberInput.blur();
         await Promise.resolve();
         expect(numberValue.value).toBe(3);
-        expect(numberInput.value).toBe('3');
+        expect(numberInput.value).toBe('3.00');
 
         stringInput.focus();
         stringValue.value = 'after';
@@ -477,7 +477,7 @@ describe('reactive ViewModel controller integration', () => {
         reactiveValue.emit();
         fallbackAccessor.value = 20;
         scheduler.flush();
-        expect(reactiveInput.value).toBe('10');
-        expect(fallbackInput.value).toBe('2');
+        expect(reactiveInput.value).toBe('10.00');
+        expect(fallbackInput.value).toBe('2.00');
     });
 });

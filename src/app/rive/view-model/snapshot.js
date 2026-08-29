@@ -1,5 +1,6 @@
 import {
     controlSnapshotKeyForDescriptor,
+    resolveGlobalViewModelInstance,
     resolveVmRootInstance,
 } from './accessors.js';
 import {
@@ -28,6 +29,7 @@ function serializeHierarchyNode(node, resolveControlAccessor) {
                 name: input.name,
                 path: input.path,
                 source: input.source,
+                globalViewModelName: input.globalViewModelName,
                 stateMachineName: input.stateMachineName,
             };
             let value = null;
@@ -44,6 +46,7 @@ function serializeHierarchyNode(node, resolveControlAccessor) {
                         name: input.name,
                         path: input.path,
                         source: input.source,
+                        globalViewModelName: input.globalViewModelName,
                         stateMachineName: input.stateMachineName,
                         value,
                     };
@@ -58,6 +61,7 @@ function serializeHierarchyNode(node, resolveControlAccessor) {
                 name: input.name,
                 path: input.path,
                 source: input.source,
+                globalViewModelName: input.globalViewModelName,
                 stateMachineName: input.stateMachineName,
                 value,
             };
@@ -65,12 +69,15 @@ function serializeHierarchyNode(node, resolveControlAccessor) {
         kind: currentNode.kind,
         label: currentNode.label,
         path: currentNode.path,
+        source: currentNode.source,
+        globalViewModelName: currentNode.globalViewModelName,
     });
 
     return serializeNode(node);
 }
 
 export function createVmSnapshotController({
+    buildGlobalVmHierarchies = () => [],
     buildStateMachineHierarchy,
     getBindings,
     getRiveInstance,
@@ -105,7 +112,11 @@ export function createVmSnapshotController({
             return 'discarded';
         }
 
-        if (descriptor.source !== 'state-machine' && !getRiveInstance()?.viewModelInstance) {
+        if (descriptor.source === 'global-view-model') {
+            if (!resolveGlobalViewModelInstance(getRiveInstance(), descriptor.globalViewModelName)) {
+                return 'pending';
+            }
+        } else if (descriptor.source !== 'state-machine' && !getRiveInstance()?.viewModelInstance) {
             return 'pending';
         }
 
@@ -323,6 +334,20 @@ export function createVmSnapshotController({
             : null;
         const stateMachineHierarchy = buildStateMachineHierarchy();
         const children = [];
+
+        const globalVmHierarchies = buildGlobalVmHierarchies()
+            .filter((hierarchy) => hierarchy.inputs.length || hierarchy.children.length);
+        if (globalVmHierarchies.length) {
+            children.push({
+                children: globalVmHierarchies.map((hierarchy) => (
+                    serializeHierarchyNode(hierarchy, resolveControlAccessor)
+                )),
+                inputs: [],
+                kind: 'global-view-models',
+                label: 'Global VM',
+                path: '__global_view_models__',
+            });
+        }
 
         if (vmHierarchy && (vmHierarchy.inputs.length || vmHierarchy.children.length)) {
             children.push(serializeHierarchyNode(vmHierarchy, resolveControlAccessor));

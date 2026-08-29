@@ -45,7 +45,7 @@ export default function Updates() {
         advance installed clients.
       </p>
       <p>
-        Version 2.5.2 is the current public release and is available through the normal
+        Version 2.5.3 is the current public release and is available through the normal
         update feed for supported macOS and Windows installations.
       </p>
 

@@ -1,5 +1,6 @@
 import { createStatusPlaybackCommands } from '../../../src/app/platform/mcp/commands/status-playback.js';
 import { createViewModelCommands } from '../../../src/app/platform/mcp/commands/view-model.js';
+import { createGlobalViewModelCommands } from '../../../src/app/platform/mcp/commands/global-view-model.js';
 import { createVmInstanceCommands } from '../../../src/app/platform/mcp/commands/vm-instance.js';
 
 function makeCanonical() {
@@ -51,6 +52,73 @@ function makeHarness(requestCommand = vi.fn()) {
 }
 
 describe('platform/mcp authoritative render-surface contract', () => {
+    it('scopes named global ViewModel reads and writes to the acknowledged child hierarchy', async () => {
+        const requestCommand = vi.fn(async () => ({ applied: true, status: 'applied' }));
+        const harness = makeHarness(requestCommand);
+        harness.canonicalState.controlsHierarchy.children.unshift({
+            kind: 'global-view-models', label: 'Global VM', path: '__global_view_models__', inputs: [],
+            children: [{
+                kind: 'vm', label: 'GlobalLabels', globalViewModelName: 'GlobalLabels', path: '', children: [],
+                inputs: [{
+                    kind: 'string', name: 'label', path: 'label', source: 'global-view-model',
+                    globalViewModelName: 'GlobalLabels', value: 'Live',
+                    descriptor: {
+                        kind: 'string', name: 'label', path: 'label', source: 'global-view-model',
+                        globalViewModelName: 'GlobalLabels',
+                    },
+                }, {
+                    kind: 'image', name: 'avatar', path: 'avatar', source: 'global-view-model',
+                    globalViewModelName: 'GlobalLabels', metadata: null, present: false,
+                    descriptor: {
+                        kind: 'image', name: 'avatar', path: 'avatar', source: 'global-view-model',
+                        globalViewModelName: 'GlobalLabels',
+                    },
+                }],
+            }],
+        });
+        const commands = {
+            ...createViewModelCommands({ windowRef: harness.windowRef }),
+            ...createGlobalViewModelCommands({ windowRef: harness.windowRef }),
+        };
+
+        await expect(commands.rav_get_global_vm_tree()).resolves.toEqual(expect.objectContaining({
+            count: 1, names: ['GlobalLabels'],
+        }));
+        await expect(commands.rav_global_vm_get({ name: 'GlobalLabels', path: 'label' })).resolves.toEqual({
+            name: 'GlobalLabels', path: 'label', kind: 'string', value: 'Live',
+        });
+        await commands.rav_global_vm_set({ name: 'GlobalLabels', path: 'label', value: 'Changed' });
+        expect(requestCommand).toHaveBeenCalledWith('vm-set', {
+            descriptor: expect.objectContaining({
+                source: 'global-view-model', globalViewModelName: 'GlobalLabels', path: 'label',
+            }),
+            value: 'Changed',
+        }, {});
+        await expect(commands.rav_global_vm_set_image({
+            name: 'GlobalLabels', path: 'avatar', bytes: [137, 80, 78, 71], label: 'Avatar',
+        })).resolves.toEqual(expect.objectContaining({
+            applied: true, name: 'GlobalLabels', path: 'avatar', present: false, status: 'applied',
+        }));
+        expect(requestCommand).toHaveBeenCalledWith('vm-image-set', expect.objectContaining({
+            action: 'set-image',
+            descriptor: expect.objectContaining({
+                kind: 'image', source: 'global-view-model', globalViewModelName: 'GlobalLabels', path: 'avatar',
+            }),
+            imageSelection: { kind: 'file', label: 'Avatar' },
+            value: [137, 80, 78, 71],
+        }), {});
+        await commands.rav_global_vm_clear_image({ name: 'GlobalLabels', path: 'avatar' });
+        expect(requestCommand).toHaveBeenCalledWith('vm-image-set', expect.objectContaining({
+            action: 'clear-image',
+            descriptor: expect.objectContaining({
+                source: 'global-view-model', globalViewModelName: 'GlobalLabels', path: 'avatar',
+            }),
+            imageSelection: null,
+            value: null,
+        }), {});
+        await expect(commands.rav_vm_get({ path: 'label' })).rejects.toThrow('not found or not readable');
+    });
+
     it('reads visible canonical values instead of the hidden parent runtime', async () => {
         const harness = makeHarness();
         const commands = createViewModelCommands({ windowRef: harness.windowRef });

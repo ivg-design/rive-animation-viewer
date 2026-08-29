@@ -7,6 +7,19 @@ export const CORE_TOOLS = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
+    name: 'rav_set_anonymous_usage',
+    description:
+      'Enable or disable RAV anonymous version reporting through the same preference controller used by Settings.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        enabled: { type: 'boolean' },
+      },
+      required: ['enabled'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'rav_open_file',
     description:
       'Open a .riv file in RAV by its absolute file path. The file is read from ' +
@@ -82,6 +95,22 @@ export const CORE_TOOLS = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
+    name: 'rav_switch_vm_instance',
+    description:
+      'Switch to a specific ViewModel instance key and confirm that the dedicated playback surface bound that exact instance.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        instance: {
+          type: ['string', 'number'],
+          description: 'ViewModel instance key, including zero-based runtime/list keys such as 0.',
+        },
+      },
+      required: ['instance'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'rav_get_vm_tree',
     description:
       'Get the full ViewModel hierarchy tree for the loaded animation. Returns ' +
@@ -126,6 +155,36 @@ export const CORE_TOOLS = [
         },
       },
       required: ['path', 'value'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'rav_vm_set_image',
+    description:
+      'Set a ViewModel image through the authoritative playback surface using a bounded byte array.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string' },
+        bytes: {
+          type: 'array',
+          items: { type: 'integer', minimum: 0, maximum: 255 },
+          minItems: 1,
+          maxItems: 16777216,
+        },
+        label: { type: 'string', maxLength: 255 },
+      },
+      required: ['path', 'bytes'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'rav_vm_clear_image',
+    description: 'Clear a ViewModel image through the authoritative playback surface.',
+    inputSchema: {
+      type: 'object',
+      properties: { path: { type: 'string' } },
+      required: ['path'],
       additionalProperties: false,
     },
   },
@@ -198,6 +257,32 @@ export const CORE_TOOLS = [
     },
   },
   {
+    name: 'rav_set_alignment',
+    description: 'Set the canvas alignment within the viewer.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        alignment: {
+          type: 'string',
+          enum: [
+            'topLeft',
+            'topCenter',
+            'topRight',
+            'centerLeft',
+            'center',
+            'centerRight',
+            'bottomLeft',
+            'bottomCenter',
+            'bottomRight',
+          ],
+          description: 'Canvas alignment',
+        },
+      },
+      required: ['alignment'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'rav_set_canvas_color',
     description:
       'Set the canvas background color. Use "transparent" for a transparent canvas background.',
@@ -240,6 +325,12 @@ export const CORE_TOOLS = [
       },
       additionalProperties: false,
     },
+  },
+  {
+    name: 'rav_capture_canvas',
+    description:
+      'Capture the currently rendered RAV canvas as a PNG image with dimensions, renderer, and playback-surface metadata.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
     name: 'rav_get_sm_inputs',

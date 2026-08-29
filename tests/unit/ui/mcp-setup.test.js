@@ -136,6 +136,130 @@ describe('ui/mcp-setup', () => {
         expect(clipboardWrite).toHaveBeenCalledWith(elements.snippetClaudeCode.textContent);
     });
 
+    it('shows the browser bridge status and actual port without claiming its desktop sidecar is missing', async () => {
+        const elements = buildElements();
+        const controller = createMcpSetupController({
+            elements,
+            getBridgeConnected: () => true,
+            getBridgeEnabled: () => true,
+            getBridgePort: () => 9278,
+            getTauriInvoker: () => null,
+            initLucideIcons: vi.fn(),
+            isDesktop: () => false,
+            windowRef: { setTimeout: (callback) => { callback(); return 1; } },
+        });
+
+        await controller.showMcpSetup();
+        await Promise.resolve();
+
+        expect(elements.mcpNodeLabel.textContent).toBe('Local MCP bridge ready');
+        expect(elements.mcpNodeStatus.classList.contains('is-connected')).toBe(true);
+        expect(elements.mcpNodeStatus.classList.contains('is-missing')).toBe(false);
+        expect(elements.mcpPortInput.value).toBe('9278');
+    });
+
+    it('shows a neutral waiting state when the browser bridge has not connected yet', async () => {
+        const elements = buildElements();
+        const controller = createMcpSetupController({
+            elements,
+            getBridgeConnected: () => false,
+            getBridgeEnabled: () => true,
+            getBridgePort: () => 9278,
+            getTauriInvoker: () => null,
+            initLucideIcons: vi.fn(),
+            isDesktop: () => false,
+            windowRef: { setTimeout: (callback) => { callback(); return 1; } },
+        });
+
+        await controller.showMcpSetup();
+        await Promise.resolve();
+
+        expect(elements.mcpNodeLabel.textContent).toBe('Waiting for local MCP bridge...');
+        expect(elements.mcpNodeStatus.classList.contains('is-missing')).toBe(false);
+        expect(elements.mcpPortInput.value).toBe('9278');
+    });
+
+    it('retries a transient startup status failure without reporting the bundled sidecar missing', async () => {
+        const elements = buildElements();
+        const retryCallbacks = [];
+        let overlayDefinition;
+        const invoke = vi.fn()
+            .mockRejectedValueOnce(new Error('IPC command is not available yet'))
+            .mockResolvedValueOnce(mockSetupStatus());
+        const controller = createMcpSetupController({
+            elements,
+            getTauriInvoker: () => invoke,
+            initLucideIcons: vi.fn(),
+            requestUiOverlay: vi.fn(async (definition) => {
+                overlayDefinition = definition;
+                return true;
+            }),
+            windowRef: {
+                setTimeout: (callback) => {
+                    retryCallbacks.push(callback);
+                    return retryCallbacks.length;
+                },
+            },
+        });
+
+        const opening = controller.showMcpSetup();
+        await vi.waitFor(() => expect(retryCallbacks).toHaveLength(1));
+
+        expect(elements.mcpNodeLabel.textContent).toBe('Checking bundled MCP sidecar...');
+        expect(elements.mcpNodeStatus.classList.contains('is-missing')).toBe(false);
+
+        retryCallbacks.shift()();
+        await opening;
+
+        expect(invoke).toHaveBeenCalledTimes(2);
+        expect(elements.mcpNodeLabel.textContent).toBe('MCP ready');
+        expect(overlayDefinition.getState().node).toEqual(expect.objectContaining({
+            label: 'MCP ready',
+            path: expect.stringContaining('/rav-mcp'),
+        }));
+    });
+
+    it('keeps an unavailable setup service neutral after retries are exhausted', async () => {
+        const elements = buildElements();
+        const consoleWarning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const invoke = vi.fn().mockRejectedValue(new Error('IPC command is not available yet'));
+        const controller = createMcpSetupController({
+            elements,
+            getTauriInvoker: () => invoke,
+            initLucideIcons: vi.fn(),
+            requestUiOverlay: vi.fn().mockResolvedValue(true),
+            windowRef: { setTimeout: (callback) => { callback(); return 1; } },
+        });
+
+        await controller.showMcpSetup();
+
+        expect(invoke).toHaveBeenCalledTimes(5);
+        expect(elements.mcpNodeLabel.textContent).toBe('Checking bundled MCP sidecar...');
+        expect(elements.mcpNodeStatus.classList.contains('is-missing')).toBe(false);
+        expect(consoleWarning).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports the bundled sidecar missing only after the native path check confirms it', async () => {
+        const elements = buildElements();
+        vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const invoke = vi.fn().mockRejectedValue(
+            new Error('MCP server not found beside the application executable: /Applications/RAV.app/Contents/MacOS/rav-mcp'),
+        );
+        const controller = createMcpSetupController({
+            elements,
+            getTauriInvoker: () => invoke,
+            initLucideIcons: vi.fn(),
+            requestUiOverlay: vi.fn().mockResolvedValue(true),
+            windowRef: { setTimeout: (callback) => { callback(); return 1; } },
+        });
+
+        await controller.showMcpSetup();
+
+        expect(invoke).toHaveBeenCalledTimes(1);
+        expect(elements.mcpNodeLabel.textContent).toBe('Bundled MCP sidecar not found beside the app executable');
+        expect(elements.mcpNodeStatus.classList.contains('is-missing')).toBe(true);
+    });
+
     it('shows disabled copy and supports install/remove actions', async () => {
         const elements = buildElements();
         const invoke = vi.fn(async (command, args) => {

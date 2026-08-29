@@ -131,6 +131,11 @@ describe('overlay/settings-renderer', () => {
         expect(width.getAttribute('aria-invalid')).toBe('true');
         expect(emitAction).not.toHaveBeenCalledWith('canvas-width-draft', '9000');
 
+        width.dispatchEvent(new Event('change', { bubbles: true }));
+        expect(width.value).toBe('1280');
+        expect(width.hasAttribute('aria-invalid')).toBe(false);
+        expect(emitAction).not.toHaveBeenCalledWith('canvas-width', '9000');
+
         width.value = '640';
         width.dispatchEvent(new Event('input', { bubbles: true }));
         expect(emitAction).toHaveBeenCalledWith('canvas-width-draft', '640');

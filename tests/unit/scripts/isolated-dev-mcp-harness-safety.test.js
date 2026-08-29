@@ -12,7 +12,7 @@ function runHarness(args) {
 
 describe('isolated DEV MCP acceptance harness safety', () => {
     const base = [
-        '--sidecar', '/tmp/RAV 2.5.2 DEV.app/Contents/MacOS/rav-mcp',
+        '--sidecar', '/tmp/RAV 2.5.3 DEV.app/Contents/MacOS/rav-mcp',
         '--port', '9278',
         '--scenario', '/tmp/scenario.json',
     ];
@@ -29,7 +29,7 @@ describe('isolated DEV MCP acceptance harness safety', () => {
     it('refuses production and non-DEV targets before filesystem access', () => {
         const identity = [
             '--expected-build', 'b0217-20260827-0300-645bfa9',
-            '--expected-version', '2.5.2',
+            '--expected-version', '2.5.3',
             '--expected-channel', 'dev',
             '--expected-sidecar-sha256', '0'.repeat(64),
             '--expected-scenario-sha256', '0'.repeat(64),
@@ -40,7 +40,7 @@ describe('isolated DEV MCP acceptance harness safety', () => {
         const releaseChannel = runHarness([
             ...base,
             '--expected-build', 'b0217-20260827-0300-645bfa9',
-            '--expected-version', '2.5.2',
+            '--expected-version', '2.5.3',
             '--expected-channel', 'release',
             '--expected-sidecar-sha256', '0'.repeat(64),
             '--expected-scenario-sha256', '0'.repeat(64),
@@ -58,7 +58,7 @@ describe('isolated DEV MCP acceptance harness safety', () => {
             '--port', '9278',
             '--scenario', '/tmp/does-not-exist-rav-scenario.json',
             '--expected-build', 'b0217-20260827-0300-645bfa9',
-            '--expected-version', '2.5.2',
+            '--expected-version', '2.5.3',
             '--expected-channel', 'dev',
             '--expected-sidecar-sha256', '0'.repeat(64),
             '--expected-scenario-sha256', '0'.repeat(64),
@@ -90,7 +90,8 @@ describe('isolated DEV MCP acceptance harness safety', () => {
         expect(source).not.toContain('candidatePaths.length === beforePaths.length');
         expect(source).toContain('/not found|not readable|out of bounds/i.test(stalePathError.message)');
         expect(source).toContain('current.renderSurface.sessionId === beforeCommand.renderSurface.sessionId');
-        expect(source).toContain('current.renderSurface.sessionId !== beforeCommand.renderSurface.sessionId');
+        expect(source).toContain("imageSurface.renderSurface.sessionId,\n                'same'");
+        expect(source).not.toContain('default reset did not activate a fresh authoritative session');
         expect(source).toContain('receipt.skipped.length === 0');
         expect(source).toContain('Duplicate acceptance assertion name');
     });

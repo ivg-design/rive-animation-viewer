@@ -83,7 +83,9 @@ export function buildVmListTopologySignature(rootVm, riveInstance = null) {
 }
 
 export function buildVmHierarchy(rootVm, riveInstance = null, {
+    descriptorScope = {},
     onListAccessor = () => {},
+    rootLabel = null,
 } = {}) {
     const seenInputPaths = new Set();
     const activeInstances = new WeakSet();
@@ -96,6 +98,7 @@ export function buildVmHierarchy(rootVm, riveInstance = null, {
             kind,
             label,
             path: basePath || '<root>',
+            ...descriptorScope,
         };
 
         if (!instance || typeof instance !== 'object') {
@@ -117,6 +120,7 @@ export function buildVmHierarchy(rootVm, riveInstance = null, {
             const accessorInfo = getVmAccessor(instance, name);
             if (accessorInfo && !seenInputPaths.has(fullPath)) {
                 node.inputs.push({
+                    ...descriptorScope,
                     kind: accessorInfo.kind,
                     name,
                     path: fullPath,
@@ -136,6 +140,7 @@ export function buildVmHierarchy(rootVm, riveInstance = null, {
                 try {
                     onListAccessor({
                         accessor: listAccessor,
+                        ...descriptorScope,
                         instance,
                         path: fullPath,
                         propertyName: name,
@@ -152,6 +157,7 @@ export function buildVmHierarchy(rootVm, riveInstance = null, {
                     kind: 'list',
                     label: `${name} [${listLength}]`,
                     path: fullPath,
+                    ...descriptorScope,
                 };
                 for (let index = 0; index < listLength; index += 1) {
                     const itemInstance = getVmListItemAt(listAccessor, index);
@@ -174,7 +180,7 @@ export function buildVmHierarchy(rootVm, riveInstance = null, {
         return node;
     };
 
-    const vmName = rootVm.viewModelName || rootVm.name || 'Root VM';
+    const vmName = rootLabel || rootVm.viewModelName || rootVm.name || 'Root VM';
     const rootNode = walk(rootVm, vmName, '', 'vm');
     rootNode.totalInputs = totalInputs;
     return rootNode;

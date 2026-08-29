@@ -77,11 +77,12 @@ Once connected, Claude has access to all RAV tools. Try:
 - "Pause the animation"
 - "Generate the live web instantiation snippet for CDN usage"
 
-## Available Tools (36)
+## Available Tools (49)
 
 | Tool | Description |
 |------|-------------|
 | `rav_status` | App status: file, runtime, playback, live instantiation mode, ViewModel summary |
+| `rav_set_anonymous_usage` | Enable or disable anonymous version reporting through the Settings preference controller |
 | `rav_open_file` | Open a .riv file by absolute path |
 | `rav_play` | Start/resume playback |
 | `rav_pause` | Pause playback |
@@ -89,18 +90,25 @@ Once connected, Claude has access to all RAV tools. Try:
 | `rav_get_artboards` | List artboard names |
 | `rav_get_state_machines` | List state machine names |
 | `rav_switch_artboard` / `rav_reset_artboard` | Switch artboard/playback or reset to default |
+| `rav_switch_vm_instance` | Bind a specific authored or runtime/list ViewModel instance key |
 | `rav_get_vm_tree` | Full ViewModel hierarchy |
 | `rav_vm_get` | Get ViewModel property value by path |
 | `rav_vm_set` | Set ViewModel property value by path |
 | `rav_vm_fire` | Fire a trigger property |
+| `rav_vm_set_image` / `rav_vm_clear_image` | Set or clear an image on the authoritative root ViewModel |
+| `rav_get_global_vm_tree` | List every named file-level global ViewModel and its hierarchy |
+| `rav_global_vm_get` / `rav_global_vm_set` / `rav_global_vm_fire` | Read, write, or fire a property in a specifically named global ViewModel |
+| `rav_global_vm_set_image` / `rav_global_vm_clear_image` | Set or clear a named global ViewModel image through authoritative playback |
 | `rav_get_event_log` | Recent event log entries |
 | `rav_get_editor_code` | Current script editor contents |
 | `rav_set_editor_code` | Replace script editor contents |
 | `rav_apply_code` | Apply editor code and refresh the live instance (`Script Access` required) |
 | `rav_set_runtime` | Switch runtime (webgl2/canvas) |
-| `rav_set_layout` | Set layout fit mode |
+| `rav_set_layout` / `rav_set_alignment` | Set layout fit mode and nine-way canvas alignment |
 | `rav_set_canvas_color` | Set background color |
 | `rav_set_canvas_size` | Set canvas sizing mode plus explicit pixel width/height and optional aspect lock |
+| `rav_capture_canvas` | Capture the authoritative rendered canvas as a PNG image with render metadata |
+| `rav_open_isolated_playback` | Open the current animation in an ordinary isolated diagnostic WebView |
 | `rav_export_demo` | Export standalone HTML demo |
 | `rav_export_demo_visual` | Drive the visible export dialog with exact control selection, package source, snippet mode, and output path |
 | `generate_web_instantiation_code` | Generate the canonical live web snippet for `local` or `cdn` usage, with `window.ravRive` helpers and current control values. Preferred over hand-writing snippets from scratch. |
@@ -119,6 +127,7 @@ Once connected, Claude has access to all RAV tools. Try:
 - `rav_apply_code` switches the live instance to the last applied editor config.
 - `rav_status` reports the active canvas sizing state, and `rav_set_canvas_size` can switch between auto sizing and fixed explicit pixels.
 - ViewModel paths are slash-separated. Dynamic list items use a zero-based live index such as `rows/0/playerName`; call `rav_get_vm_tree` again after the controlling count changes before addressing newly added or removed rows.
+- Global ViewModel tools require both the file-level ViewModel name and its property path, preventing collisions when multiple globals expose the same path.
 - Unsaved editor draft changes do not affect the running animation until applied.
 - `generate_web_instantiation_code` always reflects the currently running live mode.
 - `generate_web_instantiation_code` defaults to the CDN form unless you request `package_source: "local"`.
@@ -135,6 +144,12 @@ Once connected, Claude has access to all RAV tools. Try:
 | Environment Variable | Default | Description |
 |---------------------|---------|-------------|
 | `RAV_MCP_PORT` | `9274` | WebSocket bridge port |
+
+The isolated `2.5.3 DEV` app reserves port `9278` and ignores a stored
+production-port value, so it can run beside the production app without sharing
+its bridge. If a localhost browser preview also connects to `9278`, the bridge
+keeps the packaged desktop app authoritative; legacy clients remain compatible,
+and stale replies from a non-selected preview cannot satisfy an MCP request.
 
 ## Troubleshooting
 

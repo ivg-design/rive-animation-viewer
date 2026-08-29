@@ -19,10 +19,15 @@
             return null;
         }
 
-        function safeVmCall(target, method, arg) {
+        function resolveGlobalVmRootInstance(globalViewModelName) {
+            if (!riveInstance || typeof globalViewModelName !== 'string' || !globalViewModelName.trim()) return null;
+            return safeVmCall(riveInstance, 'globalViewModelInstance', globalViewModelName.trim());
+        }
+
+        function safeVmCall(target, method) {
             if (!target || typeof target[method] !== 'function') return null;
             try {
-                return target[method](arg);
+                return target[method].apply(target, Array.prototype.slice.call(arguments, 2));
             } catch (e) {
                 return null;
             }
@@ -130,6 +135,10 @@
 
         function resolveLiveAccessor(path, expectedKind) {
             var rootVm = resolveVmRootInstance();
+            return resolveVmAccessorFromRoot(rootVm, path, expectedKind);
+        }
+
+        function resolveVmAccessorFromRoot(rootVm, path, expectedKind) {
             if (!rootVm) return null;
 
             var nav = navigateToVmInstance(rootVm, path);
@@ -139,6 +148,10 @@
             if (!accessorInfo) return null;
             if (expectedKind && accessorInfo.kind !== expectedKind) return null;
             return accessorInfo.accessor;
+        }
+
+        function resolveGlobalVmAccessor(globalViewModelName, path, expectedKind) {
+            return resolveVmAccessorFromRoot(resolveGlobalVmRootInstance(globalViewModelName), path, expectedKind);
         }
 
         function getStateMachineInputKind(input) {
@@ -190,6 +203,9 @@
         function resolveControlAccessor(descriptor) {
             if (descriptor && descriptor.source === 'state-machine') {
                 return resolveStateMachineInputAccessor(descriptor.stateMachineName, descriptor.name, descriptor.kind);
+            }
+            if (descriptor && descriptor.source === 'global-view-model') {
+                return resolveGlobalVmAccessor(descriptor.globalViewModelName, descriptor.path, descriptor.kind);
             }
             return resolveLiveAccessor(descriptor.path, descriptor.kind);
         }

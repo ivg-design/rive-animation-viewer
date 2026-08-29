@@ -6,6 +6,7 @@
                 name: source.name || null,
                 path: source.path || null,
                 source: source.source || 'view-model',
+                globalViewModelName: source.globalViewModelName || null,
                 stateMachineName: source.stateMachineName || null,
             };
         }
@@ -146,7 +147,23 @@
             return topology.length ? JSON.stringify(topology) : null;
         }
 
-        function buildVmHierarchy(rootVm) {
+        function getGlobalViewModelNames() {
+            var names = safeVmCall(riveInstance, 'globalViewModelNames');
+            return Array.isArray(names)
+                ? names.filter(function (name) { return typeof name === 'string' && name.trim(); })
+                : [];
+        }
+
+        function buildAllVmTopologySignature() {
+            var mainTopology = buildVmListTopologySignature(resolveVmRootInstance());
+            var globalTopologies = getGlobalViewModelNames().sort().map(function (name) {
+                return [name, buildVmListTopologySignature(resolveGlobalVmRootInstance(name))];
+            });
+            if (!mainTopology && !globalTopologies.length) return null;
+            return JSON.stringify({ globals: globalTopologies, root: mainTopology });
+        }
+
+        function buildVmHierarchy(rootVm, globalViewModelName) {
             var seenInputPaths = new Set();
             var activeInstances = new WeakSet();
             var totalInputs = 0;
@@ -158,6 +175,8 @@
                     kind: kind || 'vm',
                     inputs: [],
                     children: [],
+                    source: globalViewModelName ? 'global-view-model' : 'view-model',
+                    globalViewModelName: globalViewModelName || null,
                 };
                 if (!instance || typeof instance !== 'object') return node;
                 if (activeInstances.has(instance)) return node;
@@ -173,7 +192,13 @@
                     if (accessorInfo
                         && VM_CONTROL_KINDS.has(accessorInfo.kind)
                         && !seenInputPaths.has(fullPath)) {
-                        node.inputs.push({ name: name, path: fullPath, kind: accessorInfo.kind });
+                        node.inputs.push({
+                            name: name,
+                            path: fullPath,
+                            kind: accessorInfo.kind,
+                            source: globalViewModelName ? 'global-view-model' : 'view-model',
+                            globalViewModelName: globalViewModelName || null,
+                        });
                         seenInputPaths.add(fullPath);
                         totalInputs += 1;
                     }
@@ -191,7 +216,11 @@
                         else if (typeof listAccessor.size === 'number') listLength = Math.max(0, Math.floor(listAccessor.size));
                     }
                     if (listLength > 0) {
-                        var listNode = { label: name + ' [' + listLength + ']', path: fullPath, kind: 'list', inputs: [], children: [] };
+                        var listNode = {
+                            label: name + ' [' + listLength + ']', path: fullPath, kind: 'list', inputs: [], children: [],
+                            source: globalViewModelName ? 'global-view-model' : 'view-model',
+                            globalViewModelName: globalViewModelName || null,
+                        };
                         for (var idx = 0; idx < listLength; idx++) {
                             var itemInstance = null;
                             try { if (typeof listAccessor.instanceAt === 'function') itemInstance = listAccessor.instanceAt(idx); } catch (e) { /* noop */ }
@@ -207,7 +236,7 @@
                 return node;
             }
 
-            var rootNode = walk(rootVm, 'Root VM', '', 'vm');
+            var rootNode = walk(rootVm, globalViewModelName || 'Root VM', '', globalViewModelName ? 'global-view-model' : 'vm');
             rootNode.totalInputs = totalInputs;
             return rootNode;
         }

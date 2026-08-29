@@ -2,6 +2,22 @@
 
 All notable released changes to this project are documented in this file.
 
+## [2.5.3] - 2026-08-29
+
+### Added
+
+- **Global VM controls** — Files can expose multiple global ViewModels alongside the artboard-bound ViewModel. RAV labels the collection **GLOBAL VM** above **ROOT VM**, keeps it collapsed by default, and provides a separate expandable tree for every global instance.
+- **MCP inspection and capture** — The bundled native MCP sidecar now advertises 49 unique tools, including six global-ViewModel inspection/control tools and `rav_capture_canvas` for PNG image content from the currently rendered RAV canvas.
+
+### Changed
+
+- **Development isolation** — The 2.5.3 DEV bundle preserves the 2.5.2 native overlay ordering while using an isolated app identity, build output, local server, and MCP bridge port.
+
+### Fixed
+
+- **Rounded overlay clipping** — Overlay surfaces now respect their rounded bounds while remaining above the playback surface.
+- **Console severity and first-open stability** — Console output uses distinct severity theming, and the first console open is stabilized to prevent the visible flicker during initial measurement and hydration.
+
 ## [2.5.2] - 2026-08-27
 
 ### Added

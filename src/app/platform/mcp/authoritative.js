@@ -80,15 +80,55 @@ export function canonicalInputs(canonicalState) {
     return inputs;
 }
 
+function isGlobalInput(input) {
+    const source = input?.source || input?.descriptor?.source;
+    const name = input?.globalViewModelName || input?.descriptor?.globalViewModelName;
+    return source === 'global-view-model' && typeof name === 'string';
+}
+
+function globalGroup(canonicalState) {
+    const hierarchy = canonicalState?.controlsHierarchy;
+    if (hierarchy?.kind === 'global-view-models') return hierarchy;
+    return (hierarchy?.children || []).find((child) => child?.kind === 'global-view-models') || null;
+}
+
 export function canonicalVmSnapshot(canonicalState) {
-    const inputs = canonicalInputs(canonicalState);
+    const inputs = canonicalInputs(canonicalState).filter((input) => !isGlobalInput(input));
     const paths = inputs.map((input) => input.path);
+    const hierarchy = canonicalState?.controlsHierarchy || null;
+    const hasGlobalGroup = Boolean(globalGroup(canonicalState));
+    const tree = hasGlobalGroup
+        ? { ...hierarchy, children: (hierarchy.children || []).filter((child) => child?.kind !== 'global-view-models') }
+        : hierarchy;
     return {
-        tree: canonicalState?.controlsHierarchy || null,
+        tree,
         paths,
         inputs,
-        hasRoot: Boolean(canonicalState?.controlsHierarchy),
-        ...(canonicalState?.controlsHierarchy ? {} : { message: 'No ViewModel instance is currently bound' }),
+        hasRoot: Boolean(tree),
+        ...(tree ? {} : { message: 'No ViewModel instance is currently bound' }),
+    };
+}
+
+export function canonicalGlobalVmSnapshot(canonicalState) {
+    const group = globalGroup(canonicalState);
+    const globalViewModels = (group?.children || []).map((tree) => {
+        const name = tree.globalViewModelName || tree.label || '';
+        const inputs = [];
+        const walk = (node) => {
+            (node?.inputs || []).forEach((input) => {
+                const inputName = input?.globalViewModelName || input?.descriptor?.globalViewModelName;
+                if (isGlobalInput(input) && inputName === name) inputs.push(input);
+            });
+            (node?.children || []).forEach(walk);
+        };
+        walk(tree);
+        return { name, tree, paths: inputs.map((input) => input.path), inputs, hasRoot: Boolean(tree) };
+    });
+    return {
+        count: globalViewModels.length,
+        names: globalViewModels.map((entry) => entry.name),
+        globalViewModels,
+        ...(globalViewModels.length ? {} : { message: 'No global ViewModels are available' }),
     };
 }
 
@@ -100,8 +140,9 @@ export function canonicalControlSnapshot(canonicalState) {
                 kind: input.kind,
                 name: input.name,
                 path: input.path,
-                source: input.source || 'view-model',
-                stateMachineName: input.stateMachineName || null,
+                source: input.source || input.descriptor?.source || 'view-model',
+                stateMachineName: input.stateMachineName || input.descriptor?.stateMachineName || null,
+                globalViewModelName: input.globalViewModelName || input.descriptor?.globalViewModelName || null,
             },
             kind: input.kind,
             value: input.value,
@@ -109,9 +150,18 @@ export function canonicalControlSnapshot(canonicalState) {
 }
 
 export function findCanonicalInput(canonicalState, path, predicate = () => true) {
-    return canonicalInputs(canonicalState).find((input) => input.path === path && predicate(input)) || null;
+    return canonicalInputs(canonicalState).find((input) => !isGlobalInput(input) && input.path === path && predicate(input)) || null;
+}
+
+export function findCanonicalGlobalInput(canonicalState, globalViewModelName, path, predicate = () => true) {
+    return canonicalInputs(canonicalState).find((input) => (
+        isGlobalInput(input)
+        && (input.globalViewModelName || input.descriptor?.globalViewModelName) === globalViewModelName
+        && input.path === path
+        && predicate(input)
+    )) || null;
 }
 
 export function countCanonicalInputs(canonicalState) {
-    return canonicalInputs(canonicalState).length;
+    return canonicalInputs(canonicalState).filter((input) => !isGlobalInput(input)).length;
 }

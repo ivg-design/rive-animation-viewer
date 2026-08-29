@@ -97,6 +97,8 @@ async function main() {
     const defaultEditorSource = await fs.readFile(path.join(SOURCE_DIR, 'default-editor.js'), 'utf8');
     const vmExplorerSource = await fs.readFile(path.join(SOURCE_DIR, 'vm-explorer.js'), 'utf8');
     const controlHelperSource = await fs.readFile(path.join(SOURCE_DIR, 'web-instantiation/control-helper-runtime.js'), 'utf8');
+    const controlHelperControllerSource = await fs.readFile(path.join(SOURCE_DIR, 'web-instantiation/control-helper-controller.js'), 'utf8');
+    const combinedControlHelperSource = `${controlHelperSource.trim()}\n\n${controlHelperControllerSource.trim()}`;
 
     const defaultEditorOnLoad = extractBraceBlock(defaultEditorSource, 'onLoad: () => {');
     const vmExplorerOnLoad = extractBraceBlock(vmExplorerSource, 'onLoad: () => {');
@@ -109,7 +111,7 @@ export const VM_EXPLORER_CODE = \`${escapeTemplateLiteral(vmExplorerSource.trim(
 export const VM_EXPLORER_ONLOAD_BLOCK = \`${escapeTemplateLiteral(vmExplorerOnLoad.trim())}\`;
 `;
     const controlHelperModule = `
-export const CONTROL_HELPER_RUNTIME_SOURCE = \`${escapeTemplateLiteral(controlHelperSource.trim())}\`;
+export const CONTROL_HELPER_RUNTIME_SOURCE = \`${escapeTemplateLiteral(combinedControlHelperSource)}\`;
 export const CONTROL_HELPER_RUNTIME_LINES = CONTROL_HELPER_RUNTIME_SOURCE.split('\\n');
 `;
 

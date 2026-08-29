@@ -1,5 +1,6 @@
 import { createViewModelCommands } from '../../../src/app/platform/mcp/commands/view-model.js';
-import { buildViewModelSnapshot } from '../../../src/app/platform/mcp/view-model-snapshot.js';
+import { createGlobalViewModelCommands } from '../../../src/app/platform/mcp/commands/global-view-model.js';
+import { buildGlobalViewModelSnapshot, buildViewModelSnapshot } from '../../../src/app/platform/mcp/view-model-snapshot.js';
 
 function createScalarAccessor(value) {
     return { value };
@@ -155,6 +156,60 @@ function findTreeNode(node, path) {
 }
 
 describe('platform/mcp ViewModel traversal', () => {
+    it('enumerates and mutates multiple named global ViewModels without colliding paths', async () => {
+        const firstValue = createScalarAccessor('red');
+        const secondValue = createScalarAccessor('blue');
+        const pulse = { trigger: vi.fn() };
+        const globals = {
+            GlobalColors: {
+                properties: [{ name: 'value' }, { name: 'pulse' }],
+                string: (name) => (name === 'value' ? firstValue : null),
+                trigger: (name) => (name === 'pulse' ? pulse : null),
+                viewModelName: 'GlobalColors',
+            },
+            GlobalLabels: {
+                properties: [{ name: 'value' }],
+                string: (name) => (name === 'value' ? secondValue : null),
+                viewModelName: 'GlobalLabels',
+            },
+        };
+        const windowRef = {
+            riveInst: {
+                viewModelInstance: null,
+                globalViewModelNames: () => Object.keys(globals),
+                globalViewModelInstance: (name) => globals[name] || null,
+            },
+        };
+        const commands = {
+            ...createViewModelCommands({ buildViewModelSnapshot, windowRef }),
+            ...createGlobalViewModelCommands({ windowRef }),
+        };
+
+        expect(buildGlobalViewModelSnapshot(windowRef)).toEqual(expect.objectContaining({
+            count: 2,
+            names: ['GlobalColors', 'GlobalLabels'],
+        }));
+        const tree = await commands.rav_get_global_vm_tree();
+        expect(tree.globalViewModels[0].inputs[0]).toEqual(expect.objectContaining({
+            source: 'global-view-model', globalViewModelName: 'GlobalColors', path: 'value',
+        }));
+        await expect(commands.rav_global_vm_get({ name: 'GlobalLabels', path: 'value' })).resolves.toEqual({
+            name: 'GlobalLabels', path: 'value', kind: 'string', value: 'blue',
+        });
+        await commands.rav_global_vm_set({ name: 'GlobalColors', path: 'value', value: 'green' });
+        expect(firstValue.value).toBe('green');
+        expect(secondValue.value).toBe('blue');
+        await commands.rav_global_vm_fire({ name: 'GlobalColors', path: 'pulse' });
+        expect(pulse.trigger).toHaveBeenCalledOnce();
+        await expect(commands.rav_global_vm_get({ name: 'Missing', path: 'value' }))
+            .rejects.toThrow('Global ViewModel "Missing" not found');
+        await expect(commands.rav_global_vm_set_image({
+            name: 'GlobalColors', path: 'image', bytes: [0, 256],
+        })).rejects.toThrow('bytes must contain only integers from 0 through 255');
+        await expect(commands.rav_global_vm_clear_image({ name: 'GlobalColors', path: 'image' }))
+            .rejects.toThrow('Image mutation requires the authoritative playback surface');
+    });
+
     it('builds every snapshot from the current live root and enumerates nested and indexed list paths', () => {
         const harness = createLiveVmHarness();
         const snapshot = buildViewModelSnapshot(harness.windowRef);

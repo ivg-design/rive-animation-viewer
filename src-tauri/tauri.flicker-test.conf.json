@@ -1,16 +1,20 @@
 {
-  "productName": "RAV 2.5.2 DEV",
-  "mainBinaryName": "rav-2.5.2-dev",
+  "productName": "RAV 2.5.3 DEV",
+  "version": "2.5.3",
+  "mainBinaryName": "rav-2.5.3-dev",
   "identifier": "app.rive.animation.viewer.flicker-test",
   "build": {
-    "beforeBuildCommand": null
+    "beforeBuildCommand": "node scripts/build-dev-dist.mjs && npm run build:mcp",
+    "beforeDevCommand": "npm run build:mcp:debug && npm run serve:dev",
+    "devUrl": "http://localhost:1421",
+    "frontendDist": "../dist-dev"
   },
   "app": {
     "windows": [
       {
         "label": "main",
         "create": false,
-        "title": "RAV 2.5.2 DEV",
+        "title": "RAV 2.5.3 DEV",
         "width": 1250,
         "height": 900,
         "minWidth": 1090,
@@ -29,6 +33,12 @@
   },
   "bundle": {
     "active": true,
-    "createUpdaterArtifacts": false
+    "targets": ["app"],
+    "createUpdaterArtifacts": false,
+    "fileAssociations": null,
+    "macOS": {
+      "hardenedRuntime": false,
+      "infoPlist": "Info.dev.plist"
+    }
   }
 }

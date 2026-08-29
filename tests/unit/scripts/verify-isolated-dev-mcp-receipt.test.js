@@ -9,17 +9,18 @@ import {
 
 function fixture() {
     const directory = mkdtempSync(join(tmpdir(), 'rav-receipt-'));
-    const sidecar = join(directory, 'RAV 2.5.2 DEV.app', 'Contents', 'MacOS', 'rav-mcp');
+    const sidecar = join(directory, 'RAV 2.5.3 DEV.app', 'Contents', 'MacOS', 'rav-mcp');
     const scenario = join(directory, 'scenario.json');
     const scenarioText = JSON.stringify({
         files: { a: '/tmp/a.riv', b: '/tmp/b.riv' },
+        globalViewModel: { file: 'a', name: 'GlobalLabels', path: 'label', value: 'Changed' },
         instanceModes: { file: 'numericInstance', instances: [0, 'auto'] },
         images: { file: 'b', replayThroughFile: 'a', paths: ['left/image', 'right/image'] },
         listGrowth: { shrinkTriggerPath: 'popButton/onClick' },
         openRepeats: 2,
         openSequence: ['a', 'b', 'a'],
     });
-    mkdirSync(join(directory, 'RAV 2.5.2 DEV.app', 'Contents', 'MacOS'), { recursive: true });
+    mkdirSync(join(directory, 'RAV 2.5.3 DEV.app', 'Contents', 'MacOS'), { recursive: true });
     writeFileSync(sidecar, 'sidecar');
     writeFileSync(scenario, scenarioText);
     const openAssertions = [];
@@ -31,11 +32,12 @@ function fixture() {
             });
         }
     }
+    openAssertions.push({ name: 'global VM: open a', ok: true });
     const expectedSidecarSha256 = createHash('sha256').update('sidecar').digest('hex');
     const expectedScenarioSha256 = createHash('sha256').update(scenarioText).digest('hex');
     const options = {
         expectedBuild: 'b0217-20260827-0300-645bfa9-dirty',
-        expectedVersion: '2.5.2',
+        expectedVersion: '2.5.3',
         expectedChannel: 'dev',
         sidecarPath: sidecar,
         scenarioPath: scenario,
@@ -63,7 +65,20 @@ function fixture() {
             skipped: [],
             assertions: [
                 ...openAssertions,
-                ...REQUIRED_ASSERTIONS.map((name) => ({ name, ok: true })),
+                ...REQUIRED_ASSERTIONS.map((name) => ({
+                    name,
+                    ok: true,
+                    ...(name === 'tools/list: exact 49 unique tools including GVM/capture names'
+                        ? { count: 49, names: [
+                            'rav_get_global_vm_tree', 'rav_global_vm_get', 'rav_global_vm_set',
+                            'rav_global_vm_fire', 'rav_global_vm_set_image', 'rav_global_vm_clear_image',
+                            'rav_capture_canvas', ...Array.from({ length: 42 }, (_, index) => `tool-${index}`),
+                        ] } : {}),
+                    ...(name === 'global VM tree/get/set/restore'
+                        ? { globalViewModelName: 'GlobalLabels', path: 'label', original: 'Original', restored: 'Original' } : {}),
+                    ...(name === 'capture: valid PNG byte length matches metadata'
+                        ? { mimeType: 'image/png', decodedByteLength: 128, metadataByteLength: 128 } : {}),
+                })),
             ],
         },
     };
@@ -74,7 +89,7 @@ describe('isolated DEV MCP receipt verifier', () => {
         const current = fixture();
         expect(verifyReceipt(current.receipt, current.options)).toMatchObject({
             build: current.options.expectedBuild,
-            version: '2.5.2',
+            version: '2.5.3',
         });
     });
 
@@ -100,6 +115,7 @@ describe('isolated DEV MCP receipt verifier', () => {
         const missingNumeric = fixture();
         const missingNumericScenario = JSON.stringify({
             files: { a: '/tmp/a.riv', b: '/tmp/b.riv' },
+            globalViewModel: { file: 'a', name: 'GlobalLabels', path: 'label', value: 'Changed' },
             instanceModes: { file: 'numericInstance', instances: ['auto', 0] },
             images: { file: 'b', replayThroughFile: 'a', paths: ['left/image', 'right/image'] },
             listGrowth: { shrinkTriggerPath: 'popButton/onClick' },
@@ -114,6 +130,7 @@ describe('isolated DEV MCP receipt verifier', () => {
         const missingShrink = fixture();
         const missingShrinkScenario = JSON.stringify({
             files: { a: '/tmp/a.riv', b: '/tmp/b.riv' },
+            globalViewModel: { file: 'a', name: 'GlobalLabels', path: 'label', value: 'Changed' },
             instanceModes: { file: 'numericInstance', instances: [0, 'auto'] },
             images: { file: 'b', replayThroughFile: 'a', paths: ['left/image', 'right/image'] },
             openRepeats: 2,
@@ -127,6 +144,7 @@ describe('isolated DEV MCP receipt verifier', () => {
         const missingImageReplay = fixture();
         const missingImageReplayScenario = JSON.stringify({
             files: { a: '/tmp/a.riv', b: '/tmp/b.riv' },
+            globalViewModel: { file: 'a', name: 'GlobalLabels', path: 'label', value: 'Changed' },
             instanceModes: { file: 'numericInstance', instances: [0, 'auto'] },
             images: { file: 'b', replayThroughFile: 'b', paths: ['left/image', 'right/image'] },
             listGrowth: { shrinkTriggerPath: 'popButton/onClick' },

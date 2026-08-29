@@ -8,17 +8,56 @@ use tokio_tungstenite::{accept_async, connect_async, tungstenite::Message};
 use crate::bridge::Bridge;
 use crate::support::constants::RECONNECT_DELAY_MS;
 
+#[derive(Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+pub enum AppPeerKind {
+    /// A browser preview is useful when it is the only app connected, but must
+    /// never supersede a packaged desktop RAV instance on the same DEV bridge.
+    Browser,
+    /// Older RAV clients did not declare an app kind. Keep them routable for
+    /// backwards compatibility, but below an explicitly identified desktop.
+    Legacy,
+    /// Packaged RAV desktop applications are the authoritative MCP endpoint.
+    Desktop,
+}
+
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum BridgePeerRole {
-    App,
+    App(AppPeerKind),
     Client,
 }
 
 fn parse_bridge_peer_role(message: &Value) -> Option<BridgePeerRole> {
     match message.get("bridgeHello").and_then(Value::as_str) {
-        Some("rav-app") => Some(BridgePeerRole::App),
+        Some("rav-app") => Some(BridgePeerRole::App(
+            match message.get("appKind").and_then(Value::as_str) {
+                Some("desktop") => AppPeerKind::Desktop,
+                Some("browser") => AppPeerKind::Browser,
+                _ => AppPeerKind::Legacy,
+            },
+        )),
         Some("rav-mcp-client") => Some(BridgePeerRole::Client),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn app_handshake_keeps_legacy_clients_below_explicit_desktop() {
+        assert!(matches!(
+            parse_bridge_peer_role(&json!({ "bridgeHello": "rav-app" })),
+            Some(BridgePeerRole::App(AppPeerKind::Legacy))
+        ));
+        assert!(matches!(
+            parse_bridge_peer_role(&json!({ "bridgeHello": "rav-app", "appKind": "browser" })),
+            Some(BridgePeerRole::App(AppPeerKind::Browser))
+        ));
+        assert!(matches!(
+            parse_bridge_peer_role(&json!({ "bridgeHello": "rav-app", "appKind": "desktop" })),
+            Some(BridgePeerRole::App(AppPeerKind::Desktop))
+        ));
     }
 }
 
@@ -68,7 +107,7 @@ pub async fn run_websocket_bridge(bridge: Bridge, ws_port: u16) -> Result<()> {
             let connection_id = bridge_clone.register_bridge_peer(role, tx.clone()).await;
 
             match role {
-                BridgePeerRole::App => eprintln!("[rav-mcp] RAV connected"),
+                BridgePeerRole::App(_) => eprintln!("[rav-mcp] RAV connected"),
                 BridgePeerRole::Client => eprintln!("[rav-mcp] MCP client connected"),
             }
 
@@ -88,7 +127,9 @@ pub async fn run_websocket_bridge(bridge: Bridge, ws_port: u16) -> Result<()> {
                                 continue;
                             }
                             match role {
-                                BridgePeerRole::App => bridge_clone.relay_app_response(value).await,
+                                BridgePeerRole::App(_) => {
+                                    bridge_clone.relay_app_response(connection_id, value).await
+                                }
                                 BridgePeerRole::Client => {
                                     let request_id =
                                         value.get("id").cloned().unwrap_or(Value::Null);
@@ -112,7 +153,9 @@ pub async fn run_websocket_bridge(bridge: Bridge, ws_port: u16) -> Result<()> {
                                 continue;
                             }
                             match role {
-                                BridgePeerRole::App => bridge_clone.relay_app_response(value).await,
+                                BridgePeerRole::App(_) => {
+                                    bridge_clone.relay_app_response(connection_id, value).await
+                                }
                                 BridgePeerRole::Client => {
                                     let request_id =
                                         value.get("id").cloned().unwrap_or(Value::Null);
@@ -145,13 +188,13 @@ pub async fn run_websocket_bridge(bridge: Bridge, ws_port: u16) -> Result<()> {
                     connection_id,
                     role,
                     match role {
-                        BridgePeerRole::App => "RAV disconnected".into(),
+                        BridgePeerRole::App(_) => "RAV disconnected".into(),
                         BridgePeerRole::Client => "MCP client disconnected".into(),
                     },
                 )
                 .await;
             match role {
-                BridgePeerRole::App => eprintln!("[rav-mcp] RAV disconnected"),
+                BridgePeerRole::App(_) => eprintln!("[rav-mcp] RAV disconnected"),
                 BridgePeerRole::Client => eprintln!("[rav-mcp] MCP client disconnected"),
             }
         });

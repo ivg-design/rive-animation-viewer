@@ -152,6 +152,7 @@ const transport = createMcpBridgeTransport({
     commandHandlers,
     connectTimeoutMs: CONNECT_TIMEOUT_MS,
     getBridgeUrl,
+    getAppKind: () => getTauriInvoker(window) ? 'desktop' : 'browser',
     getEnabled: () => state.enabled,
     getReconnectDelay: () => state.reconnectDelay,
     getSocket: () => state.socket,

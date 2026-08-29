@@ -11,6 +11,14 @@ const appEntryPath = join(__dirname, 'src', 'app', 'main-entry.js').replace(/\\/
 const appJsUrl = '/src/app/main-entry.js';
 
 function injectVersionPlugin() {
+    const requestedChannel = String(process.env.APP_BUILD_CHANNEL || '').trim().toLowerCase();
+    const channel = requestedChannel === 'release' ? 'release' : 'dev';
+    const build = String(process.env.APP_BUILD_ID || 'dev-server');
+    const injectBuildValues = (source) => source
+        .replace(/__APP_VERSION__/g, version)
+        .replace(/__APP_BUILD__/g, build)
+        .replace(/__APP_CHANNEL__/g, channel);
+
     return {
         name: 'inject-version',
         transform(code, id) {
@@ -20,7 +28,7 @@ function injectVersionPlugin() {
                 return null;
             }
             return {
-                code: code.replace(/__APP_VERSION__/g, version),
+                code: injectBuildValues(code),
                 map: null,
             };
         },
@@ -32,7 +40,7 @@ function injectVersionPlugin() {
                 }
                 try {
                     const source = await fs.readFile(appEntryPath, 'utf8');
-                    const transformed = source.replace(/__APP_VERSION__/g, version);
+                    const transformed = injectBuildValues(source);
                     res.setHeader('Content-Type', 'application/javascript');
                     res.end(transformed);
                     return;

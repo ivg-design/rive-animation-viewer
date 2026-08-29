@@ -1,20 +1,18 @@
-import { populateArtboardSwitcherUi, populatePlaybackSelectUi,
-    populateVmInstanceSelectUi } from './artboards/ui-population.js';
+import { populateArtboardSwitcherUi, populatePlaybackSelectUi, populateVmInstanceSelectUi } from './artboards/ui-population.js';
+import { createDefaultArtboardReset } from './artboards/default-reset.js';
 import { buildPlaybackResetParams, parsePlaybackTarget } from './artboards/playback-target.js';
 import { createLatestLoadTransition, waitForRiveLoad } from './artboards/load-transition.js';
 import { createLatestSelectionScheduler } from './artboards/selection-scheduler.js';
 import { createSelectionInteractionGuard } from './artboards/selection-interaction.js';
 import { createArtboardSelectionUi } from './artboards/selection-ui.js';
 import { setupArtboardSwitcher as setupArtboardSwitcherUi } from './artboards/setup.js';
-import { buildArtboardStateSnapshot, resolveImplicitVmInstanceKey, selectionAfterLoad,
-    selectionFromCanonical, selectionFromConfig } from './artboards/selection-state.js';
+import { buildArtboardStateSnapshot, resolveImplicitVmInstanceKey, selectionAfterLoad, selectionFromCanonical,
+    selectionFromConfig } from './artboards/selection-state.js';
 import { buildPlaybackStatusLabel } from './playback-status.js';
 import { normalizeStateMachineSelection } from './default-state-machine.js';
-import { dispatchPlaybackCommand } from './control-events.js';
-import { buildPlaybackResetContract, normalizeResetViewModelInstanceKey } from './reset-contract.js';
+import { normalizeResetViewModelInstanceKey } from './reset-contract.js';
 import { normalizeLoadErrorMessage } from './instances/load-settlement.js';
-import { AUTO_BOUND_VM_INSTANCE_KEY, buildViewModelInstanceLoadOverrides,
-    loadAndBindViewModelInstance } from './view-model/instances.js';
+import { AUTO_BOUND_VM_INSTANCE_KEY, buildViewModelInstanceLoadOverrides, loadAndBindViewModelInstance } from './view-model/instances.js';
 export { parsePlaybackTarget } from './artboards/playback-target.js';
 export function createArtboardSwitcherController({
     elements,
@@ -30,6 +28,7 @@ export function createArtboardSwitcherController({
         initLucideIcons = () => {},
         loadRiveAnimation = async () => {},
         logEvent = () => {},
+        requestAuthoritativeCommand = async () => ({ applied: false, status: 'unavailable' }),
         resetRiveInstance = () => false,
         showError = () => {},
         updateInfo = () => {},
@@ -257,51 +256,6 @@ export function createArtboardSwitcherController({
         }
     }
 
-    async function resetToDefaultArtboard() {
-        if (!defaultArtboardName) {
-            showError('No default artboard. Reload the file.');
-            return;
-        }
-        const playbackTarget = defaultPlaybackKey || null;
-        const { type: playbackType, name: playbackName } = parsePlaybackTarget(playbackTarget);
-        const retainedVmInstanceKey = normalizeResetViewModelInstanceKey(
-            resolveImplicitVmInstanceKey(defaultArtboardName, getSelection(), confirmedSelection),
-        );
-        const resetParams = buildPlaybackResetContract({
-            artboard: defaultArtboardName,
-            playbackName,
-            playbackType,
-            viewModelInstanceKey: retainedVmInstanceKey,
-        });
-        logEvent('ui', 'artboard-reset', `Reset to default artboard "${defaultArtboardName}".`);
-        if (isAuthoritativeChildMode()) {
-            await switchArtboard(defaultArtboardName, playbackTarget, { viewModelInstanceKey: retainedVmInstanceKey });
-            return;
-        }
-        try {
-            if (resetRiveInstance(resetParams)) {
-                currentArtboardName = defaultArtboardName;
-                currentPlaybackType = playbackType;
-                currentPlaybackName = playbackName;
-                currentVmInstanceName = retainedVmInstanceKey;
-                confirmSelection();
-                dispatchPlaybackCommand(documentRef, 'reset', {
-                    params: resetParams,
-                    snapshot: [],
-                });
-                updateSelectionSummary();
-                updateInfo(buildPlaybackStatusLabel(getStatusContext(), 'Loaded'));
-                return;
-            }
-        } catch (error) {
-            showError(`Failed to reset default artboard: ${normalizeLoadErrorMessage(error)}`);
-            return;
-        }
-        currentPlaybackType = null;
-        currentPlaybackName = null;
-        await switchArtboard(defaultArtboardName, playbackTarget, { viewModelInstanceKey: retainedVmInstanceKey });
-    }
-
     async function switchVmInstance(instanceKey) {
         if (!getCurrentFileUrl() || !getCurrentFileName()
             || instanceKey === null || typeof instanceKey === 'undefined' || instanceKey === '') {
@@ -380,6 +334,26 @@ export function createArtboardSwitcherController({
             defaultPlaybackKey,
         });
     }
+
+    const resetToDefaultArtboard = createDefaultArtboardReset({
+        documentRef,
+        getConfirmedSelection: () => confirmedSelection,
+        getDefaultArtboardName: () => defaultArtboardName,
+        getDefaultPlaybackKey: () => defaultPlaybackKey,
+        getSelection,
+        getStatusContext,
+        isAuthoritativeChildMode,
+        logEvent,
+        requestAuthoritativeCommand,
+        resetRiveInstance,
+        selectionInteractionGuard,
+        setSelection,
+        showError,
+        switchArtboard,
+        updateInfo,
+        updateSelectionSummary,
+        confirmSelection,
+    });
 
     return {
         getStateSnapshot,

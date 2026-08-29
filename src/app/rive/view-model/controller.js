@@ -1,4 +1,9 @@
-import { controlSnapshotKeyForDescriptor, getStateMachineInputKind, getVmAccessor, navigateToVmInstance, resolveVmRootInstance } from './accessors.js';
+import {
+    controlSnapshotKeyForDescriptor,
+    getGlobalViewModelInstances,
+    resolveVmRootInstance,
+} from './accessors.js';
+import { createVmControlAccessorResolver } from './controller/accessor-resolver.js';
 import { buildStateMachineHierarchy, buildVmHierarchy, buildVmListTopologySignature, countAllInputs, stripNestedRootVmInputs } from './hierarchy.js';
 import { createRemoteControlsAdapter } from './remote/controls.js';
 import { attachRemoteControlListeners } from './remote/events.js';
@@ -66,89 +71,17 @@ export function createVmControlsController({
         vmControlBindings.push(registeredBinding);
         remoteInteractionGate.registerBinding(registeredBinding);
     }
-    function resolveVmAccessor(path, expectedKind) {
-        const rootVm = resolveVmRootInstance(getRiveInstance());
-        if (!rootVm) {
-            return null;
-        }
-        const navigation = navigateToVmInstance(rootVm, path);
-        if (!navigation) {
-            return null;
-        }
-        const accessorInfo = getVmAccessor(navigation.instance, navigation.propertyName);
-        if (!accessorInfo) {
-            return null;
-        }
-        if (expectedKind && accessorInfo.kind !== expectedKind) {
-            return null;
-        }
-        return accessorInfo.accessor;
-    }
-    function resolveStateMachineInputAccessor(stateMachineName, inputName, expectedKind) {
-        const riveInstance = getRiveInstance();
-        if (!riveInstance || typeof riveInstance.stateMachineInputs !== 'function' || !stateMachineName || !inputName) {
-            return null;
-        }
-        try {
-            const inputs = riveInstance.stateMachineInputs(stateMachineName);
-            if (!Array.isArray(inputs)) {
-                return null;
-            }
-            const input = inputs.find((candidate) => candidate?.name === inputName);
-            if (!input) {
-                return null;
-            }
-            const runtime = getLoadedRuntime(getCurrentRuntime());
-            const detectedKind = getStateMachineInputKind(input, runtime);
-            if (expectedKind && detectedKind !== expectedKind) {
-                return null;
-            }
-            return input;
-        } catch {
-            return null;
-        }
-    }
-    function resolveControlAccessor(descriptor) {
-        if (isAuthoritativeChildMode) {
-            return remoteControls.resolveAccessor(descriptor);
-        }
-        if (descriptor?.source === 'state-machine') {
-            return resolveStateMachineInputAccessor(descriptor.stateMachineName, descriptor.name, descriptor.kind);
-        }
-        return resolveVmAccessor(descriptor.path, descriptor.kind);
-    }
-    function fireStateMachineTriggerByName(triggerName) {
-        const riveInstance = getRiveInstance();
-        if (!riveInstance || typeof riveInstance.stateMachineInputs !== 'function' || !triggerName) {
-            return 0;
-        }
-        const stateMachineNames = Array.isArray(riveInstance.stateMachineNames) ? riveInstance.stateMachineNames : [];
-        let firedCount = 0;
-        stateMachineNames.forEach((stateMachineName) => {
-            let inputs = [];
-            try {
-                const resolvedInputs = riveInstance.stateMachineInputs(stateMachineName);
-                if (Array.isArray(resolvedInputs)) {
-                    inputs = resolvedInputs;
-                }
-            } catch {
-                inputs = [];
-            }
-            inputs.forEach((input) => {
-                const runtime = getLoadedRuntime(getCurrentRuntime());
-                if (!input || input.name !== triggerName || getStateMachineInputKind(input, runtime) !== 'trigger' || typeof input.fire !== 'function') {
-                    return;
-                }
-                try {
-                    input.fire();
-                    firedCount += 1;
-                } catch {
-                    /* noop */
-                }
-            });
-        });
-        return firedCount;
-    }
+    const {
+        fireStateMachineTriggerByName,
+        resolveControlAccessor,
+        resolveVmAccessor,
+    } = createVmControlAccessorResolver({
+        getCurrentRuntime,
+        getLoadedRuntime,
+        getRiveInstance,
+        isAuthoritativeChildMode,
+        remoteControls,
+    });
     function syncVmControlBindings(force = false) {
         if (!vmControlBindings.length) {
             return;
@@ -166,7 +99,37 @@ export function createVmControlsController({
         );
     }
     function currentVmListTopologySignature() {
-        return buildVmListTopologySignature(resolveVmRootInstance(getRiveInstance()), getRiveInstance());
+        const riveInstance = getRiveInstance();
+        const rootSignature = buildVmListTopologySignature(resolveVmRootInstance(riveInstance), riveInstance);
+        const globalSignatures = getGlobalViewModelInstances(riveInstance)
+            .map(({ instance, name }) => [name, buildVmListTopologySignature(instance, riveInstance)]);
+        if (rootSignature === null && !globalSignatures.length) {
+            return null;
+        }
+        return JSON.stringify({ globalSignatures, rootSignature });
+    }
+    function buildGlobalVmHierarchies(onListAccessor = () => {}) {
+        return getGlobalViewModelInstances(getRiveInstance()).map(({ instance, name }) => {
+            const descriptorScope = {
+                globalViewModelName: name,
+                source: 'global-view-model',
+            };
+            return instance
+                ? buildVmHierarchy(instance, getRiveInstance(), {
+                    descriptorScope,
+                    onListAccessor,
+                    rootLabel: name,
+                })
+                : {
+                    ...descriptorScope,
+                    children: [],
+                    inputs: [],
+                    kind: 'global-view-model',
+                    label: name,
+                    path: `global/${encodeURIComponent(name)}`,
+                    totalInputs: 0,
+                };
+        });
     }
     const currentStateMachineHierarchy = () => buildStateMachineHierarchy(
         getRiveInstance(),
@@ -199,6 +162,7 @@ export function createVmControlsController({
         getSectionOpenState: vmDisclosureState.openState,
     });
     const snapshotController = createVmSnapshotController({
+        buildGlobalVmHierarchies,
         buildStateMachineHierarchy: currentStateMachineHierarchy,
         getBindings: () => vmControlBindings,
         getRiveInstance,
@@ -255,7 +219,9 @@ export function createVmControlsController({
                 }
                 empty.hidden = true;
                 hierarchy.children.forEach((node, index) => {
-                    tree.appendChild(createVmSectionElement(node, index === 0));
+                    const isFirstOrdinarySection = node.kind !== 'global-view-models'
+                        && !hierarchy.children.slice(0, index).some((candidate) => candidate.kind !== 'global-view-models');
+                    tree.appendChild(createVmSectionElement(node, isFirstOrdinarySection));
                 });
                 syncVmControlBindings(true);
                 initLucideIcons();
@@ -263,25 +229,41 @@ export function createVmControlsController({
             }
 
             const rootVm = resolveVmRootInstance(getRiveInstance());
-            vmListTopologySignature = buildVmListTopologySignature(rootVm, getRiveInstance());
+            vmListTopologySignature = currentVmListTopologySignature();
             const nextVmListAccessors = [];
             const vmHierarchy = rootVm ? buildVmHierarchy(rootVm, getRiveInstance(), {
                 onListAccessor: (entry) => nextVmListAccessors.push(entry),
             }) : null;
             const stateMachineHierarchy = currentStateMachineHierarchy();
+            const globalVmHierarchies = buildGlobalVmHierarchies(
+                (entry) => nextVmListAccessors.push(entry),
+            );
+            const globalVmGroup = globalVmHierarchies.length
+                ? {
+                    children: globalVmHierarchies,
+                    inputs: [],
+                    kind: 'global-view-models',
+                    label: 'Global VM',
+                    path: '__global_view_models__',
+                }
+                : null;
             vmDisclosureState.prepare(tree, {
-                hierarchy: [vmHierarchy, stateMachineHierarchy],
+                hierarchy: [globalVmGroup, vmHierarchy, stateMachineHierarchy],
                 source: getRiveInstance(),
             });
             tree.innerHTML = '';
             clearVmControlBindings();
             vmListAccessors = nextVmListAccessors;
             const vmTotal = vmHierarchy?.totalInputs || 0;
+            const globalVmTotal = globalVmHierarchies.reduce(
+                (total, hierarchy) => total + hierarchy.totalInputs,
+                0,
+            );
             const stateMachineTotal = stateMachineHierarchy?.totalInputs || 0;
-            const totalControls = vmTotal + stateMachineTotal;
+            const totalControls = vmTotal + globalVmTotal + stateMachineTotal;
             count.textContent = String(totalControls);
             vmSyncCoordinator.ensureUiListeners();
-            if (!totalControls) {
+            if (!totalControls && !globalVmGroup) {
                 empty.hidden = false;
                 empty.textContent = 'No writable ViewModel or state machine inputs were found.';
                 if (vmListTopologySignature === null) {
@@ -292,7 +274,13 @@ export function createVmControlsController({
                 return;
             }
 
-            empty.hidden = true;
+            empty.hidden = totalControls > 0;
+            if (!totalControls) {
+                empty.textContent = 'No writable global ViewModel inputs were found.';
+            }
+            if (globalVmGroup) {
+                tree.appendChild(createVmSectionElement(globalVmGroup, false));
+            }
             if (vmHierarchy) {
                 tree.appendChild(createVmSectionElement(stripNestedRootVmInputs(vmHierarchy), true));
             }

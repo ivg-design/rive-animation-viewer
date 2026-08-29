@@ -1,6 +1,7 @@
 import {
     argbToColorMeta,
     buildVmHierarchy,
+    controlSnapshotKeyForDescriptor,
     controlSelectionKeyForDescriptor,
     createVmControlsController,
     formatVmListItemLabel,
@@ -1079,7 +1080,7 @@ describe('rive/vm-controls', () => {
         harness.accessors.rootString.value = 'server value';
         harness.controller.syncVmControlBindings(true);
 
-        expect(numberInput.value).toBe('99');
+        expect(numberInput.value).toBe('99.00');
         expect(textarea.value).toBe('server value');
 
         harness.accessors.rootNumber.value = 0;
@@ -1116,6 +1117,24 @@ describe('rive/vm-controls', () => {
         expect(harness.elements.vmControlsCount.textContent).toBe('0');
         expect(harness.elements.vmControlsEmpty.textContent).toBe('No animation loaded.');
         expect(harness.clearIntervalFn).toHaveBeenCalledWith('timer-1');
+    });
+
+    it('rounds visible numeric controls without rounding runtime writes', () => {
+        const harness = createVmHarness();
+        harness.controller.renderVmInputControls();
+
+        const numberInput = Array.from(harness.elements.vmControlsTree.querySelectorAll('input[type="number"]'))
+            .find((input) => input.step === 'any');
+        expect(numberInput.value).toBe('3.00');
+
+        harness.accessors.rootNumber.value = 1.239;
+        harness.controller.syncVmControlBindings(true);
+        expect(numberInput.value).toBe('1.24');
+
+        numberInput.value = '7.8912';
+        numberInput.dispatchEvent(new Event('change'));
+        expect(harness.accessors.rootNumber.value).toBe(7.8912);
+        expect(numberInput.value).toBe('7.89');
     });
 
     it('keeps image descriptors in export snapshots without serializing runtime image objects', () => {
@@ -1163,7 +1182,7 @@ describe('rive/vm-controls', () => {
         harness.intervals[0].callback();
 
         expect(findNumberInput('count')).toBe(originalCountInput);
-        expect(originalCountInput.value).toBe('42');
+        expect(originalCountInput.value).toBe('42.00');
         expect(harness.callbacks.initLucideIcons).toHaveBeenCalledTimes(1);
         expect(harness.controller.syncVmControlTopology()).toBe(false);
 
@@ -1174,7 +1193,7 @@ describe('rive/vm-controls', () => {
         expect(harness.elements.vmControlsTree.textContent).toContain('items [2]');
         expect(harness.elements.vmControlsTree.textContent).toContain('Row 1');
         expect(harness.elements.vmControlsTree.textContent).toContain('Row 2');
-        expect(findNumberInput('items/1/speed').value).toBe('24');
+        expect(findNumberInput('items/1/speed').value).toBe('24.00');
         expect(harness.callbacks.initLucideIcons).toHaveBeenCalledTimes(2);
         expect(harness.intervals).toHaveLength(1);
 
@@ -1190,7 +1209,7 @@ describe('rive/vm-controls', () => {
 
         expect(harness.elements.vmControlsCount.textContent).toBe('9');
         expect(harness.elements.vmControlsTree.textContent).toContain('items [1]');
-        expect(findNumberInput('items/0/speed').value).toBe('7');
+        expect(findNumberInput('items/0/speed').value).toBe('7.00');
     });
 
     it('pauses polling with the properties panel hidden and skips collapsed sections', () => {
@@ -1208,11 +1227,11 @@ describe('rive/vm-controls', () => {
         harness.elements.mainGrid.classList.add('right-hidden');
         harness.accessors.rootNumber.value = 41;
         harness.intervals[0].callback();
-        expect(countInput.value).toBe('3');
+        expect(countInput.value).toBe('3.00');
 
         harness.elements.mainGrid.classList.remove('right-hidden');
         harness.intervals[0].callback();
-        expect(countInput.value).toBe('41');
+        expect(countInput.value).toBe('41.00');
 
         harness.accessors.childBoolean.value = true;
         harness.intervals[0].callback();
@@ -1473,10 +1492,12 @@ describe('rive/vm-controls', () => {
             .find((button) => button.textContent === 'Fire');
 
         expect(enumSelect.textContent).toContain('(no enum values)');
+        expect(alphaInput.value).toBe('50.00');
         colorInput.value = '#445566';
         colorInput.dispatchEvent(new Event('input'));
         alphaInput.value = '25';
         alphaInput.dispatchEvent(new Event('change'));
+        expect(alphaInput.value).toBe('25.00');
         expect(colorAccessor.argb).toHaveBeenCalled();
 
         triggerButton.click();
@@ -1527,5 +1548,73 @@ describe('rive/vm-controls', () => {
         expect(shouldResumePlaybackForTrigger({ isPlaying: false })).toBe(true);
         expect(shouldResumePlaybackForTrigger({ isStopped: true })).toBe(true);
         expect(shouldResumePlaybackForTrigger({})).toBe(true);
+    });
+
+    it('keeps named global ViewModels in independently collapsed, scoped trees', () => {
+        const elements = createVmElements();
+        const themeShared = { value: 1 };
+        const sessionShared = { value: 2 };
+        const rootShared = { value: 3 };
+        const globals = {
+            Session: {
+                number: (name) => (name === 'shared' ? sessionShared : null),
+                properties: [{ name: 'shared' }],
+            },
+            Theme: {
+                number: (name) => (name === 'shared' ? themeShared : null),
+                properties: [{ name: 'shared' }],
+            },
+        };
+        const riveInstance = {
+            globalViewModelInstance: vi.fn((name) => globals[name] || null),
+            globalViewModelNames: vi.fn(() => ['Theme', 'Session']),
+            stateMachineNames: [],
+            viewModelInstance: {
+                number: (name) => (name === 'shared' ? rootShared : null),
+                properties: [{ name: 'shared' }],
+            },
+        };
+        const controller = createVmControlsController({
+            callbacks: { initLucideIcons: vi.fn(), logEvent: vi.fn() },
+            elements,
+            getRiveInstance: () => riveInstance,
+            setIntervalFn: vi.fn(() => 'global-vm-timer'),
+        });
+
+        controller.renderVmInputControls();
+
+        expect(elements.vmControlsCount.textContent).toBe('3');
+        const globalSection = elements.vmControlsTree.firstElementChild;
+        expect(globalSection.classList.contains('vm-global-view-models')).toBe(true);
+        expect(globalSection.open).toBe(false);
+        const globalChildren = Array.from(globalSection.querySelector(':scope > .vm-section-body').children)
+            .filter((child) => child.matches('details.vm-section'));
+        expect(globalChildren).toHaveLength(2);
+        expect(globalChildren.every((section) => section.open === false)).toBe(true);
+
+        globalSection.open = true;
+        globalChildren[0].open = true;
+        const globalInput = globalChildren[0].querySelector('input[type="number"]');
+        globalInput.value = '10';
+        globalInput.dispatchEvent(new Event('change'));
+        expect(themeShared.value).toBe(10);
+        expect(sessionShared.value).toBe(2);
+        expect(rootShared.value).toBe(3);
+
+        const snapshot = controller.captureVmControlSnapshot();
+        expect(snapshot).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                descriptor: expect.objectContaining({ globalViewModelName: 'Theme', source: 'global-view-model' }),
+            }),
+            expect.objectContaining({
+                descriptor: expect.objectContaining({ globalViewModelName: 'Session', source: 'global-view-model' }),
+            }),
+        ]));
+        expect(new Set(snapshot.map((entry) => controlSnapshotKeyForDescriptor(entry.descriptor))).size)
+            .toBe(snapshot.length);
+        expect(controller.serializeControlHierarchy().children[0]).toMatchObject({
+            kind: 'global-view-models',
+            label: 'Global VM',
+        });
     });
 });

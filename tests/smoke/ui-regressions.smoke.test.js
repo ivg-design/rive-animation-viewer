@@ -95,6 +95,8 @@ describe('ui regression smoke', () => {
         expect(propertiesCss).toMatch(/\.properties-panel-body > \*,[\s\S]*?\.vm-control-row,[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;/);
         expect(propertiesCss).toMatch(/\.vm-child-nodes\s*\{[^}]*width:\s*calc\(100% - 8px\);/);
         expect(propertiesCss).toMatch(/\.vm-section-header > span[^}]*overflow:\s*hidden;[^}]*text-overflow:\s*ellipsis;/);
+        expect(propertiesCss).toMatch(/\.artboard-switcher > \.vm-section\[open\] > \.vm-section-body\s*\{[^}]*min-height:\s*196px;/);
+        expect(propertiesCss).toMatch(/\.artboard-selection-summary\[hidden\]\s*\{[^}]*display:\s*block;[^}]*min-height:\s*13px;[^}]*visibility:\s*hidden;/);
         expect(propertiesCss).toContain('max-width: 100%;');
         expect(imageControlCss).toMatch(/\.vm-image-control\s*\{[^}]*position:\s*relative;/);
         expect(imageControlCss).toMatch(/\.vm-image-file-input\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0 auto auto 0;[^}]*width:\s*1px;[^}]*height:\s*1px;[^}]*overflow:\s*hidden;[^}]*pointer-events:\s*none;/);

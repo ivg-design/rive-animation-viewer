@@ -221,6 +221,27 @@ export function resolveVmRootInstance(riveInstance) {
     return null;
 }
 
+export function getGlobalViewModelNames(riveInstance) {
+    const names = safeVmMethodCall(riveInstance, 'globalViewModelNames');
+    return Array.isArray(names)
+        ? names.filter((name) => typeof name === 'string' && name.trim())
+        : [];
+}
+
+export function resolveGlobalViewModelInstance(riveInstance, globalViewModelName) {
+    if (typeof globalViewModelName !== 'string' || !globalViewModelName.trim()) {
+        return null;
+    }
+    return safeVmMethodCall(riveInstance, 'globalViewModelInstance', globalViewModelName.trim());
+}
+
+export function getGlobalViewModelInstances(riveInstance) {
+    return getGlobalViewModelNames(riveInstance).map((name) => ({
+        instance: resolveGlobalViewModelInstance(riveInstance, name),
+        name,
+    }));
+}
+
 export function getStateMachineInputKind(input, runtime) {
     if (!input || typeof input !== 'object') {
         return null;
@@ -285,6 +306,9 @@ export function controlSnapshotKeyForDescriptor(descriptor) {
     if (descriptor.source === 'state-machine') {
         return `sm:${descriptor.stateMachineName || ''}:${descriptor.name || ''}:${descriptor.kind || ''}`;
     }
+    if (descriptor.source === 'global-view-model') {
+        return `gvm:${encodeURIComponent(descriptor.globalViewModelName || '')}:${descriptor.path || ''}:${descriptor.kind || ''}`;
+    }
     return `vm:${descriptor.path || ''}:${descriptor.kind || ''}`;
 }
 
@@ -304,18 +328,21 @@ export function normalizeControlSelectionKey(key) {
         return null;
     }
     const trimmed = key.trim();
-    if (!trimmed.startsWith('vm:')) {
+    if (!trimmed.startsWith('vm:') && !trimmed.startsWith('gvm:')) {
         return trimmed || null;
     }
     const kindSeparator = trimmed.lastIndexOf(':');
-    if (kindSeparator <= 3) {
+    const pathStart = trimmed.startsWith('gvm:')
+        ? trimmed.indexOf(':', 4) + 1
+        : 3;
+    if (kindSeparator <= pathStart) {
         return trimmed || null;
     }
-    const path = trimmed.slice(3, kindSeparator)
+    const path = trimmed.slice(pathStart, kindSeparator)
         .split('/')
         .map((segment) => (/^(0|[1-9]\d*)$/.test(segment) ? '*' : segment))
         .join('/');
-    return `vm:${path}:${trimmed.slice(kindSeparator + 1)}`;
+    return `${trimmed.slice(0, pathStart)}${path}:${trimmed.slice(kindSeparator + 1)}`;
 }
 
 export function isControlDescriptorSelected(descriptor, selectedKeys) {

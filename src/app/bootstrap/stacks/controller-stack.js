@@ -65,6 +65,7 @@ export function createControllerStack({
             getCurrentFileSourcePath,
             getCurrentFileSizeBytes,
             getCurrentCanvasSizing,
+            getCurrentMcpPort,
             getCurrentRuntime,
             getCurrentRuntimeSource: () => runtimeLoaderController?.getCurrentRuntimeSource?.(),
             getCurrentRuntimeVersion: () => runtimeLoaderController?.getCurrentRuntimeVersion?.(),

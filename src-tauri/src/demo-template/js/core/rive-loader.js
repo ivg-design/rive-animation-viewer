@@ -341,26 +341,40 @@
                 clearVmControlBindings();
                 // Prefer the current runtime tree so converter-driven lists cannot go stale.
                 var rootVm = resolveVmRootInstance();
-                vmListTopologySignature = buildVmListTopologySignature(rootVm);
+                vmListTopologySignature = buildAllVmTopologySignature();
                 var liveVmHierarchy = rootVm
                     ? buildVmHierarchy(rootVm)
                     : (VM_HIERARCHY && VM_HIERARCHY.label
                         ? JSON.parse(JSON.stringify(VM_HIERARCHY))
                         : null);
                 var vmHierarchy = filterHierarchyNode(liveVmHierarchy);
+                var globalVmHierarchies = getGlobalViewModelNames().map(function (name) {
+                    var instance = resolveGlobalVmRootInstance(name);
+                    return instance ? filterHierarchyNode(buildVmHierarchy(instance, name)) : null;
+                }).filter(Boolean);
+                var globalVmGroup = globalVmHierarchies.length ? {
+                    children: globalVmHierarchies,
+                    inputs: [],
+                    kind: 'global-view-models',
+                    label: 'Global VM',
+                    path: '__global_view_models__',
+                } : null;
                 var stateMachineHierarchy = filterHierarchyNode(buildStateMachineHierarchy());
                 var vmTotal = vmHierarchy ? countHierarchyInputs(vmHierarchy) : 0;
+                var globalVmTotal = globalVmGroup ? countHierarchyInputs(globalVmGroup) : 0;
                 var smTotal = stateMachineHierarchy ? countHierarchyInputs(stateMachineHierarchy) : 0;
-                var totalControls = vmTotal + smTotal;
+                var totalControls = vmTotal + globalVmTotal + smTotal;
                 countEl.textContent = String(totalControls);
-                if (!totalControls) {
+                if (!totalControls && !globalVmGroup) {
                     emptyEl.hidden = false;
                     emptyEl.textContent = 'No writable ViewModel or state machine inputs were found.';
                     if (vmListTopologySignature === null && !pendingControlSnapshot.size) stopVmControlSync();
                     else startVmControlSync();
                     return;
                 }
-                emptyEl.hidden = true;
+                emptyEl.hidden = totalControls > 0;
+                if (!totalControls) emptyEl.textContent = 'No writable global ViewModel inputs were found.';
+                if (globalVmGroup) treeEl.appendChild(createVmSectionElement(globalVmGroup, false, 0));
                 // Filter out root-level VM inputs duplicated in child VMs.
                 if (vmHierarchy && vmHierarchy.children && vmHierarchy.children.length && vmHierarchy.inputs) {
                     var childPaths = new Set();

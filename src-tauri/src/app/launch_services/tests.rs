@@ -88,9 +88,9 @@ fn startup_refresh_is_wired_only_for_normal_official_production_launches() {
 #[test]
 fn split_handlers_display_the_canonical_app_name() {
     let status = super::handlers::status_from_handlers(
-        Path::new("/Applications/RAV 2.5.2 DEV.app"),
+        Path::new("/Applications/RAV 2.5.3 DEV.app"),
         Some("/Applications/Rive.app".into()),
-        Some("/Applications/RAV 2.5.2 DEV.app".into()),
+        Some("/Applications/RAV 2.5.3 DEV.app".into()),
     );
 
     assert_eq!(status.state, "partial");

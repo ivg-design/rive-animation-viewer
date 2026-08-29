@@ -30,6 +30,13 @@ export const EDITOR_TOOLS = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
+    name: 'rav_open_isolated_playback',
+    description:
+      'Open the current animation in a separate, ordinary opaque Tauri webview using the exact self-contained standalone-export payload. ' +
+      'This is an in-app A/B diagnostic surface for comparing RAV plumbing against isolated playback; it does not save a file or change the main RAV window.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
     name: 'rav_export_demo',
     description:
       'Export the current animation as a self-contained standalone HTML demo file. ' +

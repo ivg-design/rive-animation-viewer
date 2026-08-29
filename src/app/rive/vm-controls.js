@@ -9,6 +9,8 @@ export {
 export {
     controlSnapshotKeyForDescriptor,
     controlSelectionKeyForDescriptor,
+    getGlobalViewModelInstances,
+    getGlobalViewModelNames,
     getStateMachineInputKind,
     getVmAccessor,
     getVmListItemAt,
@@ -18,6 +20,7 @@ export {
     isControlDescriptorSelected,
     normalizeControlSelectionKey,
     resolveVmRootInstance,
+    resolveGlobalViewModelInstance,
     safeVmMethodCall,
     shouldResumePlaybackForTrigger,
 } from './view-model/accessors.js';

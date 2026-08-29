@@ -26,9 +26,9 @@ function readAccessorValue(accessor, kind) {
     }
 }
 
-export function buildViewModelSnapshot(windowRef = globalThis.window) {
+export function buildViewModelSnapshot(windowRef = globalThis.window, { rootVmOverride } = {}) {
     const inst = windowRef?.riveInst;
-    const rootVm = inst?.viewModelInstance || null;
+    const rootVm = rootVmOverride === undefined ? (inst?.viewModelInstance || null) : rootVmOverride;
 
     if (!inst) {
         return {
@@ -140,5 +140,68 @@ export function buildViewModelSnapshot(windowRef = globalThis.window) {
         tree,
         paths: inputs.map((input) => input.path),
         inputs,
+    };
+}
+
+function readGlobalViewModelNames(instance) {
+    try {
+        const names = instance?.globalViewModelNames?.();
+        if (!Array.isArray(names)) return [];
+        return [...new Set(names.filter((name) => typeof name === 'string' && name.trim()).map((name) => name.trim()))];
+    } catch {
+        return [];
+    }
+}
+
+function readGlobalViewModelInstance(instance, name) {
+    try {
+        return instance?.globalViewModelInstance?.(name) || null;
+    } catch {
+        return null;
+    }
+}
+
+export function buildGlobalViewModelSnapshot(windowRef = globalThis.window) {
+    const inst = windowRef?.riveInst;
+    if (!inst) {
+        return { count: 0, names: [], globalViewModels: [], message: 'No animation loaded' };
+    }
+
+    const globalViewModels = readGlobalViewModelNames(inst).map((name) => {
+        const snapshot = buildViewModelSnapshot(windowRef, { rootVmOverride: readGlobalViewModelInstance(inst, name) });
+        const decorate = (node) => {
+            if (!node || typeof node !== 'object') return node;
+            return {
+                ...node,
+                source: 'global-view-model',
+                globalViewModelName: name,
+                inputs: (node.inputs || []).map((input) => ({
+                    ...input,
+                    source: 'global-view-model',
+                    globalViewModelName: name,
+                })),
+                children: (node.children || []).map(decorate),
+            };
+        };
+        const inputs = snapshot.inputs.map((input) => ({
+            ...input,
+            source: 'global-view-model',
+            globalViewModelName: name,
+        }));
+        return {
+            name,
+            tree: decorate(snapshot.tree),
+            paths: inputs.map((input) => input.path),
+            inputs,
+            hasRoot: snapshot.hasRoot,
+            ...(snapshot.message ? { message: snapshot.message } : {}),
+        };
+    });
+
+    return {
+        count: globalViewModels.length,
+        names: globalViewModels.map((entry) => entry.name),
+        globalViewModels,
+        ...(globalViewModels.length ? {} : { message: 'No global ViewModels are available' }),
     };
 }

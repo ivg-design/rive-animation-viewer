@@ -37,6 +37,7 @@
 	        // surface is fully revisited in ceil(999 / 16) / 60 = 1.05 seconds.
 	        var RENDER_SURFACE_CONTROL_READ_BUDGET = 16;
 	        var RENDER_SURFACE_CHANGE_DRAIN_BUDGET = 128;
+	        var RENDER_SURFACE_FRAME_FALLBACK_MS = 250;
 
 	        function normalizeObservedRenderSurfaceValue(kind, value) {
 	            if (kind === 'boolean') return Boolean(value);
@@ -86,8 +87,8 @@
 
 	        function observeRenderSurfaceControlBudget(bridgeState, budget) {
 	            if (!bridgeState || !bridgeState.canonicalPublishingEnabled || !bridgeState.initialSnapshotPublished) return 0;
-	            var rootVm = resolveVmRootInstance();
-	            if (bridgeState.topologyTracker && bridgeState.topologyTracker.root !== rootVm) {
+	            if (bridgeState.topologyTracker
+	                && renderSurfaceTopologyChanged(bridgeState, false)) {
 	                bridgeState.topologyDirty = true;
 	                scheduleRenderSurfaceCanonicalRefresh('topology-root', true);
 	                return 0;
@@ -177,6 +178,49 @@
             return state;
         }
 
+        // requestIdleCallback's timeout is only a scheduling hint. A staged
+        // WebView can remain busy indefinitely and never deliver the idle
+        // callback, so pair it with an independent timer. Both paths share a
+        // once guard so the fallback cannot publish a second canonical state
+        // when an idle callback eventually arrives as well.
+        function scheduleRenderSurfaceIdleWithFallback(callback) {
+            var didRun = false;
+            var runOnce = function () {
+                if (didRun) return;
+                didRun = true;
+                callback();
+            };
+            if (typeof window.requestIdleCallback === 'function') {
+                window.requestIdleCallback(runOnce, { timeout: 1000 });
+                window.setTimeout(runOnce, 1000);
+                return;
+            }
+            window.setTimeout(runOnce, 0);
+        }
+
+        // A staged WebView may be ready enough to process bridge commands but
+        // remain hidden long enough for requestAnimationFrame to starve. Keep
+        // the presentation opportunity when it is available, while installing
+        // an independent bounded timer so canonical activation cannot deadlock.
+        function scheduleRenderSurfaceFrameWithFallback(callback) {
+            var didRun = false;
+            var fallbackTimer = null;
+            var runOnce = function () {
+                if (didRun) return;
+                didRun = true;
+                if (fallbackTimer !== null && typeof window.clearTimeout === 'function') {
+                    window.clearTimeout(fallbackTimer);
+                }
+                callback();
+            };
+            if (typeof window.requestAnimationFrame !== 'function') {
+                window.setTimeout(runOnce, 0);
+                return;
+            }
+            fallbackTimer = window.setTimeout(runOnce, RENDER_SURFACE_FRAME_FALLBACK_MS);
+            window.requestAnimationFrame(runOnce);
+        }
+
         function scheduleRenderSurfaceInitialCanonicalState() {
             if (!isRenderSurfaceMode || !riveInstance) return false;
             var bridgeState = getRenderSurfaceBridgeState();
@@ -210,20 +254,12 @@
                     }
                 }
             };
-            var scheduleIdle = function () {
-                if (typeof window.requestIdleCallback === 'function') {
-                    window.requestIdleCallback(publishInitialSnapshot, { timeout: 1000 });
-                    return;
-                }
-                window.setTimeout(publishInitialSnapshot, 0);
-            };
-            var scheduleFrame = typeof window.requestAnimationFrame === 'function'
-                ? window.requestAnimationFrame.bind(window)
-                : function (callback) { return window.setTimeout(callback, 0); };
             // The prepare-frame ACK is transported before this function runs.
             // Cross one more presentation opportunity so the parent can commit
             // native visibility before the eventual controls discovery task.
-            scheduleFrame(scheduleIdle);
+            scheduleRenderSurfaceFrameWithFallback(function () {
+                scheduleRenderSurfaceIdleWithFallback(publishInitialSnapshot);
+            });
             return true;
         }
 
@@ -253,16 +289,8 @@
                     }
                 }
             };
-            var scheduleIdle = function () {
-                if (typeof window.requestIdleCallback === 'function') {
-                    window.requestIdleCallback(publishRefresh, { timeout: 1000 });
-                    return;
-                }
-                window.setTimeout(publishRefresh, 0);
-            };
-            var scheduleFrame = typeof window.requestAnimationFrame === 'function'
-                ? window.requestAnimationFrame.bind(window)
-                : function (callback) { return window.setTimeout(callback, 0); };
-            scheduleFrame(scheduleIdle);
+            scheduleRenderSurfaceFrameWithFallback(function () {
+                scheduleRenderSurfaceIdleWithFallback(publishRefresh);
+            });
             return true;
         }

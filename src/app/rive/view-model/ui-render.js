@@ -8,7 +8,7 @@ import { shouldResumePlaybackForTrigger } from './accessors.js';
 import { countAllInputs } from './hierarchy.js';
 import { appendVmImageControl } from './image-control.js';
 import { dispatchVmControlMutation } from '../control-events.js';
-import { updateStringInputRows } from './ui/binding-sync.js';
+import { formatVmNumber, updateStringInputRows } from './ui/binding-sync.js';
 
 export function createVmControlRowFactory({
     documentRef,
@@ -24,7 +24,6 @@ export function createVmControlRowFactory({
     pickImageFile = null,
     registerVmControlBinding,
     resolveControlAccessor,
-    resolveVmAccessor,
 }) {
     const relayRemoteMutation = (detail) => {
         if (!isAuthoritativeChildMode) return false;
@@ -58,13 +57,16 @@ export function createVmControlRowFactory({
             const numberInput = documentRef.createElement('input');
             numberInput.type = 'number';
             numberInput.step = 'any';
-            numberInput.value = Number.isFinite(accessor?.value) ? String(accessor.value) : '0';
+            numberInput.value = formatVmNumber(accessor?.value);
             numberInput.disabled = isDisabled;
             numberInput.addEventListener('change', () => {
                 const nextValue = Number(numberInput.value);
                 if (!Number.isFinite(nextValue)) {
                     return;
                 }
+                // Normalize the visible field immediately, while forwarding
+                // the unrounded number to the runtime below.
+                numberInput.value = formatVmNumber(nextValue);
                 if (relayRemoteMutation({ descriptor, kind: 'number', value: nextValue })) {
                     logEvent('ui', 'vm-number', `Requested ${descriptor.path} = ${nextValue}`);
                     return;
@@ -112,7 +114,7 @@ export function createVmControlRowFactory({
                     logEvent('ui', 'vm-string', `Requested ${descriptor.path} = ${textInput.value}`);
                     return;
                 }
-                const liveAccessor = resolveVmAccessor(descriptor.path, 'string');
+                const liveAccessor = resolveControlAccessor({ ...descriptor, kind: 'string' });
                 if (liveAccessor) {
                     liveAccessor.value = textInput.value;
                     logEvent('ui', 'vm-string', `Set ${descriptor.path} = ${textInput.value}`);
@@ -164,7 +166,7 @@ export function createVmControlRowFactory({
                     endEnumInteraction();
                     return;
                 }
-                const liveAccessor = resolveVmAccessor(descriptor.path, 'enum');
+                const liveAccessor = resolveControlAccessor({ ...descriptor, kind: 'enum' });
                 if (liveAccessor) {
                     liveAccessor.value = select.value;
                     logEvent('ui', 'vm-enum', `Set ${descriptor.path} = ${select.value}`);
@@ -195,21 +197,22 @@ export function createVmControlRowFactory({
 
             const colorMeta = argbToColorMeta(accessor?.value);
             colorInput.value = colorMeta.hex;
-            alphaInput.value = String(colorMeta.alphaPercent);
+            alphaInput.value = formatVmNumber(colorMeta.alphaPercent);
             colorInput.disabled = isDisabled;
             alphaInput.disabled = isDisabled;
 
             const applyColor = () => {
                 const rgb = hexToRgb(colorInput.value);
                 const alphaPercent = clamp(Number(alphaInput.value), 0, 100);
-                alphaInput.value = String(Math.round(alphaPercent));
+                const normalizedAlphaPercent = Math.round(alphaPercent);
+                alphaInput.value = formatVmNumber(normalizedAlphaPercent);
                 const alpha = Math.round((alphaPercent / 100) * 255);
                 const colorValue = rgbAlphaToArgb(rgb.r, rgb.g, rgb.b, alpha);
                 if (relayRemoteMutation({ descriptor, kind: 'color', value: colorValue })) {
                     logEvent('ui', 'vm-color', `Requested ${descriptor.path} color ${colorInput.value} (${alphaPercent}%).`);
                     return;
                 }
-                const liveAccessor = resolveVmAccessor(descriptor.path, 'color');
+                const liveAccessor = resolveControlAccessor({ ...descriptor, kind: 'color' });
                 if (!liveAccessor) {
                     return;
                 }
@@ -323,6 +326,9 @@ export function createVmSectionElementFactory({
     return function createVmSectionElement(node, isTopLevel = false, depth = 0) {
         const section = documentRef.createElement('details');
         section.className = 'vm-section';
+        if (node?.kind === 'global-view-models') {
+            section.classList.add('vm-global-view-models');
+        }
         // The controller owns the state because this factory is deliberately
         // stateless. Rebuilding a compatible canonical hierarchy must not
         // make a user reopen every nested/list branch.

@@ -120,6 +120,20 @@ describe('platform/web-instantiation', () => {
                     kind: 'number',
                     value: 0.3333333333,
                 },
+                {
+                    descriptor: {
+                        kind: 'string', name: 'headline', path: 'headline',
+                        source: 'global-view-model', globalViewModelName: 'GlobalLabels',
+                    },
+                    kind: 'string', value: 'Welcome',
+                },
+                {
+                    descriptor: {
+                        kind: 'trigger', name: 'pulse', path: 'pulse',
+                        source: 'global-view-model', globalViewModelName: 'GlobalLabels',
+                    },
+                    kind: 'trigger', value: null,
+                },
             ],
         });
         expect(code).toContain('import * as rive from "@rive-app/webgl2";');
@@ -156,6 +170,12 @@ describe('platform/web-instantiation', () => {
         expect(code).toContain('"card-vm/refresh", // trigger');
         expect(code).toContain('"main-sm": {');
         expect(code).toContain('"progress": 0.33, // number');
+        expect(code).toContain('const GLOBAL_VM_OVERRIDES = {');
+        expect(code).toContain('"GlobalLabels": {');
+        expect(code).toContain('"headline": "Welcome", // string');
+        expect(code).toContain('const GLOBAL_VM_TRIGGER_PATHS = [');
+        expect(code).toContain('{ name: "GlobalLabels", path: "pulse" }, // trigger');
+        expect(code).toContain('setGlobalVmValue(name, path, value, kind)');
         expect(code).toContain('// card-vm');
         expect(code).toContain('function fireRavConfiguredTriggers(');
         expect(code).toContain('function getRavStateMachineInputKind(input) {');

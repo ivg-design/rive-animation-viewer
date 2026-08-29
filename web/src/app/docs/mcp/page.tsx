@@ -60,25 +60,45 @@ export default function McpIntegration() {
         <li><strong>Manual snippets</strong> &mdash; copy-paste configurations for any MCP client</li>
       </ul>
 
-      <h2>Available Tools (36)</h2>
+      <h2>Available Tools (49)</h2>
+      <p>
+        The bundled native sidecar advertises these 49 unique tools. Root ViewModel
+        paths use the regular <code>rav_vm_*</code> tools; global ViewModels use a
+        separate global name plus property path.
+      </p>
       <table>
         <thead><tr><th>Tool</th><th>Description</th></tr></thead>
         <tbody>
           <tr><td><code>rav_status</code></td><td>App status: file, runtime, playback, canvas sizing, ViewModel summary</td></tr>
+          <tr><td><code>rav_set_anonymous_usage</code></td><td>Enable or disable Anonymous Usage reporting</td></tr>
           <tr><td><code>rav_open_file</code></td><td>Open a .riv file by absolute path</td></tr>
           <tr><td><code>rav_play</code> / <code>rav_pause</code> / <code>rav_reset</code></td><td>Playback controls</td></tr>
           <tr><td><code>rav_get_artboards</code></td><td>List artboard names</td></tr>
           <tr><td><code>rav_get_state_machines</code></td><td>List state machine names</td></tr>
           <tr><td><code>rav_switch_artboard</code> / <code>rav_reset_artboard</code></td><td>Switch artboard/playback or reset to default</td></tr>
-          <tr><td><code>rav_get_vm_tree</code></td><td>Current live ViewModel hierarchy with paths, types, values, and dynamic list bounds</td></tr>
-          <tr><td><code>rav_vm_get</code> / <code>rav_vm_set</code> / <code>rav_vm_fire</code></td><td>Read, write, and fire ViewModel properties, including zero-based list paths such as <code>rows/0/name</code></td></tr>
+          <tr><td><code>rav_switch_vm_instance</code></td><td>Switch the active artboard-bound ViewModel instance</td></tr>
+          <tr><td><code>rav_get_vm_tree</code></td><td>Current live root ViewModel hierarchy with paths, types, values, and dynamic list bounds</td></tr>
+          <tr><td><code>rav_vm_get</code></td><td>Read a root ViewModel property, including zero-based list paths such as <code>rows/0/name</code></td></tr>
+          <tr><td><code>rav_vm_set</code></td><td>Write a root ViewModel property</td></tr>
+          <tr><td><code>rav_vm_set_image</code></td><td>Set a root ViewModel image property</td></tr>
+          <tr><td><code>rav_vm_clear_image</code></td><td>Clear a root ViewModel image property</td></tr>
+          <tr><td><code>rav_vm_fire</code></td><td>Fire a root ViewModel trigger property</td></tr>
+          <tr><td><code>rav_get_global_vm_tree</code></td><td>List named global ViewModels and their independent live trees</td></tr>
+          <tr><td><code>rav_global_vm_get</code></td><td>Read a property from a named global ViewModel</td></tr>
+          <tr><td><code>rav_global_vm_set</code></td><td>Write a property on a named global ViewModel</td></tr>
+          <tr><td><code>rav_global_vm_set_image</code></td><td>Set an image property on a named global ViewModel</td></tr>
+          <tr><td><code>rav_global_vm_clear_image</code></td><td>Clear an image property on a named global ViewModel</td></tr>
+          <tr><td><code>rav_global_vm_fire</code></td><td>Fire a trigger property on a named global ViewModel</td></tr>
           <tr><td><code>rav_get_event_log</code></td><td>Recent event log entries (filterable by source)</td></tr>
           <tr><td><code>rav_get_editor_code</code> / <code>rav_set_editor_code</code></td><td>Read and write the script editor</td></tr>
           <tr><td><code>rav_apply_code</code></td><td>Apply editor code and reload (Script Access required)</td></tr>
           <tr><td><code>rav_set_runtime</code></td><td>Switch runtime (webgl2 or canvas)</td></tr>
           <tr><td><code>rav_set_layout</code></td><td>Set layout fit mode</td></tr>
+          <tr><td><code>rav_set_alignment</code></td><td>Set art alignment within the canvas</td></tr>
           <tr><td><code>rav_set_canvas_color</code></td><td>Set background color</td></tr>
           <tr><td><code>rav_set_canvas_size</code></td><td>Set canvas sizing mode, dimensions, and aspect lock</td></tr>
+          <tr><td><code>rav_capture_canvas</code></td><td>Capture the currently rendered RAV canvas as PNG image content</td></tr>
+          <tr><td><code>rav_open_isolated_playback</code></td><td>Open playback in an isolated surface</td></tr>
           <tr><td><code>rav_export_demo</code></td><td>Export standalone HTML demo (programmatic, no dialog)</td></tr>
           <tr><td><code>rav_export_demo_visual</code></td><td>Visibly orchestrate the export dialog (selection, package, snippet mode) and save &mdash; for screen recordings or non-default selections</td></tr>
           <tr><td><code>generate_web_instantiation_code</code></td><td>Generate canonical web snippet with helpers and control values</td></tr>
@@ -86,13 +106,21 @@ export default function McpIntegration() {
           <tr><td><code>rav_configure_workspace</code></td><td>Set sidebar visibility, live source mode, and VM Explorer state</td></tr>
           <tr><td><code>rav_get_sm_inputs</code> / <code>rav_set_sm_input</code></td><td>State machine input access</td></tr>
           <tr><td><code>rav_eval</code></td><td>Evaluate JS in browser context (Script Access required)</td></tr>
-          <tr><td><code>rav_console_open</code> / <code>rav_console_close</code></td><td>Toggle the bottom console panel. <code>open</code> accepts optional <code>mode</code>, <code>level</code>, <code>sources</code>, and <code>search</code> to apply a filter on open</td></tr>
+          <tr><td><code>rav_console_open</code></td><td>Open the bottom console panel, optionally setting <code>mode</code>, <code>level</code>, <code>sources</code>, and <code>search</code></td></tr>
+          <tr><td><code>rav_console_close</code></td><td>Close the bottom console panel</td></tr>
           <tr><td><code>rav_console_set_mode</code></td><td>Flip between Event Console, JS REPL, or closed without re-opening</td></tr>
           <tr><td><code>rav_console_set_filter</code></td><td>Drive the on-screen filter toggles: <code>level</code> for JS, <code>sources</code> for Events, plus <code>search</code> on either</td></tr>
           <tr><td><code>rav_console_clear</code></td><td>Clear the visible transcript of the active mode (or a specified mode); panel stays open</td></tr>
           <tr><td><code>rav_console_read</code> / <code>rav_console_exec</code></td><td>Read console output or run REPL code (exec requires Script Access)</td></tr>
         </tbody>
       </table>
+
+      <h2>GLOBAL VM in RAV</h2>
+      <p>
+        When a file provides globals, the sidebar labels their collection <strong>GLOBAL VM</strong>
+        above <strong>ROOT VM</strong>. <strong>GLOBAL VM</strong> starts collapsed, and each named
+        global has its own independent expandable tree; opening one does not expand another.
+      </p>
 
       <h2>Script Access</h2>
       <p>

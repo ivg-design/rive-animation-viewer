@@ -48,6 +48,7 @@ function createHarness(overrides = {}) {
             options?.onLoaded?.();
         }),
         logEvent: vi.fn(),
+        requestAuthoritativeCommand: vi.fn(async () => ({ applied: true, status: 'applied' })),
         resetRiveInstance: vi.fn(() => false),
         renderVmInputControls: vi.fn(),
         showError: vi.fn(),
@@ -257,18 +258,18 @@ describe('rive/artboard-switcher', () => {
 
         await harness.controller.resetToDefaultArtboard();
 
-        expect(harness.callbacks.loadRiveAnimation).toHaveBeenCalledWith(
-            'blob:demo',
-            'demo.riv',
-            expect.objectContaining({
-                configOverrides: {
-                    artboard: 'First',
-                    autoBind: true,
-                    autoplay: true,
-                    stateMachines: 'Boot',
-                },
-            }),
-        );
+        expect(harness.callbacks.requestAuthoritativeCommand).toHaveBeenCalledWith('reset', {
+            params: {
+                animations: undefined,
+                artboard: 'First',
+                autoBind: true,
+                autoplay: true,
+                stateMachines: 'Boot',
+                viewModelInstanceName: null,
+            },
+            snapshot: [],
+        });
+        expect(harness.callbacks.loadRiveAnimation).not.toHaveBeenCalled();
         expect(harness.controller.getStateSnapshot()).toMatchObject({
             currentArtboard: 'First',
             currentPlaybackName: 'Boot',
@@ -300,18 +301,18 @@ describe('rive/artboard-switcher', () => {
 
         await harness.controller.resetToDefaultArtboard();
 
-        expect(harness.callbacks.loadRiveAnimation).toHaveBeenCalledWith(
-            'blob:demo',
-            'demo.riv',
-            expect.objectContaining({
-                configOverrides: {
-                    artboard: 'First',
-                    autoBind: false,
-                    autoplay: true,
-                    stateMachines: 'Boot',
-                },
-            }),
-        );
+        expect(harness.callbacks.requestAuthoritativeCommand).toHaveBeenCalledWith('reset', {
+            params: {
+                animations: undefined,
+                artboard: 'First',
+                autoBind: false,
+                autoplay: true,
+                stateMachines: 'Boot',
+                viewModelInstanceName: instanceKey,
+            },
+            snapshot: [],
+        });
+        expect(harness.callbacks.loadRiveAnimation).not.toHaveBeenCalled();
         expect(harness.controller.getStateSnapshot().currentVmInstanceName).toBe(instanceKey);
     });
 
@@ -1233,16 +1234,13 @@ describe('rive/artboard-switcher', () => {
         expect(harness.callbacks.showError).not.toHaveBeenCalled();
     });
 
-    it('stages DEFAULT through the authoritative child instead of resetting the hidden parent', async () => {
-        let pendingLoad;
+    it('resets DEFAULT in the MCP-opened authoritative session without staging a replacement child', async () => {
+        const requestAuthoritativeCommand = vi.fn(async () => ({ applied: true, status: 'applied' }));
         const resetRiveInstance = vi.fn(() => true);
         const elements = createElements();
         const harness = createHarness({
             callbacks: {
-                loadRiveAnimation: vi.fn((_url, _name, options) => {
-                    pendingLoad = options;
-                    return Promise.resolve();
-                }),
+                requestAuthoritativeCommand,
                 resetRiveInstance,
             },
             elements,
@@ -1257,16 +1255,45 @@ describe('rive/artboard-switcher', () => {
                 defaultViewModel: () => ({ instanceCount: 0 }),
             },
         });
-        harness.controller.syncStateFromConfig({ artboard: 'First', configuredStateMachines: ['Boot'] });
+        harness.controller.resetForNewFile();
+        harness.controller.syncStateAfterLoad({
+            artboard: { name: 'First' },
+            playingAnimationNames: [],
+            playingStateMachineNames: ['Boot'],
+        }, {});
         harness.controller.populateArtboardSwitcher();
-        harness.controller.syncStateFromConfig({ artboard: 'Second', configuredStateMachines: ['Main'] });
+        harness.controller.syncStateFromCanonical({
+            artboard: 'Second',
+            playback: { name: 'Main', type: 'stateMachine' },
+            vmInstance: { key: null },
+        });
 
-        const reset = harness.controller.resetToDefaultArtboard();
+        expect(harness.controller.getStateSnapshot()).toMatchObject({
+            currentArtboard: 'Second',
+            defaultArtboard: 'First',
+            defaultPlaybackKey: 'sm:Boot',
+        });
+
+        await harness.controller.resetToDefaultArtboard();
+
         expect(resetRiveInstance).not.toHaveBeenCalled();
-        expect(pendingLoad.configOverrides).toMatchObject({ artboard: 'First', stateMachines: 'Boot' });
-        pendingLoad.onLoaded();
-        await reset;
-        expect(harness.controller.getStateSnapshot().currentArtboard).toBe('First');
+        expect(harness.callbacks.loadRiveAnimation).not.toHaveBeenCalled();
+        expect(requestAuthoritativeCommand).toHaveBeenCalledWith('reset', {
+            params: {
+                animations: undefined,
+                artboard: 'First',
+                autoBind: true,
+                autoplay: true,
+                stateMachines: 'Boot',
+                viewModelInstanceName: null,
+            },
+            snapshot: [],
+        });
+        expect(harness.controller.getStateSnapshot()).toMatchObject({
+            currentArtboard: 'First',
+            currentPlaybackName: 'Boot',
+            currentPlaybackType: 'stateMachine',
+        });
     });
 
     it('wires DOM events through setup and updates playback options on artboard changes', async () => {
