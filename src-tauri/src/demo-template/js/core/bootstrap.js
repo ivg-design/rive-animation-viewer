@@ -146,37 +146,26 @@
                     var canvas = els.canvas;
                     if (!canvas || canvas.width <= 0 || canvas.height <= 0) throw new Error('Rendered canvas has zero pixel dimensions');
                     if (!riveInstance || typeof riveInstance.drawFrame !== 'function') throw new Error('The active Rive runtime cannot refresh the rendered frame for capture');
-                    // Rive's drawFrame() is a no-op while its playback RAF has
-                    // a pending frame, and DrawOnChanged can skip a static frame
-                    // after the loop is stopped. Fence the loop and force one
-                    // unconditional draw before reading the WebGL canvas.
-                    var canFenceRenderLoop = typeof riveInstance.stopRendering === 'function'
-                        && typeof riveInstance.startRendering === 'function';
-                    var canForceDraw = 'drawOptimization' in riveInstance;
-                    var previousDrawOptimization = canForceDraw ? riveInstance.drawOptimization : null;
+                    // Fence the playback RAF: drawFrame() may otherwise be a no-op during playback.
+                    var canFenceRenderLoop = typeof riveInstance.stopRendering === 'function' && typeof riveInstance.startRendering === 'function';
+                    var canForceDraw = 'drawOptimization' in riveInstance, previousDrawOptimization = canForceDraw ? riveInstance.drawOptimization : null;
                     if (canFenceRenderLoop) riveInstance.stopRendering();
                     try {
-                        if (canForceDraw) riveInstance.drawOptimization = 'alwaysDraw';
-                        riveInstance.drawFrame();
+                        if (canForceDraw) riveInstance.drawOptimization = 'alwaysDraw'; riveInstance.drawFrame();
                     } finally {
-                        if (canForceDraw) riveInstance.drawOptimization = previousDrawOptimization;
-                        if (canFenceRenderLoop) riveInstance.startRendering();
+                        if (canForceDraw) riveInstance.drawOptimization = previousDrawOptimization; if (canFenceRenderLoop) riveInstance.startRendering();
                     }
                     var backgroundColor = '';
                     try { backgroundColor = window.getComputedStyle(canvas).backgroundColor || ''; } catch (error) { /* noop */ }
                     if (!backgroundColor) backgroundColor = canvas.style.backgroundColor || canvas.style.background || '';
                     var normalizedBackground = String(backgroundColor || '').trim().toLowerCase().replace(/\s+/g, '');
-                    var compositeBackground = Boolean(normalizedBackground && normalizedBackground !== 'transparent'
-                        && normalizedBackground !== 'rgba(0,0,0,0)' && normalizedBackground !== 'hsla(0,0%,0%,0)');
-                    var originalWidth = canvas.width, originalHeight = canvas.height;
-                    var scale = Math.min(1, Math.sqrt(2000000 / (originalWidth * originalHeight)));
+                    var compositeBackground = Boolean(normalizedBackground && normalizedBackground !== 'transparent' && normalizedBackground !== 'rgba(0,0,0,0)' && normalizedBackground !== 'hsla(0,0%,0%,0)');
+                    var originalWidth = canvas.width, originalHeight = canvas.height, scale = Math.min(1, Math.sqrt(2000000 / (originalWidth * originalHeight)));
                     var data = '', output = null, attempts = 0;
                     for (attempts = 1; attempts <= 4; attempts += 1) {
                         output = document.createElement('canvas');
-                        output.width = Math.max(1, Math.floor(originalWidth * scale));
-                        output.height = Math.max(1, Math.floor(originalHeight * scale));
-                        var context = output.getContext('2d');
-                        if (!context) throw new Error('A 2D canvas is required to encode the rendered screenshot');
+                        output.width = Math.max(1, Math.floor(originalWidth * scale)); output.height = Math.max(1, Math.floor(originalHeight * scale));
+                        var context = output.getContext('2d'); if (!context) throw new Error('A 2D canvas is required to encode the rendered screenshot');
                         if (compositeBackground) { context.fillStyle = backgroundColor; context.fillRect(0, 0, output.width, output.height); }
                         else context.clearRect(0, 0, output.width, output.height);
                         context.drawImage(canvas, 0, 0, output.width, output.height);
