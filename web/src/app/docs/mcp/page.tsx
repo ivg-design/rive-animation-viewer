@@ -117,7 +117,7 @@ export default function McpIntegration() {
 
       <h2>GLOBAL VM in RAV</h2>
       <p>
-        When a file provides globals, the sidebar labels their collection <strong>GLOBAL VM</strong>
+        When a file provides globals, the sidebar labels their collection <strong>GLOBAL VM</strong>{" "}
         above <strong>ROOT VM</strong>. <strong>GLOBAL VM</strong> starts collapsed, and each named
         global has its own independent expandable tree; opening one does not expand another.
       </p>

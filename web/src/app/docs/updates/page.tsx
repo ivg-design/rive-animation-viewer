@@ -39,8 +39,8 @@ export default function Updates() {
       <h2>Release Feed</h2>
       <p>
         The updater only surfaces a new version after the full multi-platform release
-        completes, all native-signing and artifact-parity checks pass, and the merged
-        <code>latest.json</code> feed is published. Draft releases are ignored by the
+        completes, all native-signing and artifact-parity checks pass, and the merged{" "}
+        <code>latest.json</code> feed is published. Draft releases are ignored by the{" "}
         <code>releases/latest</code> endpoint, so a partially complete release cannot
         advance installed clients.
       </p>
