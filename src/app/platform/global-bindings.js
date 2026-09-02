@@ -22,6 +22,12 @@ export function createGlobalBindingsController({
 } = {}) {
     const {
         applyCodeAndReload = async () => {},
+        configureInstantiationControls = () => ({
+            availableControlKeys: [],
+            packageSource: 'cdn',
+            selectedControlKeys: [],
+            snippetMode: 'compact',
+        }),
         createDemoBundle = async () => {},
         ensureEditorReady = async () => true,
         exportDemoToPath = async () => {},
@@ -70,6 +76,7 @@ export function createGlobalBindingsController({
         stageCurrentFile = () => null,
         setCurrentCanvasSizing = () => {},
         setCanvasSizingState = (canvasSizing) => canvasSizing,
+        setRuntimeSelection = async (runtime) => ({ changed: false, runtime }),
         setEditorCode = () => {},
         setLiveConfigSource = async () => ({ sourceMode: 'internal' }),
         setInstallCounterEnabled = async () => false,
@@ -163,6 +170,7 @@ export function createGlobalBindingsController({
             windowRef._mcpBridge?.indicatorState || windowRef._mcpBridge?.state || 'off',
         );
         windowRef._mcpExportDemoToPath = async (outputPath, options) => exportDemoToPath(outputPath, options);
+        windowRef._mcpConfigureInstantiationControls = (options) => configureInstantiationControls(options);
         windowRef._mcpOpenIsolatedPlayback = async (options) => openIsolatedPlayback(options);
         windowRef._mcpGenerateWebInstantiationCode = async (packageSource, snippetMode) => getGenerateWebInstantiationCode(packageSource, snippetMode);
         windowRef._mcpSwitchArtboard = switchArtboard;
@@ -176,6 +184,7 @@ export function createGlobalBindingsController({
                 ? setCanvasSizingState(canvasSizing, message)
                 : (setCurrentCanvasSizing(canvasSizing), canvasSizing)
         );
+        windowRef._mcpSetRuntime = (runtime) => setRuntimeSelection(runtime);
         windowRef._mcpSetInstallCounterEnabled = (enabled) => setInstallCounterEnabled(enabled);
         windowRef._mcpGetLiveConfigState = () => getLiveConfigState();
         windowRef._mcpGetRenderSurfaceState = () => getRenderSurfaceState();

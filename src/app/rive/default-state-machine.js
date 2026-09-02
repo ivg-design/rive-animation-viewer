@@ -12,13 +12,13 @@ export async function detectDefaultStateMachineName(
     runtime,
     { documentRef = globalThis.document, fileBuffer, fileUrl, artboardName } = {},
 ) {
-    const fileApiDetected = await detectDefaultStateMachineFromRiveFile(runtime, {
+    const fileApiDetected = await readDefaultStateMachineFromRiveFile(runtime, {
         fileBuffer,
         fileUrl,
         artboardName,
     });
-    if (fileApiDetected) {
-        return fileApiDetected;
+    if (fileApiDetected.resolved) {
+        return fileApiDetected.name;
     }
 
     return detectDefaultStateMachineFromProbeInstance(runtime, {
@@ -30,11 +30,18 @@ export async function detectDefaultStateMachineName(
 }
 
 export async function detectDefaultStateMachineFromRiveFile(runtime, { fileBuffer, fileUrl, artboardName } = {}) {
+    const result = await readDefaultStateMachineFromRiveFile(runtime, { fileBuffer, fileUrl, artboardName });
+    return result.name;
+}
+
+async function readDefaultStateMachineFromRiveFile(runtime, { fileBuffer, fileUrl, artboardName } = {}) {
+    const unavailable = { name: null, resolved: false };
     if (!runtime || typeof runtime.RiveFile !== 'function') {
-        return null;
+        return unavailable;
     }
 
     let probeFile = null;
+    let nativeArtboard = null;
     try {
         const fileConfig = (fileBuffer instanceof ArrayBuffer)
             ? { buffer: fileBuffer.slice(0) }
@@ -44,43 +51,59 @@ export async function detectDefaultStateMachineFromRiveFile(runtime, { fileBuffe
             await probeFile.init();
         }
 
+        // Modern public RiveFile wrappers expose the native file through
+        // getInstance(), not artboard lookups. That call acquires one wrapper
+        // reference; the single cleanup below releases it after the artboard.
+        const hasArtboardLookup = ['artboardByName', 'defaultArtboard', 'artboardByIndex']
+            .some((method) => typeof probeFile[method] === 'function');
+        const file = hasArtboardLookup ? probeFile : probeFile.getInstance?.();
+        if (!file) return unavailable;
         let artboard = null;
-        if (artboardName && typeof probeFile.artboardByName === 'function') {
-            artboard = probeFile.artboardByName(artboardName);
+        if (artboardName && typeof file.artboardByName === 'function') {
+            artboard = file.artboardByName(artboardName);
         }
-        if (!artboard && typeof probeFile.defaultArtboard === 'function') {
-            artboard = probeFile.defaultArtboard();
+        if (!artboard && typeof file.defaultArtboard === 'function') {
+            artboard = file.defaultArtboard();
         }
-        if (!artboard && typeof probeFile.artboardByIndex === 'function') {
-            artboard = probeFile.artboardByIndex(0);
+        if (!artboard && typeof file.artboardByIndex === 'function') {
+            artboard = file.artboardByIndex(0);
         }
+        if (file !== probeFile) nativeArtboard = artboard;
         if (!artboard) {
-            return null;
+            return unavailable;
         }
 
         if (typeof artboard.stateMachineCount === 'function' && typeof artboard.stateMachineByIndex === 'function') {
             const count = artboard.stateMachineCount();
+            // A known-empty artboard is a successful metadata result. Do not
+            // construct a Rive player just to reconfirm that it has no SM.
+            if (count === 0) return { name: null, resolved: true };
             if (count > 0) {
                 const stateMachine = artboard.stateMachineByIndex(0);
                 if (stateMachine?.name) {
-                    return stateMachine.name;
+                    return { name: stateMachine.name, resolved: true };
                 }
             }
         }
 
-        if (Array.isArray(artboard.stateMachineNames) && artboard.stateMachineNames.length > 0) {
-            return artboard.stateMachineNames[0];
+        if (Array.isArray(artboard.stateMachineNames)) {
+            return { name: artboard.stateMachineNames[0] || null, resolved: true };
         }
     } catch (error) {
         console.warn('[rive-viewer] RiveFile state machine detection failed:', error);
     } finally {
+        try {
+            nativeArtboard?.delete?.();
+        } catch {
+            /* noop */
+        }
         try {
             probeFile?.cleanup?.();
         } catch {
             /* noop */
         }
     }
-    return null;
+    return unavailable;
 }
 
 export function detectDefaultStateMachineFromProbeInstance(

@@ -5,8 +5,8 @@ import { createDemoButtonController } from './layout/demo-button.js';
 import { setupPropertiesPanelViewport } from './layout/properties-panel-viewport.js';
 import { setupCenterPanelResizer, setupShellPanelResizers } from './layout/resizers.js';
 import { createCanvasSizingControlsController } from './settings/canvas-sizing-controls.js';
-import { getRuntimeDisplayName } from './status/status-controller.js';
 import { createSettingsOverlayAdapter } from './overlay/shell-adapter.js';
+import { createRuntimeSelectionController } from './runtime-selection.js';
 
 export function clamp(value, min, max) {
     return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
@@ -168,31 +168,22 @@ export function createShellController({
     function openUiOverlay(request) {
         return uiOverlayController.openPurpose(request);
     }
-    function setupRuntimeSelect() {
-        if (!elements.runtimeSelect) return;
-
-        elements.runtimeSelect.addEventListener('change', async (event) => {
-            const selected = event.target.value;
-            if (selected === getCurrentRuntime()) {
-                return;
-            }
-
-            setCurrentRuntime(selected);
-            updateInfo(`Runtime changed to: ${getRuntimeDisplayName(selected)}`);
-            refreshInfoStrip();
-            updateVersionInfo('Loading runtime...');
-            logEvent('ui', 'runtime-change', `Runtime set to ${getRuntimeDisplayName(selected)}`);
-
-            try {
-                await ensureRuntime(selected);
-                updateVersionInfo();
-                await reloadActiveAnimation();
-            } catch (error) {
-                showError(`Failed to load runtime: ${error.message}`);
-                logEvent('native', 'runtime-load-failed', `Failed to load runtime ${selected}.`, error);
-            }
-        });
-    }
+    const runtimeSelectionController = createRuntimeSelectionController({
+        callbacks: {
+            ensureRuntime,
+            getCurrentRuntime,
+            logEvent,
+            refreshInfoStrip,
+            reloadActiveAnimation,
+            setCurrentRuntime,
+            showError,
+            updateInfo,
+            updateVersionInfo,
+        },
+        elements,
+    });
+    const setRuntimeSelection = runtimeSelectionController.select;
+    const setupRuntimeSelect = runtimeSelectionController.setup;
 
     async function applyLiveLayout() {
         const instance = getRiveInstance();
@@ -389,6 +380,7 @@ export function createShellController({
         dispose,
         getSidebarVisibility,
         openUiOverlay,
+        setRuntimeSelection,
         setSidebarVisibility,
         setup,
         setupAlignmentSelect,

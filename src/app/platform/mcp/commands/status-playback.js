@@ -1,6 +1,7 @@
 import { dispatchVmControlMutation } from '../../../rive/control-events.js';
 import { buildPlaybackResetContract } from '../../../rive/reset-contract.js';
 import { parsePlaybackTarget } from '../../../rive/artboards/playback-target.js';
+import { getStateMachineInputMetadata } from '../../../rive/runtime-compatibility.js';
 import { createMcpOpenFileCommand } from './open-file.js';
 import {
     assertAuthoritativeRenderSurface,
@@ -312,14 +313,12 @@ export function createStatusPlaybackCommands({
             try {
                 const smNames = Array.isArray(inst.stateMachineNames) ? inst.stateMachineNames : [];
                 for (const smName of smNames) {
-                    if (typeof inst.stateMachineInputs !== 'function') continue;
+                    if (typeof inst.stateMachineInputs !== 'function' || getStateMachineInputMetadata(inst, smName)?.length === 0) continue;
                     const smInputs = inst.stateMachineInputs(smName);
                     if (!Array.isArray(smInputs)) continue;
                     for (const input of smInputs) {
                         const entry = { stateMachine: smName, name: input.name, type: input.type };
-                        if ('value' in input) {
-                            entry.value = input.value;
-                        }
+                        if ('value' in input) entry.value = input.value;
                         inputs.push(entry);
                     }
                 }
@@ -357,7 +356,7 @@ export function createStatusPlaybackCommands({
             if (!inst) throw new Error('No animation loaded');
             const smNames = Array.isArray(inst.stateMachineNames) ? inst.stateMachineNames : [];
             for (const smName of smNames) {
-                if (typeof inst.stateMachineInputs !== 'function') continue;
+                if (typeof inst.stateMachineInputs !== 'function' || getStateMachineInputMetadata(inst, smName)?.length === 0) continue;
                 const smInputs = inst.stateMachineInputs(smName);
                 if (!Array.isArray(smInputs)) continue;
                 const input = smInputs.find((candidate) => candidate.name === name);

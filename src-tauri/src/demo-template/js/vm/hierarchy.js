@@ -242,7 +242,7 @@
         }
 
         function buildStateMachineHierarchy() {
-            if (!riveInstance || typeof riveInstance.stateMachineInputs !== 'function') return null;
+            if (!riveInstance) return null;
 
             var stateMachineNames = Array.isArray(riveInstance.stateMachineNames) ? riveInstance.stateMachineNames : [];
             if (!stateMachineNames.length) return null;
@@ -257,11 +257,17 @@
             };
 
             stateMachineNames.forEach(function (stateMachineName) {
-                var inputs = [];
-                try {
-                    var resolved = riveInstance.stateMachineInputs(stateMachineName);
-                    if (Array.isArray(resolved)) inputs = resolved;
-                } catch (e) { inputs = []; }
+                var inputs = runtimeCompatibility.getStateMachineInputMetadata(riveInstance, stateMachineName);
+                // `contents` knows the selected artboard's authored inputs. An
+                // exact empty list is conclusive and avoids the deprecated
+                // runtime probe; unknown metadata retains legacy support.
+                if (!Array.isArray(inputs)) {
+                    inputs = [];
+                    try {
+                        var resolved = riveInstance.stateMachineInputs && riveInstance.stateMachineInputs(stateMachineName);
+                        if (Array.isArray(resolved)) inputs = resolved;
+                    } catch (e) { inputs = []; }
+                }
 
                 var childNode = {
                     label: stateMachineName,

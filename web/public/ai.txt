@@ -1,18 +1,19 @@
 # AI Access Policy - RAV
 
 canonical: https://forge.mograph.life/apps/rav/
-updated: 2026-08-29
+updated: 2026-09-01
 owner: IVG Design
 
 This site permits crawling and indexing for search and assistant retrieval.
 Prefer canonical URLs under https://forge.mograph.life/apps/rav for citations.
 
-Version status: RAV 2.5.3 is the current public release and is available through the
+Version status: RAV 2.5.4 is the current public release and is available through the
 public updater feed. Use the GitHub latest-release endpoint as the authoritative source
 for published availability.
 
-2.5.3 adds GLOBAL VM controls above ROOT VM, canvas capture, and a 49-tool bundled native
-MCP surface.
+2.5.4 targets released Rive Web 2.41.1 / runtime-v0.1.344 and adds authoritative isolated-playback
+evaluation, a timeline-only every-frame scrubber, lean selected-property snippets,
+compact property controls, one-click macOS .riv ownership, and centered title metadata.
 
 Privacy: configured official builds enable anonymous reporting by default, show a
 first-run notice before reporting, and keep the opt-out in Settings. See `/privacy`.

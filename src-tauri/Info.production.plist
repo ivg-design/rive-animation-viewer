@@ -26,8 +26,29 @@
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>app.rive.editor.rive-file</string>
+				<string>app.rive.riv</string>
+				<string>com.play.riv</string>
 				<string>app.rive.animation.viewer.riv</string>
 			</array>
+		</dict>
+		<!-- Extension-only fallback. RAV enumerates every registered UTI tagged
+		     with .riv at runtime, while this declaration keeps RAV and its document
+		     icon eligible for identifiers that did not exist when RAV was built. -->
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>riv</string>
+			</array>
+			<key>CFBundleTypeIconFile</key>
+			<string>RiveFileIcon.icns</string>
+			<key>CFBundleTypeIconSystemGenerated</key>
+			<false/>
+			<key>CFBundleTypeName</key>
+			<string>Rive File (extension fallback)</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
 		</dict>
 	</array>
 	<!-- Existing RAV installations exported this identifier. Keep it declared
@@ -81,6 +102,48 @@
 				<string>application/vnd.rive.editor</string>
 			</dict>
 			<!-- Dedicated document icon supplied by the product owner. -->
+			<key>UTTypeIconFile</key>
+			<string>RiveFileIcon.icns</string>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>app.rive.riv</string>
+			<key>UTTypeDescription</key>
+			<string>Rive File (app.rive.riv compatibility)</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>app.rive.editor.rive-file</string>
+				<string>public.data</string>
+				<string>public.content</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>riv</string>
+				</array>
+			</dict>
+			<key>UTTypeIconFile</key>
+			<string>RiveFileIcon.icns</string>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.play.riv</string>
+			<key>UTTypeDescription</key>
+			<string>Rive File (com.play.riv compatibility)</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>app.rive.editor.rive-file</string>
+				<string>public.data</string>
+				<string>public.content</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>riv</string>
+				</array>
+			</dict>
 			<key>UTTypeIconFile</key>
 			<string>RiveFileIcon.icns</string>
 		</dict>

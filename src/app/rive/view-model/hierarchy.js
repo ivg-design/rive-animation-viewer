@@ -6,6 +6,7 @@ import {
     getVmListLength,
     safeVmMethodCall,
 } from './accessors.js';
+import { getStateMachineInputMetadata } from '../runtime-compatibility.js';
 
 export function countAllInputs(node) {
     let total = node.inputs ? node.inputs.length : 0;
@@ -206,6 +207,7 @@ export function buildStateMachineHierarchy(riveInstance, runtime) {
     };
 
     stateMachineNames.forEach((stateMachineName) => {
+        if (getStateMachineInputMetadata(riveInstance, stateMachineName)?.length === 0) return;
         let inputs = [];
         try {
             const resolved = riveInstance.stateMachineInputs(stateMachineName);

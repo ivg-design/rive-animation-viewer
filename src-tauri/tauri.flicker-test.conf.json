@@ -1,7 +1,7 @@
 {
-  "productName": "RAV 2.5.3 DEV",
-  "version": "2.5.3",
-  "mainBinaryName": "rav-2.5.3-dev",
+  "productName": "RAV 2.5.4 DEV",
+  "version": "2.5.4",
+  "mainBinaryName": "rav-2.5.4-dev",
   "identifier": "app.rive.animation.viewer.flicker-test",
   "build": {
     "beforeBuildCommand": "node scripts/build-dev-dist.mjs && npm run build:mcp",
@@ -14,7 +14,7 @@
       {
         "label": "main",
         "create": false,
-        "title": "RAV 2.5.3 DEV",
+        "title": "RAV 2.5.4 DEV",
         "width": 1250,
         "height": 900,
         "minWidth": 1090,
@@ -33,9 +33,28 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["app"],
+    "targets": [
+      "app"
+    ],
     "createUpdaterArtifacts": false,
-    "fileAssociations": null,
+    "fileAssociations": [
+      {
+        "ext": [
+          "riv"
+        ],
+        "name": "Rive File",
+        "description": "Rive animation file",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "mimeType": "application/vnd.rive.editor",
+        "contentTypes": [
+          "app.rive.editor.rive-file",
+          "app.rive.riv",
+          "com.play.riv",
+          "app.rive.animation.viewer.riv"
+        ]
+      }
+    ],
     "macOS": {
       "hardenedRuntime": false,
       "infoPlist": "Info.dev.plist"

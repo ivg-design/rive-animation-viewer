@@ -4,7 +4,7 @@
 //! diagnostics. It records only application lifecycle facts (startup, native
 //! document-open delivery, and bridge setup) and never stores animation data,
 //! ViewModel values, or full file paths. DEV bundles enable it automatically;
-//! official releases leave the state inert.
+//! official releases and documentation-capture builds leave the state inert.
 
 use std::fs::{self, OpenOptions};
 use std::io::Write;
@@ -66,7 +66,7 @@ pub struct OperationalTraceSnapshot {
 /// Starts the trace before RAV builds its main WebView. Failures deliberately
 /// do not block startup: diagnostics must never become a new failure mode.
 pub fn initialize(app: &AppHandle, trace: &OperationalTrace) {
-    let enabled = !is_official_app_identifier(&app.config().identifier);
+    let enabled = tracing_enabled_for_identifier(&app.config().identifier);
     let mut state = match trace.state.lock() {
         Ok(state) => state,
         Err(_) => return,
@@ -106,6 +106,10 @@ pub fn initialize(app: &AppHandle, trace: &OperationalTrace) {
         }),
     );
     let _ = retain_recent_sessions(&directory, MAX_RETAINED_SESSIONS);
+}
+
+fn tracing_enabled_for_identifier(identifier: &str) -> bool {
+    !cfg!(feature = "docs-capture") && !is_official_app_identifier(identifier)
 }
 
 /// Records a RAV shell event through an app handle when tracing is enabled.

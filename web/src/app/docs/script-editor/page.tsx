@@ -144,7 +144,7 @@ export default function ScriptEditor() {
         <li><code>window.riveInst.resizeDrawingSurfaceToCanvas()</code> &mdash; call inside <code>onLoad</code> to lock the drawing buffer to the current canvas pixel size</li>
         <li><code>window.refreshVmInputControls?.()</code> &mdash; tells the right-panel control list to re-render after a runtime change</li>
         <li><code>window.vmGet / vmSet / vmFire</code> &mdash; convenience wrappers installed only when the VM Explorer snippet is injected</li>
-        <li><code>window.ravRive</code> &mdash; exposed by generated CDN and local snippets when helper bindings are emitted; RAV itself does not use it internally</li>
+        <li><code>window.riveProperties</code> &mdash; an object of selected typed property accessors exposed by generated CDN and local snippets; RAV itself does not use it internally</li>
       </ul>
 
       <h2>VM Explorer snippet</h2>

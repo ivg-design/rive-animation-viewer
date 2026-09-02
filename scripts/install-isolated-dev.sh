@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 
 # Install an isolated RAV DEV build at one stable path for repeatable manual QA.
-# This script intentionally does not alter the production application or its
-# Launch Services registration.
+# This script intentionally does not alter the production application or take
+# over .riv defaults. It registers the isolated DEV app only as an Alternate;
+# MAKE DEFAULT remains an explicit action inside the built desktop app.
 
 set -euo pipefail
 
 readonly EXPECTED_BUNDLE_ID="app.rive.animation.viewer.flicker-test"
 readonly PRODUCTION_BUNDLE_ID="app.rive.animation.viewer"
-readonly DEFAULT_TARGET="${RAV_DEV_TARGET:-${HOME}/Desktop/RAV 2.5.3 DEV.app}"
+readonly DEFAULT_TARGET="${RAV_DEV_TARGET:-${HOME}/Desktop/RAV 2.5.4 DEV.app}"
 readonly PRODUCTION_PATH="/Applications/Rive Animation Viewer.app"
 
 usage() {
@@ -16,8 +17,8 @@ usage() {
 Usage: install-isolated-dev.sh <source.app> [--target <stable-dev.app>] [--launch]
 
 Copies an isolated DEV app to the stable target (default:
-${HOME}/Desktop/RAV 2.5.3 DEV.app), refreshes only that target's Launch
-Services registration, and optionally launches it.
+${HOME}/Desktop/RAV 2.5.4 DEV.app), refreshes only that target's Launch
+Services registration as an Alternate .riv viewer, and optionally launches it.
 EOF
 }
 

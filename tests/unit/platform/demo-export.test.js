@@ -101,7 +101,8 @@ describe('platform/demo-export', () => {
                 expect(payload.payload.default_instantiation_package_source).toBe('local');
                 expect(payload.payload.instantiation_code).toBe(snippets.local);
                 expect(snippets.local).toContain('import * as rive from "@rive-app/webgl2";');
-                expect(snippets.local).toContain('bindRavViewModelInstance(riveInst, "Board");');
+                expect(snippets.local).toContain('selectedViewModel?.instanceByName?.("Board")');
+                expect(snippets.local).toContain('window.riveProperties = riveProperties;');
                 return '/tmp/out';
             }
             if (command === 'open_isolated_playback') {
@@ -169,8 +170,9 @@ describe('platform/demo-export', () => {
         expect(JSON.parse(renderSurfaceContext.payload.control_snapshot)).toEqual(fullSnapshot);
         const instantiationResult = await controller.generateWebInstantiationCode({ packageSource: 'cdn' });
         expect(instantiationResult).toEqual(expect.objectContaining({
-            helperApi: expect.objectContaining({
-                global: 'window.ravRive',
+            helperApi: null,
+            propertyObject: expect.objectContaining({
+                global: 'window.riveProperties',
             }),
             packageSource: 'cdn',
             runtimeName: 'webgl2',
@@ -221,7 +223,7 @@ describe('platform/demo-export', () => {
         expect(exportedPaths).toContain('rows/0/introY');
         expect(exportedPaths).toContain('rows/149/introY');
         expect(exportedPaths).not.toContain('focusIndex');
-        expect(context.instantiationSnippets.cdn.code).toContain('"rows/149/introY": 149');
+        expect(context.instantiationSnippets.cdn.code).toContain('"viewModel/rows/149/introY": riveInst.viewModelInstance?.number?.("rows/149/introY") ?? null');
         expect(context.instantiationSnippets.cdn.code).not.toContain('"focusIndex"');
     });
 

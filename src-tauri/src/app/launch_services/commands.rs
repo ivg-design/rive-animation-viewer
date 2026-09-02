@@ -7,12 +7,32 @@ use super::{
     },
     handlers::{query_default_handlers, set_default_handler, status_after_failed_change},
     registration::register_bundle,
-    CANONICAL_RIV_UTI, LEGACY_RAV_RIV_UTI,
+    CANONICAL_RIV_UTI,
 };
 
 #[cfg(target_os = "macos")]
-pub(super) const fn handler_content_types() -> [&'static str; 2] {
-    [CANONICAL_RIV_UTI, LEGACY_RAV_RIV_UTI]
+pub(super) fn claim_target_content_type(
+    initial_status: &RivDefaultAppStatus,
+    registered_status: &RivDefaultAppStatus,
+) -> String {
+    registered_status
+        .resolved_content_type
+        .as_deref()
+        .or(initial_status.resolved_content_type.as_deref())
+        .or_else(|| {
+            registered_status
+                .content_type_handlers
+                .first()
+                .map(|entry| entry.content_type.as_str())
+        })
+        .or_else(|| {
+            initial_status
+                .content_type_handlers
+                .first()
+                .map(|entry| entry.content_type.as_str())
+        })
+        .unwrap_or(CANONICAL_RIV_UTI)
+        .to_string()
 }
 
 #[cfg(target_os = "macos")]
@@ -74,19 +94,30 @@ pub(super) async fn make_rav_default_for_riv(app: tauri::AppHandle) -> RivDefaul
             return RivDefaultAppStatus::unavailable("Requires macOS 12 or newer", Some(&bundle));
         }
 
-        if let Err(reason) = query_default_handlers(&app, bundle.clone()).await {
-            return RivDefaultAppStatus::unavailable(reason, Some(&bundle));
-        }
+        let initial_status = match query_default_handlers(&app, bundle.clone()).await {
+            Ok(status) => status,
+            Err(reason) => return RivDefaultAppStatus::unavailable(reason, Some(&bundle)),
+        };
 
-        // Use the same complete Launch Services path for both MAKE DEFAULT and
-        // REPAIR ICON. Re-registering refreshes the document/icon claims; then
-        // reasserting both handlers gives Finder the same association-change
-        // notification as the original successful default-app operation.
+        // Use the same Launch Services registration path for MAKE DEFAULT and
+        // REPAIR ICON. Re-registering refreshes the document and icon claims;
+        // MAKE DEFAULT then requests the one effective .riv association below.
         if let Err(reason) = register_bundle(&bundle) {
             return status_after_failed_change(&app, bundle, reason).await;
         }
-        for type_identifier in handler_content_types() {
-            if let Err(reason) = set_default_handler(&app, bundle.clone(), type_identifier).await {
+        let registered_status = match query_default_handlers(&app, bundle.clone()).await {
+            Ok(status) => status,
+            Err(reason) => return RivDefaultAppStatus::unavailable(reason, Some(&bundle)),
+        };
+        // One Settings action maps to one macOS request for the effective .riv
+        // content type. The dynamically discovered aliases remain diagnostic
+        // data; they are not exposed as N separate ownership chores.
+        let target = (registered_status.state != "rav-default")
+            .then(|| claim_target_content_type(&initial_status, &registered_status));
+        if let Some(type_identifier) = target.as_ref() {
+            if let Err(reason) =
+                set_default_handler(&app, bundle.clone(), type_identifier.clone()).await
+            {
                 return status_after_failed_change(&app, bundle, reason).await;
             }
         }
@@ -98,15 +129,17 @@ pub(super) async fn make_rav_default_for_riv(app: tauri::AppHandle) -> RivDefaul
                 tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
             }
             match query_default_handlers(&app, bundle.clone()).await {
-                Ok(status) if status.state == "rav-default" => {
+                Ok(status) => {
+                    let confirmed = status.state == "rav-default";
+                    if !confirmed {
+                        consecutive_confirmations = 0;
+                        last_status = Some(status);
+                        continue;
+                    }
                     consecutive_confirmations += 1;
                     if consecutive_confirmations >= 2 {
                         return status;
                     }
-                    last_status = Some(status);
-                }
-                Ok(status) => {
-                    consecutive_confirmations = 0;
                     last_status = Some(status);
                 }
                 Err(reason) => return RivDefaultAppStatus::unavailable(reason, Some(&bundle)),
@@ -121,11 +154,12 @@ pub(super) async fn make_rav_default_for_riv(app: tauri::AppHandle) -> RivDefaul
         });
         if status.state != "rav-other-copy" {
             status.state = "pending".into();
-            status.reason = Some(format!(
-                "macOS accepted the request but has not confirmed this RAV copy for both .riv content types. Canonical: {}; legacy: {}.",
-                status.canonical_handler_path.as_deref().unwrap_or("no handler"),
-                status.legacy_handler_path.as_deref().unwrap_or("no handler"),
-            ));
+            status.reason = Some(match target {
+                Some(identifier) => format!(
+                    "macOS did not confirm this RAV copy as the default app for .riv files after requesting {identifier}."
+                ),
+                None => "macOS did not confirm the refreshed RAV document registration.".into(),
+            });
         }
         status
     }

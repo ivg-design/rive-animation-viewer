@@ -4,13 +4,27 @@ const APPLY_COMMAND = 'make_rav_default_for_riv';
 function normalizeStatus(status = {}) {
     const available = Boolean(status.available);
     const state = String(status.state || (available ? 'other-app' : 'unavailable'));
+    const currentBundlePath = String(status.currentBundlePath || '');
+    const contentTypeHandlers = Array.isArray(status.contentTypeHandlers)
+        ? status.contentTypeHandlers
+            .map((entry) => ({
+                contentType: String(entry?.contentType || ''),
+                handlerPath: String(entry?.handlerPath || ''),
+            }))
+            .filter((entry) => entry.contentType)
+        : [];
     return {
         available,
         canonicalHandlerPath: String(status.canonicalHandlerPath || ''),
-        currentBundlePath: String(status.currentBundlePath || ''),
+        contentTypeHandlers,
+        currentBundlePath,
         handlerName: String(status.handlerName || ''),
         legacyHandlerPath: String(status.legacyHandlerPath || ''),
+        playHandlerPath: String(status.playHandlerPath || ''),
         reason: String(status.reason || ''),
+        resolvedContentType: String(status.resolvedContentType || ''),
+        resolvedHandlerPath: String(status.resolvedHandlerPath || ''),
+        riviewHandlerPath: String(status.riviewHandlerPath || ''),
         state: available ? state : 'unavailable',
     };
 }
@@ -53,7 +67,7 @@ export function createDefaultRivAppController({
                     ? 'PENDING'
                     : (currentStatus.state === 'rav-other-copy'
                         ? 'ANOTHER RAV'
-                        : (currentStatus.handlerName || (currentStatus.state === 'partial' ? 'PARTIAL' : 'UNKNOWN APP'))))));
+                        : (currentStatus.handlerName || 'UNKNOWN APP')))));
         const statusDetail = currentStatus.reason || '';
         if (statusElement) {
             statusElement.textContent = statusLabel;
@@ -62,7 +76,11 @@ export function createDefaultRivAppController({
         }
         if (button) {
             button.disabled = busy || isUnavailable;
-            button.textContent = busy ? 'WORKING…' : (isUnavailable ? 'UNAVAILABLE' : (isDefault ? 'REPAIR ICON' : 'MAKE DEFAULT'));
+            button.textContent = busy
+                ? 'WORKING…'
+                : (isUnavailable
+                    ? 'UNAVAILABLE'
+                    : (isDefault ? 'REPAIR ICON' : 'MAKE DEFAULT'));
             button.title = isDefault
                 ? 'Refresh RAV’s .riv registration and document icon metadata'
                 : 'Make RAV the default app for .riv files';
@@ -72,7 +90,11 @@ export function createDefaultRivAppController({
     }
 
     function getStatusSnapshot() {
-        return { ...currentStatus, busy };
+        return {
+            ...currentStatus,
+            busy,
+            contentTypeHandlers: currentStatus.contentTypeHandlers.map((entry) => ({ ...entry })),
+        };
     }
 
     async function refresh() {

@@ -4,9 +4,9 @@ A local and desktop viewer for `.riv` files with runtime controls, JavaScript co
 
 ## Release
 
-- Prepared release candidate: `2.5.3` (awaiting signed GitHub build and updater acceptance).
-- Until 2.5.3 is published, public downloads and the normal public `latest.json` updater feed continue to deliver 2.5.2.
-- Release source will be the exact `chore(release): v2.5.3` commit on `main`.
+- Prepared release candidate: `2.5.4` (awaiting signed GitHub build and updater acceptance).
+- Until 2.5.4 is published, public downloads and the normal public `latest.json` updater feed continue to deliver 2.5.3.
+- Release source will be the exact `chore(release): v2.5.4` commit on `main`.
 - macOS downloads and updater apps are Developer ID signed, notarized, and stapled; updater payloads retain their separate update signatures.
 
 ## Regression Gates
@@ -21,6 +21,19 @@ The repo now has explicit prebuild guards for the surfaces that were regressing 
 - `cargo check --manifest-path src-tauri/Cargo.toml` validates the native Tauri layer
 
 These gates materially reduce regression risk, but they are still code- and DOM-contract tests, not full visual snapshot coverage. If we want pixel-level guarantees from this point forward, the next step is adding screenshot-based desktop smoke tests for the packaged app window.
+
+## 2.5.4 Web 2.41.1 / runtime-v0.1.344 and MCP Authority
+
+- **Exact Web 2.41.1 playback**: The candidate is bound to released Web 2.41.1 / runtime-v0.1.344. A single state machine uses the released singular `stateMachine` option. Multiple machines, mixed animation/state-machine playback, older runtimes, and existing plural editor configs retain the 2.x path.
+- **Complete compatibility surfaces**: The live viewer, reset flow, generated CDN/local snippets, and standalone demos share the same runtime-version boundary while retaining no-target behavior, state-machine inputs, callbacks, text runs, ViewModel-first binding, and global ViewModels.
+- **Authoritative evaluation**: `rav_eval` defaults to the active isolated playback child, supports strict `playback` and diagnostic `host` targets, labels the surface/session used, and never replays arbitrary eval into a replacement child.
+- **Explicit console limits**: MCP console tools continue to operate on the host UI transcript; they do not claim isolated-child `console.*` or live Luau-output authority.
+- **Current dependency locks**: Compatible JavaScript, MCP, website, and Rust updates remove current npm advisories without taking speculative framework/tooling majors.
+- **Purpose-built timeline transport**: Linear animations get a row above the status bar with frame/second modes, duration-aware ticks, a large unclipped playhead, drag-to-seek, and a current-time indicator that advances on every rendered animation frame. State machines keep the row hidden.
+- **Lean snippets, complete standalone exports**: CDN/local snippets contain animation setup plus only the selected typed accessors on `window.riveProperties`; standalone HTML remains the self-contained output with the runtime, embedded file, UI chrome, controls, and selected-value restoration.
+- **Compact property controls**: Color properties use square swatches, while numeric fields reserve enough width for values and native spinner controls.
+- **One-click `.riv` ownership**: On macOS, **MAKE DEFAULT** assigns the effective extension association in one action while RAV dynamically discovers registered `.riv` identifiers for diagnostics and extension-level icon compatibility.
+- **Centered file metadata**: Intrinsically sized file metadata sits in equal flexible title-bar columns, keeping its visible center aligned to the real window center while long paths still truncate.
 
 ## 2.5.3 Global VM and Canvas Capture
 
@@ -60,7 +73,7 @@ For example, a 16:9 artboard inside a taller 500 × 409 canvas fills the full 50
 - **Accurate export counts**: Export summaries report the actual number of serialized controls, including controls generated from repeated lists.
 - **Drawer reveal controls**: The left and right drawer buttons now live in the main interface strip so they remain accessible beside the separate playback surface.
 - **Anonymous Usage controls**: Official releases can report anonymous installation and monthly usage counts. A first-run notice, a Settings toggle, and Privacy Policy links were added with the feature.
-- **macOS `.riv` ownership and icon repair**: Settings reports whether this exact installed RAV bundle owns both the canonical and legacy `.riv` identifiers. Users can deliberately make RAV the default opener or re-register its document icon without RAV silently taking ownership during installation; Quick Look remains a separate macOS provider.
+- **macOS `.riv` ownership and icon repair**: **MAKE DEFAULT** is one action for the effective `.riv` association, regardless of how many compatible identifiers are registered. RAV discovers those aliases internally and includes an extension-level fallback with its document icon, but Settings does not expose them as separate ownership chores. **REPAIR ICON** re-registers the document metadata after RAV is the default; installation never silently takes over, and Quick Look remains a separate macOS provider.
 
 ## Anonymous installation counting
 
@@ -189,7 +202,7 @@ path-resolution failure.
 - **One-click MCP setup**: The MCP dialog detects Codex, Claude Code, and Claude Desktop, shows whether `rav-mcp` is already configured, and offers `ADD`, `REINSTALL`, and `REMOVE`.
 - **Script Access permission**: MCP scripting tools are gated behind an explicit `Script Access` toggle so you can keep MCP in read-only control mode when needed.
 - **Snippet & Export Controls**: `EXPORT` opens a dialog that previews the generated web snippet, lets you choose CDN vs local package output, and serializes only the selected or changed controls.
-- **Readable integration snippets**: Generated snippets are organized for real integration use, round numbers to 2 decimals, annotate enum choices inline, and expose a `window.ravRive` helper API.
+- **Readable integration snippets**: Generated snippets contain only runtime setup plus the selected typed property accessors on `window.riveProperties`; standalone HTML export separately includes the viewer UI and selected-value restoration.
 - **Unified consoles**: Event Console and JavaScript Console now share the same newest-first transcript model, timestamps, search/filter workflow, and `FOLLOW` behavior.
 - **Live-source-aware editor**: The editor title itself indicates whether the live runtime is being driven by internal RAV wiring or the applied editor config.
 - **Background app updates**: The desktop app checks for Tauri-signed updater payloads on launch and exposes an update chip for install/relaunch flow.
@@ -252,7 +265,7 @@ The browser remains a fallback only when no desktop RAV peer is present.
 {
   // This is a valid comment
   artboard: "MyArtboard",
-  stateMachines: ["StateMachine1"],
+  stateMachine: "StateMachine1",
   autoplay: true,
 }
 ```
@@ -354,17 +367,19 @@ Open the RAV desktop app and enable the MCP bridge. The **MCP** chip is muted an
 | `rav_open_isolated_playback` | Open the current animation in an ordinary isolated diagnostic WebView |
 | `rav_export_demo` | Export standalone HTML demo |
 | `rav_export_demo_visual` | Drive the visible export dialog with exact control selection, package source, snippet mode, and output path |
-| `generate_web_instantiation_code` | Generate the canonical live web-instantiation snippet (`local` npm package or `cdn`) with `window.ravRive` helpers and current control values. Preferred over hand-writing snippets from scratch. |
+| `generate_web_instantiation_code` | Generate the canonical live web-instantiation snippet (`local` npm package or `cdn`) with selected typed accessors on `window.riveProperties`. Preferred over hand-writing snippets from scratch. |
 | `rav_toggle_instantiation_controls_dialog` | Open/close the in-app Snippet & Export Controls dialog so a human can choose which controls are serialized |
 | `rav_configure_workspace` | Open/close sidebars, switch live source mode (`internal` / `editor`), and inject/remove the VM Explorer snippet idempotently |
 | `rav_get_sm_inputs` / `rav_set_sm_input` | State machine input access |
-| `rav_eval` | Evaluate JS in RAV's browser context (`Script Access` required) |
+| `rav_eval` | Evaluate JS with `target: auto|host|playback`, returning the resolved surface/session (`Script Access` required) |
 | `rav_console_open` / `rav_console_close` | Toggle the JS console remotely |
 | `rav_console_set_mode` / `rav_console_set_filter` / `rav_console_clear` | Switch console mode, mirror visible filters, and clear the active transcript |
 | `rav_console_read` / `rav_console_exec` | Read the JS console transcript or run REPL code (`rav_console_exec` requires `Script Access`). Transcript includes REPL input/result rows plus captured `console.*` output. |
 
 #### Editor and Export Semantics
 
+- `rav_eval` defaults to the active authoritative playback child and otherwise uses the host WebView. Set `target: "playback"` to require the child or `target: "host"` for a deliberate UI-WebView diagnostic; results identify the resolved surface and child session.
+- The console tools read and execute only in the host UI WebView. They do not forward isolated-child `console.*` calls or claim live Luau-output authority.
 - The live runtime can run in either internal mode or editor-driven mode.
 - `rav_apply_code` switches the live runtime to the last applied editor config.
 - Unsaved editor draft changes do not change the running animation until applied.
@@ -374,10 +389,10 @@ Open the RAV desktop app and enable the MCP bridge. The **MCP** chip is muted an
 - Global ViewModel tools require both the file-level ViewModel name and its property path, preventing collisions when multiple globals expose the same path.
 - `generate_web_instantiation_code` always reflects what is actually running.
 - `generate_web_instantiation_code` defaults to the CDN form unless you explicitly request `package_source: "local"`.
-- Generated snippets restore only the checked ViewModel/state-machine values on load, round numbers to 2 decimals, annotate enum choices inline, and expose helper methods on `window.ravRive`.
+- Compact snippets expose only checked ViewModel/state-machine accessors on `window.riveProperties`; scaffold snippets list all accessors with unchecked lines commented out. They do not replay captured values.
 - Fixed-size snippets and exported demos preserve explicit `width × height` sizing instead of collapsing back to host-driven layout.
-- The **Snippet & Export Controls** dialog lets you choose exactly which controls are serialized. Branch checkboxes select nested controls; individual rows affect one value only and branch expansion stays open while you curate nested values.
-- If you never open the dialog, RAV defaults to serializing only the controls that differ from the load-time baseline.
+- The **Snippet & Export Controls** dialog chooses which accessors appear in snippets and which current values a standalone HTML export restores. Branch checkboxes select nested properties; individual rows affect one property only.
+- If you never open the dialog, RAV defaults to the controls that differ from the load-time baseline.
 - Exported demos mirror the active live source, keep fit/alignment in the main toolbar, and include a **Copy Instantiation Code** button in the demo toolbar.
 
 #### Event Console
@@ -443,6 +458,11 @@ npm run tauri dev   # Development mode
 npm run tauri build # Production build
 ```
 
+Export behavior must be tested in a packaged desktop build. The web build
+deliberately disables or cannot provide the native export path, so browser-only
+testing cannot accept an export change. Keep the exported artifact and identify
+the exact packaged build in the test receipt.
+
 ### Test Build Numbering
 
 `npm run build` now stamps builds as `bNNNN-YYYYMMDD-HHMM-<gitsha>`:
@@ -465,7 +485,7 @@ The editor uses `eval()` to evaluate JavaScript code, allowing full JavaScript s
 ```javascript
 {
   artboard: "Main",
-  stateMachines: ["State Machine 1"],
+  stateMachine: "State Machine 1",
   autoplay: true,
   canvasSize: {
     mode: "fixed",
@@ -484,6 +504,12 @@ The editor uses `eval()` to evaluate JavaScript code, allowing full JavaScript s
   }
 }
 ```
+
+### Runtime API compatibility
+
+Use `stateMachine: "name"` for one state machine. RAV accepts both this spelling and existing `stateMachines` configurations, then chooses the runtime API for the loaded version: singular on Rive 2.41+, plural on older runtimes. Standalone demos and generated snippets use the same version boundary. For LOCAL snippets, install the runtime version reported with the snippet so the emitted API matches your package.
+
+Explicit timeline playback, multiple simultaneous state machines, legacy state-machine inputs, and user-supplied event callbacks remain supported. These can still emit upstream deprecation warnings on 2.41+. The active viewer/demo also retains StateChange and RiveEvent listeners for its event log; generated snippets do not subscribe unless user code requests them. RAV does not rewrite authored state machines or bindings inside a compiled `.riv` file, and it does not suppress runtime warnings.
 
 ### Error Handling
 - Configuration errors display in a red error banner

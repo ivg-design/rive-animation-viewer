@@ -100,8 +100,9 @@ export const EDITOR_TOOLS = [
     description:
       'Generate a copy-paste-ready web instantiation snippet for the animation currently loaded in RAV. ' +
       'The snippet mirrors the live source mode that is actually running in RAV: either internal wiring ' +
-      'or the last applied editor code. Supports either CDN or local npm package usage, restores the current ' +
-      'ViewModel/state-machine values on load, and exposes helper controls on window.ravRive. This is the preferred way to provide a working runtime-control snippet.',
+      'or the last applied editor code. Supports either CDN or local npm package usage and exposes only the selected ' +
+      'typed ViewModel/state-machine accessors on window.riveProperties. Standalone HTML export is the separate path ' +
+      'that includes UI chrome and restores selected values. This is the preferred way to provide a working runtime-control snippet.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -113,7 +114,7 @@ export const EDITOR_TOOLS = [
         snippet_mode: {
           type: 'string',
           enum: ['compact', 'scaffold'],
-          description: 'Use a compact snippet with only selected live controls, or a scaffold snippet that lists all controls with unselected ones commented out.',
+          description: 'Use a compact snippet with only selected property accessors, or a scaffold snippet that lists all accessors with unselected ones commented out.',
         },
       },
       additionalProperties: false,
@@ -174,16 +175,20 @@ export const EDITOR_TOOLS = [
   {
     name: 'rav_eval',
     description:
-      'Evaluate arbitrary JavaScript in the RAV browser context. ' +
-      'Has access to window.riveInst, window.vmGet/vmSet/vmFire, and all ' +
-      'RAV globals. Use for advanced inspection or operations not covered ' +
-      'by other tools. Returns the stringified result.',
+      'Evaluate arbitrary JavaScript with explicit surface authority. ' +
+      'target auto (default) uses the active authoritative playback child when present and otherwise the host WebView; playback requires that child, while host explicitly evaluates the UI WebView. ' +
+      'The response identifies the resolved target, surface, and child session. Script Access is required.',
     inputSchema: {
       type: 'object',
       properties: {
         expression: {
           type: 'string',
           description: 'JavaScript expression or statement to evaluate',
+        },
+        target: {
+          type: 'string',
+          enum: ['auto', 'host', 'playback'],
+          description: 'Evaluation surface. Default: auto.',
         },
       },
       required: ['expression'],

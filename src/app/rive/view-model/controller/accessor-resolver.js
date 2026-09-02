@@ -5,6 +5,7 @@ import {
     resolveGlobalViewModelInstance,
     resolveVmRootInstance,
 } from '../accessors.js';
+import { getStateMachineInputMetadata } from '../../runtime-compatibility.js';
 
 export function createVmControlAccessorResolver({
     getCurrentRuntime,
@@ -35,6 +36,7 @@ export function createVmControlAccessorResolver({
         if (!riveInstance || typeof riveInstance.stateMachineInputs !== 'function' || !stateMachineName || !inputName) {
             return null;
         }
+        if (getStateMachineInputMetadata(riveInstance, stateMachineName)?.length === 0) return null;
         try {
             const inputs = riveInstance.stateMachineInputs(stateMachineName);
             if (!Array.isArray(inputs)) return null;
@@ -62,6 +64,7 @@ export function createVmControlAccessorResolver({
         const stateMachineNames = Array.isArray(riveInstance.stateMachineNames) ? riveInstance.stateMachineNames : [];
         let firedCount = 0;
         stateMachineNames.forEach((stateMachineName) => {
+            if (getStateMachineInputMetadata(riveInstance, stateMachineName)?.length === 0) return;
             let inputs = [];
             try {
                 const resolvedInputs = riveInstance.stateMachineInputs(stateMachineName);

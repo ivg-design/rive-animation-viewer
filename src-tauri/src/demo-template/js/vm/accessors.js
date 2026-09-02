@@ -187,6 +187,10 @@
             if (!riveInstance || typeof riveInstance.stateMachineInputs !== 'function' || !stateMachineName || !inputName) {
                 return null;
             }
+            var metadata = runtimeCompatibility.getStateMachineInputMetadata(riveInstance, stateMachineName);
+            if (Array.isArray(metadata) && !metadata.some(function (input) { return input && input.name === inputName; })) {
+                return null;
+            }
             try {
                 var inputs = riveInstance.stateMachineInputs(stateMachineName);
                 if (!Array.isArray(inputs)) return null;
@@ -217,6 +221,12 @@
             var firedCount = 0;
 
             stateMachineNames.forEach(function (smName) {
+                var metadata = runtimeCompatibility.getStateMachineInputMetadata(riveInstance, smName);
+                if (Array.isArray(metadata) && !metadata.some(function (input) {
+                    return input && input.name === triggerName;
+                })) {
+                    return;
+                }
                 var inputs = [];
                 try {
                     var resolved = riveInstance.stateMachineInputs(smName);

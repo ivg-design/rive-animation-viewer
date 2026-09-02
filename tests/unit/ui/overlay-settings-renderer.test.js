@@ -105,6 +105,23 @@ describe('overlay/settings-renderer', () => {
             .toContain('has not confirmed both content types');
     });
 
+    it('never exposes registered alias counts as a click-through workflow', () => {
+        renderer.render(state({
+            defaultRivApp: {
+                available: true,
+                claimedContentTypeCount: 7,
+                reason: 'RAV owns 7 of 30 discovered .riv content types.',
+                state: 'partial',
+                totalContentTypeCount: 30,
+            },
+        }));
+
+        expect(document.getElementById('default-riv-app-status').textContent).toBe('UNKNOWN APP');
+        expect(document.getElementById('default-riv-app-action-btn').textContent).toBe('MAKE DEFAULT');
+        expect(document.getElementById('default-riv-app-action-btn').title)
+            .toBe('Make RAV the default app for .riv files');
+    });
+
     it('applies the measured overflow class only when the Settings body exceeds its viewport', () => {
         const body = document.querySelector('.ui-overlay-settings-body');
         Object.defineProperties(body, {

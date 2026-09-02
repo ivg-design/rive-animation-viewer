@@ -28,7 +28,7 @@ export function getAuthoritativeRenderSurface({ getRenderSurfaceController, wind
         ? controller.getCanonicalState()
         : state.canonicalState;
     // A staged-but-not-active surface must never become an MCP authority.
-    if (!state?.activeSessionId || !state?.isLoaded || !canonicalState) return null;
+    if (!state?.activeSessionId || !state?.isLoaded || state.canAcceptCommands === false || !canonicalState) return null;
     return { controller, canonicalState, state };
 }
 

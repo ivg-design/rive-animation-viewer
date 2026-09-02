@@ -1,4 +1,5 @@
 import { normalizeStateMachineSelection } from '../default-state-machine.js';
+import { getStateMachineNames } from '../runtime-compatibility.js';
 
 export function selectionFromConfig({ artboard, configuredStateMachines = [], animations = null, hasConfiguredAnimation = false } = {}) {
     const selection = {};
@@ -14,7 +15,7 @@ export function selectionFromConfig({ artboard, configuredStateMachines = [], an
 }
 
 export function selectionAfterLoad(riveInstance, config = {}) {
-    const configuredStateMachines = normalizeStateMachineSelection(config.stateMachines);
+    const configuredStateMachines = getStateMachineNames(config);
     const configuredAnimations = normalizeStateMachineSelection(config.animations);
     const playingStateMachines = normalizeStateMachineSelection(riveInstance?.playingStateMachineNames);
     const playingAnimations = normalizeStateMachineSelection(riveInstance?.playingAnimationNames);

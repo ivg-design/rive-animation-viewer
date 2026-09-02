@@ -7,7 +7,6 @@ use std::{
 use tauri::{State, Window};
 
 use crate::app::state::{DemoBundlePayload, NativeDialogState};
-
 const DEMO_TEMPLATE_SHELL: &str = include_str!("../demo-template/shell.html");
 const LUCIDE_SCRIPT: &str = include_str!("../../../vendor/lucide.min.js");
 const DEMO_TEMPLATE_MARKUP: &str = include_str!("../demo-template/markup.html");
@@ -27,6 +26,8 @@ const DEMO_TEMPLATE_STYLES: &str = concat!(
 const DEMO_TEMPLATE_APP_JS: &str = concat!(
     include_str!("../demo-template/js/core/preamble.js"),
     "\n",
+    include_str!("../../../src/app/snippets/source/rive-runtime-compatibility.js"),
+    "\n",
     include_str!("../demo-template/js/core/color-utils.js"),
     "\n",
     include_str!("../demo-template/js/core/layout.js"),
@@ -34,6 +35,8 @@ const DEMO_TEMPLATE_APP_JS: &str = concat!(
     include_str!("../demo-template/js/vm/image/load-diagnostics.js"),
     "\n",
     include_str!("../demo-template/js/core/render-surface-bridge.js"),
+    "\n",
+    include_str!("../demo-template/js/core/bridge/eval.js"),
     "\n",
     include_str!("../demo-template/js/core/bootstrap.js"),
     "\n",
@@ -381,7 +384,6 @@ mod tests {
             view_model_instance_name: None,
             vm_hierarchy: None,
         };
-
         let html = build_demo_html(&payload).expect("demo html");
 
         assert!(html.contains("function updateCanvasBackground()"));
@@ -389,6 +391,7 @@ mod tests {
         assert!(html.contains("id=\"copy-instantiation-btn\""));
         assert!(html.contains("id=\"fullscreen-toggle-btn\""));
         assert!(html.contains("id=\"event-log-toggle-btn\""));
+        assert!(html.contains("grid-template-columns: 28px minmax(88px, 96px)"));
         assert!(html.contains("copy web instantiation code"));
         assert!(!html.contains("id=\"show-event-log-btn\""));
         assert!(!html.contains("fullscreen-exit-hint"));

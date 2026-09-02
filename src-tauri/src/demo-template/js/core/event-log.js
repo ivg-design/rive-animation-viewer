@@ -159,6 +159,38 @@
             renderEventLog();
         }
 
+        function configureRiveDeprecatedEventCallbacks(riveConfig, options) {
+            var appliedEditorConfig = options.appliedEditorConfig;
+            var reportCallbackError = options.reportCallbackError;
+            var stateMachineSelected = options.userSpecifiedStateMachines;
+            var animationSelected = options.userSpecifiedAnimations;
+            var onLoop = typeof appliedEditorConfig.onLoop === 'function'
+                ? appliedEditorConfig.onLoop
+                : appliedEditorConfig.onloop;
+            var onStateChange = typeof appliedEditorConfig.onStateChange === 'function'
+                ? appliedEditorConfig.onStateChange
+                : appliedEditorConfig.onstatechange;
+            delete riveConfig.onLoop;
+            delete riveConfig.onStateChange;
+            delete riveConfig.onloop;
+            delete riveConfig.onstatechange;
+            if (animationSelected || (!stateMachineSelected && !animationSelected)
+                || typeof onLoop === 'function') {
+                riveConfig.onLoop = function (event) {
+                    logEvent('native', 'loop', 'Loop event emitted by runtime.', event);
+                    invokeRenderSurfaceAwareEditorCallback(onLoop, Array.prototype.slice.call(arguments), reportCallbackError);
+                };
+            }
+            if (stateMachineSelected || (!stateMachineSelected && !animationSelected)
+                || typeof onStateChange === 'function') {
+                riveConfig.onStateChange = function (event) {
+                    logEvent('native', 'statechange', 'State machine changed state.', event);
+                    invokeRenderSurfaceAwareEditorCallback(onStateChange, Array.prototype.slice.call(arguments), reportCallbackError);
+                    publishRenderSurfaceCanonicalState(true, 'state-change');
+                };
+            }
+        }
+
         function renderEventLog() {
             var list = els.eventLogList;
             var count = els.eventLogCount;

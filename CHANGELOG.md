@@ -2,6 +2,32 @@
 
 All notable released changes to this project are documented in this file.
 
+## [2.5.4] - 2026-09-01
+
+### Added
+
+- **Authoritative MCP evaluation** — `rav_eval` accepts `target: "auto" | "host" | "playback"`. Auto targets the active isolated playback child when present, playback is strict, host is an explicit UI-WebView diagnostic, and every result identifies its resolved surface and child session.
+- **Documentation reader** — The website documentation uses a dedicated reader shell with search, section navigation, article tables of contents, previous/next links, and release-matched screenshots.
+- **Timeline scrubber** — Linear animations expose a dedicated row above the status bar with frame/second modes, duration-aware ticks, a large unclipped current-time indicator, and drag-to-seek. The row stays hidden for state machines, and its playhead advances on every rendered animation frame.
+
+### Changed
+
+- **Exact Web 2.41.1 playback API** — This release targets Web 2.41.1 / runtime-v0.1.344. One state machine uses `stateMachine` on Web 2.41+, while older runtimes, multiple state machines, and mixed animation/state-machine playback retain `stateMachines`. The same compatibility path drives the viewer, reset flow, generated snippets, and standalone demos.
+- **Legacy runtime continuity** — Explicit no-target loading, 2.x state-machine inputs, event callbacks, text-run access, ViewModel-first binding, and global ViewModels remain available without manufacturing an invalid empty playback target.
+- **Dependency maintenance** — Compatible JavaScript, MCP, website, and Rust lockfile updates remove current npm advisories and update the affected Rust `event-listener` dependency while retaining existing major-version gates.
+- **Isolated DEV identity** — The 2.5.4 DEV app keeps its separate app identity, output path, binary name, and MCP port `9278` for release acceptance without touching the installed public app.
+- **Lean property snippets** — CDN and local snippets now contain animation setup plus direct typed accessors for the selected properties on `window.riveProperties`. Captured values, restoration helpers, and viewer chrome remain exclusive to standalone HTML export.
+
+### Fixed
+
+- **Host/child authority mismatch** — Arbitrary MCP evaluation now follows the same authoritative child selection as typed playback tools. Child results use a bounded safe preview, failed child delivery never falls back to stale host state, and eval commands are excluded from replacement replay.
+- **Truthful console boundary** — MCP instructions now state that console read/exec tools operate on the host UI transcript and do not imply isolated-child or live Luau-output authority.
+- **Property control sizing** — Color inputs render as compact square swatches, while numeric fields reserve enough width for values and spinner controls without clipping digits.
+- **Desktop visual export selection** — MCP visual export configures the native Snippet & Export Controls overlay directly, so exact property selections, package source, and snippet mode reach the saved standalone file even when the control tree lives outside the host WebView. The overlay closes cleanly after success or failure.
+- **Live standalone property editing** — String, number, and color-alpha controls commit to their Rive accessors while the field is active, preventing the runtime synchronization loop from restoring the previous value before blur. Numeric fields keep their editable precision while typing and format to two decimals on commit.
+- **One-click macOS `.riv` ownership** — **MAKE DEFAULT** now issues one macOS request for the effective `.riv` content type and reports the resulting extension association as a single setting. RAV still discovers every registered `.riv` identifier internally for diagnostics and keeps known aliases as compatibility seeds, but it no longer exposes identifier counts or a click-through claim workflow. Production and isolated DEV bundles also include an alternate extension-level declaration backed by `RiveFileIcon.icns` for future `.riv` identifiers.
+- **Centered title metadata** — File metadata now uses its intrinsic width inside equal flexible title-bar columns, keeping the visible metadata centered in the real window while preserving truncation for long paths.
+
 ## [2.5.3] - 2026-08-29
 
 ### Added

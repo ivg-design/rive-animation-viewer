@@ -20,7 +20,7 @@ export function createMcpCommandHandlers({
         ...createViewModelCommands({ buildViewModelSnapshot, documentRef, getRenderSurfaceController, renderSurfaceController, windowRef }),
         ...createGlobalViewModelCommands({ documentRef, getRenderSurfaceController, renderSurfaceController, windowRef }),
         ...createVmInstanceCommands({ getRenderSurfaceController, renderSurfaceController, windowRef }),
-        ...createEditorConsoleCommands({ assertMcpScriptAccess, documentRef, windowRef }),
+        ...createEditorConsoleCommands({ assertMcpScriptAccess, documentRef, getRenderSurfaceController, renderSurfaceController, windowRef }),
         ...createExportWorkspaceCommands({ documentRef, windowRef }),
         ...createCanvasScreenshotCommands({ documentRef, windowRef }),
     };

@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "2.5.3"
+version = "2.5.4"
 description = "A Tauri App"
 authors = ["IVG Design"]
 license = "MIT"
@@ -8,6 +8,10 @@ repository = ""
 default-run = "app"
 edition = "2021"
 rust-version = "1.88.0"
+
+[features]
+# Match the public console UI for documentation without changing DEV isolation.
+docs-capture = []
 
 [build-dependencies]
 tauri-build = { version = "2.6.3", features = [] }
@@ -36,7 +40,7 @@ block2 = { version = "0.6", default-features = false, features = ["alloc"] }
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-quartz-core", "objc2-uniform-type-identifiers", "NSButton", "NSControl", "NSView", "NSWindow", "NSWorkspace"] }
 objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSBundle", "NSError", "NSProcessInfo", "NSString", "NSURL"] }
 objc2-quartz-core = { version = "0.3", default-features = false, features = ["CALayer", "objc2-core-foundation"] }
-objc2-uniform-type-identifiers = { version = "0.3", default-features = false, features = ["std", "UTType"] }
+objc2-uniform-type-identifiers = { version = "0.3", default-features = false, features = ["std", "UTTagClass", "UTType"] }
 
 [target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
 raw-window-handle = "0.6"

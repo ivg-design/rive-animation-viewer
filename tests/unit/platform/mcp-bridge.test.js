@@ -261,7 +261,13 @@ describe('platform/mcp-bridge', () => {
 
         window.__RAV_MCP_SCRIPT_ACCESS__ = true;
         await expect(window._mcpBridge.commands.rav_eval({ expression: '1 + 1' }))
-            .resolves.toEqual({ result: 2 });
+            .resolves.toEqual({
+                requestedTarget: 'auto',
+                result: 2,
+                sessionId: null,
+                surface: 'host-webview',
+                target: 'host',
+            });
     });
 
     it('returns a bounded preview for riveInst results', async () => {
@@ -286,6 +292,7 @@ describe('platform/mcp-bridge', () => {
 
         await expect(window._mcpBridge.commands.rav_eval({ expression: 'window.riveInst' }))
             .resolves.toEqual({
+                requestedTarget: 'auto',
                 result: {
                     $type: 'RiveInstance',
                     animations: ['idle'],
@@ -295,6 +302,9 @@ describe('platform/mcp-bridge', () => {
                     isStopped: false,
                     stateMachines: ['Main'],
                 },
+                sessionId: null,
+                surface: 'host-webview',
+                target: 'host',
             });
     });
 

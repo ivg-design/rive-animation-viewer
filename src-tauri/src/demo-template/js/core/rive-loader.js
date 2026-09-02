@@ -32,19 +32,6 @@
                 reportRenderSurfaceLoadStage('animation-decoded');
                 resizeCanvas();
                 // Build Rive config
-                var configuredStateMachines = normalizeStateMachineSelection(CONFIG.stateMachines);
-                var configuredAnimations = normalizeStateMachineSelection(CONFIG.animations);
-                var userSpecifiedStateMachines = configuredStateMachines.length > 0;
-                var userSpecifiedAnimations = configuredAnimations.length > 0;
-                var didRestartForStateMachine = false;
-                var hasEmittedInitialLoad = false;
-                setRenderSurfacePlaybackTarget({
-                    name: userSpecifiedAnimations
-                        ? configuredAnimations[0]
-                        : (userSpecifiedStateMachines ? configuredStateMachines[0] : null),
-                    type: userSpecifiedAnimations ? 'animation' : (userSpecifiedStateMachines ? 'stateMachine' : null),
-                    vmInstanceKey: CONFIG.viewModelInstanceName == null ? null : CONFIG.viewModelInstanceName,
-                });
                 var appliedEditorConfig = resolveStandaloneEditorConfig(
                     CONFIG.editorCode,
                     CONFIG.instantiationSourceMode,
@@ -52,10 +39,15 @@
                         logEvent('native', 'editor-config-error', 'Unable to restore applied editor config: ' + (error.message || error));
                     },
                 );
+                var playback = resolveStandalonePlaybackConfig(CONFIG, appliedEditorConfig);
+                var configuredStateMachines = playback.stateMachines;
+                var configuredAnimations = playback.animations;
+                var didRestartForStateMachine = false;
+                var hasEmittedInitialLoad = false;
                 var reportAppliedEditorCallbackError = function (error) {
                     logEvent('native', 'editor-callback-error', 'Applied editor callback failed: ' + (error.message || error));
                 };
-                var riveConfig = Object.assign({}, appliedEditorConfig, {
+                var riveConfig = Object.assign({}, playback.config, {
                     src: animationUrl,
                     canvas: els.canvas,
                     autoplay: CONFIG.autoplay !== false,
@@ -69,16 +61,17 @@
                 if (CONFIG.artboardName) {
                     riveConfig.artboard = CONFIG.artboardName;
                 }
-                if (userSpecifiedStateMachines) {
-                    riveConfig.stateMachines = configuredStateMachines.length === 1
-                        ? configuredStateMachines[0]
-                        : configuredStateMachines;
-                }
-                if (userSpecifiedAnimations) {
-                    riveConfig.animations = configuredAnimations.length === 1
+                var userSpecifiedStateMachines = runtimeCompatibility.getStateMachineNames(riveConfig).length > 0;
+                var userSpecifiedAnimations = normalizeStateMachineSelection(riveConfig.animations).length > 0;
+                configuredStateMachines = runtimeCompatibility.getStateMachineNames(riveConfig);
+                configuredAnimations = normalizeStateMachineSelection(riveConfig.animations);
+                setRenderSurfacePlaybackTarget({
+                    name: userSpecifiedAnimations
                         ? configuredAnimations[0]
-                        : configuredAnimations;
-                }
+                        : (userSpecifiedStateMachines ? configuredStateMachines[0] : null),
+                    type: userSpecifiedAnimations ? 'animation' : (userSpecifiedStateMachines ? 'stateMachine' : null),
+                    vmInstanceKey: CONFIG.viewModelInstanceName == null ? null : CONFIG.viewModelInstanceName,
+                });
                 // Set layout
                 if (rive.Layout) {
                     var appliedLayoutProps = appliedEditorConfig.layout && typeof appliedEditorConfig.layout === 'object'
@@ -95,6 +88,7 @@
                     riveConfig.useOffscreenRenderer = true;
                 }
                 riveConfig.onLoad = function () {
+                    runtimeCompatibility.clearStateMachineInputMetadata(riveInstance);
                     reportRenderSurfaceLoadStage('rive-onload');
                     var callbackArgs = Array.prototype.slice.call(arguments);
                     // Auto-detect state machine if none specified
@@ -126,7 +120,11 @@
                             els.canvas = newCanvas;
                             resizeCanvas();
                             riveConfig.canvas = newCanvas;
-                            riveConfig.stateMachines = detectedSmName;
+                            riveConfig = runtimeCompatibility.normalizePlaybackConfig(Object.assign({}, riveConfig, {
+                                animations: undefined,
+                                stateMachine: detectedSmName,
+                                stateMachines: undefined,
+                            }), CONFIG.runtimeVersion);
                             riveInstance = new rive.Rive(riveConfig);
                             window.riveInst = riveInstance;
                             attachRiveUserEventListeners(rive, riveInstance);
@@ -136,23 +134,7 @@
                     hideError();
                     resizeCanvas();
                     if (riveInstance) riveInstance.resizeDrawingSurfaceToCanvas();
-                    var smNames = Array.isArray(riveInstance && riveInstance.stateMachineNames) ? riveInstance.stateMachineNames : [];
-                    var activeStateMachine = 'none';
-                    if (riveConfig.stateMachines) {
-                        activeStateMachine = Array.isArray(riveConfig.stateMachines)
-                            ? riveConfig.stateMachines[0]
-                            : riveConfig.stateMachines;
-                    } else if (smNames.length > 0) {
-                        activeStateMachine = smNames[0];
-                    }
-                    var activeAnimation = userSpecifiedAnimations ? configuredAnimations[0] : null;
-                    var statusMsg = activeAnimation
-                        ? 'Loaded - animation "' + activeAnimation + '" active'
-                        : (smNames.length > 0
-                            ? 'Loaded - state machine "' + activeStateMachine + '" active'
-                            : 'Loaded - no state machines');
-                    updateInfo(statusMsg);
-                    logEvent('native', 'load', 'Animation loaded successfully.');
+                    reportRiveLoadStatus(riveInstance, riveConfig, userSpecifiedAnimations, configuredAnimations);
                     var requestedVmInstanceKey = window.__ravRenderSurfaceTarget
                         ? window.__ravRenderSurfaceTarget.vmInstanceKey
                         : CONFIG.viewModelInstanceName;
@@ -244,15 +226,14 @@
                     recordRenderSurfaceTimelineStop(event);
                     publishRenderSurfaceCanonicalState(true, 'stop');
                 };
-                riveConfig.onLoop = function (event) {
-                    logEvent('native', 'loop', 'Loop event emitted by runtime.', event);
-                    invokeRenderSurfaceAwareEditorCallback(appliedEditorConfig.onLoop, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
-                };
-                riveConfig.onStateChange = function (event) {
-                    logEvent('native', 'statechange', 'State machine changed state.', event);
-                    invokeRenderSurfaceAwareEditorCallback(appliedEditorConfig.onStateChange, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
-                    publishRenderSurfaceCanonicalState(true, 'state-change');
-                };
+                // Avoid automatic deprecated subscriptions unrelated to the
+                // selected playback. Explicit legacy editor callbacks remain.
+                configureRiveDeprecatedEventCallbacks(riveConfig, {
+                    appliedEditorConfig: appliedEditorConfig,
+                    reportCallbackError: reportAppliedEditorCallbackError,
+                    userSpecifiedAnimations: userSpecifiedAnimations,
+                    userSpecifiedStateMachines: userSpecifiedStateMachines,
+                });
                 riveConfig.onAdvance = function (event) { renderSurfaceAdvanceRevision += 1;
                     updatePlaybackChips();
                     retryPendingControlSnapshot();

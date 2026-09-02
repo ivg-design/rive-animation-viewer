@@ -1,4 +1,4 @@
-import Image from "next/image";
+import DocsFigure from "@/components/docs/DocsFigure";
 import { asset } from "@/lib/config";
 
 export const metadata = { title: "Consoles" };
@@ -16,7 +16,13 @@ export default function Consoles() {
 
       <h2>Event Console</h2>
 
-      <Image src={asset("/docs/event-console.webp")} alt="Event console showing mixed source entries with filter toggles and action buttons" width={800} height={200} className="rounded-xl border border-[var(--border-dark)] my-4" />
+      <DocsFigure
+        src={asset("/docs/2.5.3/event-console-filtered-isopen.webp")}
+        alt="Event Console filtered to MCP events matching isOpen"
+        width={2006}
+        height={706}
+        caption="The Events view is narrowed to MCP traffic containing isOpen, making a ViewModel update and its reply easy to follow."
+      />
 
       <h3>Event Sources</h3>
       <table>
@@ -49,7 +55,13 @@ export default function Consoles() {
 
       <h2>JavaScript Console</h2>
 
-      <Image src={asset("/docs/js-console.webp")} alt="JavaScript console showing REPL command, result with object expansion, timestamps and level filters" width={800} height={200} className="rounded-xl border border-[var(--border-dark)] my-4" />
+      <DocsFigure
+        src={asset("/docs/2.5.3/javascript-console-gvm-system-theme.webp")}
+        alt="JavaScript Console query returning the global ViewModel name GVM_System_Theme"
+        width={2006}
+        height={706}
+        caption="A JavaScript Console query of globalViewModelNames() returns the exact available global ViewModel name: GVM_System_Theme."
+      />
 
       <h3>REPL</h3>
       <p>

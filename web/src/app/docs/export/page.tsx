@@ -1,4 +1,4 @@
-import Image from "next/image";
+import DocsFigure from "@/components/docs/DocsFigure";
 import { asset } from "@/lib/config";
 
 export const metadata = { title: "Export + Snippets" };
@@ -11,6 +11,13 @@ export default function Export() {
       <p>
         RAV can export self-contained HTML demo files and generate canonical web
         instantiation snippets for embedding animations in your codebase.
+      </p>
+
+      <p>
+        These are separate outputs. A snippet is intentionally small setup code plus a
+        <code> window.riveProperties</code> object containing only the property accessors you
+        selected. A standalone HTML export includes the runtime, embedded animation, viewer UI
+        chrome, controls, and selected-value restoration.
       </p>
 
       <h2>What Gets Exported</h2>
@@ -29,7 +36,13 @@ export default function Export() {
 
       <h2>Snippet &amp; Export Controls</h2>
 
-      <Image src={asset("/docs/export-controls.webp")} alt="Snippet and Export Controls dialog showing tree checkboxes, selection count, mode toggles, and inline code preview" width={800} height={500} className="rounded-xl border border-[var(--border-dark)] my-4" />
+      <DocsFigure
+        src={asset("/docs/2.5.3/snippet-preview-cdn-compact.webp")}
+        alt="Snippet and Export Controls showing selected controls and a CDN compact snippet preview"
+        width={2660}
+        height={1960}
+        caption="A CDN + COMPACT preview pairs the selected control tree with the generated embeddable snippet before you copy or export it."
+      />
 
       <p>
         The export dialog is shared by snippet generation and standalone export. It provides:
@@ -52,12 +65,13 @@ export default function Export() {
         <li>
           <strong>CDN</strong> (default) &mdash; emits a runtime <code>&lt;script&gt;</code> tag pointing
           at the pinned <code>@rive-app/webgl2</code> or <code>@rive-app/canvas</code>
-          version on jsDelivr, then attaches helpers to <code>window.ravRive</code>.
+          version on unpkg, then attaches selected property accessors to
+          <code> window.riveProperties</code>.
           Drop-in for static HTML, design tools, prototypes, and CodePen.
         </li>
         <li>
           <strong>LOCAL</strong> &mdash; emits ES-module <code>import</code> statements that resolve
-          against your project&rsquo;s <code>node_modules</code> (e.g. <code>import &lcub; Rive &rcub; from
+          against your project&rsquo;s <code>node_modules</code> (e.g. <code>import * as rive from
           &quot;@rive-app/webgl2&quot;</code>). Pick this when you&rsquo;re inside a bundler &mdash;
           Vite, Next.js, Webpack &mdash; so version pinning, tree-shaking, and TypeScript
           types come from your own <code>package.json</code>.
@@ -66,18 +80,18 @@ export default function Export() {
 
       <h3>Snippet mode: COMPACT vs SCAFFOLD</h3>
       <p>
-        Controls how much of the bound control surface ends up in the snippet body.
+        Controls how much of the bound accessor surface ends up in the snippet body.
       </p>
       <ul>
         <li>
           <strong>COMPACT</strong> (default) &mdash; only the controls you ticked in the tree
-          appear, with their current live values inlined. Smallest, ready-to-paste form
-          for a finished embed where you just want this one configuration to render.
+          appear as direct typed runtime accessors. Captured values are not inlined. This is
+          the smallest ready-to-paste form for wiring the properties your page actually uses.
         </li>
         <li>
           <strong>SCAFFOLD</strong> &mdash; emits every available control on the loaded animation,
-          but comments out the unselected ones with their default values. Ideal as a
-          starter template &mdash; you can uncomment lines later to expose more controls
+          but comments out the unselected accessor lines. Use it as a starter map when you
+          expect to expose more controls later: uncomment the lines you need
           without re-opening RAV. Pairs well with SELECT ALL or CHANGED ONLY presets when
           you want a documented map of the full control surface.
         </li>
@@ -96,7 +110,7 @@ export default function Export() {
         <li>Load and configure your animation in RAV</li>
         <li>Adjust playback, runtime, controls, and canvas sizing to the desired state</li>
         <li>Click <strong>EXPORT</strong> in the toolbar</li>
-        <li>Use the dialog to curate which controls are serialized</li>
+        <li>Use the dialog to choose snippet accessors and standalone-export values</li>
         <li>Copy the snippet directly or save a standalone HTML file</li>
       </ol>
 
@@ -116,6 +130,13 @@ export default function Export() {
         <strong>Open file…</strong>, and <strong>Clear</strong>, backed by a hidden file input.
         The catalog preserves <code>uniqueFilename</code> identity, magic-byte MIME detection,
         and duplicate-name disambiguation.
+      </p>
+
+      <p>
+        Generated snippets do not rebuild this control panel. They expose selected accessors such
+        as <code>window.riveProperties[&quot;viewModel/card/title&quot;]</code>, whose
+        <code> value</code> or <code>fire()</code>/<code>trigger()</code> API can be used directly
+        from the host page.
       </p>
 
       <h2>Canvas Sizing in Exports</h2>

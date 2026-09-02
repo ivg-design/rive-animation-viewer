@@ -8,7 +8,7 @@ function read(relativePath) {
 }
 
 describe('macOS Rive document registration', () => {
-    it('references the official Rive UTI and the legacy RAV migration UTI', () => {
+    it('seeds known Rive UTIs while remaining an alternate viewer', () => {
         const config = JSON.parse(read('src-tauri/tauri.conf.json'));
         const association = config.bundle.fileAssociations.find((item) => item.ext?.includes('riv'));
 
@@ -18,6 +18,8 @@ describe('macOS Rive document registration', () => {
             mimeType: 'application/vnd.rive.editor',
             contentTypes: [
                 'app.rive.editor.rive-file',
+                'app.rive.riv',
+                'com.play.riv',
                 'app.rive.animation.viewer.riv',
             ],
         }));
@@ -25,13 +27,16 @@ describe('macOS Rive document registration', () => {
         expect(config.bundle.macOS.infoPlist).toBe('Info.production.plist');
     });
 
-    it('declares official and legacy UTI icon metadata in the merged plist source', () => {
+    it('declares known UTI and extension-fallback icon metadata in the merged plist source', () => {
         const plist = read('src-tauri/Info.production.plist');
 
         expect(plist).toContain('<key>UTImportedTypeDeclarations</key>');
         expect(plist).toContain('<key>UTExportedTypeDeclarations</key>');
         expect(plist).toContain('<string>app.rive.editor.rive-file</string>');
+        expect(plist).toContain('<string>app.rive.riv</string>');
+        expect(plist).toContain('<string>com.play.riv</string>');
         expect(plist).toContain('<string>app.rive.animation.viewer.riv</string>');
+        expect(plist).toContain('<string>Rive File (extension fallback)</string>');
         expect(plist).toContain('<string>application/vnd.rive.editor</string>');
         expect(plist).toContain('<string>RiveFileIcon.icns</string>');
         expect(plist).toContain('<key>CFBundleTypeIconSystemGenerated</key>');
@@ -48,5 +53,19 @@ describe('macOS Rive document registration', () => {
         expect(launchServices).toContain('is_official_app_identifier(identifier)');
         expect(launchServices).toContain('registration::register_bundle(&canonical_bundle)?;');
         expect(registration).not.toContain('set_default_handler');
+    });
+
+    it('discovers every registered .riv UTI instead of relying on a fixed alias list', () => {
+        const handlers = read('src-tauri/src/app/launch_services/handlers.rs');
+        const commands = read('src-tauri/src/app/launch_services/commands.rs');
+        const tests = read('src-tauri/src/app/launch_services/tests.rs');
+
+        expect(handlers).toContain('typesWithTag_tagClass_conformingToType');
+        expect(handlers).toContain('UTTagClassFilenameExtension');
+        expect(commands).toContain('claim_target_content_type');
+        expect(commands).toContain('one macOS request for the effective .riv');
+        expect(tests).toContain('dynamic_riv_handler_collection_has_no_fixed_identifier_limit');
+        expect(tests).toContain('dynamic_aliases_are_diagnostics_instead_of_click_through_tasks');
+        expect(tests).toContain('(0..30)');
     });
 });

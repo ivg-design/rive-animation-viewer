@@ -7,30 +7,11 @@ import {
     sanitizeSelection,
 } from './export/control-tree.js';
 import { measureDialogOverlay } from './overlay/dialog-bounds.js';
-
-function buildControlHierarchyTopologySignature(currentHierarchy) {
-    const topology = [];
-    const visit = (node, parentKey = '') => {
-        if (!node) return;
-        const nodeIdentity = `${parentKey}>${node.kind || ''}:${node.path || ''}:${node.label || ''}`;
-        topology.push(['node', nodeIdentity]);
-        (node.inputs || []).forEach((input) => {
-            const descriptor = input?.descriptor || input || {};
-            topology.push([
-                'input',
-                nodeIdentity,
-                descriptor.source || input?.source || '',
-                descriptor.stateMachineName || input?.stateMachineName || '',
-                descriptor.path || input?.path || '',
-                descriptor.name || input?.name || '',
-                descriptor.kind || input?.kind || '',
-            ]);
-        });
-        (node.children || []).forEach((child) => visit(child, nodeIdentity));
-    };
-    visit(currentHierarchy);
-    return JSON.stringify(topology);
-}
+import {
+    buildControlHierarchyTopologySignature,
+    configureInstantiationControls,
+    requestExportOverlayStateSync,
+} from './export/mcp-control-configuration.js';
 
 export function createInstantiationControlsDialogController({
     callbacks = {},
@@ -43,6 +24,7 @@ export function createInstantiationControlsDialogController({
 } = {}) {
     const {
         createDemoBundle = async () => null,
+        closeUiOverlay = async () => false,
         generateWebInstantiationCode = async () => ({ code: '' }),
         getCurrentFileName = () => null,
         getTauriInvoker = () => null,
@@ -127,14 +109,14 @@ export function createInstantiationControlsDialogController({
             ? ''
             : ` (${selectedFieldCount} of ${totalFieldCount} reusable field selectors).`;
         if (!totalControls) {
-            elements.instantiationSelectionSummary.textContent = 'No bound controls available for serialization.';
+            elements.instantiationSelectionSummary.textContent = 'No bound properties available for snippets or standalone export.';
             return;
         }
         if (!selectedCount) {
-            elements.instantiationSelectionSummary.textContent = `0 of ${totalControls} concrete controls selected${fieldDetail} Export will not restore bound values.`;
+            elements.instantiationSelectionSummary.textContent = `0 of ${totalControls} concrete properties selected${fieldDetail} Snippet has no property object; export restores no bound values.`;
             return;
         }
-        elements.instantiationSelectionSummary.textContent = `${selectedCount} of ${totalControls} concrete controls selected for snippet/export${fieldDetail}`;
+        elements.instantiationSelectionSummary.textContent = `${selectedCount} of ${totalControls} concrete properties selected for snippet accessors and export values${fieldDetail}`;
     }
 
     function setSelection(nextSelection) {
@@ -142,6 +124,14 @@ export function createInstantiationControlsDialogController({
         clearPreview();
         if (!overlayOpen) renderTree();
         updateSelectionSummary();
+    }
+
+    function configureForMcp(options) {
+        return configureInstantiationControls(options, {
+            clearPreview, currentAvailableKeys, documentRef, elements, ensureDialogState,
+            getChangedControlKeySet, getSelectedControlKeys, getSnippetMode,
+            isOverlayOpen: () => overlayOpen, setSelection,
+        });
     }
 
     function ensureDialogState() {
@@ -348,8 +338,12 @@ export function createInstantiationControlsDialogController({
         return { open: true, selectionCount: selectedControlKeys.size };
     }
 
-    function closeDialog() {
+    async function closeDialog() {
         getDialog()?.close();
+        if (overlayOpen) {
+            await closeUiOverlay({ restoreFocus: true });
+            overlayOpen = false;
+        }
         return { open: false };
     }
 
@@ -377,10 +371,7 @@ export function createInstantiationControlsDialogController({
                 return;
             }
             if (overlayOpen) {
-                const EventCtor = documentRef.defaultView?.CustomEvent || globalThis.CustomEvent;
-                documentRef.dispatchEvent(new EventCtor('rav:ui-overlay-state-dirty', {
-                    detail: { purpose: 'export' },
-                }));
+                requestExportOverlayStateSync(documentRef);
                 return;
             }
             renderTree();
@@ -433,6 +424,7 @@ export function createInstantiationControlsDialogController({
     }
 
     return {
+        configureForMcp,
         getSelectedControlKeys,
         openDialog,
         setup,

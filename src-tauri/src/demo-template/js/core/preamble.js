@@ -5,6 +5,7 @@
 
         const CONFIG = JSON.parse('__CONFIG_JSON__');
         const VM_HIERARCHY = JSON.parse('__VM_HIERARCHY_JSON__');
+        const runtimeCompatibility = createRiveRuntimeCompatibility();
         const CONTROL_SNAPSHOT = Array.isArray(CONFIG.controlSnapshot) ? CONFIG.controlSnapshot : [];
         const CONTROL_SELECTION_KEYS = Array.isArray(CONFIG.controlSelectionKeys)
             ? CONFIG.controlSelectionKeys

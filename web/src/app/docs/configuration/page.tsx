@@ -1,4 +1,4 @@
-import Image from "next/image";
+import DocsFigure from "@/components/docs/DocsFigure";
 import { asset } from "@/lib/config";
 
 export const metadata = { title: "Configuration" };
@@ -10,7 +10,13 @@ export default function Configuration() {
 
       <h2>Settings Panel</h2>
 
-      <Image src={asset("/docs/settings-popover.webp")} alt="Settings panel showing runtime version, background color, canvas sizing, Anonymous Usage, and About controls" width={500} height={320} className="rounded-xl border border-[var(--border-dark)] my-4" />
+      <DocsFigure
+        src={asset("/docs/2.5.3/settings-fixed-800x600-lock.webp")}
+        alt="Settings panel with Fixed canvas size set to 800 by 600 pixels and the aspect lock enabled"
+        width={2620}
+        height={1920}
+        caption="Fixed canvas sizing at 800 × 600 with LOCK enabled; the same panel also exposes runtime selection, NO BG reset, default-app status, and About."
+      />
 
       <p>The Settings gear in the toolbar opens the configuration panel with:</p>
       <ol>
@@ -19,7 +25,7 @@ export default function Configuration() {
         <li><strong>Canvas Size</strong> &mdash; AUTO (fills viewport) or FIXED (explicit pixels)</li>
         <li><strong>Pixels</strong> &mdash; width and height inputs with aspect-ratio LOCK</li>
         <li><strong>Anonymous Usage</strong> &mdash; enables or disables anonymous installed-version reporting</li>
-        <li><strong>Default .riv App</strong> &mdash; shows the application macOS currently resolves for both Rive content identifiers, with deliberate MAKE DEFAULT or REPAIR ICON actions when available</li>
+        <li><strong>Default .riv App</strong> &mdash; shows the application macOS resolves for <code>.riv</code> files; MAKE DEFAULT performs one association request without exposing registered aliases as separate steps, and REPAIR ICON refreshes RAV&apos;s document metadata afterward</li>
         <li><strong>About</strong> &mdash; opens build metadata, credits, dependencies, product links, and the Privacy Policy</li>
       </ol>
 
@@ -43,7 +49,7 @@ export default function Configuration() {
 
       <h2>Runtime Version</h2>
       <p>
-        RAV 2.5.2 defaults to <strong>Latest (auto)</strong> and resolves the current npm runtime
+        RAV defaults to <strong>Latest (auto)</strong> and resolves the current npm runtime
         before playback. If version discovery is unavailable, 2.39.2 is the fallback.
         Live RAV MCP comparison previously proved that Web 2.40.0 / runtime-v0.1.271 can
         double-offset nested, data-bound images in both WebGL2 and Canvas, so that exact version

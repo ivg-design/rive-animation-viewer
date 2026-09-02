@@ -48,7 +48,7 @@ describe('platform/default-riv-app-controller', () => {
             isTauriEnvironment: () => true,
         });
         await controller.setup();
-        expect(elements.defaultRivAppStatus.textContent).toBe('PARTIAL');
+        expect(elements.defaultRivAppStatus.textContent).toBe('UNKNOWN APP');
         expect(elements.defaultRivAppActionButton.textContent).toBe('MAKE DEFAULT');
         controller.dispose();
     });
@@ -84,6 +84,82 @@ describe('platform/default-riv-app-controller', () => {
         expect(elements.defaultRivAppStatus.title)
             .toBe('macOS is still using /tmp/RAV b0220.app.');
         expect(elements.defaultRivAppActionButton.textContent).toBe('MAKE DEFAULT');
+        controller.dispose();
+    });
+
+    it('preserves every dynamically discovered .riv handler in the status snapshot', async () => {
+        const elements = createElements();
+        const dynamicHandlers = Array.from({ length: 30 }, (_, index) => ({
+            contentType: `test.vendor.${index}.riv`,
+            handlerPath: '/Applications/RAV.app',
+        }));
+        const controller = createDefaultRivAppController({
+            elements,
+            getTauriInvoker: () => async () => ({
+                available: true,
+                contentTypeHandlers: dynamicHandlers,
+                currentBundlePath: '/Applications/RAV.app',
+                handlerName: 'RAV',
+                resolvedContentType: dynamicHandlers[0].contentType,
+                resolvedHandlerPath: '/Applications/RAV.app',
+                state: 'rav-default',
+            }),
+            isTauriEnvironment: () => true,
+        });
+
+        await controller.setup();
+        const snapshot = controller.getStatusSnapshot();
+        expect(snapshot.contentTypeHandlers).toEqual(dynamicHandlers);
+        expect(snapshot.resolvedContentType).toBe('test.vendor.0.riv');
+        expect(snapshot).not.toHaveProperty('claimedContentTypeCount');
+        expect(snapshot).not.toHaveProperty('totalContentTypeCount');
+        snapshot.contentTypeHandlers[0].contentType = 'mutated';
+        expect(controller.getStatusSnapshot().contentTypeHandlers[0].contentType)
+            .toBe('test.vendor.0.riv');
+        controller.dispose();
+    });
+
+    it('treats one effective .riv claim as complete without exposing alias counts', async () => {
+        const elements = createElements();
+        const currentBundlePath = '/Applications/RAV.app';
+        const otherBundlePath = '/Applications/Other.app';
+        const invoke = vi.fn(async (command) => {
+            if (command === 'get_riv_default_app_status') {
+                return {
+                    available: true,
+                    contentTypeHandlers: [
+                        { contentType: 'vendor.one.riv', handlerPath: otherBundlePath },
+                        { contentType: 'vendor.two.riv', handlerPath: otherBundlePath },
+                    ],
+                    currentBundlePath,
+                    handlerName: 'Other',
+                    state: 'other-app',
+                };
+            }
+            return {
+                available: true,
+                contentTypeHandlers: [
+                    { contentType: 'vendor.one.riv', handlerPath: currentBundlePath },
+                    { contentType: 'vendor.two.riv', handlerPath: otherBundlePath },
+                ],
+                currentBundlePath,
+                handlerName: 'RAV',
+                resolvedContentType: 'vendor.one.riv',
+                resolvedHandlerPath: currentBundlePath,
+                state: 'rav-default',
+            };
+        });
+        const controller = createDefaultRivAppController({
+            elements,
+            getTauriInvoker: () => invoke,
+            isTauriEnvironment: () => true,
+        });
+
+        await controller.setup();
+        await expect(controller.apply()).resolves.toBe(true);
+        expect(elements.defaultRivAppStatus.textContent).toBe('RAV DEFAULT');
+        expect(elements.defaultRivAppActionButton.textContent).toBe('REPAIR ICON');
+        expect(elements.defaultRivAppActionButton.title).not.toMatch(/next|remaining|\d+\//i);
         controller.dispose();
     });
 });

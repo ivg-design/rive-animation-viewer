@@ -85,16 +85,27 @@ describe('bounded UI overlay', () => {
             defaultRivAppState: {
                 available: true,
                 canonicalHandlerPath: '/Applications/RAV.app',
+                contentTypeHandlers: [
+                    { contentType: 'test.vendor.riv', handlerPath: '/Applications/RAV.app' },
+                ],
                 currentBundlePath: '/Applications/RAV.app',
                 handlerName: 'RAV',
                 legacyHandlerPath: '/Applications/RAV.app',
+                playHandlerPath: '/Applications/RAV.app',
                 reason: '',
+                resolvedContentType: 'test.vendor.riv',
+                resolvedHandlerPath: '/Applications/RAV.app',
+                riviewHandlerPath: '/Applications/RAV.app',
                 state: 'rav-default',
             },
         });
         expect(state.defaultRivApp).toEqual(expect.objectContaining({
             available: true,
+            contentTypeHandlers: [
+                { contentType: 'test.vendor.riv', handlerPath: '/Applications/RAV.app' },
+            ],
             handlerName: 'RAV',
+            resolvedContentType: 'test.vendor.riv',
             state: 'rav-default',
         }));
     });

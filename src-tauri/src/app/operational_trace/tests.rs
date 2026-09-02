@@ -4,8 +4,21 @@ use serde_json::json;
 
 use super::{
     append_with_tail_compaction, file_basename, retained_complete_tail, sanitize_details,
-    session_files, snapshot_entries, OperationalTraceEntry,
+    session_files, snapshot_entries, tracing_enabled_for_identifier, OperationalTraceEntry,
 };
+
+#[test]
+fn official_release_never_exposes_operational_tracing() {
+    assert!(!tracing_enabled_for_identifier("app.rive.animation.viewer"));
+}
+
+#[test]
+fn documentation_capture_disables_tracing_without_changing_dev_identity() {
+    assert_eq!(
+        tracing_enabled_for_identifier("app.rive.animation.viewer.flicker-test"),
+        !cfg!(feature = "docs-capture"),
+    );
+}
 
 fn temp_root() -> std::path::PathBuf {
     let root = std::env::temp_dir().join(format!(

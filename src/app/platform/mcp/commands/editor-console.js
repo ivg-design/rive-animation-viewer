@@ -1,8 +1,58 @@
 import { createSafeInspectPreview } from '../../../core/safe-inspect.js';
+import { getAuthoritativeRenderSurface } from '../authoritative.js';
+
+const EVAL_TARGETS = new Set(['auto', 'host', 'playback']);
+
+function normalizeEvalTarget(target) {
+    const normalized = target == null ? 'auto' : String(target).trim().toLowerCase();
+    if (!EVAL_TARGETS.has(normalized)) {
+        throw new Error("target must be 'auto', 'host', or 'playback'");
+    }
+    return normalized;
+}
+
+function hostEvalResult(value, requestedTarget, windowRef) {
+    const result = value === undefined
+        ? 'undefined'
+        : value === null
+            ? 'null'
+            : createSafeInspectPreview(value, { windowRef });
+    return {
+        requestedTarget,
+        result,
+        sessionId: null,
+        surface: 'host-webview',
+        target: 'host',
+    };
+}
+
+async function playbackEvalResult(authoritative, expression, requestedTarget) {
+    const { controller, state } = authoritative;
+    const request = typeof controller.requestActiveCommand === 'function'
+        ? controller.requestActiveCommand('eval', { expression })
+        : controller.requestCommand('eval', { expression }, { targetSessionId: state.activeSessionId });
+    const response = await request;
+    if (!response?.applied || response.status !== 'applied') {
+        const reason = response?.message || response?.status || 'unavailable';
+        throw new Error(`Playback eval was not applied: ${reason}`);
+    }
+    if (!response.result || !Object.prototype.hasOwnProperty.call(response.result, 'result')) {
+        throw new Error('Playback eval returned no bounded result preview');
+    }
+    return {
+        requestedTarget,
+        result: response.result.result,
+        sessionId: response.targetSessionId || state.activeSessionId,
+        surface: 'isolated-render-surface',
+        target: 'playback',
+    };
+}
 
 export function createEditorConsoleCommands({
     assertMcpScriptAccess,
     documentRef = globalThis.document,
+    getRenderSurfaceController,
+    renderSurfaceController,
     windowRef = globalThis.window,
 } = {}) {
     return {
@@ -56,6 +106,14 @@ export function createEditorConsoleCommands({
             if (!runtime) throw new Error('runtime is required');
             const select = documentRef.getElementById('runtime-select');
             if (!select) throw new Error('Runtime selector not found');
+            if (typeof windowRef._mcpSetRuntime === 'function') {
+                const result = await windowRef._mcpSetRuntime(runtime);
+                return {
+                    ...(result && typeof result === 'object' ? result : {}),
+                    ok: true,
+                    runtime,
+                };
+            }
             select.value = runtime;
             select.dispatchEvent(new Event('change', { bubbles: true }));
             return { ok: true, runtime };
@@ -122,15 +180,25 @@ export function createEditorConsoleCommands({
             };
         },
 
-        async rav_eval({ expression }) {
+        async rav_eval({ expression, target = 'auto' } = {}) {
             assertMcpScriptAccess('rav_eval', windowRef);
-            if (!expression) throw new Error('expression is required');
+            if (typeof expression !== 'string' || !expression.trim()) throw new Error('expression is required');
+            const requestedTarget = normalizeEvalTarget(target);
+            const authoritative = getAuthoritativeRenderSurface({
+                getRenderSurfaceController,
+                renderSurfaceController,
+                windowRef,
+            });
             try {
+                if (requestedTarget !== 'host' && authoritative) {
+                    return await playbackEvalResult(authoritative, expression, requestedTarget);
+                }
+                if (requestedTarget === 'playback') {
+                    throw new Error('No active authoritative playback surface is available');
+                }
                 // eslint-disable-next-line no-eval
                 const result = await eval(expression);
-                if (result === undefined) return { result: 'undefined' };
-                if (result === null) return { result: 'null' };
-                return { result: createSafeInspectPreview(result, { windowRef }) };
+                return hostEvalResult(result, requestedTarget, windowRef);
             } catch (error) {
                 throw new Error(`Eval error: ${error.message}`);
             }

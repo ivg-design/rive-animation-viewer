@@ -27,7 +27,7 @@
             if (params.autoplay === false) return { names: [], restarted: false };
             if (!instance) throw new Error('Playback restart is unavailable after reset.');
             var names = normalizeRenderSurfacePlaybackNames(params.animations)
-                .concat(normalizeRenderSurfacePlaybackNames(params.stateMachines))
+                .concat(runtimeCompatibility.getStateMachineNames(params))
                 .filter(function (name, index, allNames) { return allNames.indexOf(name) === index; });
             if (typeof instance.startRendering === 'function') {
                 instance.startRendering();
@@ -45,15 +45,18 @@
         function buildRenderSurfaceResetContract(rawParams) {
             var params = rawParams && typeof rawParams === 'object' ? rawParams : {};
             var vmInstanceKey = normalizeRenderSurfaceVmInstanceKey(params.viewModelInstanceName);
+            var normalizedParams = runtimeCompatibility.normalizePlaybackConfig(Object.assign({}, params, {
+                autoBind: vmInstanceKey === null,
+                autoplay: params.autoplay !== false,
+                viewModelInstanceName: vmInstanceKey,
+            }), CONFIG.runtimeVersion);
+            var stateMachineNames = runtimeCompatibility.getStateMachineNames(normalizedParams);
+            var animationNames = normalizeRenderSurfacePlaybackNames(normalizedParams.animations);
             return {
-                params: Object.assign({}, params, {
-                    autoBind: vmInstanceKey === null,
-                    autoplay: params.autoplay !== false,
-                    viewModelInstanceName: vmInstanceKey,
-                }),
+                params: normalizedParams,
                 target: {
-                    name: params.animations || params.stateMachines || null,
-                    type: params.animations ? 'animation' : (params.stateMachines ? 'stateMachine' : null),
+                    name: animationNames[0] || stateMachineNames[0] || null,
+                    type: animationNames.length ? 'animation' : (stateMachineNames.length ? 'stateMachine' : null),
                     vmInstanceKey: vmInstanceKey,
                 },
             };

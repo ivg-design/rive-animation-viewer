@@ -64,4 +64,16 @@ describe('legacy MCP server registry', () => {
         expect(() => formatToolResult('rav_capture_canvas', { image: { data: '' } }))
             .toThrow('invalid canvas screenshot payload');
     });
+
+    it('keeps the JS and native rav_eval target contract explicit', () => {
+        const evalTool = TOOLS.find((tool) => tool.name === 'rav_eval');
+        const nativeRegistry = readFileSync(resolve('src-tauri/src/bin/rav-mcp/tool_registry.rs'), 'utf8');
+
+        expect(evalTool.inputSchema.properties.target).toEqual({
+            description: 'Evaluation surface. Default: auto.',
+            enum: ['auto', 'host', 'playback'],
+            type: 'string',
+        });
+        expect(nativeRegistry).toContain('"target": { "type": "string", "enum": ["auto", "host", "playback"]');
+    });
 });

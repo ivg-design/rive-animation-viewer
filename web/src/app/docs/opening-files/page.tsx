@@ -19,23 +19,26 @@ export default function OpeningFiles() {
 
       <h2>Double-Click (Desktop)</h2>
       <p>
-        On macOS, current RAV releases declare both the official
-        <code>app.rive.editor.rive-file</code> UTI and the legacy
-        <code>app.rive.animation.viewer.riv</code> compatibility UTI as alternate Viewer types,
-        with the dedicated <code>RiveFileIcon.icns</code> assigned to both. RAV does not silently
-        replace your chosen default app during installation. To choose it deliberately, open
-        Settings and use <strong>MAKE DEFAULT</strong> beside <strong>Default .riv App</strong>.
-        The live status checks both identifiers and names the resolved application, including
-        another installed RAV copy. <strong>REPAIR ICON</strong> re-registers the installed
-        app&apos;s document declarations when RAV is already the default. If RAV is running, a
-        double-clicked file is queued into the existing window and replaces playback after the
-        new surface is ready.
+        On macOS, current RAV releases seed the known Rive content identifiers and dynamically
+        discover every registered UTI tagged with the <code>.riv</code> extension. The app also
+        declares an extension-level alternate Viewer entry backed by the dedicated
+        <code>RiveFileIcon.icns</code>. RAV does not silently replace your chosen default app
+        during installation. To choose it deliberately, open Settings and use
+        <strong>MAKE DEFAULT</strong> beside <strong>Default .riv App</strong>. That one action asks
+        macOS to assign the effective <code>.riv</code> association to RAV, regardless of how many
+        compatible identifiers are currently registered. The discovered identifier set remains
+        internal diagnostic data and is never presented as a click-through task. After macOS
+        confirms the association, Settings shows <strong>RAV DEFAULT</strong> and offers
+        <strong>REPAIR ICON</strong> to re-register the installed app&apos;s document metadata. If RAV is
+        running, a double-clicked file is queued into the existing window and replaces playback
+        after the new surface is ready.
       </p>
       <p>
         After an app update, the first launch of the new version refreshes that installed bundle&apos;s
         Launch Services registration once for the version and schema, without restarting Finder or
         changing the Viewer/Alternate rank. The declarations include the dedicated document icon
-        resource and support both the current and legacy RAV file identifiers. Finder can repaint a
+        resource, known compatibility identifiers, and the extension-level fallback for identifiers
+        introduced by other apps. Finder can repaint a
         cached document icon later than the registration itself; this setting does not install or
         repair a separate Quick Look preview provider.
       </p>

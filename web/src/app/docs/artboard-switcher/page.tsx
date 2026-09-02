@@ -33,9 +33,11 @@ export default function ArtboardSwitcher() {
 
       <h2>Timeline Progress</h2>
       <p>
-        When the selected target is a timeline animation, the toolbar shows current and total
-        progress. Select the readout to switch between frames and seconds. The meter is hidden
-        for state machines and keeps a reserved footprint so surrounding controls do not shift.
+        When the selected target is a timeline animation, a dedicated scrubber row appears above
+        the runtime status bar. Select the readout to switch between frames and seconds, use the
+        duration-aware ticks to judge position, or drag the large unclipped current-time indicator
+        to seek. The indicator advances on every rendered animation frame. State machines hide the
+        entire row.
       </p>
 
       <h2>VM Instance Selector</h2>

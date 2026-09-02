@@ -40,27 +40,6 @@ fn parse_bridge_peer_role(message: &Value) -> Option<BridgePeerRole> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn app_handshake_keeps_legacy_clients_below_explicit_desktop() {
-        assert!(matches!(
-            parse_bridge_peer_role(&json!({ "bridgeHello": "rav-app" })),
-            Some(BridgePeerRole::App(AppPeerKind::Legacy))
-        ));
-        assert!(matches!(
-            parse_bridge_peer_role(&json!({ "bridgeHello": "rav-app", "appKind": "browser" })),
-            Some(BridgePeerRole::App(AppPeerKind::Browser))
-        ));
-        assert!(matches!(
-            parse_bridge_peer_role(&json!({ "bridgeHello": "rav-app", "appKind": "desktop" })),
-            Some(BridgePeerRole::App(AppPeerKind::Desktop))
-        ));
-    }
-}
-
 pub async fn run_websocket_bridge(bridge: Bridge, ws_port: u16) -> Result<()> {
     let listener = TcpListener::bind(("127.0.0.1", ws_port))
         .await
@@ -254,5 +233,26 @@ pub async fn run_websocket_client_bridge(bridge: Bridge, ws_port: u16) -> Result
             .handle_disconnect(connection_id, "RAV bridge disconnected".into())
             .await;
         tokio::time::sleep(std::time::Duration::from_millis(RECONNECT_DELAY_MS)).await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn app_handshake_keeps_legacy_clients_below_explicit_desktop() {
+        assert!(matches!(
+            parse_bridge_peer_role(&json!({ "bridgeHello": "rav-app" })),
+            Some(BridgePeerRole::App(AppPeerKind::Legacy))
+        ));
+        assert!(matches!(
+            parse_bridge_peer_role(&json!({ "bridgeHello": "rav-app", "appKind": "browser" })),
+            Some(BridgePeerRole::App(AppPeerKind::Browser))
+        ));
+        assert!(matches!(
+            parse_bridge_peer_role(&json!({ "bridgeHello": "rav-app", "appKind": "desktop" })),
+            Some(BridgePeerRole::App(AppPeerKind::Desktop))
+        ));
     }
 }

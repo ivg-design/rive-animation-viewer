@@ -111,12 +111,12 @@ Once connected, Claude has access to all RAV tools. Try:
 | `rav_open_isolated_playback` | Open the current animation in an ordinary isolated diagnostic WebView |
 | `rav_export_demo` | Export standalone HTML demo |
 | `rav_export_demo_visual` | Drive the visible export dialog with exact control selection, package source, snippet mode, and output path |
-| `generate_web_instantiation_code` | Generate the canonical live web snippet for `local` or `cdn` usage, with `window.ravRive` helpers and current control values. Preferred over hand-writing snippets from scratch. |
+| `generate_web_instantiation_code` | Generate the canonical live web snippet for `local` or `cdn` usage, exposing only selected typed accessors on `window.riveProperties`. Preferred over hand-writing snippets from scratch. |
 | `rav_toggle_instantiation_controls_dialog` | Open/close the in-app Snippet & Export Controls dialog so a human can curate which controls are serialized |
 | `rav_configure_workspace` | Set left/right sidebar visibility, live source mode, and VM Explorer snippet presence in one idempotent call |
 | `rav_get_sm_inputs` | List state machine inputs with values |
 | `rav_set_sm_input` | Set state machine input value |
-| `rav_eval` | Evaluate JS in RAV's browser context (`Script Access` required) |
+| `rav_eval` | Evaluate JS with `target: auto|host|playback`, returning the resolved surface/session (`Script Access` required) |
 | `rav_console_open` / `rav_console_close` | Toggle the JS console panel |
 | `rav_console_set_mode` / `rav_console_set_filter` / `rav_console_clear` | Switch console mode, mirror visible filters, and clear the active transcript |
 | `rav_console_read` / `rav_console_exec` | Read the JS console transcript or run REPL code (`rav_console_exec` requires `Script Access`). Transcript includes REPL input/result rows plus captured `console.*` output. |
@@ -131,10 +131,13 @@ Once connected, Claude has access to all RAV tools. Try:
 - Unsaved editor draft changes do not affect the running animation until applied.
 - `generate_web_instantiation_code` always reflects the currently running live mode.
 - `generate_web_instantiation_code` defaults to the CDN form unless you request `package_source: "local"`.
-- Generated snippets restore only the checked ViewModel/state-machine values on load, round numbers to 2 decimals, annotate enum choices inline, and expose helper methods on `window.ravRive`.
+- Single-state-machine snippets and demos use `stateMachine` on runtime 2.41+ and `stateMachines` on older versions. Existing plural editor configs still work; explicit legacy timelines, multi-machine playback, inputs, and callbacks retain compatibility and may still produce upstream deprecation warnings. Match the reported runtime version when installing the package for a LOCAL snippet.
+- `rav_eval` defaults to `target: "auto"`: an active authoritative playback child wins; otherwise evaluation uses the host WebView. `target: "playback"` is strict and never falls back, while `target: "host"` deliberately inspects the UI WebView. Every result labels the resolved target, surface, and child session.
+- The console tools remain host-UI tools. Their transcript does not include the isolated child's `console.*` calls or claim live Luau-output authority; use a playback-target eval for bounded child inspection and rely on runtime/Rive events for supported live signals.
+- Compact snippets expose only checked ViewModel/state-machine accessors on `window.riveProperties`; scaffold snippets list every accessor and comment out unchecked ones. Snippets do not replay captured values.
 - Fixed-size snippets and exported demos preserve explicit `width × height` canvas dimensions when the viewer is pinned to a pixel size.
 - Oversized fixed-size snippets and exported demos keep the canvas centered in the viewport instead of pinning it to the upper-left corner.
-- The **Snippet & Export Controls** dialog lets a human user choose exactly which values are serialized. If untouched, RAV defaults to the changed-control set.
+- The **Snippet & Export Controls** dialog lets a human user choose which accessors appear in snippets and which current values are restored by standalone exports. If untouched, RAV defaults to the changed-control set.
 - `rav_toggle_instantiation_controls_dialog` is the MCP hook for opening that dialog when a human needs to curate the export.
 - Exported demos now embed both snippet forms, default the copy button to CDN, and expose a **Copy Instantiation Code** button in the demo toolbar.
 - If `Script Access` is disabled in the MCP dialog, `rav_eval`, `rav_console_exec`, and `rav_apply_code` are rejected while read-only control tools remain available.
@@ -145,7 +148,7 @@ Once connected, Claude has access to all RAV tools. Try:
 |---------------------|---------|-------------|
 | `RAV_MCP_PORT` | `9274` | WebSocket bridge port |
 
-The isolated `2.5.3 DEV` app reserves port `9278` and ignores a stored
+The isolated `2.5.4 DEV` app reserves port `9278` and ignores a stored
 production-port value, so it can run beside the production app without sharing
 its bridge. If a localhost browser preview also connects to `9278`, the bridge
 keeps the packaged desktop app authoritative; legacy clients remain compatible,

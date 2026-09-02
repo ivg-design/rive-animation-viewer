@@ -96,9 +96,7 @@ async function writeModule(filePath, content) {
 async function main() {
     const defaultEditorSource = await fs.readFile(path.join(SOURCE_DIR, 'default-editor.js'), 'utf8');
     const vmExplorerSource = await fs.readFile(path.join(SOURCE_DIR, 'vm-explorer.js'), 'utf8');
-    const controlHelperSource = await fs.readFile(path.join(SOURCE_DIR, 'web-instantiation/control-helper-runtime.js'), 'utf8');
-    const controlHelperControllerSource = await fs.readFile(path.join(SOURCE_DIR, 'web-instantiation/control-helper-controller.js'), 'utf8');
-    const combinedControlHelperSource = `${controlHelperSource.trim()}\n\n${controlHelperControllerSource.trim()}`;
+    const runtimeCompatibilitySource = await fs.readFile(path.join(SOURCE_DIR, 'rive-runtime-compatibility.js'), 'utf8');
 
     const defaultEditorOnLoad = extractBraceBlock(defaultEditorSource, 'onLoad: () => {');
     const vmExplorerOnLoad = extractBraceBlock(vmExplorerSource, 'onLoad: () => {');
@@ -110,16 +108,11 @@ export const DEFAULT_EDITOR_ONLOAD_BLOCK = \`${escapeTemplateLiteral(defaultEdit
 export const VM_EXPLORER_CODE = \`${escapeTemplateLiteral(vmExplorerSource.trim())}\`;
 export const VM_EXPLORER_ONLOAD_BLOCK = \`${escapeTemplateLiteral(vmExplorerOnLoad.trim())}\`;
 `;
-    const controlHelperModule = `
-export const CONTROL_HELPER_RUNTIME_SOURCE = \`${escapeTemplateLiteral(combinedControlHelperSource)}\`;
-export const CONTROL_HELPER_RUNTIME_LINES = CONTROL_HELPER_RUNTIME_SOURCE.split('\\n');
-`;
-
     await writeModule(path.join(GENERATED_DIR, 'editor-defaults.generated.js'), editorDefaultsModule);
     await writeModule(path.join(GENERATED_DIR, 'vm-explorer.generated.js'), vmExplorerModule);
     await writeModule(
-        path.join(GENERATED_DIR, 'web-instantiation/control-helper-runtime.generated.js'),
-        controlHelperModule,
+        path.join(GENERATED_DIR, 'rive-runtime-compatibility.generated.js'),
+        `${runtimeCompatibilitySource.trim()}\n\nexport { createRiveRuntimeCompatibility };`,
     );
 }
 

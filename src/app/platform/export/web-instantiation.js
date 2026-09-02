@@ -1,10 +1,15 @@
-import { buildControlHelperLines, buildControlUsageExamples } from './control-blocks.js';
+import {
+    buildPropertyUsageExamples,
+    buildSelectedPropertyObjectLines,
+    listSelectedPropertyObjectPaths,
+} from './property-accessors.js';
 import {
     buildEffectiveInstantiationDescriptor,
     normalizeAnimationSelection,
     resolveLivePlaybackSelection,
 } from './descriptor.js';
 import { buildRiveAlignmentExpression, buildRiveFitExpression } from '../../core/rive-layout.js';
+import { normalizePlaybackConfig } from '../../rive/runtime-compatibility.js';
 import {
     normalizeControlSnapshot,
     normalizeSnippetMode,
@@ -25,31 +30,25 @@ function indentBlock(value, prefix = '  ') {
     return String(value || '').split('\n').map((line) => `${prefix}${line}`).join('\n');
 }
 
-function buildViewModelInstanceHelperLines(descriptor) {
+function buildViewModelInstanceBindingLines(descriptor) {
     if (!descriptor.viewModelInstanceName) {
         return [];
     }
+    const instanceKey = String(descriptor.viewModelInstanceName);
+    const isIndex = /^(0|[1-9]\d*)$/.test(instanceKey);
     return [
-        '  function bindRavViewModelInstance(instance, instanceKey) {',
-        '    if (!instance || instanceKey === null || typeof instanceKey === "undefined") return false;',
-        '    let definition = null;',
-        '    try { definition = instance.defaultViewModel?.() || null; } catch { return false; }',
-        '    if (!definition || typeof instance.bindViewModelInstance !== "function") return false;',
-        '    let selectedInstance = null;',
-        '    try { selectedInstance = definition.instanceByName?.(String(instanceKey)) || null; } catch { /* not named */ }',
-        '    if (!selectedInstance && /^(0|[1-9]\\d*)$/.test(String(instanceKey))) {',
-        '      try { selectedInstance = definition.instanceByIndex?.(Number(instanceKey)) || null; } catch { /* not indexed */ }',
-        '    }',
-        '    if (!selectedInstance) return false;',
-        '    try { instance.bindViewModelInstance(selectedInstance); } catch { return false; }',
-        '    return true;',
-        '  }',
-        '',
+        '  const selectedViewModel = riveInst.defaultViewModel?.();',
+        `  const selectedViewModelInstance = selectedViewModel?.${isIndex ? 'instanceByIndex' : 'instanceByName'}?.(${isIndex ? Number(instanceKey) : JSON.stringify(instanceKey)});`,
+        '  if (selectedViewModelInstance) riveInst.bindViewModelInstance?.(selectedViewModelInstance);',
     ];
 }
 
-function buildConfigPropertyLines(descriptor, runtimeNamespace, useUserConfig = false) {
-    const useControlHelpers = descriptor.hasControlBindings !== false;
+function buildConfigPropertyLines(
+    descriptor,
+    runtimeNamespace,
+    useUserConfig = false,
+    selectedPropertyLines = [],
+) {
     const lines = [
         `src: "./${descriptor.fileName}",`,
         'canvas,',
@@ -62,17 +61,15 @@ function buildConfigPropertyLines(descriptor, runtimeNamespace, useUserConfig = 
     if (descriptor.artboard) {
         lines.push(`artboard: ${JSON.stringify(descriptor.artboard)},`);
     }
-    if (descriptor.stateMachines.length > 0) {
-        const stateMachineValue = descriptor.stateMachines.length === 1
-            ? JSON.stringify(descriptor.stateMachines[0])
-            : JSON.stringify(descriptor.stateMachines, null, 2);
-        lines.push(`stateMachines: ${stateMachineValue},`);
-    } else if (descriptor.animations.length > 0) {
-        const animationValue = descriptor.animations.length === 1
-            ? JSON.stringify(descriptor.animations[0])
-            : JSON.stringify(descriptor.animations, null, 2);
-        lines.push(`animations: ${animationValue},`);
-    }
+    const playback = normalizePlaybackConfig({
+        stateMachines: descriptor.stateMachines,
+        animations: descriptor.animations,
+    }, descriptor.runtimeVersion);
+    ['stateMachine', 'stateMachines', 'animations'].forEach((key) => {
+        if (!Object.hasOwn(playback, key)) return;
+        const value = Array.isArray(playback[key]) && playback[key].length === 1 ? playback[key][0] : playback[key];
+        lines.push(`${key}: ${JSON.stringify(value, null, 2)},`);
+    });
 
     lines.push('layout: new ' + runtimeNamespace + '.Layout({');
     if (useUserConfig) lines.push('  ...(userConfig.layout || {}),');
@@ -90,32 +87,19 @@ function buildConfigPropertyLines(descriptor, runtimeNamespace, useUserConfig = 
 
     lines.push('onLoad: (...args) => {');
     lines.push('  riveInst.resizeDrawingSurfaceToCanvas();');
-    if (descriptor.viewModelInstanceName) {
-        lines.push(`  bindRavViewModelInstance(riveInst, ${JSON.stringify(descriptor.viewModelInstanceName)});`);
-    }
-    if (useControlHelpers) {
-        lines.push(useUserConfig
-            ? '  ravRive.runOnLoad(() => userConfig.onLoad?.(...args));'
-            : '  ravRive.applySnapshot();');
-    } else if (useUserConfig) {
-        lines.push('  userConfig.onLoad?.(...args);');
-    }
+    lines.push(...buildViewModelInstanceBindingLines(descriptor));
+    lines.push(...selectedPropertyLines);
+    if (useUserConfig) lines.push('  if (typeof userConfig.onLoad === "function") userConfig.onLoad(...args);');
     lines.push('},');
     lines.push('onLoadError: (error, ...args) => {');
     lines.push('  console.error("Rive load error:", error, ...args);');
-    if (useUserConfig) lines.push('  userConfig.onLoadError?.(error, ...args);');
+    if (useUserConfig) lines.push('  if (typeof userConfig.onLoadError === "function") userConfig.onLoadError(error, ...args);');
     lines.push('},');
 
     if (useUserConfig) {
-        CALLBACK_NAMES.filter((name) => name !== 'onLoad' && name !== 'onLoadError' && (!useControlHelpers || name !== 'onAdvance')).forEach((name) => {
-            lines.push(`${name}: (...args) => userConfig.${name}?.(...args),`);
+        CALLBACK_NAMES.filter((name) => name !== 'onLoad' && name !== 'onLoadError').forEach((name) => {
+            lines.push(`...(typeof userConfig.${name} === "function" ? { ${name}: (...args) => userConfig.${name}(...args) } : {}),`);
         });
-    }
-    if (useControlHelpers) {
-        lines.push('onAdvance: (...args) => {');
-        lines.push('  ravRive.retryPendingSnapshotOnAdvance();');
-        if (useUserConfig) lines.push('  userConfig.onAdvance?.(...args);');
-        lines.push('},');
     }
 
     return lines;
@@ -156,12 +140,16 @@ export { buildEffectiveInstantiationDescriptor, normalizeAnimationSelection, res
 export function generateWebInstantiationCode(descriptor, {
     packageSource = 'cdn',
     controlSnapshot = [],
-    selectedControlKeys = [],
+    selectedControlKeys = null,
     snippetMode = 'compact',
 } = {}) {
     const effectivePackageSource = packageSource === 'cdn' ? 'cdn' : 'local';
     const normalizedSnapshot = normalizeControlSnapshot(controlSnapshot);
-    const hasControlBindings = normalizedSnapshot.length > 0;
+    const selectedPropertyLines = buildSelectedPropertyObjectLines(normalizedSnapshot, {
+        selectedControlKeys,
+        snippetMode,
+    });
+    const hasControlBindings = selectedPropertyLines.length > 0;
     const runtimeBlock = buildRuntimeBlock(descriptor, { packageSource: effectivePackageSource });
     const lines = [
         '<!-- Embeddable RAV snippet. Wrap it in a full HTML document if you want a standalone page. -->',
@@ -169,20 +157,21 @@ export function generateWebInstantiationCode(descriptor, {
         ...(effectivePackageSource === 'local' ? ['<script type="module">'] : []),
         ...runtimeBlock,
         ...buildCanvasSizingLines(descriptor),
-        ...buildViewModelInstanceHelperLines(descriptor),
-        ...buildControlHelperLines(normalizedSnapshot, { selectedControlKeys, snippetMode }),
     ];
 
     if (hasControlBindings) {
-        lines.push('  // window.ravRive exposes the generated helper API for VM and state-machine control.');
-        lines.push('  window.ravRive = ravRive;');
+        lines.push('  // Selected controls are populated with direct runtime accessors in onLoad.');
+        lines.push('  const riveProperties = {};');
+        lines.push('');
     }
 
     if (descriptor.sourceMode === 'editor' && descriptor.editorCode) {
         lines.push('  const rawUserConfig = (');
         lines.push(indentBlock(descriptor.editorCode, '    '));
         lines.push('  );');
-        lines.push('  const { canvasSize: _ignoredCanvasSize, ...userConfig } = rawUserConfig || {};');
+        lines.push('  // Playback and canvas sizing come from the current RAV selection.');
+        lines.push('  const { canvasSize: _ignoredCanvasSize, stateMachine: _ignoredMachine,');
+        lines.push('    stateMachines: _ignoredMachines, animations: _ignoredAnimations, ...userConfig } = rawUserConfig || {};');
     }
 
     lines.push('  let riveInst;');
@@ -192,14 +181,16 @@ export function generateWebInstantiationCode(descriptor, {
         lines.push('    ...userConfig,');
     }
     buildConfigPropertyLines(
-        { ...descriptor, hasControlBindings },
+        descriptor,
         'rive',
         descriptor.sourceMode === 'editor' && Boolean(descriptor.editorCode),
+        selectedPropertyLines,
     )
         .forEach((line) => lines.push(`    ${line}`));
     lines.push('  });');
     lines.push('');
     lines.push('  window.riveInst = riveInst;');
+    if (hasControlBindings) lines.push('  window.riveProperties = riveProperties;');
     lines.push('  window.addEventListener("resize", () => {');
     lines.push('    riveInst?.resizeDrawingSurfaceToCanvas();');
     lines.push('  });');
@@ -215,13 +206,19 @@ export function generateWebInstantiationCode(descriptor, {
 export function buildWebInstantiationResult(descriptor, {
     packageSource = 'cdn',
     controlSnapshot = [],
-    selectedControlKeys = [],
+    selectedControlKeys = null,
     snippetMode = 'compact',
 } = {}) {
     const effectivePackageSource = packageSource === 'cdn' ? 'cdn' : 'local';
     const effectiveSnippetMode = normalizeSnippetMode(snippetMode);
     const normalizedSnapshot = normalizeControlSnapshot(controlSnapshot);
-    const hasControlBindings = normalizedSnapshot.length > 0;
+    const propertyPaths = listSelectedPropertyObjectPaths(normalizedSnapshot, {
+        selectedControlKeys,
+        snippetMode: effectiveSnippetMode,
+    });
+    const hasControlBindings = effectiveSnippetMode === 'scaffold'
+        ? normalizedSnapshot.length > 0
+        : propertyPaths.length > 0;
     return {
         code: generateWebInstantiationCode(descriptor, {
             packageSource: effectivePackageSource,
@@ -229,34 +226,17 @@ export function buildWebInstantiationResult(descriptor, {
             selectedControlKeys,
             snippetMode: effectiveSnippetMode,
         }),
-        examples: buildControlUsageExamples(controlSnapshot),
+        examples: buildPropertyUsageExamples(controlSnapshot, {
+            selectedControlKeys,
+            snippetMode: effectiveSnippetMode,
+        }),
         fileName: descriptor.fileName,
-        helperApi: hasControlBindings
+        helperApi: null,
+        propertyObject: hasControlBindings
             ? {
-                global: 'window.ravRive',
-                note: 'window.ravRive exposes the generated helper API for VM and state-machine control.',
-                methods: [
-                    'window.ravRive.instance',
-                    'window.ravRive.applySnapshot()',
-                    'window.ravRive.applyVmOverrides()',
-                    'window.ravRive.applyGlobalVmOverrides()',
-                    'window.ravRive.applyStateMachineOverrides()',
-                    'window.ravRive.fireConfiguredTriggers()',
-                    'window.ravRive.getVmRoot()',
-                    'window.ravRive.getGlobalVmRoot(name)',
-                    'window.ravRive.resolveVmAccessor(path, expectedKind?)',
-                    'window.ravRive.resolveGlobalVmAccessor(name, path, expectedKind?)',
-                    'window.ravRive.retryPendingSnapshot()',
-                    'window.ravRive.retryPendingSnapshotOnAdvance()',
-                    'window.ravRive.runOnLoad(callback, args?)',
-                    'window.ravRive.setVmValue(path, value, expectedKind?)',
-                    'window.ravRive.setGlobalVmValue(name, path, value, expectedKind?)',
-                    'window.ravRive.fireVmTrigger(path)',
-                    'window.ravRive.fireGlobalVmTrigger(name, path)',
-                    'window.ravRive.getStateMachineInput(stateMachineName, inputName)',
-                    'window.ravRive.setStateMachineInput(stateMachineName, inputName, value)',
-                    'window.ravRive.fireStateMachineInput(stateMachineName, inputName)',
-                ],
+                global: 'window.riveProperties',
+                note: 'Each key is a selected property path and each value is its direct Rive runtime accessor.',
+                paths: propertyPaths,
             }
             : null,
         packageSource: effectivePackageSource,
@@ -274,14 +254,15 @@ export function buildWebInstantiationResult(descriptor, {
                 ? `The CDN form uses the global runtime exposed by ${descriptor.runtimeCdnUrl}.`
                 : `The local-package form imports ${descriptor.runtimePackageName} from your app bundle.`,
             effectiveSnippetMode === 'scaffold'
-                ? 'Scaffold mode includes every discovered bound control and comments out anything that is not explicitly selected.'
-                : 'Compact mode includes only the selected live controls.',
+                ? 'Scaffold mode lists every discovered accessor and comments out anything that is not explicitly selected.'
+                : 'Compact mode includes only the selected property accessors.',
             descriptor.canvasSizing?.mode === 'fixed'
                 ? `The exported canvas is pinned to ${descriptor.canvasSizing.width} × ${descriptor.canvasSizing.height}px.`
                 : 'The exported canvas follows the size of its host element.',
             hasControlBindings
-                ? 'The snippet organizes selected controls into readable override blocks and retries only unresolved values whose accessors appear after load.'
-                : 'No bound ViewModel or writable state-machine controls were detected, so the snippet stays minimal and autoplay-focused.',
+                ? 'Selected controls are exposed as direct typed accessors on window.riveProperties; the snippet does not embed the standalone viewer runtime or UI chrome.'
+                : 'No controls were selected, so the snippet stays limited to animation initialization.',
+            'Standalone HTML export is a separate self-contained viewer with the runtime, UI chrome, control panel, and selected-value restoration included.',
             descriptor.runtimeName === 'canvas'
                 ? 'Canvas runtime is supported, but WebGL2 is recommended for feathering and other advanced visual effects.'
                 : 'WebGL2 is the preferred runtime when you need full visual fidelity, including feathering and advanced effects.',

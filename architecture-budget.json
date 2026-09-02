@@ -22,6 +22,7 @@
     "dist",
     "target",
     "node_modules",
+    "mcp-server/node_modules",
     "vendor",
     "coverage",
     "tests",

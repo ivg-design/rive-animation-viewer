@@ -133,8 +133,10 @@
                 ? riveInstance.stateMachineNames.filter(Boolean)
                 : [];
             tracker.stateMachines = names.map(function (name) {
-                var inputs = [];
-                try { inputs = riveInstance.stateMachineInputs(name) || []; } catch (e) { inputs = []; }
+                var inputs = runtimeCompatibility.getStateMachineInputMetadata(riveInstance, name);
+                if (!Array.isArray(inputs)) {
+                    try { inputs = riveInstance.stateMachineInputs && riveInstance.stateMachineInputs(name); } catch (e) { inputs = []; }
+                }
                 return {
                     name: name,
                     inputs: Array.isArray(inputs) ? inputs.map(function (input) {

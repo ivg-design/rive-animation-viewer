@@ -21,6 +21,13 @@ export function captureSettingsOverlayState(elements = {}, {
     const canonicalSizing = canvasSizingState && typeof canvasSizingState === 'object'
         ? normalizeCanvasSizingState(canvasSizingState)
         : null;
+    const currentBundlePath = String(defaultRivAppState?.currentBundlePath || '');
+    const contentTypeHandlers = Array.isArray(defaultRivAppState?.contentTypeHandlers)
+        ? defaultRivAppState.contentTypeHandlers.map((entry) => ({
+            contentType: String(entry?.contentType || ''),
+            handlerPath: String(entry?.handlerPath || ''),
+        })).filter((entry) => entry.contentType)
+        : [];
     return {
         canvas: {
             color: elements.canvasColorInput?.value || '#0d1117',
@@ -42,10 +49,15 @@ export function captureSettingsOverlayState(elements = {}, {
             available: Boolean(defaultRivAppState?.available),
             busy: Boolean(defaultRivAppState?.busy),
             canonicalHandlerPath: String(defaultRivAppState?.canonicalHandlerPath || ''),
-            currentBundlePath: String(defaultRivAppState?.currentBundlePath || ''),
+            contentTypeHandlers,
+            currentBundlePath,
             handlerName: String(defaultRivAppState?.handlerName || ''),
             legacyHandlerPath: String(defaultRivAppState?.legacyHandlerPath || ''),
+            playHandlerPath: String(defaultRivAppState?.playHandlerPath || ''),
             reason: String(defaultRivAppState?.reason || ''),
+            resolvedContentType: String(defaultRivAppState?.resolvedContentType || ''),
+            resolvedHandlerPath: String(defaultRivAppState?.resolvedHandlerPath || ''),
+            riviewHandlerPath: String(defaultRivAppState?.riviewHandlerPath || ''),
             state: String(defaultRivAppState?.state || 'unavailable'),
         },
         runtime: {

@@ -25,7 +25,10 @@ import {
     loadRuntimeVersionPreference,
 } from './platform/runtime/runtime-utils.js';
 import { createTauriBridgeController } from './platform/tauri-bridge.js';
-import { createTimelineProgressController } from './rive/timeline-progress.js';
+import {
+    createTimelineSeekHandler,
+    createTimelineProgressController,
+} from './rive/timeline-progress.js';
 
 const APP_BUILD = '__APP_BUILD__';
 const APP_BUILD_PLACEHOLDER = '__APP' + '_BUILD__';
@@ -41,10 +44,6 @@ window.__RAV_BUILD_INFO__ = Object.freeze({
     channel: APP_CHANNEL,
     version: APP_VERSION,
 });
-
-// The visible shell is renderer-agnostic. The authoritative child can feed
-// confirmed metrics later through the module's update() API or custom event.
-createTimelineProgressController();
 
 const runtimePreferences = {
     runtimeVersionByFile: loadRuntimeVersionByFile(),
@@ -230,6 +229,18 @@ instanceController = controllerStack.instanceController;
 instantiationControlsDialogController = controllerStack.instantiationControlsDialogController;
 shellController = controllerStack.shellController;
 statusController = controllerStack.statusController;
+
+createTimelineProgressController({
+    onSeek: createTimelineSeekHandler({
+        getPlaybackState: () => controllerStack.getArtboardStateSnapshot?.() || {},
+        getRiveInstance,
+        isAuthoritativeChildMode: isTauriEnvironment,
+        requestAuthoritativeCommand: (...args) => (
+            controllerStack.renderSurfaceController?.requestActiveCommand?.(...args)
+            ?? Promise.resolve({ applied: false, status: 'unavailable' })
+        ),
+    }),
+});
 
 startApp({
     elements,

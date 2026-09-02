@@ -11,9 +11,24 @@ mod registration;
 
 pub(super) const CANONICAL_RIV_UTI: &str = "app.rive.editor.rive-file";
 pub(super) const LEGACY_RAV_RIV_UTI: &str = "app.rive.animation.viewer.riv";
+pub(super) const RIVIEW_RIV_UTI: &str = "app.rive.riv";
+pub(super) const PLAY_RIV_UTI: &str = "com.play.riv";
+pub(super) const KNOWN_RIV_UTIS: [&str; 4] = [
+    CANONICAL_RIV_UTI,
+    RIVIEW_RIV_UTI,
+    PLAY_RIV_UTI,
+    LEGACY_RAV_RIV_UTI,
+];
 
-const DOCUMENT_TYPE_REGISTRATION_REVISION: &str = "riv-uti-v3";
+const DOCUMENT_TYPE_REGISTRATION_REVISION: &str = "riv-uti-v4";
 const DOCUMENT_TYPE_REGISTRATION_MARKER: &str = "launch-services-registration-version";
+
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RivContentTypeHandlerStatus {
+    pub content_type: String,
+    pub handler_path: Option<String>,
+}
 
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -22,8 +37,13 @@ pub struct RivDefaultAppStatus {
     pub state: String,
     pub handler_name: Option<String>,
     pub reason: Option<String>,
+    pub resolved_content_type: Option<String>,
+    pub resolved_handler_path: Option<String>,
     pub canonical_handler_path: Option<String>,
+    pub riview_handler_path: Option<String>,
+    pub play_handler_path: Option<String>,
     pub legacy_handler_path: Option<String>,
+    pub content_type_handlers: Vec<RivContentTypeHandlerStatus>,
     pub current_bundle_path: Option<String>,
 }
 
@@ -34,8 +54,13 @@ impl RivDefaultAppStatus {
             state: "unavailable".into(),
             handler_name: None,
             reason: Some(reason.into()),
+            resolved_content_type: None,
+            resolved_handler_path: None,
             canonical_handler_path: None,
+            riview_handler_path: None,
+            play_handler_path: None,
             legacy_handler_path: None,
+            content_type_handlers: Vec::new(),
             current_bundle_path: current_bundle.map(path_string),
         }
     }

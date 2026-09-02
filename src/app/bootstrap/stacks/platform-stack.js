@@ -223,6 +223,7 @@ export function createPlatformStack({
 
     const instantiationControlsDialogController = createInstantiationControlsDialogController({
         callbacks: {
+            closeUiOverlay: (options) => shellController.uiOverlayController.close(options),
             createDemoBundle: (options) => demoExportController.createDemoBundle(options),
             generateWebInstantiationCode: (options) => demoExportController.generateWebInstantiationCode(options),
             getCurrentFileName,
@@ -289,6 +290,9 @@ export function createPlatformStack({
             setEventLogFilter: (filter) => eventLogController.setFilter(filter),
             clearScriptConsole: () => scriptConsoleController.clear(),
             clearEventLog: () => eventLogController.clearLog(),
+            configureInstantiationControls: (options) => (
+                instantiationControlsDialogController.configureForMcp(options)
+            ),
             pause,
             play,
             refreshVmInputControls,
@@ -298,6 +302,7 @@ export function createPlatformStack({
             stageCurrentFile: (...args) => fileSessionController.stageCurrentFile(...args),
             setCurrentCanvasSizing,
             setCanvasSizingState: (nextState, message) => shellController?.applyCanvasSizingState?.(nextState, message),
+            setRuntimeSelection: (runtime) => shellController.setRuntimeSelection(runtime),
             setEditorCode,
             setLiveConfigSource,
             setInstallCounterEnabled: (enabled) => installCounterController.setEnabled(enabled),

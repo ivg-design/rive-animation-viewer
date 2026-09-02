@@ -10,10 +10,10 @@
  *
  * Usage:
  *   node scripts/isolated-dev-mcp-acceptance-harness.mjs \
- *     --sidecar /absolute/path/to/RAV\ 2.5.3\ DEV.app/Contents/MacOS/rav-mcp \
+ *     --sidecar /absolute/path/to/RAV\ 2.5.4\ DEV.app/Contents/MacOS/rav-mcp \
  *     --port 9278 \
  *     --expected-build b0217-20260827-0000-abcdef0 \
- *     --expected-version 2.5.3 \
+ *     --expected-version 2.5.4 \
  *     --expected-channel dev \
  *     --expected-sidecar-sha256 <64 lowercase hex characters> \
  *     --expected-scenario-sha256 <64 lowercase hex characters> \
@@ -581,7 +581,15 @@ async function main() {
                 && Number(playback.fps) > 0);
             const firstMetrics = assertTimelineMetrics(first.playback, 'timeline initial sample');
             await sleep(Number(config.sampleMs || 250));
-            const running = await status();
+            // A freshly activated packaged WebView can need more than one
+            // renderer turn before its first advancing timeline snapshot
+            // reaches the host. Poll for a real clock delta while keeping the
+            // assertion fail-closed instead of treating one 250ms sample as
+            // proof that the animation is stalled.
+            const running = await waitForPlayback((playback) => playback.type === 'animation'
+                && Number(playback.currentFrame) > firstMetrics.currentFrame
+                && Number(playback.currentSeconds) > firstMetrics.currentSeconds,
+            Number(config.advanceTimeoutMs || DEFAULT_POLL_TIMEOUT_MS));
             const runningMetrics = assertTimelineMetrics(running.playback, 'timeline running sample');
             assertion(runningMetrics.currentFrame > firstMetrics.currentFrame,
                 'timeline: frame clock did not advance.', { first: first.playback, running: running.playback });

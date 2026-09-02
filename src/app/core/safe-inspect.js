@@ -18,21 +18,32 @@ function tryOwnKeys(value) {
     }
 }
 
-function summarizeElement(value) {
+function truncateString(value, maxStringLength) {
+    const text = String(value);
+    if (text.length <= maxStringLength) return text;
+    return `${text.slice(0, maxStringLength)}... ${text.length - maxStringLength} more characters`;
+}
+
+function summarizeElement(value, maxStringLength) {
     const tag = String(value.tagName || 'element').toLowerCase();
     const id = value.id ? `#${value.id}` : '';
     const classes = typeof value.className === 'string' && value.className.trim()
         ? `.${value.className.trim().split(/\s+/).slice(0, 3).join('.')}`
         : '';
-    return `<${tag}${id}${classes}>`;
+    return truncateString(`<${tag}${id}${classes}>`, maxStringLength);
 }
 
-function summarizeRiveInstance(inst) {
+function summarizeRiveInstance(inst, maxStringLength) {
+    const names = (value) => Array.isArray(value)
+        ? value.slice(0, 8).map((name) => truncateString(name, maxStringLength))
+        : [];
     return {
         $type: 'RiveInstance',
-        artboard: inst?.artboard?.name || inst?.artboardName || null,
-        stateMachines: Array.isArray(inst?.stateMachineNames) ? inst.stateMachineNames.slice(0, 8) : [],
-        animations: Array.isArray(inst?.animationNames) ? inst.animationNames.slice(0, 8) : [],
+        artboard: inst?.artboard?.name || inst?.artboardName
+            ? truncateString(inst?.artboard?.name || inst?.artboardName, maxStringLength)
+            : null,
+        stateMachines: names(inst?.stateMachineNames),
+        animations: names(inst?.animationNames),
         isPlaying: typeof inst?.isPlaying === 'boolean' ? inst.isPlaying : null,
         isStopped: typeof inst?.isStopped === 'boolean' ? inst.isStopped : null,
         hasViewModel: !!inst?.viewModelInstance,
@@ -40,28 +51,31 @@ function summarizeRiveInstance(inst) {
 }
 
 function previewValue(value, options, depth, seen) {
-    const { maxArrayItems, maxDepth, maxObjectKeys, windowRef } = options;
+    const { maxArrayItems, maxDepth, maxObjectKeys, maxStringLength, windowRef } = options;
 
     if (
         value === null
         || value === undefined
-        || typeof value === 'string'
         || typeof value === 'number'
         || typeof value === 'boolean'
     ) {
         return value;
     }
 
+    if (typeof value === 'string') {
+        return truncateString(value, maxStringLength);
+    }
+
     if (typeof value === 'bigint') {
-        return `${value}n`;
+        return truncateString(`${value}n`, maxStringLength);
     }
 
     if (typeof value === 'symbol') {
-        return value.toString();
+        return truncateString(value.toString(), maxStringLength);
     }
 
     if (typeof value === 'function') {
-        return `[Function ${value.name || 'anonymous'}]`;
+        return truncateString(`[Function ${value.name || 'anonymous'}]`, maxStringLength);
     }
 
     if (value instanceof Date) {
@@ -75,12 +89,12 @@ function previewValue(value, options, depth, seen) {
     if (value instanceof Error) {
         return {
             $type: value.name || 'Error',
-            message: value.message,
+            message: truncateString(value.message, maxStringLength),
         };
     }
 
     if (isElementLike(value)) {
-        return summarizeElement(value);
+        return summarizeElement(value, maxStringLength);
     }
 
     if (value && typeof value === 'object') {
@@ -91,7 +105,7 @@ function previewValue(value, options, depth, seen) {
 
         try {
             if (windowRef?.riveInst && value === windowRef.riveInst) {
-                return summarizeRiveInstance(value);
+                return summarizeRiveInstance(value, maxStringLength);
             }
 
             if (Array.isArray(value)) {
@@ -117,7 +131,9 @@ function previewValue(value, options, depth, seen) {
 
             if (!isPlainObject(value)) {
                 const constructorName = value.constructor?.name || 'Object';
-                const keys = tryOwnKeys(value).slice(0, maxObjectKeys);
+                const keys = tryOwnKeys(value)
+                    .slice(0, maxObjectKeys)
+                    .map((key) => truncateString(key, Math.min(maxStringLength, 256)));
                 return {
                     $type: constructorName,
                     keys,
@@ -130,8 +146,14 @@ function previewValue(value, options, depth, seen) {
 
             const entries = tryOwnKeys(value);
             const output = {};
-            entries.slice(0, maxObjectKeys).forEach((key) => {
-                output[key] = previewValue(value[key], options, depth + 1, seen);
+            entries.slice(0, maxObjectKeys).forEach((key, index) => {
+                let outputKey = truncateString(key, Math.min(maxStringLength, 256));
+                if (Object.prototype.hasOwnProperty.call(output, outputKey)) outputKey = `${outputKey}#${index + 1}`;
+                try {
+                    output[outputKey] = previewValue(value[key], options, depth + 1, seen);
+                } catch (error) {
+                    output[outputKey] = truncateString(`[Inspection threw: ${error?.message || error}]`, maxStringLength);
+                }
             });
             if (entries.length > maxObjectKeys) {
                 output.$moreKeys = entries.length - maxObjectKeys;
@@ -143,7 +165,7 @@ function previewValue(value, options, depth, seen) {
     }
 
     try {
-        return String(value);
+        return truncateString(String(value), maxStringLength);
     } catch {
         return '[Unserializable]';
     }
@@ -151,7 +173,19 @@ function previewValue(value, options, depth, seen) {
 
 export function createSafeInspectPreview(
     value,
-    { maxDepth = 2, maxArrayItems = 12, maxObjectKeys = 16, windowRef = globalThis.window } = {},
+    {
+        maxDepth = 2,
+        maxArrayItems = 12,
+        maxObjectKeys = 16,
+        maxStringLength = 8192,
+        windowRef = globalThis.window,
+    } = {},
 ) {
-    return previewValue(value, { maxArrayItems, maxDepth, maxObjectKeys, windowRef }, 0, new WeakSet());
+    return previewValue(value, {
+        maxArrayItems,
+        maxDepth,
+        maxObjectKeys,
+        maxStringLength,
+        windowRef,
+    }, 0, new WeakSet());
 }

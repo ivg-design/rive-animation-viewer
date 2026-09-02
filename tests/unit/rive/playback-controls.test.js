@@ -62,6 +62,21 @@ describe('rive/playback-controls', () => {
         expect(harness.callbacks.updateInfo).toHaveBeenCalledWith('Playing: [ANIM] Bounce');
     });
 
+    it('resumes a scrubbed paused timeline from its CTI without resetting it', () => {
+        const riveInstance = {
+            isPaused: true,
+            isPlaying: false,
+            play: vi.fn(),
+            stop: vi.fn(),
+        };
+        const harness = createHarness({ riveInstance });
+
+        harness.controller.play();
+
+        expect(riveInstance.stop).not.toHaveBeenCalled();
+        expect(riveInstance.play).toHaveBeenCalledWith('Bounce');
+    });
+
     it('pauses active playback when an instance is available', () => {
         const riveInstance = {
             pause: vi.fn(),

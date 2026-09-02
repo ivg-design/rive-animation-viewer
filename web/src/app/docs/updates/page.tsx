@@ -45,8 +45,14 @@ export default function Updates() {
         advance installed clients.
       </p>
       <p>
-        Version 2.5.3 is the current public release and is available through the normal
+        Version 2.5.4 is the current public release and is available through the normal
         update feed for supported macOS and Windows installations.
+      </p>
+      <p>
+        This release targets Rive Web 2.41.1 / runtime-v0.1.344 and adds authoritative isolated-playback
+        evaluation, a timeline-only every-frame scrubber, lean selected-property snippets,
+        compact property controls, one-click macOS <code>.riv</code> ownership, and centered
+        title metadata.
       </p>
 
       <h2>Two Trust Layers</h2>

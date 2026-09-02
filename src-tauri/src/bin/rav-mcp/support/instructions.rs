@@ -32,14 +32,15 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 - `internal` means the running animation is using RAV's built-in wiring and the current toolbar/artboard state.
 - `editor` means the running animation is using the last applied editor code, not necessarily the current unsaved draft in the panel.
 - `autoBind: true` automatically binds the default ViewModel instance. An explicit instance selection deliberately loads with `autoBind: false` and binds that selected instance before controls and snapshots are restored.
-- `stateMachines: "Name"` must be set to activate a state machine.
+- On Web 2.41+, prefer `stateMachine: "Name"` for one state machine. RAV retains `stateMachines` for older runtimes, multiple machines, and mixed animation/state-machine playback.
 - If the user asks for a working instantiation snippet, prefer **generate_web_instantiation_code** first instead of hand-writing one from scratch.
 - If you do need to edit the live config, call **rav_get_editor_code** first and modify the returned object surgically. Do not invent placeholder globals like `FILE`, `FILE_PATH`, or custom file tokens.
 - Use **rav_set_editor_code** then **rav_apply_code** to change configuration and reload.
 - **rav_status** returns the live instantiation source and whether the editor has unapplied draft changes.
 - **generate_web_instantiation_code** returns the canonical copy-paste snippet for the live mode currently running in RAV.
 - The returned snippet defaults to the `cdn` form unless you explicitly request `package_source: "local"`.
-- The returned snippet restores the current ViewModel/state-machine values on load and exposes `window.ravRive` helpers for VM and state-machine control.
+- The returned snippet exposes only the selected typed ViewModel/state-machine accessors on `window.riveProperties`; it does not replay captured values.
+- Standalone HTML export is separate: it embeds the runtime and UI chrome and restores the selected live values.
 
 ### State Machines vs ViewModels
 - **State machine inputs** are the legacy way to control animations (boolean, number, trigger).
@@ -48,14 +49,14 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 
 ## Tips
 - If rav_get_vm_tree returns empty but you suspect there is a ViewModel, verify that a default or explicit VM instance is selected and bound. Use `autoBind: true` for the default instance, or select an explicit instance in RAV; configure the state machine separately when playback requires one.
-- Use **rav_eval** for anything not covered by the dedicated tools — it runs JS in the browser context with access to `window.riveInst` and all globals.
-- The stable live instance is `window.riveInst`. Do not assume a local callback variable like `rive` will remain authoritative after reloads.
+- Use **rav_eval** for anything not covered by the dedicated tools. Its `target` is `auto`, `playback`, or `host`: `auto` uses the active authoritative playback child when one exists and reports the resolved surface/session; `playback` never falls back; `host` is an explicit UI-WebView diagnostic.
+- In a playback-target eval, `window.riveInst` belongs to the authoritative child. In a host-target eval it belongs to the hidden host renderer and may be stale while an isolated child is active. Do not assume a local callback variable like `rive` remains current after reloads.
 - **rav_get_event_log** shows runtime events, user events, UI events, and MCP events — useful for debugging what happened.
 - **rav_console_open** / **rav_console_close** toggle the JS console panel. `rav_console_open` accepts optional `mode` (events/js), `level`, `sources`, and `search` to apply a filter on open.
 - **rav_console_set_mode** flips the panel between Events and JS modes (or `closed`) without re-opening.
 - **rav_console_set_filter** mirrors the existing on-screen filter toggles: `level` (all/info/warning/error) for JS mode, `sources` subset of (native/riveUser/ui/mcp) for Events mode, plus optional `search` substring.
 - **rav_console_clear** clears the visible transcript of the active mode (or a specified mode) without closing the panel.
-- **rav_console_read** returns the JS console transcript, including REPL input/result rows and captured `console.*` output.
+- **rav_console_read** returns only the host UI WebView's JS-console transcript, including its REPL rows and captured host `console.*` output. It does not claim child-WebView or live Luau-output authority.
 - **rav_console_exec** evaluates code in the REPL with output shown in the console panel. Use `rav_console_read` to verify what actually happened instead of assuming execution succeeded.
 - **rav_export_demo** creates a self-contained HTML file with the current animation, runtime, and settings baked in.
 - **rav_export_demo_visual** orchestrates the Snippet & Export Controls dialog visibly (open → selection → package/mode → Export → save) for screen recordings or non-default selections.

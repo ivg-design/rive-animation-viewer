@@ -257,7 +257,7 @@
                 || type === 'vm-image-set';
             var lightweightState = type === 'snapshot' || type === 'presentation'
                 || type === 'activate-callbacks' || type === 'prepare-frame'
-                || type === 'reset' || type === 'play' || type === 'pause';
+                || type === 'reset' || type === 'play' || type === 'pause' || type === 'scrub';
             if ((!targetedControl && !lightweightState) || !result || typeof result !== 'object') return null;
 
             var payload = command && command.payload && typeof command.payload === 'object'

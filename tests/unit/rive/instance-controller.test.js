@@ -41,6 +41,7 @@ describe('rive/instance-controller', () => {
         const userOnLoad = vi.fn(() => {
             loadOrder.push('userOnLoad');
         });
+        const userOnLoop = vi.fn();
         const runtime = {
             Alignment: { TopLeft: Symbol('TopLeft') },
             EventType: { RiveEvent: 'rive-event' },
@@ -105,6 +106,7 @@ describe('rive/instance-controller', () => {
                     layoutScaleFactor: 2,
                 },
                 onLoad: userOnLoad,
+                onLoop: userOnLoop,
             }),
             windowRef: window,
         });
@@ -195,6 +197,7 @@ describe('rive/instance-controller', () => {
         expect(callbacks.logEvent).toHaveBeenCalledWith('native', 'pause', 'Playback paused by runtime.', pauseEvent);
         expect(callbacks.logEvent).toHaveBeenCalledWith('native', 'stop', 'Playback stopped by runtime.', stopEvent);
         expect(callbacks.logEvent).toHaveBeenCalledWith('native', 'loop', 'Loop event emitted by runtime.', loopEvent);
+        expect(userOnLoop).toHaveBeenCalledWith(loopEvent);
         expect(callbacks.logEvent).toHaveBeenCalledWith('native', 'statechange', 'State machine changed state.', stateChangeEvent);
     });
 
@@ -722,5 +725,7 @@ describe('rive/instance-controller', () => {
         expect(window.riveInst).toBe(instances[0]);
         expect(renderVmInputControls).toHaveBeenCalled();
         expect(populateArtboardSwitcher).toHaveBeenCalled();
+        expect(instances[0].on).not.toHaveBeenCalled();
+        expect(instances[1].on).not.toHaveBeenCalled();
     });
 });

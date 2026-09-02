@@ -12,6 +12,15 @@ const canonicalStateSource = readTemplateSource('vm/canonical-state.js');
 const canonicalPublicationSource = readTemplateSource('vm/canonical-publication.js');
 const hierarchySource = readTemplateSource('vm/hierarchy.js');
 const topologyWatchSource = readTemplateSource('vm/topology-watch.js');
+const runtimeCompatibilitySource = readFileSync(
+    path.resolve(process.cwd(), 'src/app/snippets/source/rive-runtime-compatibility.js'),
+    'utf8',
+).replace(/\r\n?/g, '\n');
+const playbackLayoutSource = readTemplateSource('core/playback-layout.js');
+const demoBundleSource = readFileSync(
+    path.resolve(process.cwd(), 'src-tauri/src/app/demo_bundle.rs'),
+    'utf8',
+).replace(/\r\n?/g, '\n');
 const timelineStateSource = readTemplateSource('vm/timeline-state.js');
 const preambleSource = readTemplateSource('core/preamble.js');
 const firstFrameSource = readTemplateSource('core/load/first-frame.js');
@@ -21,6 +30,7 @@ const controlsRenderSource = readTemplateSource('vm/controls-render.js');
 const syncSource = readTemplateSource('vm/sync.js');
 const bootstrapSource = readTemplateSource('core/bootstrap.js');
 const renderSurfaceBridgeSource = readTemplateSource('core/render-surface-bridge.js');
+const renderSurfaceEvalSource = readTemplateSource('core/bridge/eval.js');
 const renderSurfaceLoadDiagnosticsSource = readTemplateSource('vm/image/load-diagnostics.js');
 const overlayStyles = readFileSync(path.resolve(process.cwd(), 'src-tauri/src/demo-template/css/overlays.css'), 'utf8');
 
@@ -45,6 +55,60 @@ describe('render surface VM numeric presentation', () => {
         expect(syncSource).toContain('var nextNum = formatVmNumber(numValue);');
         expect(syncSource).toContain('var nextAlpha = formatVmNumber(meta.alphaPercent);');
     });
+
+    it('writes text, number, and alpha edits before blur without formatting active numeric input', () => {
+        const accessors = {
+            accent: { value: 0xff112233 },
+            name: { value: 'Before' },
+            speed: { value: 1 },
+        };
+        const logged = [];
+        const helpers = new Function('document', 'resolveControlAccessor', 'registerVmControlBinding', 'logEvent', `
+            function clamp(value, min, max) { return Math.min(max, Math.max(min, value)); }
+            function argbToColorMeta(value) {
+                return { alphaPercent: 100, hex: '#112233' };
+            }
+            function hexToRgb(value) {
+                return { r: parseInt(value.slice(1, 3), 16), g: parseInt(value.slice(3, 5), 16), b: parseInt(value.slice(5, 7), 16) };
+            }
+            function rgbAlphaToArgb(r, g, b, a) {
+                return (((a & 255) << 24) | ((r & 255) << 16) | ((g & 255) << 8) | (b & 255)) >>> 0;
+            }
+            ${controlsRenderSource}
+            return { createVmControlRow };
+        `)(
+            document,
+            (descriptor) => accessors[descriptor.path] || null,
+            () => {},
+            (...entry) => logged.push(entry),
+        );
+
+        const textInput = helpers.createVmControlRow({ kind: 'string', name: 'name', path: 'name' })
+            .querySelector('input');
+        textInput.value = 'During input';
+        textInput.dispatchEvent(new Event('input'));
+        expect(accessors.name.value).toBe('During input');
+        expect(logged).toHaveLength(0);
+
+        const numberInput = helpers.createVmControlRow({ kind: 'number', name: 'speed', path: 'speed' })
+            .querySelector('input');
+        numberInput.value = '12.5';
+        numberInput.dispatchEvent(new Event('input'));
+        expect(accessors.speed.value).toBe(12.5);
+        expect(numberInput.value).toBe('12.5');
+        numberInput.dispatchEvent(new Event('change'));
+        expect(numberInput.value).toBe('12.50');
+
+        const colorRow = helpers.createVmControlRow({ kind: 'color', name: 'accent', path: 'accent' });
+        const alphaInput = colorRow.querySelector('input[type="number"]');
+        alphaInput.value = '50';
+        alphaInput.dispatchEvent(new Event('input'));
+        expect((accessors.accent.value >>> 24) & 255).toBe(128);
+        expect(alphaInput.value).toBe('50');
+        alphaInput.dispatchEvent(new Event('change'));
+        expect(alphaInput.value).toBe('50.00');
+        expect(logged.map((entry) => entry[1])).toEqual(['vm-number', 'vm-color']);
+    });
 });
 
 describe('render surface canvas capture', () => {
@@ -59,6 +123,156 @@ describe('render surface canvas capture', () => {
         expect(bootstrapSource).toContain('12 * 1024 * 1024');
         expect(bootstrapSource).toContain("data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0");
         expect(bootstrapSource).toContain("emitToMain('render-surface:capture'");
+    });
+});
+
+describe('render surface eval authority', () => {
+    it('evaluates in child scope and returns a bounded safe preview', async () => {
+        const helpers = new Function(`
+            let riveInstance = {
+                animationNames: ['idle'],
+                artboard: { name: 'Child' },
+                isPlaying: true,
+                isStopped: false,
+                stateMachineNames: ['Main'],
+                viewModelInstance: {},
+            };
+            ${renderSurfaceEvalSource}
+            return { evaluateRenderSurfaceExpression };
+        `)();
+
+        await expect(helpers.evaluateRenderSurfaceExpression({ expression: 'riveInstance' }))
+            .resolves.toEqual({ result: {
+                $type: 'RiveInstance',
+                animations: ['idle'],
+                artboard: 'Child',
+                hasViewModel: true,
+                isPlaying: true,
+                isStopped: false,
+                stateMachines: ['Main'],
+            } });
+        const bounded = await helpers.evaluateRenderSurfaceExpression({
+            expression: '({ text: "x".repeat(9000), values: Array.from({ length: 20 }, (_, index) => index) })',
+        });
+        expect(bounded.result.text.length).toBeLessThan(8300);
+        expect(bounded.result.values).toHaveLength(13);
+        expect(bounded.result.values.at(-1)).toBe('... 8 more');
+    });
+
+    it('bundles the child helper before the command router', () => {
+        const helperInclude = 'include_str!("../demo-template/js/core/bridge/eval.js")';
+        const bootstrapInclude = 'include_str!("../demo-template/js/core/bootstrap.js")';
+        expect(demoBundleSource).toContain(helperInclude);
+        expect(demoBundleSource.indexOf(helperInclude)).toBeLessThan(demoBundleSource.indexOf(bootstrapInclude));
+        expect(bootstrapSource).toContain("if (type === 'eval') return evaluateRenderSurfaceExpression(payload);");
+    });
+});
+
+describe('standalone runtime deprecation compatibility', () => {
+    it('embeds the shared factory before the template modules and initializes it in the preamble', () => {
+        expect(demoBundleSource).toContain('include_str!("../../../src/app/snippets/source/rive-runtime-compatibility.js")');
+        expect(preambleSource).toContain('const runtimeCompatibility = createRiveRuntimeCompatibility();');
+    });
+
+    it('emits singular playback for 2.41, preserves plural playback for 2.40, and retains mixed legacy targets', () => {
+        const compatibility = new Function(`${runtimeCompatibilitySource}; return createRiveRuntimeCompatibility();`)();
+
+        expect(compatibility.normalizePlaybackConfig({ stateMachines: 'Machine' }, '2.41.1')).toEqual({
+            stateMachine: 'Machine',
+        });
+        expect(compatibility.normalizePlaybackConfig({ stateMachine: 'Machine' }, '2.40.1')).toEqual({
+            stateMachines: 'Machine',
+        });
+        expect(compatibility.normalizePlaybackConfig({
+            animations: ['Intro', 'Loop'],
+            stateMachines: 'Machine',
+        }, '2.41.1')).toEqual({
+            animations: ['Intro', 'Loop'],
+            stateMachines: 'Machine',
+        });
+    });
+
+    it('lets an explicit payload timeline or state machine override stale singular editor playback', () => {
+        const helpers = new Function(`${runtimeCompatibilitySource}
+            const runtimeCompatibility = createRiveRuntimeCompatibility();
+            ${playbackLayoutSource}; return {
+            resolveStandalonePlaybackConfig,
+        };`)();
+
+        expect(helpers.resolveStandalonePlaybackConfig({
+            animations: ['Intro'],
+            runtimeVersion: '2.41.1',
+        }, { stateMachine: 'OldSM' }).config).toEqual(expect.objectContaining({
+            animations: 'Intro',
+        }));
+        expect(helpers.resolveStandalonePlaybackConfig({
+            animations: ['Intro'],
+            runtimeVersion: '2.41.1',
+        }, { stateMachine: 'OldSM' }).config).not.toHaveProperty('stateMachine');
+
+        expect(helpers.resolveStandalonePlaybackConfig({
+            runtimeVersion: '2.41.1',
+            stateMachines: ['NewSM'],
+        }, { stateMachine: 'OldSM' }).config).toEqual({ stateMachine: 'NewSM' });
+    });
+
+    it('does not probe deprecated stateMachineInputs when exact active-artboard metadata says a machine is empty', () => {
+        const stateMachineInputs = vi.fn(() => []);
+        const riveInstance = {
+            activeArtboard: 'Main',
+            contents: {
+                artboards: [{
+                    name: 'Main',
+                    stateMachines: [{ name: 'Machine', inputs: [] }],
+                }],
+            },
+            stateMachineInputs,
+            stateMachineNames: ['Machine'],
+        };
+        const harness = createDemoVmHarness(riveInstance, { renderSurfaceMode: true });
+
+        expect(harness.captureRenderSurfaceControlsHierarchy().children).toEqual([]);
+        expect(harness.resolveStateMachineInputAccessor('Machine', 'missing', 'trigger')).toBeNull();
+        expect(harness.fireStateMachineTriggerByName('missing')).toBe(0);
+        harness.publishRenderSurfaceCanonicalState(true, 'initial');
+        expect(stateMachineInputs).not.toHaveBeenCalled();
+    });
+
+    it('keeps explicit legacy callbacks while avoiding irrelevant automatic event subscriptions', () => {
+        expect(playbackLayoutSource).toContain('runtimeCompatibility.normalizePlaybackConfig(config, payload.runtimeVersion);');
+        const eventCallbackSource = readTemplateSource('core/event-log.js');
+        expect(eventCallbackSource).toContain("typeof appliedEditorConfig.onLoop === 'function'");
+        expect(eventCallbackSource).toContain("typeof appliedEditorConfig.onStateChange === 'function'");
+        expect(riveLoaderSource).toContain('configureRiveDeprecatedEventCallbacks(riveConfig');
+        expect(riveLoaderSource).toContain('instance.on(eventType, listener);');
+    });
+
+    it('preserves lowercase explicit legacy callbacks exactly once while removing their deprecated aliases', () => {
+        const eventCallbackSource = readTemplateSource('core/event-log.js');
+        const start = eventCallbackSource.indexOf('function configureRiveDeprecatedEventCallbacks');
+        const end = eventCallbackSource.indexOf('function renderEventLog', start);
+        const invoke = vi.fn((callback, args) => callback(...args));
+        const onloop = vi.fn();
+        const onstatechange = vi.fn();
+        const helpers = new Function('logEvent', 'invokeRenderSurfaceAwareEditorCallback', 'publishRenderSurfaceCanonicalState', `
+            ${eventCallbackSource.slice(start, end)}
+            return { configureRiveDeprecatedEventCallbacks };
+        `)(vi.fn(), invoke, vi.fn());
+        const riveConfig = { onloop, onstatechange };
+
+        helpers.configureRiveDeprecatedEventCallbacks(riveConfig, {
+            appliedEditorConfig: { onloop, onstatechange },
+            reportCallbackError: vi.fn(),
+            userSpecifiedAnimations: false,
+            userSpecifiedStateMachines: true,
+        });
+        riveConfig.onLoop({ name: 'loop' });
+        riveConfig.onStateChange({ name: 'state' });
+
+        expect(onloop).toHaveBeenCalledTimes(1);
+        expect(onstatechange).toHaveBeenCalledTimes(1);
+        expect(riveConfig).not.toHaveProperty('onloop');
+        expect(riveConfig).not.toHaveProperty('onstatechange');
     });
 });
 
@@ -88,6 +302,8 @@ function createDemoVmHarness(riveInstance, {
     window.__ravRenderSurfaceEmit = (event, payload) => emitted.push({ event, payload });
     const build = new Function('riveInstance', 'CONTROL_SELECTION_KEYS', 'CONTROL_SNAPSHOT', 'VM_HIERARCHY', 'IS_RENDER_SURFACE_MODE', 'IMAGE_RUNTIME', `
         const CONFIG = { artboardName: null, viewModelInstanceName: null };
+        ${runtimeCompatibilitySource}
+        const runtimeCompatibility = createRiveRuntimeCompatibility();
         const isRenderSurfaceMode = IS_RENDER_SURFACE_MODE;
         const VM_CONTROL_SYNC_INTERVAL_MS = 120;
         const VM_TOPOLOGY_SYNC_INTERVAL_MS = 1000;
@@ -177,6 +393,7 @@ function createDemoVmHarness(riveInstance, {
             captureRenderSurfaceCommandCanonicalDelta,
             captureChangedRenderSurfaceControls,
             captureRenderSurfaceControlsHierarchy: () => captureRenderSurfaceControlsHierarchy(getRenderSurfaceBridgeState()),
+            fireStateMachineTriggerByName,
             filterHierarchyNode,
             formatVmListItemLabel,
             getRenderSurfaceObserverDiagnostics,
@@ -199,14 +416,29 @@ function createDemoVmHarness(riveInstance, {
             advanceRenderer: () => { renderSurfaceAdvanceRevision += 1; },
             waitForRenderSurfaceImagePresentation,
             restoreRenderSurfaceImageSnapshot,
+            resolveStateMachineInputAccessor,
             scheduleRenderSurfaceCanonicalRefresh,
             scheduleRenderSurfaceInitialCanonicalState,
+            scrubRenderSurfaceTimeline,
             setRenderSurfaceTarget: setRenderSurfacePlaybackTarget,
             renderedHierarchy: () => renderedHierarchy,
             topologyRenderCount: () => topologyRenderCount,
         };
     `);
     return { ...build(riveInstance, controlSelectionKeys, controlSnapshot, vmHierarchy, renderSurfaceMode, imageRuntime), emitted };
+}
+
+const resetContractRuntimePreamble = `
+    const CONFIG = { runtimeVersion: '2.41.1' };
+    ${runtimeCompatibilitySource}
+    const runtimeCompatibility = createRiveRuntimeCompatibility();
+`;
+
+function createResetContractHelpers() {
+    return new Function(`${resetContractRuntimePreamble}\n${resetContractSource}; return {
+        buildRenderSurfaceResetContract,
+        restartRenderSurfacePlaybackAfterReset,
+    };`)();
 }
 
 async function withImmediateAnimationFrames(task) {
@@ -335,7 +567,7 @@ describe('exported demo ViewModel snapshot runtime', () => {
         expectedKey,
         expectedAutoBind,
     ) => {
-        const helpers = new Function(`${resetContractSource}; return { buildRenderSurfaceResetContract };`)();
+        const helpers = createResetContractHelpers();
         const reset = helpers.buildRenderSurfaceResetContract({
             animations: 'Timeline',
             artboard: 'Main',
@@ -358,7 +590,7 @@ describe('exported demo ViewModel snapshot runtime', () => {
         ['multiple targets', { animations: ['Intro', 'Loop'], stateMachines: 'Machine', autoplay: true }, ['Intro', 'Loop', 'Machine']],
         ['the runtime-selected target', { autoplay: true }, undefined],
     ])('restarts %s in place after reset', (_label, params, expectedPlayTarget) => {
-        const helpers = new Function(`${resetContractSource}; return { restartRenderSurfacePlaybackAfterReset };`)();
+        const helpers = createResetContractHelpers();
         const runtime = { play: vi.fn(), startRendering: vi.fn() };
 
         expect(helpers.restartRenderSurfacePlaybackAfterReset(runtime, params)).toEqual({
@@ -372,7 +604,7 @@ describe('exported demo ViewModel snapshot runtime', () => {
     });
 
     it('falls back to replaying the exact reset target when startRendering is unavailable', () => {
-        const helpers = new Function(`${resetContractSource}; return { restartRenderSurfacePlaybackAfterReset };`)();
+        const helpers = createResetContractHelpers();
         const runtime = { play: vi.fn() };
 
         expect(helpers.restartRenderSurfacePlaybackAfterReset(runtime, {
@@ -383,7 +615,7 @@ describe('exported demo ViewModel snapshot runtime', () => {
     });
 
     it('does not restart playback when the reset contract disables autoplay', () => {
-        const helpers = new Function(`${resetContractSource}; return { restartRenderSurfacePlaybackAfterReset };`)();
+        const helpers = createResetContractHelpers();
         const runtime = { play: vi.fn(), startRendering: vi.fn() };
 
         expect(helpers.restartRenderSurfacePlaybackAfterReset(runtime, {
@@ -583,6 +815,7 @@ describe('exported demo ViewModel snapshot runtime', () => {
             let pendingRenderSurfaceReset = null;
             let renderSurfaceImageSnapshot = new Map();
             let renderSurfaceAdvanceRevision = 0;
+            ${resetContractRuntimePreamble}
             ${resetContractSource}
             ${imageValidationSource}
             ${imageResetSource}
@@ -671,6 +904,7 @@ describe('exported demo ViewModel snapshot runtime', () => {
                 }
                 return 0;
             }
+            ${resetContractRuntimePreamble}
             ${resetContractSource}
             ${imageValidationSource}
             ${imageResetSource}
@@ -747,6 +981,7 @@ describe('exported demo ViewModel snapshot runtime', () => {
             let renderSurfaceAdvanceRevision = 0;
             function applyControlSnapshot() { return 0; }
             function retryPendingControlSnapshot() { return 0; }
+            ${resetContractRuntimePreamble}
             ${resetContractSource}
             ${imageValidationSource}
             ${imageResetSource}
@@ -1624,8 +1859,8 @@ describe('exported demo ViewModel snapshot runtime', () => {
     });
 
     it('honors explicit timelines and announces the child contract after a first frame', () => {
-        expect(riveLoaderSource).toContain('normalizeStateMachineSelection(CONFIG.animations)');
-        expect(riveLoaderSource).toContain('riveConfig.animations = configuredAnimations.length === 1');
+        expect(riveLoaderSource).toContain('resolveStandalonePlaybackConfig(CONFIG, appliedEditorConfig)');
+        expect(playbackLayoutSource).toContain('var payloadPlaybackSelected = payloadStateMachines.length > 0 || payloadAnimations.length > 0;');
         expect(riveLoaderSource).toContain('!userSpecifiedStateMachines && !userSpecifiedAnimations');
         expect(riveLoaderSource).toContain("publishRenderSurfaceCanonicalState(true, 'load')");
         expect(riveLoaderSource).toContain('announceRenderSurfaceFirstFrame({');
@@ -1918,6 +2153,68 @@ describe('exported demo ViewModel snapshot runtime', () => {
         });
     });
 
+    it('scrubs the selected child timeline and returns an O(1) canonical playback delta', () => {
+        const createWrapper = () => ({
+            animation: { duration: 60, fps: 60 },
+            name: 'Intro',
+            playing: false,
+            time: 0,
+        });
+        const riveInstance = {
+            animator: { animations: [] },
+            isPlaying: false,
+            pause: vi.fn((name) => {
+                expect(name).toBe('Intro');
+                riveInstance.animator.animations.push(createWrapper());
+            }),
+            playingAnimationNames: [],
+            playingStateMachineNames: [],
+            scrub: vi.fn((name, seconds) => {
+                expect(name).toBe('Intro');
+                riveInstance.animator.animations.at(-1).time = seconds;
+            }),
+        };
+        const harness = createDemoVmHarness(riveInstance, { renderSurfaceMode: true });
+        harness.setRenderSurfaceTarget({ name: 'Intro', type: 'animation' });
+
+        expect(harness.scrubRenderSurfaceTimeline({ name: 'Intro', seconds: 0.75 })).toEqual({
+            currentFrame: 45,
+            currentSeconds: 0.75,
+            name: 'Intro',
+            totalFrames: 60,
+            totalSeconds: 1,
+        });
+        expect(riveInstance.pause).toHaveBeenCalledOnce();
+        expect(riveInstance.scrub).toHaveBeenCalledWith('Intro', 0.75);
+
+        const delta = harness.captureRenderSurfaceCommandCanonicalDelta(
+            { payload: { name: 'Intro', seconds: 0.75 }, type: 'scrub' },
+            { name: 'Intro' },
+        );
+        expect(delta).toEqual(expect.objectContaining({
+            controlChanges: [],
+            playback: expect.objectContaining({
+                currentFrame: 45,
+                currentSeconds: 0.75,
+                name: 'Intro',
+                totalFrames: 60,
+                totalSeconds: 1,
+                type: 'animation',
+            }),
+            reason: 'command:scrub',
+            stateType: 'delta',
+        }));
+        expect(delta).not.toHaveProperty('controlsHierarchy');
+        expect(bootstrapSource).toContain("if (type === 'scrub') return scrubRenderSurfaceTimeline(payload);");
+    });
+
+    it('rejects timeline scrubbing when the acknowledged target is a state machine', () => {
+        const harness = createDemoVmHarness({ scrub: vi.fn() }, { renderSurfaceMode: true });
+        harness.setRenderSurfaceTarget({ name: 'MainSM', type: 'stateMachine' });
+        expect(() => harness.scrubRenderSurfaceTimeline({ name: 'MainSM', seconds: 1 }))
+            .toThrow('Timeline scrubbing requires an active linear animation.');
+    });
+
     it('selects the newest playing timeline wrapper when reset leaves duplicate names', () => {
         const riveInstance = {
             animator: {
@@ -1972,6 +2269,17 @@ describe('exported demo ViewModel snapshot runtime', () => {
             fps: 60,
             totalFrames: 60,
             totalSeconds: 1,
+        });
+        expect(harness.emitted.at(-1)).toEqual({
+            event: 'render-surface:timeline',
+            payload: expect.objectContaining({
+                advanceRevision: 0,
+                currentFrame: 45,
+                currentSeconds: 0.75,
+                playbackName: 'Focus Fullscreen Mode',
+                playbackType: 'animation',
+                totalFrames: 60,
+            }),
         });
         expect(harness.captureRenderSurfacePlayback()).toEqual(expect.objectContaining({
             currentFrame: 45,
@@ -2196,6 +2504,7 @@ describe('exported demo ViewModel snapshot runtime', () => {
             let renderSurfaceAdvanceRevision = 0;
             function applyControlSnapshot() { return 0; }
             function retryPendingControlSnapshot() { return 0; }
+            ${resetContractRuntimePreamble}
             ${resetContractSource}
             ${imageValidationSource}
             ${imageResetSource}

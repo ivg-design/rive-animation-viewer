@@ -12,23 +12,14 @@ export interface ChangelogEntry {
 }
 
 export function parseChangelog(): ChangelogEntry[] {
-  // Try web dir first (Vercel build), then parent dir (local dev)
-  const candidates = [
-    join(process.cwd(), 'CHANGELOG.md'),
-    join(process.cwd(), '..', 'CHANGELOG.md'),
-  ];
-  let content: string | null = null;
-
-  for (const candidate of candidates) {
-    try {
-      content = readFileSync(candidate, 'utf-8');
-      break;
-    } catch {
-      continue;
-    }
+  // The website package always builds from web/. Keep this path statically
+  // scoped so Turbopack traces only the website changelog into server output.
+  let content: string;
+  try {
+    content = readFileSync(join(process.cwd(), 'CHANGELOG.md'), 'utf-8');
+  } catch {
+    return [];
   }
-
-  if (!content) return [];
 
   const entries: ChangelogEntry[] = [];
   let current: ChangelogEntry | null = null;

@@ -5,6 +5,7 @@ import { createRiveEventBridge } from './instance/event-bridge.js';
 import { createInstanceCanvasPresentationController } from './instance/canvas-presentation.js';
 import { bindViewModelInstanceByKey } from './view-model/instances.js';
 import { normalizeResetViewModelInstanceKey } from './reset-contract.js';
+import { getStateMachineNames, normalizePlaybackConfig } from './runtime-compatibility.js';
 import {
     configureRiveLoadLifecycle,
 } from './instances/load-lifecycle.js';
@@ -20,6 +21,7 @@ export function createRiveInstanceController({
     getCurrentFileBuffer = () => null,
     getCurrentLayoutFit = () => 'contain',
     getCurrentRuntime = () => 'webgl2',
+    getCurrentRuntimeVersion = () => null,
     getEditorConfig = () => ({}),
     isAuthoritativeChildMode = () => false,
     windowRef = globalThis.window,
@@ -50,7 +52,7 @@ export function createRiveInstanceController({
     let pendingInPlaceReset = null;
     let cancelPendingLoad = null;
     let loadGeneration = 0;
-    const riveEventBridge = createRiveEventBridge({ logEvent });
+    const riveEventBridge = createRiveEventBridge({ isEnabled: () => !isAuthoritativeChildMode(), logEvent });
 
     function getRiveInstance() {
         return riveInstance;
@@ -123,9 +125,9 @@ export function createRiveInstanceController({
             },
         };
         try {
-            riveInstance.reset(isAuthoritativeChildMode()
+            riveInstance.reset(normalizePlaybackConfig(isAuthoritativeChildMode()
                 ? { ...params, autoplay: false }
-                : params);
+                : params, getCurrentRuntimeVersion()));
             return true;
         } catch (error) {
             pendingInPlaceReset = null;
@@ -217,12 +219,17 @@ export function createRiveInstanceController({
                 ? { ...sanitizedUserConfig, autoplay: false }
                 : (forceAutoplay ? { ...sanitizedUserConfig, autoplay: true } : { ...sanitizedUserConfig });
             if (configOverrides && typeof configOverrides === 'object') {
+                if (['stateMachine', 'stateMachines', 'animations'].some((key) => Object.hasOwn(configOverrides, key))) {
+                    delete effectiveUserConfig.stateMachine;
+                    delete effectiveUserConfig.stateMachines;
+                    delete effectiveUserConfig.animations;
+                }
                 Object.assign(effectiveUserConfig, configOverrides);
             }
             if (authoritativeChildMode) {
                 effectiveUserConfig.autoplay = false;
             }
-            const config = { ...effectiveUserConfig };
+            const config = normalizePlaybackConfig(effectiveUserConfig, getCurrentRuntimeVersion());
             embeddedImageAssetCatalog?.reset?.();
 
             const userOnLoad = config.onLoad;
@@ -230,13 +237,13 @@ export function createRiveInstanceController({
             const userOnPlay = config.onPlay;
             const userOnPause = config.onPause;
             const userOnStop = config.onStop;
-            const userOnLoop = config.onLoop;
-            const userOnStateChange = config.onStateChange;
+            const userOnLoop = config.onLoop || config.onloop;
+            const userOnStateChange = config.onStateChange || config.onstatechange;
+            delete config.onloop;
+            delete config.onstatechange;
             const userOnAdvance = config.onAdvance;
             const userAssetLoader = config.assetLoader;
-            const configuredStateMachines = Array.isArray(config.stateMachines)
-                ? config.stateMachines.filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
-                : (typeof config.stateMachines === 'string' && config.stateMachines.trim().length > 0 ? [config.stateMachines] : []);
+            const configuredStateMachines = getStateMachineNames(config);
             const hasConfiguredAnimation = Array.isArray(config.animations)
                 ? config.animations.some((entry) => typeof entry === 'string' && entry.trim().length > 0)
                 : (typeof config.animations === 'string' && config.animations.trim().length > 0);
@@ -332,7 +339,7 @@ export function createRiveInstanceController({
                 }
             });
 
-            const candidateInstance = new runtime.Rive(config);
+            const candidateInstance = new runtime.Rive(normalizePlaybackConfig(config, getCurrentRuntimeVersion()));
             if (!isCurrentLoad()) {
                 candidateInstance?.cleanup?.();
                 return;

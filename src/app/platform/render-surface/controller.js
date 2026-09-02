@@ -11,7 +11,7 @@ import { createRenderSurfaceActivationLifecycle, registerRenderSurfaceController
 import { buildRenderSurfaceState, createRenderSurfaceControllerState, createRenderSurfaceDisposer } from './controller/state.js';
 import { setRenderSurfaceFpsState } from './fps-indicator.js';
 import { createRenderSurfaceImageReplayCache } from './image-replay-cache.js';
-import { createRenderSurfaceEventRelay, dispatchCanonicalTimelineProgress } from './event-relay.js';
+import { createRenderSurfaceEventRelay, dispatchCanonicalTimelineProgress, dispatchTimelineProgressMetrics } from './event-relay.js';
 import { createRenderSurfaceFatalRecovery } from './fatal-recovery.js';
 import { createRenderSurfaceProtocol, RENDER_SURFACE_PROTOCOL_VERSION } from './protocol.js';
 import { createRenderSurfaceVisibilityController, observeBlockingMainUi } from './visibility.js';
@@ -204,7 +204,15 @@ export function createRenderSurfaceController({
     });
     const loadCurrentAnimation = loadOperation.load;
     const loadCurrentAnimationForSelection = loadOperation.loadForSelection;
-    const sendCommand = (type, payload = {}) => activationCoordinator.requestCommand(type, payload);
+    const sendCommand = (type, payload = {}, options = {}) => activationCoordinator.requestCommand(type, payload, options);
+    const requestActiveCommand = (type, payload = {}) => {
+        const targetSessionId = activeSessionId;
+        if (!targetSessionId || disposed || !isLoaded || !fatalRecovery.canAcceptCommands()) {
+            return Promise.resolve({ applied: false, status: 'unavailable', targetSessionId });
+        }
+        return activationCoordinator.requestCommand(type, payload, { targetSessionId })
+            .then((result) => ({ ...result, targetSessionId }));
+    };
     const captureSession = createRenderSurfaceCaptureSession({
         getSessionId: () => activeSessionId,
         isActive: () => Boolean(activeSessionId) && !disposed && fatalRecovery.canAcceptCommands(),
@@ -264,6 +272,7 @@ export function createRenderSurfaceController({
             documentRef.dispatchEvent(new CustomEventCtor('rav:render-surface-pointerdown', { detail }));
         },
         onChildCapture: captureSession.handleResponse,
+        onChildTimeline: (metrics) => dispatchTimelineProgressMetrics(documentRef, metrics),
         protocol,
         rejectStagedSession,
         setStagedReady: (value) => { stagedReady = value; },
@@ -340,6 +349,7 @@ export function createRenderSurfaceController({
         loadCurrentAnimation,
         loadCurrentAnimationForSelection,
         requestImageCommand,
+        requestActiveCommand,
         requestCommand: sendCommand,
         sendCommand,
         setup,

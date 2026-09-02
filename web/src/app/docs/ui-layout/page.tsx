@@ -1,4 +1,5 @@
 import Image from "next/image";
+import DocsFigure from "@/components/docs/DocsFigure";
 import { asset } from "@/lib/config";
 
 export const metadata = { title: "UI Layout" };
@@ -8,26 +9,21 @@ export default function UiLayout() {
     <>
       <h1>UI Layout</h1>
 
-      {/* Hero overview — full width with callout legend below */}
-      <Image src={asset("/docs/ui-overview.webp")} alt="RAV full application layout with numbered callouts" width={960} height={600} className="rounded-xl border border-[var(--border-dark)] w-full mb-4" />
+      <DocsFigure
+        src={asset("/docs/2.5.3/workspace-root-vm.webp")}
+        alt="RAV workspace with the editor on the left, animation canvas in the center, and Properties panel on the right"
+        width={2500}
+        height={1800}
+        caption="The workspace keeps live source on the left, the playback canvas in the middle, and artboard, Global VM, and Root VM controls in Properties on the right."
+      />
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
-        {[
-          { n: 1, label: "Toolbar", desc: "Playback, renderer, fit, alignment" },
-          { n: 2, label: "Script Editor", desc: "CodeMirror with live-source indicator" },
-          { n: 3, label: "Canvas", desc: "Animation viewport and drop zone" },
-          { n: 4, label: "Console", desc: "Event log or JavaScript REPL" },
-          { n: 5, label: "Properties", desc: "VM controls, artboard switcher" },
-        ].map((item) => (
-          <div key={item.n} className="flex items-start gap-2 p-2 rounded-lg bg-[var(--bg-zinc)] border border-[var(--border-dark)]">
-            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#3b82f6] text-white text-[10px] font-bold flex items-center justify-center">{item.n}</span>
-            <div>
-              <span className="text-xs font-semibold text-[var(--text-white)] block">{item.label}</span>
-              <span className="text-[10px] text-[var(--text-muted)]">{item.desc}</span>
-            </div>
-          </div>
-        ))}
-      </div>
+      <h2>Window Title</h2>
+      <p>
+        The title row centers the loaded file metadata against the full window, even when the app
+        identity on the left and window controls on the right have different widths. The metadata
+        keeps its intrinsic width; long directory paths truncate without pulling the visible title
+        away from center.
+      </p>
 
       <h2>Top Toolbar</h2>
       <p>The toolbar is split into three clusters:</p>
@@ -64,6 +60,15 @@ export default function UiLayout() {
         When it becomes oversized, the margins collapse safely, scrolling starts from the
         authored top-left origin, and the central viewport exposes a styled 10px track, thumb,
         and corner for both axes.
+      </p>
+
+      <h2>Timeline Scrubber</h2>
+      <p>
+        Linear animations add a dedicated scrubber row immediately above the runtime status bar.
+        Switch the readout between frames and seconds, use the duration-aware scale, or drag the
+        large current-time indicator to seek. The indicator advances on every rendered animation
+        frame during playback and remains fully visible at both ends of the track. State-machine
+        playback hides the row entirely.
       </p>
 
       <h2>Properties Panel</h2>

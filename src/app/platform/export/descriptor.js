@@ -1,6 +1,6 @@
 import { DEFAULT_CANVAS_COLOR } from '../../core/constants.js';
 import { normalizeCanvasSizingState } from '../../core/canvas-sizing.js';
-import { normalizeStateMachineSelection } from '../../rive/default-state-machine.js';
+import { getStateMachineNames } from '../../rive/runtime-compatibility.js';
 import { getRuntimePackageName } from '../runtime/runtime-utils.js';
 
 export function normalizeAnimationSelection(value) {
@@ -26,9 +26,11 @@ export function resolveLivePlaybackSelection({
         return { animations: [artboardState.currentPlaybackName], artboard, stateMachines: [] };
     }
 
-    const stateMachines = normalizeStateMachineSelection(editorConfig.stateMachines);
+    const stateMachines = getStateMachineNames(editorConfig);
     if (stateMachines.length > 0) {
-        return { animations: [], artboard, stateMachines };
+        const animations = editorConfig.stateMachine
+            ? [] : normalizeAnimationSelection(editorConfig.animations);
+        return { animations, artboard, stateMachines };
     }
 
     const animations = normalizeAnimationSelection(editorConfig.animations);

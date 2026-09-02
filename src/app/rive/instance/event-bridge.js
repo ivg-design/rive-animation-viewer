@@ -1,4 +1,4 @@
-export function createRiveEventBridge({ logEvent = () => {} } = {}) {
+export function createRiveEventBridge({ isEnabled = () => true, logEvent = () => {} } = {}) {
     let unsubscribers = [];
 
     function clear() {
@@ -14,6 +14,7 @@ export function createRiveEventBridge({ logEvent = () => {} } = {}) {
 
     function attach(runtime, instance) {
         clear();
+        if (!isEnabled()) return;
         if (!runtime?.EventType || !instance || typeof instance.on !== 'function') {
             console.warn('[rive-viewer] cannot attach event listeners: missing EventType or .on() method');
             return;

@@ -11,6 +11,7 @@ export const CHILD_COMMAND_EVENT = 'render-surface:command';
 export const CHILD_READY_EVENT = 'render-surface:ready';
 export const CHILD_ACK_EVENT = 'render-surface:ack';
 export const CHILD_STATE_EVENT = 'render-surface:state';
+export const CHILD_TIMELINE_EVENT = 'render-surface:timeline';
 export const CHILD_POINTER_DOWN_EVENT = 'render-surface:pointerdown';
 export const RENDER_SURFACE_PROTOCOL_VERSION = 2;
 export const RENDER_SURFACE_COMMAND_RESULT_EVENT = 'rav:render-surface-command-result';

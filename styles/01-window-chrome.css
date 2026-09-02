@@ -34,7 +34,7 @@ body.is-tauri-window .app-shell {
     align-items: stretch;
     min-height: 50px;
     padding: 6px 8px 0;
-    grid-template-columns: max-content minmax(0, 1fr) max-content;
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.018) 0%, rgba(255, 255, 255, 0) 100%);
 }
 
@@ -57,7 +57,7 @@ body.is-tauri-window .app-shell {
 
 .titlebar-left {
     justify-content: flex-start;
-    min-width: max-content;
+    min-width: 0;
     align-self: stretch;
 }
 
@@ -227,7 +227,7 @@ body:not(.is-tauri-window) .window-controls {
 
 @media (max-width: 1040px) {
     .header-file-meta {
-        width: min(100%, 520px);
+        max-width: min(100%, 520px);
     }
 
     .header-file-meta-size {

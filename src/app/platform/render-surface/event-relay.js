@@ -5,20 +5,25 @@ import {
 } from '../../rive/control-events.js';
 import { TIMELINE_PROGRESS_EVENT } from '../../rive/timeline-progress.js';
 
-export function dispatchCanonicalTimelineProgress(documentRef, state) {
+export function dispatchTimelineProgressMetrics(documentRef, detail = {}) {
     const CustomEventCtor = documentRef?.defaultView?.CustomEvent || globalThis.CustomEvent;
-    if (typeof documentRef?.dispatchEvent !== 'function' || typeof CustomEventCtor !== 'function') return;
+    if (typeof documentRef?.dispatchEvent !== 'function' || typeof CustomEventCtor !== 'function') return false;
+    return documentRef.dispatchEvent(new CustomEventCtor(TIMELINE_PROGRESS_EVENT, { detail }));
+}
+
+export function dispatchCanonicalTimelineProgress(documentRef, state) {
     const playback = state?.playback || {};
-    documentRef.dispatchEvent(new CustomEventCtor(TIMELINE_PROGRESS_EVENT, {
-        detail: {
-            currentFrame: playback.currentFrame,
-            currentSeconds: playback.currentSeconds,
-            fps: playback.fps,
-            playbackType: playback.type,
-            totalFrames: playback.totalFrames,
-            totalSeconds: playback.totalSeconds ?? playback.durationSeconds,
-        },
-    }));
+    return dispatchTimelineProgressMetrics(documentRef, {
+        currentFrame: playback.currentFrame,
+        currentSeconds: playback.currentSeconds,
+        fps: playback.fps,
+        isPaused: playback.isPaused,
+        isPlaying: playback.isPlaying,
+        playbackName: playback.name,
+        playbackType: playback.type,
+        totalFrames: playback.totalFrames,
+        totalSeconds: playback.totalSeconds ?? playback.durationSeconds,
+    });
 }
 
 export function createRenderSurfaceEventRelay({

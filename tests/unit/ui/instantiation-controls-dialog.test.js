@@ -429,4 +429,81 @@ describe('ui/instantiation-controls-dialog', () => {
         await overlayDefinition.handleAction({ action: 'tree-scroll', value: 347 });
         expect(overlayDefinition.getState({ incremental: true }).treeScrollTop).toBe(347);
     });
+
+    it('configures and closes native-overlay controls without querying the hidden host tree', async () => {
+        const elements = buildElements();
+        let overlayDefinition;
+        const closeUiOverlay = vi.fn().mockResolvedValue(true);
+        const dirtyListener = vi.fn();
+        document.addEventListener('rav:ui-overlay-state-dirty', dirtyListener);
+        const controller = createInstantiationControlsDialogController({
+            callbacks: {
+                closeUiOverlay,
+                getCurrentFileName: () => 'overlay-export.riv',
+                getTauriInvoker: () => vi.fn(),
+                initLucideIcons: vi.fn(),
+                requestUiOverlay: vi.fn(async (definition) => {
+                    overlayDefinition = definition;
+                    return true;
+                }),
+            },
+            elements,
+            serializeControlHierarchy: () => ({
+                children: [{
+                    children: [],
+                    inputs: [
+                        {
+                            descriptor: { kind: 'string', name: 'name', path: 'name' },
+                            kind: 'string',
+                            name: 'name',
+                            path: 'name',
+                        },
+                        {
+                            descriptor: { kind: 'color', name: 'accentColor', path: 'accentColor' },
+                            kind: 'color',
+                            name: 'accentColor',
+                            path: 'accentColor',
+                        },
+                    ],
+                    kind: 'vm',
+                    label: 'Root VM',
+                    path: '',
+                }],
+                inputs: [],
+                kind: 'controls',
+                label: 'Controls',
+                path: '__controls__',
+            }),
+        });
+
+        await expect(controller.openDialog()).resolves.toEqual({
+            open: true,
+            overlay: true,
+            selectionCount: 0,
+        });
+        expect(elements.instantiationControlsTree.querySelectorAll('[data-control-key]')).toHaveLength(0);
+
+        expect(controller.configureForMcp({
+            packageSource: 'local',
+            selection: ['vm:name:string'],
+            snippetMode: 'scaffold',
+        })).toEqual(expect.objectContaining({
+            packageSource: 'local',
+            selectedControlKeys: ['vm:name:string'],
+            snippetMode: 'scaffold',
+        }));
+        expect(overlayDefinition.getState()).toEqual(expect.objectContaining({
+            packageSource: 'local',
+            selectedControlKeys: ['vm:name:string'],
+            snippetMode: 'scaffold',
+        }));
+        expect(dirtyListener).toHaveBeenCalled();
+        expect(() => controller.configureForMcp({
+            selection: ['vm:missing:string'],
+        })).toThrow('Unknown control selection key(s): vm:missing:string');
+
+        await expect(controller.toggleDialog('close')).resolves.toEqual({ open: false });
+        expect(closeUiOverlay).toHaveBeenCalledWith({ restoreFocus: true });
+        document.removeEventListener('rav:ui-overlay-state-dirty', dirtyListener);
+    });
 });

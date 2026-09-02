@@ -36,7 +36,7 @@ fn refreshes_for_missing_stale_or_relocated_markers_only() {
 
     assert!(registration_needed(None, "2.5.2", installed));
     assert!(registration_needed(
-        Some("2.5.1:riv-uti-v3:/Applications/Rive Animation Viewer.app\n"),
+        Some("2.5.1:riv-uti-v4:/Applications/Rive Animation Viewer.app\n"),
         "2.5.2",
         installed,
     ));
@@ -46,12 +46,12 @@ fn refreshes_for_missing_stale_or_relocated_markers_only() {
         installed,
     ));
     assert!(registration_needed(
-        Some("2.5.2:riv-uti-v3:/tmp/Rive Animation Viewer.app\n"),
+        Some("2.5.2:riv-uti-v4:/tmp/Rive Animation Viewer.app\n"),
         "2.5.2",
         installed,
     ));
     assert!(!registration_needed(
-        Some("2.5.2:riv-uti-v3:/Applications/Rive Animation Viewer.app\n"),
+        Some("2.5.2:riv-uti-v4:/Applications/Rive Animation Viewer.app\n"),
         "2.5.2",
         installed,
     ));
@@ -88,12 +88,27 @@ fn startup_refresh_is_wired_only_for_normal_official_production_launches() {
 #[test]
 fn split_handlers_display_the_canonical_app_name() {
     let status = super::handlers::status_from_handlers(
-        Path::new("/Applications/RAV 2.5.3 DEV.app"),
-        Some("/Applications/Rive.app".into()),
-        Some("/Applications/RAV 2.5.3 DEV.app".into()),
+        Path::new("/Applications/RAV 2.5.4 DEV.app"),
+        super::handlers::HandlerSnapshot {
+            resolved_content_type: Some(super::RIVIEW_RIV_UTI.into()),
+            handlers: vec![
+                (
+                    super::RIVIEW_RIV_UTI.into(),
+                    Some("/Applications/Rive.app".into()),
+                ),
+                (
+                    super::CANONICAL_RIV_UTI.into(),
+                    Some("/Applications/Rive.app".into()),
+                ),
+                (
+                    super::LEGACY_RAV_RIV_UTI.into(),
+                    Some("/Applications/RAV 2.5.4 DEV.app".into()),
+                ),
+            ],
+        },
     );
 
-    assert_eq!(status.state, "partial");
+    assert_eq!(status.state, "other-app");
     assert_eq!(status.handler_name.as_deref(), Some("Rive"));
 }
 
@@ -175,8 +190,13 @@ fn handler_status_canonicalizes_the_current_bundle_symmetrically() {
     symlink(&app.bundle, &link).expect("temporary app symlink should be created");
     let status = super::handlers::status_from_handlers(
         &link,
-        Some(app.bundle.clone()),
-        Some(app.bundle.clone()),
+        super::handlers::HandlerSnapshot {
+            resolved_content_type: Some(super::CANONICAL_RIV_UTI.into()),
+            handlers: super::KNOWN_RIV_UTIS
+                .into_iter()
+                .map(|identifier| (identifier.into(), Some(app.bundle.clone())))
+                .collect(),
+        },
     );
     assert_eq!(status.state, "rav-default");
     assert_eq!(status.handler_name.as_deref(), Some("RAV"));
@@ -195,8 +215,13 @@ fn handler_status_identifies_another_installed_copy_of_the_same_rav_bundle() {
     let other = TemporaryAppBundle::new("RAV Previous.app", Some("RAV"), "RAV");
     let status = super::handlers::status_from_handlers(
         &current.bundle,
-        Some(other.bundle.clone()),
-        Some(other.bundle.clone()),
+        super::handlers::HandlerSnapshot {
+            resolved_content_type: Some(super::RIVIEW_RIV_UTI.into()),
+            handlers: super::KNOWN_RIV_UTIS
+                .into_iter()
+                .map(|identifier| (identifier.into(), Some(other.bundle.clone())))
+                .collect(),
+        },
     );
 
     assert_eq!(status.state, "rav-other-copy");
@@ -212,8 +237,18 @@ fn handler_status_identifies_another_installed_copy_of_the_same_rav_bundle() {
 fn handler_status_leaves_the_name_empty_only_when_the_primary_app_is_unresolvable() {
     let status = super::handlers::status_from_handlers(
         Path::new("/Applications/RAV.app"),
-        Some("/".into()),
-        Some("/Applications/Legacy Handler.app".into()),
+        super::handlers::HandlerSnapshot {
+            resolved_content_type: Some(super::RIVIEW_RIV_UTI.into()),
+            handlers: vec![
+                (super::RIVIEW_RIV_UTI.into(), Some("/".into())),
+                (super::CANONICAL_RIV_UTI.into(), Some("/".into())),
+                (super::PLAY_RIV_UTI.into(), Some("/".into())),
+                (
+                    super::LEGACY_RAV_RIV_UTI.into(),
+                    Some("/Applications/Legacy Handler.app".into()),
+                ),
+            ],
+        },
     );
     assert_eq!(status.state, "other-app");
     assert_eq!(status.handler_name, None);
@@ -238,11 +273,87 @@ fn repair_command_matches_the_2_4_3_registration_contract() {
 
 #[cfg(target_os = "macos")]
 #[test]
-fn repair_reasserts_both_riv_handler_types() {
-    assert_eq!(
-        super::commands::handler_content_types(),
-        [super::CANONICAL_RIV_UTI, super::LEGACY_RAV_RIV_UTI]
+fn one_click_targets_the_effective_resolved_riv_type() {
+    let current_bundle = Path::new("/Applications/RAV Dynamic.app");
+    let other_bundle = Path::new("/Applications/Other Viewer.app");
+    let status = super::handlers::status_from_handlers(
+        current_bundle,
+        super::handlers::HandlerSnapshot {
+            resolved_content_type: Some("test.vendor.resolved.riv".into()),
+            handlers: vec![
+                (
+                    "test.vendor.resolved.riv".into(),
+                    Some(other_bundle.to_path_buf()),
+                ),
+                (
+                    "test.vendor.alias.riv".into(),
+                    Some(current_bundle.to_path_buf()),
+                ),
+            ],
+        },
     );
+
+    assert_eq!(
+        super::commands::claim_target_content_type(&status, &status),
+        "test.vendor.resolved.riv"
+    );
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn dynamic_riv_handler_collection_has_no_fixed_identifier_limit() {
+    let discovered = (0..30)
+        .map(|index| format!("test.vendor.{index}.riv"))
+        .collect::<Vec<_>>();
+    let current_bundle = Path::new("/Applications/RAV Dynamic.app");
+    let status = super::handlers::status_from_handlers(
+        current_bundle,
+        super::handlers::HandlerSnapshot {
+            resolved_content_type: Some(discovered[0].clone()),
+            handlers: discovered
+                .iter()
+                .map(|identifier| (identifier.clone(), Some(current_bundle.to_path_buf())))
+                .collect(),
+        },
+    );
+    assert_eq!(status.state, "rav-default");
+    assert_eq!(status.content_type_handlers.len(), discovered.len());
+    assert!(discovered.iter().all(|identifier| status
+        .content_type_handlers
+        .iter()
+        .any(|entry| &entry.content_type == identifier)));
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn dynamic_aliases_are_diagnostics_instead_of_click_through_tasks() {
+    let current_bundle = Path::new("/Applications/RAV Dynamic.app");
+    let other_bundle = Path::new("/Applications/Other Viewer.app");
+    let content_types = (0..30)
+        .map(|index| format!("test.vendor.{index}.riv"))
+        .collect::<Vec<_>>();
+    let status = super::handlers::status_from_handlers(
+        current_bundle,
+        super::handlers::HandlerSnapshot {
+            resolved_content_type: Some(content_types[0].clone()),
+            handlers: content_types
+                .iter()
+                .enumerate()
+                .map(|(index, identifier)| {
+                    let handler = if index == 0 {
+                        current_bundle.to_path_buf()
+                    } else {
+                        other_bundle.to_path_buf()
+                    };
+                    (identifier.clone(), Some(handler))
+                })
+                .collect(),
+        },
+    );
+
+    assert_eq!(status.state, "rav-default");
+    assert_eq!(status.content_type_handlers.len(), 30);
+    assert_eq!(status.reason, None);
 }
 
 #[cfg(target_os = "macos")]

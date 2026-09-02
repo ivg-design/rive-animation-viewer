@@ -427,9 +427,9 @@ describe('ui/shell-controller', () => {
 
         elements.runtimeSelect.value = 'canvas';
         elements.runtimeSelect.dispatchEvent(new Event('change'));
-        await Promise.resolve();
-
-        expect(showError).toHaveBeenCalledWith('Failed to load runtime: runtime failed');
+        await vi.waitFor(() => {
+            expect(showError).toHaveBeenCalledWith('Failed to load runtime: runtime failed');
+        });
         expect(logEvent).toHaveBeenCalledWith('native', 'runtime-load-failed', 'Failed to load runtime canvas.', expect.any(Error));
         expect(refreshInfoStrip).toHaveBeenCalled();
         expect(updateVersionInfo).toHaveBeenCalledWith('Loading runtime...');

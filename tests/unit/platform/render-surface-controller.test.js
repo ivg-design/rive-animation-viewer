@@ -251,6 +251,39 @@ describe('platform/render-surface/controller', () => {
         harness.eventHandlers.get('render-surface:metrics')({ payload: { fps: 59.6, sessionId } });
         expect(document.getElementById('fps-chip').textContent).toBe('60 FPS');
 
+        const timelineUpdates = [];
+        const onTimelineProgress = (event) => timelineUpdates.push(event.detail);
+        document.addEventListener('rav:timeline-progress', onTimelineProgress);
+        harness.eventHandlers.get('render-surface:timeline')({ payload: {
+            advanceRevision: 31,
+            currentFrame: 31,
+            currentSeconds: 31 / 60,
+            fps: 60,
+            playbackName: 'Intro',
+            playbackType: 'animation',
+            sessionId,
+            totalFrames: 60,
+            totalSeconds: 1,
+        } });
+        harness.eventHandlers.get('render-surface:timeline')({ payload: {
+            advanceRevision: 32,
+            currentFrame: 32,
+            currentSeconds: 32 / 60,
+            fps: 60,
+            playbackName: 'Intro',
+            playbackType: 'animation',
+            sessionId,
+            totalFrames: 60,
+            totalSeconds: 1,
+        } });
+        harness.eventHandlers.get('render-surface:timeline')({ payload: {
+            advanceRevision: 31,
+            currentFrame: 31,
+            sessionId,
+        } });
+        expect(timelineUpdates.map(({ currentFrame }) => currentFrame)).toEqual([31, 32]);
+        document.removeEventListener('rav:timeline-progress', onTimelineProgress);
+
         dispatchVmControlMutation(document, {
             descriptor: { kind: 'number', name: 'speed', path: 'speed', source: 'view-model' },
             kind: 'number',
@@ -389,6 +422,24 @@ describe('platform/render-surface/controller', () => {
         }));
 
         document.removeEventListener(RENDER_SURFACE_AUTHORITY_EVENT, onAuthority);
+        harness.controller.dispose();
+    });
+
+    it('captures the active child identity for an authority-sensitive command', async () => {
+        const harness = createHarness({ autoAcknowledge: true });
+        await harness.controller.setup();
+        const sessionId = await activateInitialSurface(harness, 'Eval Surface');
+        harness.invoke.mockClear();
+
+        await expect(harness.controller.requestActiveCommand('eval', { expression: 'riveInstance' }))
+            .resolves.toEqual(expect.objectContaining({ applied: true, status: 'applied', targetSessionId: sessionId }));
+        expect(harness.invoke).toHaveBeenCalledWith('send_render_surface_message', expect.objectContaining({
+            payload: expect.objectContaining({
+                payload: { expression: 'riveInstance' },
+                sessionId,
+                type: 'eval',
+            }),
+        }));
         harness.controller.dispose();
     });
 
@@ -1665,6 +1716,9 @@ describe('platform/render-surface/controller', () => {
             currentFrame: undefined,
             currentSeconds: undefined,
             fps: undefined,
+            isPaused: undefined,
+            isPlaying: undefined,
+            playbackName: 'MainSM',
             playbackType: 'stateMachine',
             totalFrames: undefined,
             totalSeconds: undefined,

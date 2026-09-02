@@ -38,7 +38,7 @@ export default function Troubleshooting() {
       <h2>The Finder icon did not change</h2>
       <ul>
         <li>The current UTI and icon declarations require the signed installed app to replace the older bundle and launch once</li>
-        <li>Open RAV Settings and check <strong>Default .riv App</strong>; it names the currently resolved application or another installed RAV copy. Use <strong>MAKE DEFAULT</strong> when another app owns either identifier, or <strong>REPAIR ICON</strong> when this exact RAV copy is already default</li>
+        <li>Open RAV Settings and check <strong>Default .riv App</strong>; it names the application macOS currently resolves for <code>.riv</code> files or another installed RAV copy. Use <strong>MAKE DEFAULT</strong> once, then use <strong>REPAIR ICON</strong> if Finder still shows stale document artwork</li>
         <li>Finder and Launch Services may retain cached document artwork until the app has launched and the folder is reopened</li>
         <li>Default-app and document-icon registration do not repair Quick Look previews, which are supplied by a separate system extension</li>
       </ul>

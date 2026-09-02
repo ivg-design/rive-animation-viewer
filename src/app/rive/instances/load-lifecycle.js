@@ -2,6 +2,12 @@ import { dispatchAnimationLoaded } from '../control-events.js';
 import { runUserOnLoadWithVmRestore } from '../instance/load-hooks.js';
 import { buildPlaybackContext, buildPlaybackStatusLabel } from '../playback-status.js';
 import { normalizeLoadErrorMessage } from './load-settlement.js';
+import { clearStateMachineInputMetadata, getStateMachineNames } from '../runtime-compatibility.js';
+import { normalizeStateMachineSelection } from '../default-state-machine.js';
+import {
+    captureTimelineProgressForInstance,
+    dispatchTimelineProgress,
+} from '../timeline-progress.js';
 
 export function safelyInvokeUserCallback(callback, event, callbackName) {
     if (typeof callback !== 'function') {
@@ -56,6 +62,7 @@ export function configureRiveLoadLifecycle({
             notifyLoadFailure(new Error('Animation load superseded.'));
             return;
         }
+        clearStateMachineInputMetadata(getRiveInstance());
         const inPlaceReset = takePendingInPlaceReset();
         hideError();
         resizeCanvas(config.canvas, userConfig);
@@ -74,6 +81,11 @@ export function configureRiveLoadLifecycle({
         });
         if (authoritativeChildMode) {
             getRiveInstance()?.pause?.();
+        } else {
+            dispatchTimelineProgress(
+                documentRef,
+                captureTimelineProgressForInstance(getRiveInstance(), getPlaybackState()),
+            );
         }
         renderVmInputControls();
         setVmControlBaselineSnapshot();
@@ -121,7 +133,15 @@ export function configureRiveLoadLifecycle({
         onLoop: ['loop', 'Loop event emitted by runtime.', userOnLoop],
         onStateChange: ['statechange', 'State machine changed state.', userOnStateChange],
     };
+    const hasStateMachines = getStateMachineNames(config).length > 0;
+    const hasAnimations = normalizeStateMachineSelection(config.animations).length > 0;
     Object.entries(runtimeCallbacks).forEach(([name, [eventName, message, callback]]) => {
+        const deprecated = name === 'onLoop' || name === 'onStateChange';
+        const unused = name === 'onLoop' ? hasStateMachines && !hasAnimations : hasAnimations && !hasStateMachines;
+        if (deprecated && (authoritativeChildMode || (unused && typeof callback !== 'function'))) {
+            delete config[name];
+            return;
+        }
         config[name] = (event) => {
             if (!isCurrentLoad()) return;
             logEvent('native', eventName, message, event);
@@ -132,6 +152,10 @@ export function configureRiveLoadLifecycle({
         if (!isCurrentLoad()) return;
         if (!authoritativeChildMode) {
             updatePlaybackChips();
+            dispatchTimelineProgress(
+                documentRef,
+                captureTimelineProgressForInstance(getRiveInstance(), getPlaybackState()),
+            );
             safelyInvokeUserCallback(userOnAdvance, event, 'onAdvance');
         }
     };

@@ -29,23 +29,23 @@ const topics = [
 export default function DocsLanding() {
   return (
     <>
-      <section className="text-center mb-12 pt-4">
+      <section className="mb-10">
         <h1 className="text-4xl font-bold text-[var(--text-white)] mb-4">RAV Documentation</h1>
-        <p className="text-lg text-[var(--text-dim)] max-w-2xl mx-auto">
+        <p className="text-lg text-[var(--text-dim)] max-w-2xl">
           Complete guide to Rive Animation Viewer — from installation to MCP remote control.
         </p>
       </section>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {topics.map((topic) => (
           <Link
             key={topic.title}
             href={asset(topic.href)}
-            className="group flex flex-col items-center gap-3 p-5 rounded-xl bg-[var(--bg-zinc)] border border-[var(--border-dark)] hover:border-[var(--neon-glow)] hover:bg-[var(--bg-elevated)] transition-all duration-300 text-center"
+            className="group flex items-start gap-3 p-5 rounded-lg border border-[var(--border-dark)] hover:border-[var(--neon-glow)] hover:bg-[var(--bg-zinc)]"
           >
-            <topic.icon className="w-6 h-6 text-[var(--text-muted)] group-hover:text-[var(--neon)] transition-colors" />
+            <topic.icon className="w-5 h-5 mt-1 shrink-0 text-[var(--text-muted)] group-hover:text-[var(--neon)]" />
             <div>
-              <h3 className="text-sm font-semibold text-[var(--text-white)]">{topic.title}</h3>
+              <span className="text-sm font-semibold text-[var(--text-white)]">{topic.title}</span>
               <p className="text-xs text-[var(--text-muted)] mt-1">{topic.desc}</p>
             </div>
           </Link>

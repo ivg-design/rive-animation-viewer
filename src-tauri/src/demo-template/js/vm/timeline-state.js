@@ -96,5 +96,70 @@
             var target = getRenderSurfaceBridgeState().playbackTarget || window.__ravRenderSurfaceTarget || {};
             if (target.type !== 'animation' || !target.name) return null;
             var metrics = captureActiveTimelineMetrics(target.name);
-            return metrics ? rememberActiveTimelineMetrics(getRenderSurfaceBridgeState(), target, metrics) : null;
+            if (!metrics) return null;
+            rememberActiveTimelineMetrics(getRenderSurfaceBridgeState(), target, metrics);
+            // Timeline position is an animation-clock signal, not a ViewModel
+            // snapshot. Publish its tiny payload on every renderer advance so
+            // the host CTI observes each frame while the heavier canonical
+            // state remains safely throttled.
+            if (isRenderSurfaceMode && typeof window.__ravRenderSurfaceEmit === 'function') {
+                window.__ravRenderSurfaceEmit('render-surface:timeline', Object.assign({
+                    advanceRevision: renderSurfaceAdvanceRevision,
+                    isPaused: false,
+                    isPlaying: true,
+                    playbackName: target.name,
+                    playbackType: 'animation',
+                }, metrics));
+            }
+            return metrics;
+        }
+
+        function scrubRenderSurfaceTimeline(payload) {
+            if (!riveInstance || typeof riveInstance.scrub !== 'function') {
+                throw new Error('Timeline scrubbing is unavailable.');
+            }
+            var bridgeState = getRenderSurfaceBridgeState();
+            var target = bridgeState.playbackTarget || window.__ravRenderSurfaceTarget || {};
+            if (target.type !== 'animation' || !target.name) {
+                throw new Error('Timeline scrubbing requires an active linear animation.');
+            }
+            var requestedName = payload && typeof payload.name === 'string' ? payload.name : target.name;
+            if (requestedName !== target.name) {
+                throw new Error('Timeline scrub target does not match the active animation.');
+            }
+            var before = captureActiveTimelineMetrics(target.name);
+            if (!before && timelineSnapshotMatchesTarget(bridgeState.timelineSnapshot, target)) {
+                before = bridgeState.timelineSnapshot.metrics;
+            }
+            var requestedSeconds = Number(payload && payload.seconds);
+            if (!Number.isFinite(requestedSeconds)) {
+                var requestedFrame = Number(payload && payload.frame);
+                if (Number.isFinite(requestedFrame) && before && before.fps) {
+                    requestedSeconds = requestedFrame / before.fps;
+                }
+            }
+            if (!Number.isFinite(requestedSeconds)) throw new Error('Timeline scrub time is invalid.');
+            requestedSeconds = Math.max(0, requestedSeconds);
+            if (before && Number.isFinite(before.totalSeconds)) {
+                requestedSeconds = Math.min(before.totalSeconds, requestedSeconds);
+            }
+            var wrappers = riveInstance.animator && Array.isArray(riveInstance.animator.animations)
+                ? riveInstance.animator.animations : [];
+            var hasWrapper = wrappers.some(function (animation) { return animation && animation.name === target.name; });
+            // Rive prunes one-shot wrappers at completion. Recreate the target
+            // paused so the retained terminal status can still seek backward.
+            if (!hasWrapper && typeof riveInstance.pause === 'function') riveInstance.pause(target.name);
+            riveInstance.scrub(target.name, requestedSeconds);
+            var metrics = captureActiveTimelineMetrics(target.name) || Object.assign({}, before || {}, {
+                currentFrame: before && before.fps ? Math.round(requestedSeconds * before.fps) : null,
+                currentSeconds: requestedSeconds,
+            });
+            rememberActiveTimelineMetrics(bridgeState, target, metrics);
+            return {
+                currentFrame: metrics.currentFrame,
+                currentSeconds: metrics.currentSeconds,
+                name: target.name,
+                totalFrames: metrics.totalFrames,
+                totalSeconds: metrics.totalSeconds,
+            };
         }

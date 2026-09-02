@@ -92,11 +92,6 @@
                         <option value="bottomRight">ALIGN: BOTTOM RIGHT</option>
                     </select>
                     <div class="fps-chip" id="fps-chip"><span class="dot"></span>-- FPS</div>
-                    <div class="timeline-progress" id="timeline-progress" data-unit="frames" aria-hidden="true">
-                        <div class="timeline-progress-readout" id="timeline-progress-readout" aria-live="off">-- / -- FR</div>
-                        <progress class="timeline-progress-bar" id="timeline-progress-bar" max="1" value="0" aria-label="Timeline progress"></progress>
-                        <button type="button" class="timeline-progress-unit" id="timeline-progress-unit" aria-label="Show timeline time in seconds">FRAMES</button>
-                    </div>
                 </div>
                 <div class="toolbar-right">
                     <div class="header-right-actions">
@@ -244,30 +239,35 @@
                     </div>
                 </div>
                 <div class="runtime-strip" id="runtime-strip">
-                    <div class="runtime-strip-left">
-                        <button type="button" id="show-left-panel-btn" class="workspace-edge-toggle workspace-edge-toggle-left" title="Show Script Panel" aria-label="Show Script Panel" hidden>
-                            <i data-lucide="chevron-right" class="lucide-14"></i>
-                        </button>
-                        <button type="button" class="runtime-chip runtime-chip-mcp" id="mcp-status-chip" data-mcp-state="waiting" title="MCP: connecting to the bridge (click to disable)">
-                            <span class="mcp-dot" aria-hidden="true"></span>MCP
-                        </button>
-                        <button type="button" class="runtime-chip runtime-chip-console" id="console-mode-chip" data-console-mode="closed" title="Console closed (click to open)">
-                            <i data-lucide="rows-3" class="lucide-10" aria-hidden="true"></i>
-                            <span id="console-mode-chip-label">OPEN</span>
-                        </button>
-                        <span class="runtime-strip-sep" aria-hidden="true">|</span>
-                        <span class="runtime-chip runtime-chip-runtime" id="runtime-strip-runtime">RT: WEBGL2 v2.40.0</span>
-                    </div>
-                    <div class="runtime-strip-right">
-                        <button type="button" class="runtime-chip runtime-chip-update" id="update-chip" hidden>UPDATE</button>
-                        <span class="runtime-chip runtime-chip-status" id="info">Ready to load animation</span>
-                        <button type="button" id="show-right-panel-btn" class="workspace-edge-toggle workspace-edge-toggle-right" title="Show Properties Panel" aria-label="Show Properties Panel" hidden>
-                            <i data-lucide="chevron-left" class="lucide-14"></i>
-                        </button>
+                    <div class="timeline-progress" id="timeline-progress" data-unit="frames" aria-hidden="true" hidden>
+                        <button type="button" class="timeline-progress-unit" id="timeline-progress-unit" aria-label="Show timeline time in seconds">FRAMES</button>
+                        <div class="timeline-progress-track"><div class="timeline-progress-visual" aria-hidden="true"><span class="timeline-progress-fill"></span><span class="timeline-progress-cti"></span></div><div class="timeline-progress-scale" id="timeline-progress-scale" aria-hidden="true"></div><input class="timeline-progress-bar" id="timeline-progress-bar" type="range" min="0" max="1" step="1" value="0" aria-label="Timeline playhead"></div>
+                        <div class="timeline-progress-readout" id="timeline-progress-readout" aria-live="off">-- / -- FR</div></div>
+                    <div class="runtime-strip-primary">
+                        <div class="runtime-strip-left">
+                            <button type="button" id="show-left-panel-btn" class="workspace-edge-toggle workspace-edge-toggle-left" title="Show Script Panel" aria-label="Show Script Panel" hidden>
+                                <i data-lucide="chevron-right" class="lucide-14"></i>
+                            </button>
+                            <button type="button" class="runtime-chip runtime-chip-mcp" id="mcp-status-chip" data-mcp-state="waiting" title="MCP: connecting to the bridge (click to disable)">
+                                <span class="mcp-dot" aria-hidden="true"></span>MCP
+                            </button>
+                            <button type="button" class="runtime-chip runtime-chip-console" id="console-mode-chip" data-console-mode="closed" title="Console closed (click to open)">
+                                <i data-lucide="rows-3" class="lucide-10" aria-hidden="true"></i>
+                                <span id="console-mode-chip-label">OPEN</span>
+                            </button>
+                            <span class="runtime-strip-sep" aria-hidden="true">|</span>
+                            <span class="runtime-chip runtime-chip-runtime" id="runtime-strip-runtime">RT: WEBGL2 v2.40.0</span>
+                        </div>
+                        <div class="runtime-strip-right">
+                            <button type="button" class="runtime-chip runtime-chip-update" id="update-chip" hidden>UPDATE</button>
+                            <span class="runtime-chip runtime-chip-status" id="info">Ready to load animation</span>
+                            <button type="button" id="show-right-panel-btn" class="workspace-edge-toggle workspace-edge-toggle-right" title="Show Properties Panel" aria-label="Show Properties Panel" hidden>
+                                <i data-lucide="chevron-left" class="lucide-14"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="panel-resizer panel-resizer-horizontal" id="center-resizer" aria-hidden="true"></div>
-
                 <button type="button" id="show-event-log-btn" class="workspace-edge-toggle workspace-edge-toggle-bottom" title="Show Event Console" aria-label="Show Event Console" hidden>
                     <i data-lucide="chevron-up" class="lucide-14"></i>
                 </button>

@@ -150,6 +150,7 @@ export function createControllerStack({
             getCurrentRuntime,
             getLoadedRuntime,
             getLiveConfig: uiStack.getLiveConfig,
+            getCurrentRuntimeVersion,
             getRiveInstance,
             getRenderSurfaceAuthority: () => platformStack?.renderSurfaceController?.getState?.() || null,
             getRenderSurfaceCanonicalState: () => platformStack?.renderSurfaceController?.getCanonicalState?.() || null,

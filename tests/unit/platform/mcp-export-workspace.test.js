@@ -139,4 +139,49 @@ describe('platform/mcp/export-workspace', () => {
             ['close'],
         ]);
     });
+
+    it('uses the overlay-safe controller binding when the visible tree is in a native window', async () => {
+        const state = {
+            packageSource: 'cdn',
+            selectedControlKeys: [],
+            snippetMode: 'compact',
+        };
+        const configure = vi.fn(async ({ packageSource, selection, snippetMode } = {}) => {
+            if (packageSource) state.packageSource = packageSource;
+            if (Array.isArray(selection)) state.selectedControlKeys = [...selection];
+            if (snippetMode) state.snippetMode = snippetMode;
+            return { ...state };
+        });
+        const windowRef = {
+            _mcpConfigureInstantiationControls: configure,
+            _mcpExportDemoToPath: vi.fn(async (path) => path),
+            _mcpToggleInstantiationControlsDialog: vi.fn(async () => ({ open: true, overlay: true })),
+        };
+        const commands = createExportWorkspaceCommands({ documentRef: document, windowRef });
+        const exportPromise = commands.rav_export_demo_visual({
+            output_path: '/tmp/native-overlay.html',
+            package_source: 'local',
+            selection: ['vm:name:string', 'vm:accentColor:color'],
+            snippet_mode: 'scaffold',
+            step_delay_ms: 0,
+        });
+
+        await vi.runAllTimersAsync();
+        await expect(exportPromise).resolves.toEqual({ ok: true, path: '/tmp/native-overlay.html' });
+        expect(configure.mock.calls).toEqual([
+            [{ selection: ['vm:name:string', 'vm:accentColor:color'] }],
+            [{ packageSource: 'local' }],
+            [{ snippetMode: 'scaffold' }],
+            [{}],
+        ]);
+        expect(windowRef._mcpExportDemoToPath).toHaveBeenCalledWith('/tmp/native-overlay.html', {
+            packageSource: 'local',
+            selectedControlKeys: ['vm:name:string', 'vm:accentColor:color'],
+            snippetMode: 'scaffold',
+        });
+        expect(windowRef._mcpToggleInstantiationControlsDialog.mock.calls).toEqual([
+            ['open'],
+            ['close'],
+        ]);
+    });
 });

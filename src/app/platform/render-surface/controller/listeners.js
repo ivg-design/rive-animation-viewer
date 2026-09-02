@@ -4,6 +4,7 @@ import {
     CHILD_POINTER_DOWN_EVENT,
     CHILD_READY_EVENT,
     CHILD_STATE_EVENT,
+    CHILD_TIMELINE_EVENT,
 } from '../protocol.js';
 
 const CHILD_LOADED_EVENT = 'render-surface:loaded';
@@ -147,6 +148,7 @@ export function registerRenderSurfaceControllerListeners({
             [CHILD_DIAGNOSTIC_EVENT, handlers.handleChildDiagnostic],
             [CHILD_ACK_EVENT, handlers.handleChildAck],
             [CHILD_STATE_EVENT, handlers.handleChildState],
+            [CHILD_TIMELINE_EVENT, handlers.handleChildTimeline],
             [CHILD_POINTER_DOWN_EVENT, handlers.handleChildPointerDown],
             [CHILD_LOADED_EVENT, gateStartupReceipt(CHILD_LOADED_EVENT, handlers.handleChildLoaded)],
             [CHILD_ERROR_EVENT, gateStartupReceipt(CHILD_ERROR_EVENT, handlers.handleChildError)],

@@ -61,7 +61,7 @@ export function normalizeSnippetMode(value) {
     return value === 'scaffold' ? 'scaffold' : 'compact';
 }
 
-export function normalizeSelectedControlKeySet(selectedControlKeys = []) {
+export function normalizeSelectedControlKeySet(selectedControlKeys = null) {
     if (!Array.isArray(selectedControlKeys)) {
         return null;
     }

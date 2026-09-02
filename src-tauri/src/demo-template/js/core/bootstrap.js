@@ -139,6 +139,7 @@
             }
             var type = String(command.type || command.command || '').toLowerCase();
             var payload = renderSurfaceCommandPayload(command);
+            if (type === 'eval') return evaluateRenderSurfaceExpression(payload);
             if (type === 'capture-canvas') {
                 var requestId = payload.requestId;
                 if (!requestId) throw new Error('Render-surface capture request is missing requestId');
@@ -242,6 +243,7 @@
                 riveInstance.pause();
                 return { paused: true };
             }
+            if (type === 'scrub') return scrubRenderSurfaceTimeline(payload);
             if (type === 'reset') {
                 var resetSnapshot = Array.isArray(payload.snapshot) ? payload.snapshot : [];
                 var resetContract = buildRenderSurfaceResetContract(payload.params);
@@ -387,11 +389,9 @@
             resizeCanvas();
             if (riveInstance) riveInstance.resizeDrawingSurfaceToCanvas();
         }
-        /* ── Canvas background ───────────────────────────────── */
-        function updateCanvasBackground() {
+        /* ── Canvas background ───────────────────────────────── */ function updateCanvasBackground() {
             var canvasBackground = isCanvasBackgroundTransparent() ? 'transparent' : currentCanvasColor;
             document.documentElement.style.setProperty('--canvas-color', canvasBackground);
-
             if (els.canvasContainer) els.canvasContainer.style.background = canvasBackground;
             if (els.canvas) els.canvas.style.background = canvasBackground;
             var themeColorMeta = document.querySelector('meta[name="theme-color"]');

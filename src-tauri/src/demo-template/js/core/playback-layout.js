@@ -162,4 +162,52 @@
             if (els.fpsChip) els.fpsChip.innerHTML = '<span class="dot"></span>-- FPS';
         }
 
+        function reportRiveLoadStatus(instance, riveConfig, userSpecifiedAnimations, configuredAnimations) {
+            var stateMachineNames = Array.isArray(instance && instance.stateMachineNames) ? instance.stateMachineNames : [];
+            var configuredStateMachines = runtimeCompatibility.getStateMachineNames(riveConfig);
+            var activeStateMachine = configuredStateMachines[0] || stateMachineNames[0] || 'none';
+            var activeAnimation = userSpecifiedAnimations ? configuredAnimations[0] : null;
+            updateInfo(activeAnimation
+                ? 'Loaded - animation "' + activeAnimation + '" active'
+                : (stateMachineNames.length > 0
+                    ? 'Loaded - state machine "' + activeStateMachine + '" active'
+                    : 'Loaded - no state machines'));
+            logEvent('native', 'load', 'Animation loaded successfully.');
+        }
+
+        function resolveStandalonePlaybackConfig(payload, appliedEditorConfig) {
+            var animationNames = function (config) {
+                var value = config && config.animations;
+                return (Array.isArray(value) ? value : [value]).filter(function (name) {
+                    return typeof name === 'string' && name.trim().length > 0;
+                });
+            };
+            var payloadStateMachines = runtimeCompatibility.getStateMachineNames(payload);
+            var payloadAnimations = animationNames(payload);
+            var payloadPlaybackSelected = payloadStateMachines.length > 0 || payloadAnimations.length > 0;
+            var source = payloadPlaybackSelected ? payload : appliedEditorConfig;
+            var stateMachines = runtimeCompatibility.getStateMachineNames(source);
+            var animations = animationNames(source);
+            var config = Object.assign({}, appliedEditorConfig);
+            if (payloadPlaybackSelected) {
+                delete config.stateMachine;
+                delete config.stateMachines;
+                delete config.animations;
+            }
+            if (stateMachines.length) {
+                if (typeof source.stateMachine === 'string' && source.stateMachine.trim()) {
+                    config.stateMachine = stateMachines[0];
+                } else {
+                    config.stateMachines = stateMachines.length === 1 ? stateMachines[0] : stateMachines;
+                }
+            }
+            if (animations.length) config.animations = animations.length === 1 ? animations[0] : animations;
+            config = runtimeCompatibility.normalizePlaybackConfig(config, payload.runtimeVersion);
+            return {
+                animations: animationNames(config),
+                config: config,
+                stateMachines: runtimeCompatibility.getStateMachineNames(config),
+            };
+        }
+
         /* ── Settings popover ────────────────────────────────── */

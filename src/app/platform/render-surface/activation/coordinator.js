@@ -10,7 +10,7 @@ function deferred() {
 }
 
 function shouldReplay(type) {
-    return type !== 'presentation' && type !== 'vm-image-set';
+    return type !== 'eval' && type !== 'presentation' && type !== 'vm-image-set';
 }
 
 export function createRenderSurfaceActivationCoordinator({
@@ -265,7 +265,7 @@ export function createRenderSurfaceActivationCoordinator({
         return { failed: false, outcomes };
     }
 
-    async function requestCommand(type, payload = {}) {
+    async function requestCommand(type, payload = {}, { targetSessionId: capturedTargetSessionId } = {}) {
         const observedBarrier = barrier;
         if (observedBarrier?.phase === 'draining') {
             await observedBarrier.routeGate.promise;
@@ -284,7 +284,7 @@ export function createRenderSurfaceActivationCoordinator({
         // Register before awaiting so `beginBarrier()` cannot activate a
         // replacement while a successfully applied old-surface command is
         // still awaiting its acknowledgement and replay journal entry.
-        const targetSessionId = routedSessionId();
+        const targetSessionId = capturedTargetSessionId || routedSessionId();
         const delivery = sendToSession(targetSessionId, type, payload);
         directInFlight.add(delivery);
         try {

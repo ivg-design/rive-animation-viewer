@@ -56,82 +56,108 @@ export function createExportWorkspaceCommands({
 
             await windowRef._mcpToggleInstantiationControlsDialog('open');
             await sleep(step_delay_ms);
+            try {
+                let configuredState = null;
+                if (typeof windowRef._mcpConfigureInstantiationControls === 'function') {
+                    if (selection !== undefined) {
+                        configuredState = await windowRef._mcpConfigureInstantiationControls({ selection });
+                        await sleep(step_delay_ms);
+                    }
+                    if (package_source) {
+                        configuredState = await windowRef._mcpConfigureInstantiationControls({
+                            packageSource: package_source,
+                        });
+                        await sleep(step_delay_ms);
+                    }
+                    if (snippet_mode) {
+                        configuredState = await windowRef._mcpConfigureInstantiationControls({
+                            snippetMode: snippet_mode,
+                        });
+                        await sleep(step_delay_ms);
+                    }
+                    configuredState = await windowRef._mcpConfigureInstantiationControls({});
+                } else {
+                    if (selection === 'all') {
+                        documentRef.getElementById('instantiation-preset-all-btn')?.click();
+                    } else if (selection === 'changed') {
+                        documentRef.getElementById('instantiation-preset-changed-btn')?.click();
+                    } else if (selection === 'none') {
+                        documentRef.getElementById('instantiation-preset-none-btn')?.click();
+                    } else if (Array.isArray(selection)) {
+                        const tree = documentRef.getElementById('instantiation-controls-tree');
+                        if (!tree) throw new Error('Controls tree not in DOM');
+                        const availableKeys = new Set(Array.from(tree.querySelectorAll(
+                            'input[type="checkbox"][data-control-key]',
+                        )).map((checkbox) => checkbox.getAttribute('data-control-key')).filter(Boolean));
+                        const normalizedKeys = selection.map((key) => ({
+                            original: key,
+                            normalized: normalizeControlSelectionKey(key),
+                        }));
+                        const unmatchedKeys = normalizedKeys.filter(({ normalized }) => (
+                            !normalized || !availableKeys.has(normalized)
+                        ));
+                        if (unmatchedKeys.length) {
+                            throw new Error(`Unknown control selection key(s): ${unmatchedKeys
+                                .map(({ original }) => String(original))
+                                .join(', ')}`);
+                        }
+                        documentRef.getElementById('instantiation-preset-none-btn')?.click();
+                        for (const key of new Set(normalizedKeys.map(({ normalized }) => normalized))) {
+                            const checkbox = Array.from(tree.querySelectorAll(
+                                'input[type="checkbox"][data-control-key]',
+                            )).find((candidate) => candidate.getAttribute('data-control-key') === key);
+                            if (checkbox && !checkbox.checked) checkbox.click();
+                        }
+                    }
+                    if (selection !== undefined) await sleep(step_delay_ms);
 
-            if (selection === 'all') {
-                documentRef.getElementById('instantiation-preset-all-btn')?.click();
-            } else if (selection === 'changed') {
-                documentRef.getElementById('instantiation-preset-changed-btn')?.click();
-            } else if (selection === 'none') {
-                documentRef.getElementById('instantiation-preset-none-btn')?.click();
-            } else if (Array.isArray(selection)) {
-                const tree = documentRef.getElementById('instantiation-controls-tree');
-                if (!tree) throw new Error('Controls tree not in DOM');
-                const availableKeys = new Set(Array.from(tree.querySelectorAll(
-                    'input[type="checkbox"][data-control-key]',
-                )).map((checkbox) => checkbox.getAttribute('data-control-key')).filter(Boolean));
-                const normalizedKeys = selection.map((key) => ({
-                    original: key,
-                    normalized: normalizeControlSelectionKey(key),
-                }));
-                const unmatchedKeys = normalizedKeys.filter(({ normalized }) => (
-                    !normalized || !availableKeys.has(normalized)
-                ));
-                if (unmatchedKeys.length) {
-                    await windowRef._mcpToggleInstantiationControlsDialog('close');
-                    throw new Error(`Unknown control selection key(s): ${unmatchedKeys
-                        .map(({ original }) => String(original))
-                        .join(', ')}`);
+                    if (package_source) {
+                        const select = documentRef.getElementById('instantiation-package-source-select');
+                        if (select) {
+                            select.value = package_source;
+                            select.dispatchEvent(new Event('change', { bubbles: true }));
+                            await sleep(step_delay_ms);
+                        }
+                    }
+
+                    if (snippet_mode) {
+                        const select = documentRef.getElementById('instantiation-snippet-mode-select');
+                        if (select) {
+                            select.value = snippet_mode;
+                            select.dispatchEvent(new Event('change', { bubbles: true }));
+                            await sleep(step_delay_ms);
+                        }
+                    }
                 }
-                documentRef.getElementById('instantiation-preset-none-btn')?.click();
-                for (const key of new Set(normalizedKeys.map(({ normalized }) => normalized))) {
-                    // Every click rerenders the tree. Query the live DOM each time so
-                    // later selections do not dispatch from stale checkbox closures.
-                    const checkbox = Array.from(tree.querySelectorAll(
-                        'input[type="checkbox"][data-control-key]',
-                    )).find((candidate) => candidate.getAttribute('data-control-key') === key);
-                    if (checkbox && !checkbox.checked) checkbox.click();
+
+                const exportBtn = documentRef.getElementById('instantiation-dialog-export-btn');
+                if (exportBtn) {
+                    exportBtn.classList.add('is-pressing');
+                    await sleep(150);
+                    exportBtn.classList.remove('is-pressing');
                 }
+
+                const packageSourceSelect = documentRef.getElementById('instantiation-package-source-select');
+                const snippetModeSelect = documentRef.getElementById('instantiation-snippet-mode-select');
+                const selectedControlKeys = configuredState?.selectedControlKeys || Array.from(new Set(Array.from(
+                    documentRef.querySelectorAll(
+                        '#instantiation-controls-tree input[type="checkbox"][data-control-key]:checked',
+                    ),
+                ).map((checkbox) => checkbox.getAttribute('data-control-key')).filter(Boolean)));
+                const savedPath = await windowRef._mcpExportDemoToPath(output_path, {
+                    packageSource: configuredState?.packageSource
+                        || (packageSourceSelect?.value === 'local' ? 'local' : 'cdn'),
+                    selectedControlKeys,
+                    snippetMode: configuredState?.snippetMode
+                        || (snippetModeSelect?.value === 'scaffold' ? 'scaffold' : 'compact'),
+                });
+                await windowRef._mcpToggleInstantiationControlsDialog('close');
+
+                return { ok: true, path: savedPath };
+            } catch (error) {
+                await windowRef._mcpToggleInstantiationControlsDialog('close');
+                throw error;
             }
-            if (selection !== undefined) await sleep(step_delay_ms);
-
-            if (package_source) {
-                const select = documentRef.getElementById('instantiation-package-source-select');
-                if (select) {
-                    select.value = package_source;
-                    select.dispatchEvent(new Event('change', { bubbles: true }));
-                    await sleep(step_delay_ms);
-                }
-            }
-
-            if (snippet_mode) {
-                const select = documentRef.getElementById('instantiation-snippet-mode-select');
-                if (select) {
-                    select.value = snippet_mode;
-                    select.dispatchEvent(new Event('change', { bubbles: true }));
-                    await sleep(step_delay_ms);
-                }
-            }
-
-            const exportBtn = documentRef.getElementById('instantiation-dialog-export-btn');
-            if (exportBtn) {
-                exportBtn.classList.add('is-pressing');
-                await sleep(150);
-                exportBtn.classList.remove('is-pressing');
-            }
-
-            const packageSourceSelect = documentRef.getElementById('instantiation-package-source-select');
-            const snippetModeSelect = documentRef.getElementById('instantiation-snippet-mode-select');
-            const selectedControlKeys = Array.from(new Set(Array.from(documentRef.querySelectorAll(
-                '#instantiation-controls-tree input[type="checkbox"][data-control-key]:checked',
-            )).map((checkbox) => checkbox.getAttribute('data-control-key')).filter(Boolean)));
-            const savedPath = await windowRef._mcpExportDemoToPath(output_path, {
-                packageSource: packageSourceSelect?.value === 'local' ? 'local' : 'cdn',
-                selectedControlKeys,
-                snippetMode: snippetModeSelect?.value === 'scaffold' ? 'scaffold' : 'compact',
-            });
-            await windowRef._mcpToggleInstantiationControlsDialog('close');
-
-            return { ok: true, path: savedPath };
         },
 
         async rav_configure_workspace({

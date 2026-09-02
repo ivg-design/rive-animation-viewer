@@ -38,6 +38,11 @@ describe('platform/global-bindings', () => {
         const disable = vi.fn();
         const ensureEditorReady = vi.fn().mockResolvedValue(true);
         const applyCodeAndReload = vi.fn();
+        const configureInstantiationControls = vi.fn().mockReturnValue({
+            packageSource: 'local',
+            selectedControlKeys: ['vm:name:string'],
+            snippetMode: 'compact',
+        });
         const createDemoBundle = vi.fn().mockResolvedValue('/tmp/demo');
         const exportDemoToPath = vi.fn().mockResolvedValue('/tmp/out');
         const openIsolatedPlayback = vi.fn().mockResolvedValue({ windowLabel: 'isolated-playback-1' });
@@ -73,6 +78,7 @@ describe('platform/global-bindings', () => {
         const controller = createGlobalBindingsController({
             callbacks: {
                 applyCodeAndReload,
+                configureInstantiationControls,
                 createDemoBundle,
                 ensureEditorReady,
                 exportDemoToPath,
@@ -169,6 +175,11 @@ describe('platform/global-bindings', () => {
         expect(windowRef._mcpSetCanvasSizing({ mode: 'auto' })).toEqual({ mode: 'auto' });
         windowRef.showMcpSetup();
         await expect(windowRef._mcpToggleInstantiationControlsDialog('open')).resolves.toEqual({ open: true });
+        expect(windowRef._mcpConfigureInstantiationControls({ selection: ['vm:name:string'] })).toEqual({
+            packageSource: 'local',
+            selectedControlKeys: ['vm:name:string'],
+            snippetMode: 'compact',
+        });
 
         expect(applyCodeAndReload).toHaveBeenCalled();
         expect(createDemoBundle).toHaveBeenCalled();
@@ -186,6 +197,7 @@ describe('platform/global-bindings', () => {
         expect(resetToDefaultArtboard).toHaveBeenCalled();
         expect(showMcpSetup).toHaveBeenCalled();
         expect(toggleInstantiationControlsDialog).toHaveBeenCalledWith('open');
+        expect(configureInstantiationControls).toHaveBeenCalledWith({ selection: ['vm:name:string'] });
         expect(openScriptConsole).toHaveBeenCalled();
         expect(execScriptConsole).toHaveBeenCalledWith('1 + 1');
         expect(closeScriptConsole).toHaveBeenCalled();

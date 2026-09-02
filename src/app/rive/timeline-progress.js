@@ -1,64 +1,29 @@
-/**
- * Timeline progress presentation only. The renderer owns the clock.
- * Feed child-confirmed metrics to update(), or dispatch
- * `rav:timeline-progress` with the same detail object.
- */
-export const TIMELINE_PROGRESS_EVENT = 'rav:timeline-progress';
-// This event is emitted by the parent protocol only when an active visible
-// render surface has accepted a canonical child state. It is deliberately a
-// second, authoritative input to the progress UI: a replacement may change
-// playback mode without emitting another animation clock tick.
-export const RENDER_SURFACE_CANONICAL_STATE_EVENT = 'rav:render-surface-state';
-const EPSILON = 0.000001;
+import {
+    RENDER_SURFACE_CANONICAL_STATE_EVENT,
+    TIMELINE_EPSILON,
+    TIMELINE_PROGRESS_EVENT,
+    buildTimelineScale,
+    clampTimelineValue,
+    finiteTimelineNumber,
+    formatTimelineFrames,
+    formatTimelineSeconds,
+    normalizeTimelineProgress,
+} from './timeline/model.js';
 
-function finiteNumber(value, fallback = null) {
-    if (value === null || value === undefined || (typeof value === 'string' && !value.trim())) {
-        return fallback;
-    }
-    const number = Number(value);
-    return Number.isFinite(number) ? number : fallback;
-}
-
-function clamp(value, minimum = 0, maximum = 1) {
-    return Math.min(maximum, Math.max(minimum, value));
-}
-
-export function normalizeTimelineProgress(metrics = {}) {
-    const playbackType = metrics.playbackType || null;
-    const fps = finiteNumber(metrics.fps, null);
-    let totalFrames = finiteNumber(metrics.totalFrames, null);
-    let currentFrame = finiteNumber(metrics.currentFrame, null);
-    let totalSeconds = finiteNumber(metrics.totalSeconds, null);
-    let currentSeconds = finiteNumber(metrics.currentSeconds, null);
-    if (totalSeconds === null && totalFrames !== null && fps && fps > 0) totalSeconds = totalFrames / fps;
-    if (currentSeconds === null && currentFrame !== null && fps && fps > 0) currentSeconds = currentFrame / fps;
-    if (totalFrames === null && totalSeconds !== null && fps && fps > 0) totalFrames = Math.max(0, Math.round(totalSeconds * fps));
-    if (currentFrame === null && currentSeconds !== null && fps && fps > 0) currentFrame = Math.max(0, Math.round(currentSeconds * fps));
-    const progress = totalSeconds !== null && totalSeconds > EPSILON && currentSeconds !== null
-        ? clamp(currentSeconds / totalSeconds)
-        : totalFrames !== null && totalFrames > 0 && currentFrame !== null
-            ? clamp(currentFrame / totalFrames)
-            : 0;
-    return Object.freeze({
-        playbackType,
-        fps,
-        currentFrame: currentFrame === null ? null : Math.max(0, currentFrame),
-        totalFrames: totalFrames === null ? null : Math.max(0, totalFrames),
-        currentSeconds: currentSeconds === null ? null : Math.max(0, currentSeconds),
-        totalSeconds: totalSeconds === null ? null : Math.max(0, totalSeconds),
-        progress,
-    });
-}
-
-export function formatTimelineSeconds(value, digits = 2) {
-    const number = finiteNumber(value, null);
-    return number === null ? '--' : number.toFixed(digits);
-}
-
-export function formatTimelineFrames(value) {
-    const number = finiteNumber(value, null);
-    return number === null ? '--' : String(Math.max(0, Math.round(number)));
-}
+export {
+    RENDER_SURFACE_CANONICAL_STATE_EVENT,
+    TIMELINE_PROGRESS_EVENT,
+    buildTimelineScale,
+    formatTimelineFrames,
+    formatTimelineSeconds,
+    normalizeTimelineProgress,
+} from './timeline/model.js';
+export {
+    captureTimelineProgressForInstance,
+    createTimelineSeekHandler,
+    dispatchTimelineProgress,
+    seekRiveTimeline,
+} from './timeline/runtime.js';
 
 function formatReadout(state, unit) {
     return unit === 'seconds'
@@ -66,76 +31,304 @@ function formatReadout(state, unit) {
         : `${formatTimelineFrames(state.currentFrame)} / ${formatTimelineFrames(state.totalFrames)} FR`;
 }
 
+function sliderModel(state, unit) {
+    if (unit === 'seconds') {
+        const maximum = state.totalSeconds ?? 0;
+        const value = clampTimelineValue(state.currentSeconds ?? 0, 0, Math.max(maximum, 0));
+        const step = state.fps && state.fps > 0 ? 1 / state.fps : Math.max(maximum / 1000, 0.001);
+        return { maximum, step, value };
+    }
+    const maximum = state.totalFrames ?? 0;
+    return { maximum, step: 1, value: clampTimelineValue(Math.round(state.currentFrame ?? 0), 0, Math.max(maximum, 0)) };
+}
+
+function previewStateFromSlider(state, unit, rawValue) {
+    const model = sliderModel(state, unit);
+    const value = clampTimelineValue(finiteTimelineNumber(rawValue, 0), 0, Math.max(0, model.maximum));
+    const progress = model.maximum > TIMELINE_EPSILON ? value / model.maximum : 0;
+    if (unit === 'seconds') {
+        return normalizeTimelineProgress({
+            ...state,
+            currentFrame: state.fps && state.fps > 0
+                ? Math.round(value * state.fps)
+                : (state.totalFrames === null ? null : state.totalFrames * progress),
+            currentSeconds: value,
+        });
+    }
+    return normalizeTimelineProgress({
+        ...state,
+        currentFrame: Math.round(value),
+        currentSeconds: state.fps && state.fps > 0
+            ? value / state.fps
+            : (state.totalSeconds === null ? null : state.totalSeconds * progress),
+    });
+}
+
 export function createTimelineProgressController({
+    cancelFrame = null,
     documentRef = globalThis.document,
+    now = null,
+    onSeek = async () => ({ applied: false, status: 'unavailable' }),
+    requestFrame = null,
     root = documentRef?.getElementById?.('timeline-progress'),
 } = {}) {
     const readout = root?.querySelector?.('#timeline-progress-readout');
     const progressBar = root?.querySelector?.('#timeline-progress-bar');
+    const scale = root?.querySelector?.('#timeline-progress-scale');
     const unitButton = root?.querySelector?.('#timeline-progress-unit');
     let unit = root?.dataset?.unit === 'seconds' ? 'seconds' : 'frames';
     let state = normalizeTimelineProgress();
+    let confirmedState = state;
+    let isScrubbing = false;
+    let pendingSeek = null;
+    let seekDrain = null;
+    let scaleKey = '';
+    let presentationFrame = null;
+    let presentationAnchor = null;
+    const windowRef = documentRef?.defaultView || globalThis.window;
+    const readNow = typeof now === 'function'
+        ? now
+        : () => windowRef?.performance?.now?.() ?? Date.now();
+    const requestPresentationFrame = typeof requestFrame === 'function'
+        ? requestFrame
+        : windowRef?.requestAnimationFrame?.bind(windowRef);
+    const cancelPresentationFrame = typeof cancelFrame === 'function'
+        ? cancelFrame
+        : windowRef?.cancelAnimationFrame?.bind(windowRef);
+
+    function cancelPresentationClock() {
+        if (presentationFrame !== null && typeof cancelPresentationFrame === 'function') {
+            cancelPresentationFrame(presentationFrame);
+        }
+        presentationFrame = null;
+        presentationAnchor = null;
+    }
+
+    function canRunPresentationClock(nextState = state) {
+        return !isScrubbing
+            && nextState.playbackType === 'animation'
+            && nextState.isPlaying === true
+            && nextState.currentSeconds !== null
+            && nextState.totalSeconds !== null
+            && nextState.totalSeconds > TIMELINE_EPSILON
+            && typeof requestPresentationFrame === 'function';
+    }
+
+    function schedulePresentationClock() {
+        if (presentationFrame !== null || !canRunPresentationClock()) return;
+        presentationFrame = requestPresentationFrame(presentPresentationFrame);
+    }
+
+    function presentPresentationFrame(timestamp) {
+        presentationFrame = null;
+        if (!presentationAnchor || !canRunPresentationClock()) return;
+        const frameTime = Number.isFinite(Number(timestamp)) ? Number(timestamp) : readNow();
+        const elapsedSeconds = Math.max(0, frameTime - presentationAnchor.time) / 1000;
+        const currentSeconds = clampTimelineValue(
+            presentationAnchor.seconds + elapsedSeconds,
+            0,
+            state.totalSeconds,
+        );
+        state = normalizeTimelineProgress({
+            ...confirmedState,
+            currentFrame: state.fps && state.fps > 0 ? Math.round(currentSeconds * state.fps) : state.currentFrame,
+            currentSeconds,
+        });
+        render();
+        if (currentSeconds < state.totalSeconds - TIMELINE_EPSILON) schedulePresentationClock();
+    }
+
+    function synchronizePresentationClock() {
+        if (!canRunPresentationClock()) {
+            cancelPresentationClock();
+            return;
+        }
+        presentationAnchor = { seconds: state.currentSeconds, time: readNow() };
+        schedulePresentationClock();
+    }
+
+    function renderScale() {
+        if (!scale) return;
+        const nextKey = `${unit}:${state.totalFrames ?? 'x'}:${state.totalSeconds ?? 'x'}:${state.fps ?? 'x'}`;
+        if (nextKey === scaleKey) return;
+        scaleKey = nextKey;
+        scale.replaceChildren(...buildTimelineScale(state, unit).map((tick) => {
+            const element = documentRef.createElement('span');
+            element.className = 'timeline-progress-tick';
+            element.textContent = tick.label;
+            element.style.left = `${tick.percent}%`;
+            if (tick.edge) element.dataset.edge = tick.edge;
+            return element;
+        }));
+    }
 
     function render() {
         if (!root) return;
         const visible = state.playbackType === 'animation';
+        root.hidden = !visible;
         root.classList.toggle('is-visible', visible);
+        root.classList.toggle('is-scrubbing', isScrubbing);
         root.setAttribute('aria-hidden', String(!visible));
         root.dataset.unit = unit;
+        root.style.setProperty('--timeline-fill', `${clampTimelineValue(state.progress) * 100}%`);
         if (readout) readout.textContent = formatReadout(state, unit);
         if (progressBar) {
-            progressBar.value = state.progress;
+            const model = sliderModel(state, unit);
+            const maximum = model.maximum > TIMELINE_EPSILON ? model.maximum : 1;
+            progressBar.min = '0';
+            progressBar.max = String(maximum);
+            progressBar.step = String(model.step);
+            progressBar.value = String(clampTimelineValue(model.value, 0, maximum));
+            progressBar.disabled = !visible || model.maximum <= TIMELINE_EPSILON || state.totalSeconds === null;
             progressBar.setAttribute('aria-valuetext', formatReadout(state, unit));
+            progressBar.title = `Drag to set ${unit === 'seconds' ? 'time' : 'frame'}`;
         }
         if (unitButton) {
             unitButton.textContent = unit === 'seconds' ? 'SECONDS' : 'FRAMES';
             unitButton.setAttribute('aria-label', `Show timeline time in ${unit === 'seconds' ? 'frames' : 'seconds'}`);
         }
+        renderScale();
     }
 
-    function update(metrics = {}) {
-        state = normalizeTimelineProgress(metrics);
+    function update(metrics = {}, { allowBackward = false } = {}) {
+        const nextState = normalizeTimelineProgress(metrics);
+        confirmedState = nextState;
+        if (!isScrubbing) {
+            const samePlayingTimeline = !allowBackward
+                && state.isPlaying === true
+                && nextState.isPlaying === true
+                && state.playbackName === nextState.playbackName
+                && state.currentSeconds !== null
+                && nextState.currentSeconds !== null;
+            const frameTolerance = nextState.fps && nextState.fps > 0 ? 2 / nextState.fps : 0.034;
+            const smallClockRegression = samePlayingTimeline
+                && nextState.currentSeconds < state.currentSeconds
+                && state.currentSeconds - nextState.currentSeconds <= frameTolerance;
+            state = smallClockRegression
+                ? normalizeTimelineProgress({
+                    ...nextState,
+                    currentFrame: state.currentFrame,
+                    currentSeconds: state.currentSeconds,
+                })
+                : nextState;
+            synchronizePresentationClock();
+        }
         render();
-        return state;
+        return confirmedState;
     }
 
     function updateFromCanonicalState(canonicalState) {
         const playback = canonicalState?.playback;
-        // Never retain a previous timeline's timecode when the acknowledged
-        // child becomes a state machine (or has no playable target). Passing
-        // no frame values intentionally clears the visible model as well as
-        // hiding its reserved chip.
-        if (!playback || typeof playback !== 'object') {
-            return update({ playbackType: null });
-        }
+        if (!playback || typeof playback !== 'object') return update({ playbackType: null });
         return update({
             currentFrame: playback.currentFrame,
             currentSeconds: playback.currentSeconds,
             fps: playback.fps,
+            isPaused: playback.isPaused,
+            isPlaying: playback.isPlaying,
+            playbackName: playback.name,
             playbackType: playback.type || null,
             totalFrames: playback.totalFrames,
             totalSeconds: playback.totalSeconds ?? playback.durationSeconds,
-        });
+        }, { allowBackward: true });
     }
 
     function toggleUnit() {
         unit = unit === 'seconds' ? 'frames' : 'seconds';
+        scaleKey = '';
         render();
         return unit;
     }
 
+    async function drainSeeks() {
+        let finalResult = null;
+        while (pendingSeek) {
+            const request = pendingSeek;
+            pendingSeek = null;
+            try {
+                finalResult = await onSeek(request);
+            } catch (error) {
+                finalResult = { applied: false, message: error?.message || String(error), status: 'rejected' };
+            }
+            if (finalResult?.metrics) confirmedState = normalizeTimelineProgress(finalResult.metrics);
+            if (request.release && !pendingSeek) {
+                isScrubbing = false;
+                state = finalResult?.applied === false ? confirmedState : (finalResult?.metrics ? confirmedState : request.metrics);
+                synchronizePresentationClock();
+                render();
+            }
+        }
+        seekDrain = null;
+        return finalResult;
+    }
+
+    function queueSeek(release = false) {
+        if (state.playbackType !== 'animation' || state.totalSeconds === null) return null;
+        pendingSeek = {
+            frame: state.currentFrame,
+            metrics: state,
+            name: state.playbackName,
+            progress: state.progress,
+            release: release || Boolean(pendingSeek?.release),
+            seconds: state.currentSeconds,
+        };
+        if (!seekDrain) seekDrain = drainSeeks();
+        return seekDrain;
+    }
+
+    function beginScrub() {
+        if (progressBar?.disabled) return;
+        isScrubbing = true;
+        cancelPresentationClock();
+        root?.classList?.add('is-scrubbing');
+    }
+
+    function previewScrub() {
+        if (!progressBar || progressBar.disabled) return;
+        beginScrub();
+        state = previewStateFromSlider(state, unit, progressBar.value);
+        render();
+        queueSeek(false);
+    }
+
+    function finishScrub() {
+        if (!isScrubbing) return;
+        if (progressBar && !progressBar.disabled) {
+            state = previewStateFromSlider(state, unit, progressBar.value);
+            render();
+        }
+        queueSeek(true);
+    }
+
+    const handleTimelineEvent = (event) => update(event.detail || {});
+    const handleCanonicalEvent = (event) => updateFromCanonicalState(event.detail);
     unitButton?.addEventListener('click', toggleUnit);
-    documentRef?.addEventListener?.(TIMELINE_PROGRESS_EVENT, (event) => update(event.detail || {}));
-    // The protocol only dispatches this after it has promoted a child state to
-    // canonical authority. This guards the mode transition even when the last
-    // timeline tick came from the retiring renderer.
-    documentRef?.addEventListener?.(RENDER_SURFACE_CANONICAL_STATE_EVENT, (event) => updateFromCanonicalState(event.detail));
+    progressBar?.addEventListener('pointerdown', beginScrub);
+    progressBar?.addEventListener('input', previewScrub);
+    progressBar?.addEventListener('change', finishScrub);
+    progressBar?.addEventListener('pointercancel', finishScrub);
+    documentRef?.addEventListener?.(TIMELINE_PROGRESS_EVENT, handleTimelineEvent);
+    documentRef?.addEventListener?.(RENDER_SURFACE_CANONICAL_STATE_EVENT, handleCanonicalEvent);
     render();
     return {
+        dispose() {
+            cancelPresentationClock();
+            unitButton?.removeEventListener('click', toggleUnit);
+            progressBar?.removeEventListener('pointerdown', beginScrub);
+            progressBar?.removeEventListener('input', previewScrub);
+            progressBar?.removeEventListener('change', finishScrub);
+            progressBar?.removeEventListener('pointercancel', finishScrub);
+            documentRef?.removeEventListener?.(TIMELINE_PROGRESS_EVENT, handleTimelineEvent);
+            documentRef?.removeEventListener?.(RENDER_SURFACE_CANONICAL_STATE_EVENT, handleCanonicalEvent);
+        },
         getState: () => state,
         getUnit: () => unit,
+        isScrubbing: () => isScrubbing,
         setUnit(nextUnit) {
-            if (nextUnit === 'frames' || nextUnit === 'seconds') unit = nextUnit;
+            if (nextUnit === 'frames' || nextUnit === 'seconds') {
+                unit = nextUnit;
+                scaleKey = '';
+            }
             render();
             return unit;
         },

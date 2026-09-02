@@ -21,6 +21,7 @@ export function createRiveStack({
         getCurrentLayoutAlignment,
         getCurrentLayoutFit,
         getCurrentRuntime,
+        getCurrentRuntimeVersion,
         getLoadedRuntime,
         getLiveConfig,
         getRiveInstance,
@@ -166,6 +167,7 @@ export function createRiveStack({
         getCurrentLayoutFit,
         getCurrentRuntime,
         getEditorConfig: getLiveConfig,
+        getCurrentRuntimeVersion,
         isAuthoritativeChildMode,
     });
 

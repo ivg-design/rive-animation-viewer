@@ -1,4 +1,4 @@
-import Image from "next/image";
+import DocsFigure from "@/components/docs/DocsFigure";
 import { asset } from "@/lib/config";
 
 export const metadata = { title: "ViewModel Controls" };
@@ -13,35 +13,14 @@ export default function ViewModelControls() {
         as native controls in the right panel.
       </p>
 
-      {/* Editorial layout: image left, callout legend right */}
-      <div className="flex flex-col md:flex-row gap-6 my-8">
-        <div className="md:w-1/2 flex-shrink-0">
-          <Image src={asset("/docs/vm-controls-panel.webp")} alt="Properties panel showing ViewModel and state machine controls" width={400} height={900} className="rounded-xl border border-[var(--border-dark)] w-full" />
-        </div>
-        <div className="md:w-1/2 flex flex-col justify-center gap-4">
-          <div className="flex gap-3 items-start">
-            <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[#3b82f6] text-white text-xs font-bold flex items-center justify-center">1</span>
-            <div>
-              <h3 className="text-sm font-semibold text-[var(--text-white)] mb-1">ViewModel Section</h3>
-              <p className="text-xs text-[var(--text-dim)] leading-relaxed">
-                Enum dropdowns, number inputs, boolean checkboxes, color picker with alpha slider,
-                string and image inputs, plus collapsible nested VM instances &mdash; all
-                auto-discovered from the loaded animation.
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-3 items-start">
-            <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[#3b82f6] text-white text-xs font-bold flex items-center justify-center">2</span>
-            <div>
-              <h3 className="text-sm font-semibold text-[var(--text-white)] mb-1">State Machine Section</h3>
-              <p className="text-xs text-[var(--text-dim)] leading-relaxed">
-                Boolean, number, and trigger inputs discovered from the active state machine,
-                synchronized with the running runtime.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DocsFigure
+        src={asset("/docs/2.5.3/multiple-global-vm-trees.webp")}
+        alt="Properties panel showing two expanded Global VM trees and a separate Root VM section"
+        width={766}
+        height={1703}
+        className="max-w-[420px]"
+        caption="Properties keeps multiple Global VM trees separate from Root VM controls while exposing each nested property in place."
+      />
 
       <h2>Supported Input Types</h2>
       <table>
@@ -50,11 +29,11 @@ export default function ViewModelControls() {
         </thead>
         <tbody>
           <tr><td>Boolean</td><td>Checkbox</td><td>Immediately updates the runtime value</td></tr>
-          <tr><td>Number</td><td>Text input</td><td>Accepts decimal values, updates on blur or Enter</td></tr>
+          <tr><td>Number</td><td>Wide numeric input</td><td>Keeps digits visible beside native spinner controls; accepts decimal values and updates while editing</td></tr>
           <tr><td>String</td><td>Text input</td><td>Updates on blur or Enter</td></tr>
           <tr><td>Trigger</td><td>Button</td><td>Fires the trigger once per click</td></tr>
           <tr><td>Enum</td><td>Dropdown</td><td>Lists all enum values, selects immediately</td></tr>
-          <tr><td>Color</td><td>Color picker + alpha</td><td>Native color input with alpha slider</td></tr>
+          <tr><td>Color</td><td>Compact square swatch + alpha</td><td>Native color input with an adjacent alpha control</td></tr>
           <tr><td>Image</td><td>One full-width source select</td><td>Lists every embedded raster asset, then <strong>Open file…</strong> and <strong>Clear</strong>; the file input stays hidden and there are no separate action buttons</td></tr>
         </tbody>
       </table>

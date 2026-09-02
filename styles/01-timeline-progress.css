@@ -1,81 +1,235 @@
-/* Reserve the footprint while hidden so playback selection never shifts the toolbar. */
+/* Linear-animation transport. This conditional row sits immediately above
+   the primary status row; state-machine playback removes it from layout. */
 .timeline-progress {
+    --timeline-cti-half: 9px;
+    --timeline-cti-width: 18px;
+    --timeline-fill: 0%;
+    --timeline-rail-inset: 18px;
     box-sizing: border-box;
-    flex: 0 0 174px;
-    width: 174px;
-    height: var(--header-control-h);
-    padding: 0 7px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-toolbar);
-    background: var(--bg-void);
+    width: 100%;
+    min-height: 72px;
+    padding: 7px 12px 8px;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg-void) 72%, var(--bg-zinc));
     color: var(--text-dim);
-    display: inline-grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: 1fr 5px;
+    display: none;
+    grid-template-columns: auto minmax(180px, 1fr) minmax(108px, auto);
     align-items: center;
-    column-gap: 6px;
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transition: opacity 120ms ease;
+    gap: 12px;
 }
 
-.timeline-progress.is-visible {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
+.timeline-progress.is-visible:not([hidden]) {
+    display: grid;
 }
 
 .timeline-progress-readout,
-.timeline-progress-unit {
+.timeline-progress-unit,
+.timeline-progress-tick {
     font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
-    font-size: 9px;
-    font-weight: 500;
-    letter-spacing: 0.08px;
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
 
-.timeline-progress-readout { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.timeline-progress-readout {
+    min-width: 0;
+    height: 28px;
+    overflow: hidden;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-align: right;
+    text-overflow: ellipsis;
+}
 
 .timeline-progress-unit {
-    border: 0;
-    padding: 0;
-    background: transparent;
+    min-width: 66px;
+    height: 28px;
+    border: 1px solid var(--border-bright);
+    border-radius: 4px;
+    padding: 0 8px;
+    background: var(--bg-zinc);
     color: var(--neon);
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-size: 8px;
     font-weight: 700;
+    letter-spacing: 0.06em;
 }
 
 .timeline-progress-unit:hover,
-.timeline-progress-unit:focus-visible { color: var(--text-white); outline: none; }
+.timeline-progress-unit:focus-visible {
+    border-color: var(--neon);
+    color: var(--text-white);
+    outline: none;
+}
+
+.timeline-progress-track {
+    position: relative;
+    min-width: 0;
+    height: 56px;
+    overflow: visible;
+    border: 1px solid var(--border-bright);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bg-elevated) 84%, var(--bg-zinc));
+    isolation: isolate;
+}
+
+.timeline-progress-track:focus-within {
+    border-color: color-mix(in srgb, var(--neon) 68%, var(--border-bright));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--neon) 14%, transparent);
+}
+
+.timeline-progress-visual,
+.timeline-progress-scale {
+    position: absolute;
+    inset: 0 var(--timeline-rail-inset);
+}
+
+.timeline-progress-visual {
+    z-index: 1;
+    pointer-events: none;
+}
+
+.timeline-progress-fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(-1 * var(--timeline-rail-inset));
+    width: calc(var(--timeline-fill) + var(--timeline-rail-inset));
+    border-radius: 7px 0 0 7px;
+    background: color-mix(in srgb, var(--neon) 12%, transparent);
+}
+
+.timeline-progress-cti {
+    position: absolute;
+    z-index: 3;
+    top: -1px;
+    bottom: -1px;
+    left: var(--timeline-fill);
+    width: var(--timeline-cti-width);
+    background: var(--neon);
+    clip-path: polygon(0 0, 100% 0, 100% 12px, 62% 18px, 62% 100%, 38% 100%, 38% 18px, 0 12px);
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--neon) 30%, transparent));
+    transform: translateX(-50%);
+}
+
+.timeline-progress-scale {
+    z-index: 2;
+    pointer-events: none;
+}
+
+.timeline-progress-scale::before {
+    position: absolute;
+    inset: 0;
+    height: 11px;
+    background-image: linear-gradient(to right, color-mix(in srgb, var(--text-muted) 58%, transparent) 1px, transparent 1px);
+    background-repeat: repeat-x;
+    background-size: 2.5% 11px;
+    content: "";
+}
+
+.timeline-progress-tick {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    color: var(--text-muted);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    font-size: 8px;
+    line-height: 10px;
+    padding-bottom: 6px;
+    transform: translateX(-50%);
+}
+
+.timeline-progress-tick::after {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 1px;
+    height: 18px;
+    background: color-mix(in srgb, var(--text-secondary) 72%, var(--border-bright));
+    content: "";
+}
 
 .timeline-progress-bar {
     -webkit-appearance: none;
     appearance: none;
-    display: block;
-    width: 100%;
-    height: 4px;
-    grid-column: 1 / -1;
+    position: absolute;
+    z-index: 4;
+    top: 0;
+    right: calc(var(--timeline-rail-inset) - var(--timeline-cti-half));
+    bottom: 0;
+    left: calc(var(--timeline-rail-inset) - var(--timeline-cti-half));
+    width: auto;
+    height: 100%;
+    margin: 0;
     border: 0;
-    border-radius: 999px;
-    overflow: hidden;
-    background: var(--bg-elevated);
-    color: var(--neon);
-    accent-color: var(--neon);
+    background: transparent;
+    cursor: ew-resize;
+    overflow: visible;
+    touch-action: none;
 }
 
-.timeline-progress-bar::-webkit-progress-bar {
-    border-radius: inherit;
-    background: var(--bg-elevated);
+.timeline-progress-bar:focus-visible {
+    outline: none;
 }
 
-.timeline-progress-bar::-webkit-progress-value {
-    border-radius: inherit;
-    background: var(--neon);
+.timeline-progress-bar::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 100%;
+    background: transparent;
 }
 
-.timeline-progress-bar::-moz-progress-bar {
-    border-radius: inherit;
-    background: var(--neon);
+.timeline-progress-bar::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: var(--timeline-cti-width);
+    height: 54px;
+    margin-top: 0;
+    border: 0;
+    background: transparent;
+    opacity: 0;
+}
+
+.timeline-progress-bar::-moz-range-track {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+}
+
+.timeline-progress-bar::-moz-range-thumb {
+    width: var(--timeline-cti-width);
+    height: 54px;
+    border: 0;
+    background: transparent;
+    opacity: 0;
+}
+
+.timeline-progress.is-scrubbing .timeline-progress-bar {
+    cursor: grabbing;
+}
+
+.timeline-progress-track:hover .timeline-progress-cti,
+.timeline-progress.is-scrubbing .timeline-progress-cti {
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--neon) 55%, transparent));
+}
+
+@media (max-width: 760px) {
+    .timeline-progress {
+        grid-template-columns: auto minmax(120px, 1fr) minmax(92px, auto);
+        gap: 8px;
+        padding-right: 8px;
+        padding-left: 8px;
+    }
+
+    .timeline-progress-tick:nth-child(even):not([data-edge="end"]) {
+        display: none;
+    }
 }

@@ -14,7 +14,10 @@ export function createRenderSurfaceBridgeHandlers({
     setStagedReady,
     onChildPointerDown = () => {},
     onChildCapture = () => false,
+    onChildTimeline = () => {},
 }) {
+    let timelineSessionId = null;
+    let timelineAdvanceRevision = -1;
     function handleChildReady(event) {
         protocol.handleReady(event);
         if (isDisposed() || !protocol.matches(event)) return;
@@ -52,6 +55,20 @@ export function createRenderSurfaceBridgeHandlers({
     function handleChildMetrics(event) {
         if (isDisposed() || !fatalRecovery.canAcceptCommands() || !protocol.matchesActive(event)) return;
         setRenderSurfaceFpsState(documentRef, true, event?.payload?.fps);
+    }
+
+    function handleChildTimeline(event) {
+        if (isDisposed() || !fatalRecovery.canAcceptCommands() || !protocol.matchesActive(event)) return;
+        const payload = event?.payload || {};
+        const sessionId = payload.sessionId || null;
+        if (sessionId !== timelineSessionId) {
+            timelineSessionId = sessionId;
+            timelineAdvanceRevision = -1;
+        }
+        const revision = Number(payload.advanceRevision);
+        if (Number.isFinite(revision) && revision <= timelineAdvanceRevision) return;
+        if (Number.isFinite(revision)) timelineAdvanceRevision = revision;
+        onChildTimeline(payload);
     }
 
     function handleChildPointerDown(event) {
@@ -93,6 +110,7 @@ export function createRenderSurfaceBridgeHandlers({
         handleChildDiagnostic,
         handleChildError,
         handleChildMetrics,
+        handleChildTimeline,
         handleChildPointerDown,
         handleChildReady,
     };

@@ -117,6 +117,15 @@ require_plist_value() {
     || fail "Unexpected plist value for $key_path: $actual (expected $expected)"
 }
 
+require_plist_key_absent() {
+  local plist=$1
+  local key_path=$2
+
+  if /usr/libexec/PlistBuddy -c "Print :$key_path" "$plist" >/dev/null 2>&1; then
+    fail "Unexpected plist value is present: $key_path"
+  fi
+}
+
 require_document_icon_contract() {
   local app_path=$1
   local plist="$app_path/Contents/Info.plist"
@@ -135,10 +144,23 @@ require_document_icon_contract() {
   require_plist_value "$plist" "CFBundleDocumentTypes:0:CFBundleTypeRole" "Viewer"
   require_plist_value "$plist" "CFBundleDocumentTypes:0:LSHandlerRank" "Alternate"
   require_plist_value "$plist" "CFBundleDocumentTypes:0:LSItemContentTypes:0" "app.rive.editor.rive-file"
-  require_plist_value "$plist" "CFBundleDocumentTypes:0:LSItemContentTypes:1" "app.rive.animation.viewer.riv"
+  require_plist_value "$plist" "CFBundleDocumentTypes:0:LSItemContentTypes:1" "app.rive.riv"
+  require_plist_value "$plist" "CFBundleDocumentTypes:0:LSItemContentTypes:2" "com.play.riv"
+  require_plist_value "$plist" "CFBundleDocumentTypes:0:LSItemContentTypes:3" "app.rive.animation.viewer.riv"
+
+  require_plist_value "$plist" "CFBundleDocumentTypes:1:CFBundleTypeExtensions:0" "riv"
+  require_plist_value "$plist" "CFBundleDocumentTypes:1:CFBundleTypeIconFile" "RiveFileIcon.icns"
+  require_plist_value "$plist" "CFBundleDocumentTypes:1:CFBundleTypeIconSystemGenerated" "false"
+  require_plist_value "$plist" "CFBundleDocumentTypes:1:CFBundleTypeRole" "Viewer"
+  require_plist_value "$plist" "CFBundleDocumentTypes:1:LSHandlerRank" "Alternate"
+  require_plist_key_absent "$plist" "CFBundleDocumentTypes:1:LSItemContentTypes"
 
   require_plist_value "$plist" "UTImportedTypeDeclarations:0:UTTypeIdentifier" "app.rive.editor.rive-file"
   require_plist_value "$plist" "UTImportedTypeDeclarations:0:UTTypeIconFile" "RiveFileIcon.icns"
+  require_plist_value "$plist" "UTImportedTypeDeclarations:1:UTTypeIdentifier" "app.rive.riv"
+  require_plist_value "$plist" "UTImportedTypeDeclarations:1:UTTypeIconFile" "RiveFileIcon.icns"
+  require_plist_value "$plist" "UTImportedTypeDeclarations:2:UTTypeIdentifier" "com.play.riv"
+  require_plist_value "$plist" "UTImportedTypeDeclarations:2:UTTypeIconFile" "RiveFileIcon.icns"
   require_plist_value "$plist" "UTExportedTypeDeclarations:0:UTTypeIdentifier" "app.rive.animation.viewer.riv"
   require_plist_value "$plist" "UTExportedTypeDeclarations:0:UTTypeIconFile" "RiveFileIcon.icns"
   require_plist_value "$plist" "UTExportedTypeDeclarations:0:UTTypeConformsTo:0" "app.rive.editor.rive-file"

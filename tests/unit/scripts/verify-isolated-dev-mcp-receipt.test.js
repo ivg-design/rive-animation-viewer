@@ -9,7 +9,7 @@ import {
 
 function fixture() {
     const directory = mkdtempSync(join(tmpdir(), 'rav-receipt-'));
-    const sidecar = join(directory, 'RAV 2.5.3 DEV.app', 'Contents', 'MacOS', 'rav-mcp');
+    const sidecar = join(directory, 'RAV 2.5.4 DEV.app', 'Contents', 'MacOS', 'rav-mcp');
     const scenario = join(directory, 'scenario.json');
     const scenarioText = JSON.stringify({
         files: { a: '/tmp/a.riv', b: '/tmp/b.riv' },
@@ -20,7 +20,7 @@ function fixture() {
         openRepeats: 2,
         openSequence: ['a', 'b', 'a'],
     });
-    mkdirSync(join(directory, 'RAV 2.5.3 DEV.app', 'Contents', 'MacOS'), { recursive: true });
+    mkdirSync(join(directory, 'RAV 2.5.4 DEV.app', 'Contents', 'MacOS'), { recursive: true });
     writeFileSync(sidecar, 'sidecar');
     writeFileSync(scenario, scenarioText);
     const openAssertions = [];
@@ -37,7 +37,7 @@ function fixture() {
     const expectedScenarioSha256 = createHash('sha256').update(scenarioText).digest('hex');
     const options = {
         expectedBuild: 'b0217-20260827-0300-645bfa9-dirty',
-        expectedVersion: '2.5.3',
+        expectedVersion: '2.5.4',
         expectedChannel: 'dev',
         sidecarPath: sidecar,
         scenarioPath: scenario,
@@ -89,7 +89,7 @@ describe('isolated DEV MCP receipt verifier', () => {
         const current = fixture();
         expect(verifyReceipt(current.receipt, current.options)).toMatchObject({
             build: current.options.expectedBuild,
-            version: '2.5.3',
+            version: '2.5.4',
         });
     });
 

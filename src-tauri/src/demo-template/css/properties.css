@@ -239,6 +239,7 @@
 .vm-control-input input[type='number'],
 .vm-control-input select {
     width: 100%;
+    box-sizing: border-box;
     height: 28px;
     padding: 0 8px;
     font-size: 11px;
@@ -247,6 +248,11 @@
     background: var(--bg-zinc);
     color: var(--text-white);
     font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+.vm-control-input input[type='number'] {
+    min-width: 88px;
+    font-variant-numeric: tabular-nums;
 }
 
 .vm-control-input input[type='checkbox'] {
@@ -312,26 +318,33 @@
 
 .vm-color-control {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 56px;
+    grid-template-columns: 28px minmax(88px, 96px);
     gap: 6px;
+    justify-content: end;
 }
 
 .vm-color-control input[type='color'] {
-    width: 100%;
+    width: 28px;
     height: 28px;
+    box-sizing: border-box;
+    padding: 2px;
     border: 1px solid var(--border);
-    border-radius: 5px;
+    border-radius: 4px;
     background: var(--bg-zinc);
+    cursor: pointer;
 }
 
 .vm-color-control input[type='number'] {
-    width: 56px;
+    width: 96px;
+    min-width: 88px;
     height: 28px;
-    padding: 0 6px;
+    box-sizing: border-box;
+    padding: 0 8px;
     font-size: 11px;
     border: 1px solid var(--border);
     border-radius: 5px;
     background: var(--bg-zinc);
     color: var(--text-white);
     font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-variant-numeric: tabular-nums;
 }

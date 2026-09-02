@@ -156,7 +156,7 @@
                 <div class="instantiation-controls-header">
                     <div>
                         <h2>Snippet &amp; Export Controls</h2>
-                        <p>Choose exactly which bound ViewModel and state-machine values should be serialized into generated snippets and exported demos.</p>
+                        <p>Choose which bound properties become copy-paste accessors in snippets and which current values a standalone HTML export restores.</p>
                     </div>
                     <button type="button" class="icon-btn icon-btn-ghost rav-modal-close ui-overlay-close" data-overlay-close aria-label="Close dialog">×</button>
                 </div>
@@ -179,7 +179,7 @@
                     </div>
                     <div class="instantiation-controls-grid">
                         <section class="instantiation-controls-panel">
-                            <p class="instantiation-controls-note">Branch checkboxes select every nested control. Individual line items only affect that one serialized value.</p>
+                            <p class="instantiation-controls-note">Branch checkboxes select every nested property. Each checked leaf adds one snippet accessor and one value to standalone export restoration.</p>
                             <div class="instantiation-controls-tree" data-overlay-export-tree></div>
                         </section>
                         <section class="instantiation-preview-panel">

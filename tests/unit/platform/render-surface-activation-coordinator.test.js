@@ -64,6 +64,36 @@ describe('platform/render-surface/activation/coordinator', () => {
         ]);
     });
 
+    it('honors an exact active-session target and never journals eval for replay', async () => {
+        let activeSessionId = 'active';
+        const requests = [];
+        const coordinator = createRenderSurfaceActivationCoordinator({
+            getActiveSessionId: () => activeSessionId,
+            getStagedSessionId: () => 'staged',
+            isSessionAddressable: () => true,
+            protocol: {
+                requestCommand: vi.fn(async (type, payload, { targetSessionId }) => {
+                    requests.push({ payload, targetSessionId, type });
+                    return { applied: true, status: 'applied' };
+                }),
+            },
+        });
+        coordinator.beginStage('staged');
+        await expect(coordinator.beginBarrier('staged')).resolves.toBe(true);
+
+        await expect(coordinator.requestCommand('eval', { expression: 'riveInstance' }, {
+            targetSessionId: 'active',
+        })).resolves.toEqual(expect.objectContaining({ applied: true }));
+        expect(requests).toEqual([
+            expect.objectContaining({ targetSessionId: 'active', type: 'eval' }),
+        ]);
+        expect(coordinator.pendingStage()).toBe(0);
+
+        activeSessionId = 'staged';
+        await expect(coordinator.flushStage('staged')).resolves.toEqual({ failed: false, outcomes: [] });
+        expect(requests).toHaveLength(1);
+    });
+
     it('flushes scalar and image relay mutations queued during a delayed predecessor drain to B before barrier completion', async () => {
         const predecessorAcknowledgement = deferred();
         const candidateImageAcknowledgement = deferred();

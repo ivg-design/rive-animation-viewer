@@ -7,8 +7,8 @@ export const DEFAULT_EDITOR_CODE = `// Rive instantiation config — riveInst is
   autoBind: true,
 
   // artboard: "MyArtboard",
-  // stateMachines: "main-sm",
-  // animations: "idle",
+  // stateMachine: "main-sm", // RAV also adapts this for runtimes older than 2.41
+  // animations: "idle", // compatibility option for timeline-only files
   // canvasSize: { mode: "fixed", width: 1920, height: 1080, lockAspectRatio: true },
 
   // layout: { fit: "contain", alignment: "center" },
@@ -21,12 +21,10 @@ export const DEFAULT_EDITOR_CODE = `// Rive instantiation config — riveInst is
     window.refreshVmInputControls?.();
   },
 
-  // onStateChange: (event) => { console.log("state:", event); },
   // onAdvance: (event) => { console.log("advance:", event); },
   // onPlay: () => { console.log("play"); },
   // onPause: () => { console.log("pause"); },
   // onStop: () => { console.log("stop"); },
-  // onLoop: (event) => { console.log("loop:", event); },
 }`;
 export const DEFAULT_EDITOR_ONLOAD_BLOCK = `onLoad: () => {
     riveInst.resizeDrawingSurfaceToCanvas();

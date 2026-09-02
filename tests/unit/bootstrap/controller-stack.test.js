@@ -175,6 +175,9 @@ describe('bootstrap/controller-stack', () => {
         const platformStackArgs = createPlatformStack.mock.calls[0]?.[0];
         expect(platformStackArgs?.callbacks?.getCurrentFilePreferenceId).toBe(getCurrentFilePreferenceId);
         const riveStackArgs = createRiveStack.mock.calls[0]?.[0];
+        expect(riveStackArgs?.callbacks?.getCurrentRuntimeVersion).toBe(
+            createRuntimeStack.mock.results[0].value.runtimeLoaderController.getCurrentRuntimeVersion,
+        );
         expect(riveStackArgs?.callbacks?.activateAuthoritativeSurface({ autoplay: true })).toEqual(
             loadCurrentAnimation.mock.results[0].value,
         );

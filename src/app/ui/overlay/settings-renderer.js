@@ -112,7 +112,7 @@ export function createSettingsOverlayRenderer({
                         ? 'PENDING'
                         : (defaultRivApp.state === 'rav-other-copy'
                             ? 'ANOTHER RAV'
-                            : (defaultRivApp.handlerName || (defaultRivApp.state === 'partial' ? 'PARTIAL' : 'UNKNOWN APP'))))));
+                            : (defaultRivApp.handlerName || 'UNKNOWN APP')))));
         const defaultRivAppDetail = String(defaultRivApp.reason || '');
         if (defaultRivAppStatus) {
             defaultRivAppStatus.textContent = defaultRivAppLabel;
@@ -123,7 +123,9 @@ export function createSettingsOverlayRenderer({
             defaultRivAppButton.disabled = !defaultRivAppAvailable || Boolean(defaultRivApp.busy);
             defaultRivAppButton.textContent = defaultRivApp.busy
                 ? 'WORKING…'
-                : (!defaultRivAppAvailable ? 'UNAVAILABLE' : (defaultRivAppDefault ? 'REPAIR ICON' : 'MAKE DEFAULT'));
+                : (!defaultRivAppAvailable
+                    ? 'UNAVAILABLE'
+                    : (defaultRivAppDefault ? 'REPAIR ICON' : 'MAKE DEFAULT'));
             defaultRivAppButton.title = defaultRivAppDefault
                 ? 'Refresh RAV’s .riv registration and document icon metadata'
                 : 'Make RAV the default app for .riv files';

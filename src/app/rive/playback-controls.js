@@ -73,7 +73,10 @@ export function createPlaybackController({
             }
         } else {
             if (!riveInstance.isPlaying && playbackState.currentPlaybackType === 'animation' && playbackState.currentPlaybackName) {
-                riveInstance.stop();
+                // A scrubbed timeline is a real paused wrapper and should
+                // resume at its CTI. A completed one-shot has no paused
+                // wrapper, so retain the existing restart-from-zero behavior.
+                if (!riveInstance.isPaused) riveInstance.stop();
                 riveInstance.play(playbackState.currentPlaybackName);
             } else {
                 riveInstance.play();

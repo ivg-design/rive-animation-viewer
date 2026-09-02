@@ -100,19 +100,24 @@
                 numberInput.step = 'any';
                 numberInput.value = formatVmNumber(accessor && accessor.value);
                 numberInput.disabled = isDisabled;
-                numberInput.addEventListener('change', function () {
+                var applyNumberValue = function (formatValue, shouldLog) {
+                    if (numberInput.value.trim() === '') return;
                     var nextValue = Number(numberInput.value);
                     if (!Number.isFinite(nextValue)) return;
-                    // Display a stable two-decimal value while preserving the
-                    // full-precision number written to the runtime accessor.
-                    numberInput.value = formatVmNumber(nextValue);
+                    // Format on commit while preserving the runtime value's precision.
+                    if (formatValue) numberInput.value = formatVmNumber(nextValue);
                     var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'number', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName, stateMachineName: descriptor.stateMachineName });
                     if (live) {
                         live.value = nextValue;
-                        var numberSource = descriptor.source === 'state-machine' ? 'sm-number' : 'vm-number';
-                        logEvent('ui', numberSource, 'Set ' + descriptor.path + ' = ' + nextValue);
+                        if (shouldLog) {
+                            var numberSource = descriptor.source === 'state-machine' ? 'sm-number' : 'vm-number';
+                            logEvent('ui', numberSource, 'Set ' + descriptor.path + ' = ' + nextValue);
+                        }
                     }
-                });
+                };
+                // Commit before blur so the runtime sync loop cannot erase the edit.
+                numberInput.addEventListener('input', function () { applyNumberValue(false, false); });
+                numberInput.addEventListener('change', function () { applyNumberValue(true, true); });
                 registerVmControlBinding(descriptor, { kind: 'number', input: numberInput });
                 inputContainer.appendChild(numberInput);
 
@@ -137,13 +142,15 @@
                 textInput.type = 'text';
                 textInput.value = (accessor && typeof accessor.value === 'string') ? accessor.value : '';
                 textInput.disabled = isDisabled;
-                textInput.addEventListener('change', function () {
+                var applyStringValue = function (shouldLog) {
                     var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'string', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName, stateMachineName: descriptor.stateMachineName });
                     if (live) {
                         live.value = textInput.value;
-                        logEvent('ui', 'vm-string', 'Set ' + descriptor.path + ' = ' + textInput.value);
+                        if (shouldLog) logEvent('ui', 'vm-string', 'Set ' + descriptor.path + ' = ' + textInput.value);
                     }
-                });
+                };
+                textInput.addEventListener('input', function () { applyStringValue(false); });
+                textInput.addEventListener('change', function () { applyStringValue(true); });
                 registerVmControlBinding(descriptor, { kind: 'string', input: textInput });
                 inputContainer.appendChild(textInput);
 
@@ -192,24 +199,30 @@
                 colorInput.disabled = isDisabled;
                 alphaInput.disabled = isDisabled;
 
-                var applyColor = function () {
+                var applyColor = function (formatAlpha, shouldLog) {
                     var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'color', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName, stateMachineName: descriptor.stateMachineName });
                     if (!live) return;
                     var rgb = hexToRgb(colorInput.value);
-                    var alphaPercent = clamp(Number(alphaInput.value), 0, 100);
+                    if (alphaInput.value.trim() === '') return;
+                    var rawAlphaPercent = Number(alphaInput.value);
+                    if (!Number.isFinite(rawAlphaPercent)) return;
+                    var alphaPercent = clamp(rawAlphaPercent, 0, 100);
                     var normalizedAlphaPercent = Math.round(alphaPercent);
-                    alphaInput.value = formatVmNumber(normalizedAlphaPercent);
+                    if (formatAlpha) alphaInput.value = formatVmNumber(normalizedAlphaPercent);
                     var alpha = Math.round((alphaPercent / 100) * 255);
                     if (typeof live.argb === 'function') {
                         live.argb(alpha, rgb.r, rgb.g, rgb.b);
                     } else {
                         live.value = rgbAlphaToArgb(rgb.r, rgb.g, rgb.b, alpha);
                     }
-                    logEvent('ui', 'vm-color', 'Set ' + descriptor.path + ' color to ' + colorInput.value + ' (' + alphaPercent + '%).');
+                    if (shouldLog) {
+                        logEvent('ui', 'vm-color', 'Set ' + descriptor.path + ' color to ' + colorInput.value + ' (' + alphaPercent + '%).');
+                    }
                 };
 
-                colorInput.addEventListener('input', applyColor);
-                alphaInput.addEventListener('change', applyColor);
+                colorInput.addEventListener('input', function () { applyColor(false, true); });
+                alphaInput.addEventListener('input', function () { applyColor(false, false); });
+                alphaInput.addEventListener('change', function () { applyColor(true, true); });
                 registerVmControlBinding(descriptor, { kind: 'color', colorInput: colorInput, alphaInput: alphaInput });
 
                 colorWrap.appendChild(colorInput);

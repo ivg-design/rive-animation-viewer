@@ -2,6 +2,30 @@
 
 All notable released changes to this project are documented in this file.
 
+## [2.5.4] - 2026-09-01
+
+### Added
+
+- **Authoritative MCP evaluation** — `rav_eval` can target `auto`, `host`, or `playback`. Automatic evaluation follows the active isolated playback surface and reports the resolved surface and session.
+- **Documentation reader** — The documentation site adds search, section navigation, article tables of contents, previous/next links, and release-matched screenshots.
+- **Timeline scrubber** — Linear animations now show a dedicated row above the status bar with frame/second modes, duration ticks, an unclipped current-time indicator, and drag-to-seek. State machines do not show the row, and the playhead advances on every rendered animation frame.
+
+### Changed
+
+- **Web 2.41.1 playback compatibility** — This release targets Web 2.41.1 / runtime-v0.1.344. A single state machine uses the released singular `stateMachine` option. Multiple state machines, mixed animation/state-machine playback, older 2.x runtimes, and explicit no-target loading keep their existing behavior across the viewer, reset flow, snippets, and standalone demos.
+- **Dependency maintenance** — Compatible website, application, MCP, and Rust lockfile updates remove the currently reported npm advisories while retaining existing major-version gates.
+- **Lean property snippets** — CDN and local snippets now expose only the selected typed property accessors on `window.riveProperties`. Standalone HTML export remains the self-contained output with runtime, UI chrome, controls, and selected-value restoration.
+
+### Fixed
+
+- **Host/child authority mismatch** — Playback-targeted evaluation now executes in the same authoritative child used by typed MCP controls, uses a bounded result preview, and never falls back to stale host state after a child failure.
+- **Console authority wording** — The MCP documentation states that console tools read and execute against the host UI transcript; isolated-child `console.*` and live Luau output are not forwarded.
+- **Property control sizing** — Color controls use compact square swatches, and numeric inputs are wide enough to keep digits visible beside their spinner controls.
+- **Desktop visual export selection** — MCP visual export now carries the exact property selection, package source, and snippet mode through the native export overlay into the saved standalone file, then closes the overlay cleanly.
+- **Live standalone property editing** — Generated string, number, and color-alpha controls write to Rive while the field is active, so the synchronization loop cannot erase an edit before blur. Numeric controls format to two decimals after commit.
+- **One-click macOS `.riv` ownership** — **MAKE DEFAULT** issues one macOS request for the effective `.riv` association. Dynamically discovered identifiers remain internal diagnostics and compatibility data; Settings no longer exposes identifier counts or a click-through claim workflow.
+- **Centered title metadata** — File metadata uses its intrinsic width inside equal flexible title-bar columns, so its visible center stays aligned with the window center while long paths still truncate.
+
 ## [2.5.3] - 2026-08-29
 
 ### Added

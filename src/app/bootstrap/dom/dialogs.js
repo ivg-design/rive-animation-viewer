@@ -112,7 +112,7 @@ const APP_DIALOGS_HTML = `
     <div class="instantiation-controls-header">
       <div>
         <h2>Snippet &amp; Export Controls</h2>
-        <p>Choose exactly which bound ViewModel and state-machine values should be serialized into generated snippets and exported demos.</p>
+        <p>Choose which bound properties become copy-paste accessors in snippets and which current values a standalone HTML export restores.</p>
       </div>
       <button type="button" id="instantiation-controls-close-btn" class="icon-btn icon-btn-ghost rav-modal-close" aria-label="Close dialog">
         <i data-lucide="x" class="lucide-18"></i>
@@ -137,7 +137,7 @@ const APP_DIALOGS_HTML = `
       </div>
       <div class="instantiation-controls-grid">
         <section class="instantiation-controls-panel">
-          <p class="instantiation-controls-note">Branch checkboxes select every nested control. Individual line items only affect that one serialized value.</p>
+          <p class="instantiation-controls-note">Branch checkboxes select every nested property. Each checked leaf adds one snippet accessor and one value to standalone export restoration.</p>
           <div id="instantiation-controls-tree" class="instantiation-controls-tree"></div>
         </section>
         <section class="instantiation-preview-panel">

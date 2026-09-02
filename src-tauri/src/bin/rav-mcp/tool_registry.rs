@@ -216,19 +216,19 @@ pub fn tools_list() -> Value {
         },
         {
             "name": "generate_web_instantiation_code",
-            "description": "Generate the preferred working web instantiation snippet for the animation currently loaded in RAV. Use this instead of hand-writing editor snippets when you need a reliable runtime-control example. The snippet mirrors the live source mode that is actually running in RAV: either internal wiring or the last applied editor code. Supports either CDN or local npm package usage, restores the current ViewModel/state-machine values on load, and exposes helper controls on window.ravRive.",
+            "description": "Generate the preferred working web instantiation snippet for the animation currently loaded in RAV. Use this instead of hand-writing editor snippets when you need a reliable runtime-control example. The snippet mirrors the live source mode that is actually running in RAV: either internal wiring or the last applied editor code. Supports either CDN or local npm package usage and exposes only selected typed ViewModel/state-machine accessors on window.riveProperties. Standalone HTML export separately includes UI chrome and selected-value restoration.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "package_source": { "type": "string", "enum": ["cdn", "local"], "description": "Use a CDN/global runtime snippet or a local npm package import snippet." },
-                    "snippet_mode": { "type": "string", "enum": ["compact", "scaffold"], "description": "Use a compact snippet with only selected live controls, or a scaffold snippet that lists all controls with unselected ones commented out." }
+                    "snippet_mode": { "type": "string", "enum": ["compact", "scaffold"], "description": "Use a compact snippet with only selected property accessors, or a scaffold snippet that lists all accessors with unselected ones commented out." }
                 },
                 "additionalProperties": false
             }
         },
         {
             "name": "rav_toggle_instantiation_controls_dialog",
-            "description": "Open, close, or toggle the Snippet & Export Controls dialog inside RAV. Use this when a human user should choose exactly which bound controls are serialized into snippets and demos.",
+            "description": "Open, close, or toggle the Snippet & Export Controls dialog inside RAV. Use this when a human user should choose which accessors appear in snippets and which values standalone demos restore.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -271,11 +271,12 @@ pub fn tools_list() -> Value {
         },
         {
             "name": "rav_eval",
-            "description": "Evaluate arbitrary JavaScript in the RAV browser context. Has access to window.riveInst, window.vmGet/vmSet/vmFire, and all RAV globals. Use for advanced inspection or operations not covered by other tools. Returns the stringified result.",
+            "description": "Evaluate arbitrary JavaScript with explicit surface authority. target auto (default) uses the active authoritative playback child when present and otherwise the host WebView; playback requires that child, while host explicitly evaluates the UI WebView. The response identifies the resolved target, surface, and child session. Script Access is required.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "expression": { "type": "string", "description": "JavaScript expression or statement to evaluate" }
+                    "expression": { "type": "string", "description": "JavaScript expression or statement to evaluate" },
+                    "target": { "type": "string", "enum": ["auto", "host", "playback"], "description": "Evaluation surface. Default: auto." }
                 },
                 "required": ["expression"],
                 "additionalProperties": false

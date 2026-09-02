@@ -149,15 +149,54 @@ describe('ui regression smoke', () => {
             path.join(repoRoot, 'styles', '01-timeline-progress.css'),
             'utf8',
         );
+        const html = readFileSync(path.join(repoRoot, 'index.html'), 'utf8');
         const progressRule = timelineCss.match(/\.timeline-progress-bar\s*\{([^}]*)\}/)?.[1] || '';
 
         expect(progressRule).toContain('-webkit-appearance: none;');
         expect(progressRule).toContain('appearance: none;');
         expect(progressRule).toContain('border: 0;');
-        expect(progressRule).toContain('background: var(--bg-elevated);');
-        expect(timelineCss).toContain('.timeline-progress-bar::-webkit-progress-bar');
-        expect(timelineCss).toContain('.timeline-progress-bar::-webkit-progress-value');
-        expect(timelineCss).toContain('.timeline-progress-bar::-moz-progress-bar');
+        expect(progressRule).toContain('background: transparent;');
+        expect(timelineCss).toContain('.timeline-progress-bar::-webkit-slider-runnable-track');
+        expect(timelineCss).toContain('.timeline-progress-bar::-webkit-slider-thumb');
+        expect(timelineCss).toContain('.timeline-progress-visual');
+        expect(timelineCss).toContain('.timeline-progress-fill');
+        expect(timelineCss).toContain('.timeline-progress-cti');
+        expect(timelineCss).toContain('left: var(--timeline-fill);');
+        expect(timelineCss).toContain('clip-path: polygon(');
+        expect(timelineCss).toContain('background-size: 2.5% 11px;');
+        expect(timelineCss).toContain('.timeline-progress-bar::-moz-range-track');
+        expect(timelineCss).toContain('.timeline-progress-bar::-moz-range-thumb');
+        expect(timelineCss).toContain('--timeline-cti-width: 18px;');
+        expect(timelineCss).toContain('--timeline-rail-inset: 18px;');
+        expect(timelineCss).toContain('height: 54px;');
+        expect(timelineCss).toContain('opacity: 0;');
+        expect(timelineCss).not.toContain('.timeline-progress-tick[data-edge=');
+        expect(html).toContain('class="timeline-progress-visual"');
+        expect(html.indexOf('id="timeline-progress"')).toBeLessThan(html.indexOf('class="runtime-strip-primary"'));
+        expect(html.indexOf('id="timeline-progress-unit"')).toBeLessThan(html.indexOf('class="timeline-progress-track"'));
+        expect(html.indexOf('id="timeline-progress-bar"')).toBeLessThan(html.indexOf('id="timeline-progress-readout"'));
+    });
+
+    it('keeps compact color swatches and readable numeric fields in app and standalone surfaces', () => {
+        const appCss = readFileSync(path.join(repoRoot, 'styles', '07-properties.css'), 'utf8');
+        const demoCss = readFileSync(
+            path.join(repoRoot, 'src-tauri', 'src', 'demo-template', 'css', 'properties.css'),
+            'utf8',
+        );
+
+        for (const css of [appCss, demoCss]) {
+            const colorLayoutRule = css.match(/\.vm-color-control\s*\{([^}]*)\}/)?.[1] || '';
+            const swatchRule = css.match(/\.vm-color-control input\[type='color'\]\s*\{([^}]*)\}/)?.[1] || '';
+            const colorNumberRule = css.match(/\.vm-color-control input\[type='number'\]\s*\{([^}]*)\}/)?.[1] || '';
+            const numericRule = css.match(/\.vm-control-input input\[type='number'\]\s*\{([^}]*)\}/)?.[1] || '';
+
+            expect(colorLayoutRule).toContain('grid-template-columns: 28px minmax(88px, 96px);');
+            expect(swatchRule).toContain('width: 28px;');
+            expect(swatchRule).toContain('height: 28px;');
+            expect(colorNumberRule).toContain('width: 96px;');
+            expect(colorNumberRule).toContain('min-width: 88px;');
+            expect(numericRule).toContain('min-width: 88px;');
+        }
     });
 
     it('keeps the main app header on the custom titlebar contract', () => {
@@ -166,6 +205,7 @@ describe('ui regression smoke', () => {
         const windowChromeCss = readFileSync(path.join(repoRoot, 'styles', '01-window-chrome.css'), 'utf8');
         const headerMetaCss = readFileSync(path.join(repoRoot, 'styles', '01-header-meta.css'), 'utf8');
         const desktopShellRule = windowChromeCss.match(/body\.is-tauri-window \.app-shell\s*\{([^}]*)\}/)?.[1] || '';
+        const titlebarRule = windowChromeCss.match(/\.titlebar-row\s*\{([^}]*)\}/)?.[1] || '';
 
         expect(html).toContain('id="window-titlebar"');
         expect(html).toContain('id="header-file-meta"');
@@ -178,7 +218,7 @@ describe('ui regression smoke', () => {
         expect(html).not.toContain('id="transparency-mode-toggle"');
         expect(html).not.toContain('id="click-through-toggle"');
         expect(windowChromeCss).toContain('.titlebar-row');
-        expect(windowChromeCss).toContain('grid-template-columns: max-content minmax(0, 1fr) max-content;');
+        expect(titlebarRule).toContain('grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);');
         expect(windowChromeCss).toContain('body.is-tauri-window .app-shell');
         expect(baseCss).toMatch(/html\.is-tauri-window,\s*body\.is-tauri-window\s*\{[^}]*background:\s*var\(--bg-void\)/);
         expect(windowChromeCss).toMatch(/body\.is-tauri-window\s*\{[^}]*background:\s*#101116/);
@@ -186,7 +226,10 @@ describe('ui regression smoke', () => {
         expect(desktopShellRule).not.toContain('overflow: hidden;');
         expect(desktopShellRule).not.toContain('box-shadow:');
         expect(windowChromeCss).not.toContain('app-region: drag;');
-        expect(headerMetaCss).toContain('grid-template-columns: minmax(0, 1fr) auto auto;');
+        expect(headerMetaCss).toContain('width: fit-content;');
+        expect(headerMetaCss).toContain('max-width: min(100%, 860px);');
+        expect(headerMetaCss).toContain('display: flex;');
+        expect(headerMetaCss).not.toContain('grid-template-columns: minmax(0, 1fr) auto auto;');
         expect(html.indexOf('id="settings-btn"')).toBeLessThan(html.indexOf('id="demo-bundle-btn"'));
         expect(html.indexOf('id="mcp-setup-btn"')).toBeLessThan(html.indexOf('id="demo-bundle-btn"'));
     });

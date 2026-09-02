@@ -134,18 +134,23 @@ reviewer rules before the first release.
    cargo test --manifest-path src-tauri/Cargo.toml
    ```
 
-7. When a release changes the dual-WebView rendering path, complete the
+7. Validate export behavior in an actual packaged desktop build and retain the
+   exported artifact plus a receipt that identifies the packaged build. The web
+   build deliberately disables or cannot provide the native export path, so a
+   browser preview or web deployment cannot satisfy export acceptance.
+
+8. When a release changes the dual-WebView rendering path, complete the
    [dual-WebView pre-release gate](#dual-webview-pre-release-gate) below and
    retain its receipt.
 
-8. Complete the anonymous callback acceptance below against an isolated test
+9. Complete the anonymous callback acceptance below against an isolated test
    Worker/D1 and retain its aggregate-only receipt.
 
-9. For a macOS release that changes `.riv` registration, document icons, or the
+10. For a macOS release that changes `.riv` registration, document icons, or the
    Settings default-app control, complete the
    [macOS `.riv` handler and icon gate](#macos-riv-handler-and-icon-gate) below.
 
-10. Commit the complete release with the exact subject:
+11. Commit the complete release with the exact subject:
 
    ```bash
    git commit -m "chore(release): vX.Y.Z"
@@ -255,22 +260,25 @@ Launch Services ownership or Finder document icon.
 1. Confirm the packaged official app still declares `LSHandlerRank=Alternate`.
    Merely installing or updating RAV must not silently replace the user's
    chosen default `.riv` app.
-2. Open Settings and verify the live status is derived from both the canonical
-   `app.rive.editor.rive-file` UTI and the legacy
-   `app.rive.animation.viewer.riv` UTI:
+2. Open Settings and verify the live status follows the one effective content
+   type macOS resolves for the `.riv` extension. Also retain the dynamically
+   discovered `.riv` UTI/handler list as diagnostic evidence; those aliases are
+   not separate user-facing ownership tasks:
 
-   - both point to this exact installed RAV bundle: `RAV DEFAULT`;
-   - only one points to this bundle: `PARTIAL`;
-   - neither points to this bundle: `OTHER APP`;
+   - the effective handler is this exact installed bundle: `RAV DEFAULT`;
+   - the effective handler is another bundle with RAV's identifier: `ANOTHER RAV`;
+   - the effective handler is another application: its application name, or
+     `UNKNOWN APP` when macOS does not return one;
    - the status cannot be queried safely: `UNAVAILABLE`.
 
-3. From an installed official RAV bundle, invoke **MAKE DEFAULT** and confirm
-   macOS completes the request for both UTIs. Re-open Settings after the bounded
-   verification delay and confirm `RAV DEFAULT` names this exact bundle path,
-   not another RAV copy with the same bundle identifier.
+3. From an installed official RAV bundle, invoke **MAKE DEFAULT** once and
+   confirm macOS completes one request for the effective `.riv` content type.
+   Re-open Settings after the bounded verification delay and confirm
+   `RAV DEFAULT` names this exact bundle path, not another RAV copy with the same
+   bundle identifier. Do not click through or claim the diagnostic aliases.
 4. Invoke **REPAIR ICON** while RAV is already default. Confirm the document
-   claims and bundled `RiveFileIcon.icns` are re-registered and both `.riv`
-   handlers are reasserted without changing playback state or restarting
+   claims and bundled `RiveFileIcon.icns` are re-registered without changing
+   playback state, issuing another default-handler request, or restarting
    Finder. Finder may repaint its icon cache asynchronously, so verify the
    visible `.riv` icon separately after allowing the normal system refresh.
 5. Confirm an ordinary isolated DEV identifier reports `UNAVAILABLE`, disables
@@ -281,9 +289,10 @@ Launch Services ownership or Finder document icon.
    confirm the native command
    rejects bundles running from a disk image, App Translocation, Trash, or a
    bundle missing `Contents/Info.plist` or `Contents/Resources/RiveFileIcon.icns`.
-6. Record the final handler URL for both UTIs, the exact app bundle path, the
-   visible document icon result, macOS version, and build stamp in the release
-   receipt.
+6. Record the resolved content type, its final handler URL, the complete
+   dynamically discovered diagnostic handler list, the exact app bundle path,
+   the visible document icon result, macOS version, and build stamp in the
+   release receipt.
 
 Quick Look preview generation is explicitly outside this gate. The default app
 controls double-click/open handling, and bundle metadata supplies the Finder
@@ -591,7 +600,7 @@ fixture, the pre-RAV ProgID is `Rive Animation`:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\verify-windows-document-icon.ps1 `
-  -ExpectedVersion 2.5.3 `
+  -ExpectedVersion 2.5.4 `
   -ExpectedBundleType NSS `
   -ExpectedPreviousProgId 'Rive Animation' `
   -ExpectedIconSha256 13e12927439f4c98db3250516389822d706e4d1b7fdf3e2b2dad0fc6cff785fb `

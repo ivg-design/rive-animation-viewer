@@ -162,4 +162,76 @@ describe('rive/default-state-machine', () => {
         expect(runtime.RiveFile).toHaveBeenCalled();
         expect(runtime.Rive).not.toHaveBeenCalled();
     });
+
+    it.each(['MainSM', null])('uses the native RiveFile instance for %s and releases artboard before its file reference', async (name) => {
+        const lifecycle = [];
+        let references = 0;
+        const artboard = {
+            delete: vi.fn(() => lifecycle.push('artboard-delete')),
+            stateMachineCount: vi.fn(() => name ? 1 : 0),
+            stateMachineByIndex: vi.fn(() => ({ name })),
+        };
+        const rawFile = { artboardByName: vi.fn(() => artboard) };
+        const cleanup = vi.fn(() => {
+            references -= 1;
+            lifecycle.push('file-cleanup');
+        });
+        const getInstance = vi.fn(() => {
+            references += 1;
+            return rawFile;
+        });
+        const runtime = {
+            Rive: vi.fn(),
+            RiveFile: vi.fn(() => ({ init: vi.fn(), cleanup, getInstance })),
+        };
+
+        await expect(detectDefaultStateMachineName(runtime, {
+            artboardName: 'Main',
+            fileBuffer: new ArrayBuffer(4),
+        })).resolves.toBe(name);
+        expect(rawFile.artboardByName).toHaveBeenCalledWith('Main');
+        expect(getInstance).toHaveBeenCalledOnce();
+        expect(cleanup).toHaveBeenCalledOnce();
+        expect(references).toBe(0);
+        expect(lifecycle).toEqual(['artboard-delete', 'file-cleanup']);
+        expect(runtime.Rive).not.toHaveBeenCalled();
+    });
+
+    it('releases the native artboard and file when metadata traversal throws', async () => {
+        const lifecycle = [];
+        const artboard = {
+            delete: vi.fn(() => lifecycle.push('artboard-delete')),
+            stateMachineCount: vi.fn(() => { throw new Error('invalid artboard'); }),
+            stateMachineByIndex: vi.fn(),
+        };
+        const runtime = {
+            RiveFile: vi.fn(() => ({
+                init: vi.fn(),
+                cleanup: vi.fn(() => lifecycle.push('file-cleanup')),
+                getInstance: vi.fn(() => ({ defaultArtboard: () => artboard })),
+            })),
+        };
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            await expect(detectDefaultStateMachineFromRiveFile(runtime, { fileUrl: 'file:///bad.riv' })).resolves.toBeNull();
+            expect(lifecycle).toEqual(['artboard-delete', 'file-cleanup']);
+        } finally {
+            warn.mockRestore();
+        }
+    });
+
+    it('retains the old probe fallback when the RiveFile wrapper cannot expose an artboard', async () => {
+        let onLoad;
+        const runtime = {
+            RiveFile: vi.fn(() => ({ init: vi.fn(), cleanup: vi.fn() })),
+            Rive: vi.fn((config) => {
+                onLoad = config.onLoad;
+                return { stateMachineNames: ['OldRuntimeSM'], cleanup: vi.fn() };
+            }),
+        };
+        const detection = detectDefaultStateMachineName(runtime, { fileUrl: 'file:///old.riv' });
+        await vi.waitFor(() => expect(onLoad).toBeTypeOf('function'));
+        onLoad();
+        await expect(detection).resolves.toBe('OldRuntimeSM');
+    });
 });

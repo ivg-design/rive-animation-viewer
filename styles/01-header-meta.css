@@ -8,11 +8,10 @@
 }
 
 .header-file-meta {
-    width: min(100%, 860px);
-    max-width: 100%;
+    width: fit-content;
+    max-width: min(100%, 860px);
     min-width: 0;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    display: flex;
     align-items: center;
     justify-content: center;
     gap: 12px;
@@ -26,6 +25,7 @@
 }
 
 .header-file-meta-directory {
+    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -35,7 +35,11 @@
 }
 
 .header-file-meta-file {
-    flex: 0 0 auto;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: #d8dbe5;
     font-weight: 600;
     letter-spacing: 0;

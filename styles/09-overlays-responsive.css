@@ -176,6 +176,10 @@
     }
 
     .runtime-strip {
+        padding: 0;
+    }
+
+    .runtime-strip-primary {
         flex-direction: column;
         align-items: stretch;
         height: auto;
