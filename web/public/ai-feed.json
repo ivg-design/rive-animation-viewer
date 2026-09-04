@@ -5,9 +5,9 @@
   "canonical": "https://forge.mograph.life/apps/rav/",
   "releaseStatus": {
     "version": "2.5.5",
-    "status": "candidate",
-    "public": false,
-    "note": "2.5.5 is the prepared release candidate; 2.5.4 remains public until signed promotion completes. The candidate adds H.264, H.265, WebM, APNG, GIF, PNG, JPG, and WebP export; full or segmented timelines; live interaction recording; GIF size controls; status-bar progress; bundled verified encoders; and eight media MCP tools for 57 total."
+    "status": "public",
+    "public": true,
+    "note": "RAV 2.5.5 is the current public release. It provides H.264, H.265, WebM, APNG, GIF, PNG, JPG, and WebP export; full or segmented timeline capture; live interaction recording; GIF size controls; status-bar progress; bundled verified encoders; and eight media MCP tools for 57 total."
   },
   "entities": [
     {
