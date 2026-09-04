@@ -22,10 +22,10 @@ export default function MediaExport() {
       </p>
 
       <DocsFigure
-        src={asset("/docs/2.5.5/export-chooser.webp")}
+        src={asset("/docs/2.5.5/export-chooser.webp?v=curated-1")}
         alt="RAV Export window with compact cards for still image, timeline, interaction recording, and web code export"
-        width={2500}
-        height={1800}
+        width={1473}
+        height={1394}
         caption="The Export window separates rendered media from standalone HTML and copy-paste code while keeping every workflow in one place."
       />
 
@@ -43,18 +43,18 @@ export default function MediaExport() {
       </p>
 
       <DocsFigure
-        src={asset("/docs/2.5.5/timeline-scrubber.webp")}
+        src={asset("/docs/2.5.5/timeline-scrubber.webp?v=curated-1")}
         alt="RAV timeline scrubber above the status bar paused at frame 30 of 60"
-        width={2500}
-        height={1800}
+        width={1988}
+        height={265}
         caption="Linear-animation preview shows a full-width frame or seconds ruler above the status bar, with a large draggable current-time indicator."
       />
 
       <DocsFigure
-        src={asset("/docs/2.5.5/timeline-export-settings.webp")}
+        src={asset("/docs/2.5.5/timeline-export-settings.webp?v=curated-1")}
         alt="RAV timeline export settings showing full-duration range and H.264 output controls"
-        width={2500}
-        height={1800}
+        width={2620}
+        height={1920}
         caption="Timeline export resolves the authored duration, frame count, output dimensions, frame rate, transparency, quality, and destination before capture."
       />
 
@@ -73,10 +73,10 @@ export default function MediaExport() {
       </ul>
 
       <DocsFigure
-        src={asset("/docs/2.5.5/interaction-recording-settings.webp")}
+        src={asset("/docs/2.5.5/interaction-recording-settings.webp?v=curated-1")}
         alt="RAV interaction recording settings with manual stop, output, cursor, and save destination controls"
-        width={2500}
-        height={1800}
+        width={1470}
+        height={1391}
         caption="Interaction recording keeps stop behavior and live-capture guidance beside compact output controls; manual recordings have no product time ceiling."
       />
 
@@ -88,10 +88,10 @@ export default function MediaExport() {
       </p>
 
       <DocsFigure
-        src={asset("/docs/2.5.5/still-image-export-settings.webp")}
+        src={asset("/docs/2.5.5/still-image-export-settings.webp?v=curated-1")}
         alt="RAV still-image export settings with PNG output selected"
-        width={2500}
-        height={1800}
+        width={1473}
+        height={1392}
         caption="Still export captures the current frame or an exact timeline position as PNG, JPG, or WebP."
       />
 
@@ -149,10 +149,10 @@ export default function MediaExport() {
       </p>
 
       <DocsFigure
-        src={asset("/docs/2.5.5/gif-size-options.webp")}
+        src={asset("/docs/2.5.5/gif-size-options.webp?v=curated-1")}
         alt="RAV GIF export settings showing preset, target-size, frame-rate, quality, repeat, and encoder controls"
-        width={2500}
-        height={1800}
+        width={1475}
+        height={1392}
         caption="GIF presets combine resolution and frame-rate caps with explicit quality, repeat, encoder, and best-effort target-size controls."
       />
 
@@ -171,7 +171,7 @@ export default function MediaExport() {
       </p>
 
       <DocsFigure
-        src={asset("/docs/2.5.5/export-progress-status.webp")}
+        src={asset("/docs/2.5.5/export-progress-status.webp?v=curated-1")}
         alt="RAV bottom status bar showing media export progress with a lime progress indicator"
         width={2500}
         height={1800}
