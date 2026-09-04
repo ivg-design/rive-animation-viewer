@@ -51,9 +51,8 @@ export default function Configuration() {
       <p>
         RAV defaults to <strong>Latest (auto)</strong> and resolves the current npm runtime
         before playback. If version discovery is unavailable, 2.39.2 is the fallback.
-        Live RAV MCP comparison previously proved that Web 2.40.0 / runtime-v0.1.271 can
-        double-offset nested, data-bound images in both WebGL2 and Canvas, so that exact version
-        remains labeled with an authored-layout warning.
+        Web 2.40.0 / runtime-v0.1.271 can double-offset nested, data-bound images in both
+        WebGL2 and Canvas, so RAV labels that version with an authored-layout warning.
       </p>
       <p>
         You can choose one of the concrete versions or <strong>Custom</strong> for a manual semver

@@ -37,7 +37,7 @@ export default function Troubleshooting() {
 
       <h2>The Finder icon did not change</h2>
       <ul>
-        <li>The current UTI and icon declarations require the signed installed app to replace the older bundle and launch once</li>
+        <li>Install the signed RAV app in <code>/Applications</code> and launch it once</li>
         <li>Open RAV Settings and check <strong>Default .riv App</strong>; it names the application macOS currently resolves for <code>.riv</code> files or another installed RAV copy. Use <strong>MAKE DEFAULT</strong> once, then use <strong>REPAIR ICON</strong> if Finder still shows stale document artwork</li>
         <li>Finder and Launch Services may retain cached document artwork until the app has launched and the folder is reopened</li>
         <li>Default-app and document-icon registration do not repair Quick Look previews, which are supplied by a separate system extension</li>
@@ -45,8 +45,8 @@ export default function Troubleshooting() {
 
       <h2>The Windows .riv icon did not change</h2>
       <ul>
-        <li>Older Windows installs may point <code>Rive File\DefaultIcon</code> at the application executable instead of the dedicated document icon</li>
-        <li>Current releases bundle <code>RiveFileIcon.ico</code>, rewrite that value during NSIS install/update, and notify Explorer</li>
+        <li>Run the RAV installer again so it can register the dedicated <code>RiveFileIcon.ico</code> document icon and notify Explorer</li>
+        <li>Check that <code>Rive File\DefaultIcon</code> points to the installed document icon rather than the application executable</li>
         <li>Verify the installed icon path exists before clearing Explorer&apos;s icon cache</li>
       </ul>
 
