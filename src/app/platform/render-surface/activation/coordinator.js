@@ -2,6 +2,7 @@ import {
     createRenderSurfaceCommandBuffer,
     createRenderSurfaceCommandRelay,
 } from '../command-buffer.js';
+import { createSessionSourceScopes } from './source-scopes.js';
 
 function deferred() {
     let resolve;
@@ -25,6 +26,7 @@ export function createRenderSurfaceActivationCoordinator({
     let stage = null;
     const directInFlight = new Set();
     const relayTargets = new WeakMap();
+    const sourceScopes = createSessionSourceScopes({ getActiveSessionId, getStagedSessionId });
 
     function notifyStageResult({ payload, result, sessionId, type, metadata = {} }) {
         try { onCommandResult({ metadata: { stage: true, ...metadata }, payload, result, targetSessionId: sessionId, type }); } catch {}
@@ -110,6 +112,10 @@ export function createRenderSurfaceActivationCoordinator({
 
     function recordAppliedStageCommand(targetSessionId, type, payload, result) {
         if (!result?.applied || !stage || targetSessionId !== getActiveSessionId?.() || !shouldReplay(type)) return;
+        // The stage may not have a source yet during preflight; stamp now and
+        // validate again at flush, after the independent context is resolved.
+        sourceScopes.stamp(payload, targetSessionId);
+        if (sourceScopes.get(stage.sessionId) && !sourceScopes.canReplay(targetSessionId, stage.sessionId)) return;
         if (!stage.commands.enqueue(type, payload)) onOverflow({ payload, status: 'overflow', type });
     }
 
@@ -117,6 +123,7 @@ export function createRenderSurfaceActivationCoordinator({
         if (!sessionId || !isSessionAddressable?.(sessionId)) {
             return { applied: false, status: 'unavailable' };
         }
+        if (!sourceScopes.matchesCommand(payload, sessionId)) return { applied: false, status: 'stale-source' };
         return protocol.requestCommand(type, payload, { targetSessionId: sessionId });
     }
 
@@ -256,6 +263,10 @@ export function createRenderSurfaceActivationCoordinator({
         const commands = stage.commands.drain();
         const outcomes = [];
         for (const command of commands) {
+            if (!sourceScopes.matchesCommand(command.payload, sessionId)) {
+                notifyStageResult({ ...command, sessionId, result: { applied: false, status: 'stale-source' } });
+                continue;
+            }
             const result = await sendToSession(sessionId, command.type, command.payload);
             outcomes.push(result);
             if (!result?.applied) {
@@ -266,6 +277,7 @@ export function createRenderSurfaceActivationCoordinator({
     }
 
     async function requestCommand(type, payload = {}, { targetSessionId: capturedTargetSessionId } = {}) {
+        sourceScopes.stamp(payload, capturedTargetSessionId || getActiveSessionId?.() || stage?.sessionId || getStagedSessionId?.());
         const observedBarrier = barrier;
         if (observedBarrier?.phase === 'draining') {
             await observedBarrier.routeGate.promise;
@@ -307,6 +319,7 @@ export function createRenderSurfaceActivationCoordinator({
         beginStage,
         clear() {
             cancelBuffered();
+            sourceScopes.clear();
             if (barrier) settleBarrier(barrier, false);
         },
         endStage,
@@ -316,7 +329,15 @@ export function createRenderSurfaceActivationCoordinator({
         pendingQueued: relay.size,
         pendingStage: () => stage?.commands.size() || 0,
         prepareStage,
-        relay,
+        relay: { ...relay, relay(type, payload = {}) {
+            sourceScopes.stamp(payload, getActiveSessionId?.() || stage?.sessionId || getStagedSessionId?.());
+            return relay.relay(type, payload);
+        } },
+        getActiveSourceScope: sourceScopes.active,
+        getSourceScope: sourceScopes.get,
+        setSourceScope: sourceScopes.set,
+        captureScopedSnapshot: sourceScopes.capture,
+        canReplaySource: sourceScopes.canReplay,
         requestCommand,
         sealBarrier,
         sendToSession,

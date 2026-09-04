@@ -101,6 +101,8 @@ export default function UiLayout() {
             Desktop builds include a custom About window accessible from the Settings
             popover or the native Help menu. It surfaces build metadata, runtime version,
             credits, product links including the Privacy Policy, and a scrollable dependency inventory.
+            The inventory includes the active Rive Web runtime plus the FFmpeg, ffprobe, and gifski
+            encoder versions detected by the desktop media capability service.
           </p>
         </div>
       </div>

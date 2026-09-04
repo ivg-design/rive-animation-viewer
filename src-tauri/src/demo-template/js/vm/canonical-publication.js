@@ -1,3 +1,29 @@
+        function captureRenderSurfaceStaticState() {
+            var rootVm = resolveVmRootInstance();
+            var target = window.__ravRenderSurfaceTarget || {};
+            var defaultDefinition = null;
+            try {
+                defaultDefinition = riveInstance && typeof riveInstance.defaultViewModel === 'function'
+                    ? riveInstance.defaultViewModel()
+                    : null;
+            } catch (e) { defaultDefinition = null; }
+            return {
+                artboard: readCanonicalMember(riveInstance && riveInstance.artboard, 'name') || CONFIG.artboardName || null,
+                vmInstance: {
+                    key: target.vmInstanceKey == null ? (CONFIG.viewModelInstanceName || null) : target.vmInstanceKey,
+                    name: readCanonicalMember(rootVm, 'name') || readCanonicalMember(rootVm, 'instanceName'),
+                    definition: readCanonicalMember(rootVm, 'viewModelName') || readCanonicalMember(defaultDefinition, 'name'),
+                    availableKeys: captureAvailableVmInstanceKeys(),
+                },
+                animationNames: Array.isArray(riveInstance && riveInstance.animationNames)
+                    ? riveInstance.animationNames.filter(Boolean) : [],
+                artboards: CONFIG.inspectionMetadata && Array.isArray(CONFIG.inspectionMetadata.artboards)
+                    ? CONFIG.inspectionMetadata.artboards.map(function (artboard) { return artboard && artboard.name; }).filter(Boolean) : [],
+                stateMachines: Array.isArray(riveInstance && riveInstance.stateMachineNames)
+                    ? riveInstance.stateMachineNames.filter(Boolean) : [],
+            };
+        }
+
         function createRenderSurfaceBridgeState() {
             return {
                 canonicalPublishingEnabled: !Boolean(window.__ravRenderSurfaceDefersCanonical),
@@ -33,7 +59,8 @@
 	        // runtime invokes every subscribed callback from handleCallbacks() on
 	        // each rendered frame. Subscribing all controls would therefore move,
 	        // not remove, the O(file-size) work. This observer instead performs at
-	        // most 16 cached-accessor reads per advance. At 60fps, a 999-control
+	        // most 16 cached controls per advance (enum value plus choices).
+	        // At 60fps, a 999-control
 	        // surface is fully revisited in ceil(999 / 16) / 60 = 1.05 seconds.
 	        var RENDER_SURFACE_CONTROL_READ_BUDGET = 16;
 	        var RENDER_SURFACE_CHANGE_DRAIN_BUDGET = 128;
@@ -80,6 +107,19 @@
 	                });
 	            }
 	            var value = readCanonicalControlValue(binding.kind, binding.accessor);
+	            if (binding.kind === 'enum') {
+	                var values = readEnumValues(binding.accessor);
+	                var previousValues = binding.values || [];
+	                var choicesChanged = values.length !== previousValues.length
+	                    || values.some(function (entry, index) { return entry !== previousValues[index]; });
+	                if (!choicesChanged && Object.is(value, binding.value)) return false;
+	                binding.values = values;
+	                binding.value = normalizeObservedRenderSurfaceValue(binding.kind, value);
+	                // Send both fields: later observations coalesce by control key.
+	                return queueRenderSurfaceControlChange(bridgeState, binding, {
+	                    value: binding.value, values: values.slice(),
+	                });
+	            }
 	            if (Object.is(value, binding.value)) return false;
 	            binding.value = normalizeObservedRenderSurfaceValue(binding.kind, value);
 	            return queueRenderSurfaceControlChange(bridgeState, binding, { value: binding.value });

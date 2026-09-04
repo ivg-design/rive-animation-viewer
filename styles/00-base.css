@@ -179,6 +179,14 @@ body::-webkit-scrollbar-thumb:hover,
     padding: 0;
 }
 
+/* Every native child-window overlay is modal with respect to the main WebView.
+ * `inert` owns focus semantics; pointer-events is the WebKit fallback that also
+ * prevents transparent overlay regions from activating controls underneath. */
+.app-shell.is-native-overlay-blocked {
+    pointer-events: none;
+    user-select: none;
+}
+
 /* ── Lucide icon sizing ───────────────────────────────────── */
 
 .lucide-10 { width: 10px; height: 10px; }

@@ -41,7 +41,10 @@ function applyControlChanges(controlIndex, changes) {
         const target = controlIndex.get(controlKey(change));
         if (!target) return;
         const kind = change?.kind || target.kind || target.descriptor?.kind;
-        if (SCALAR_CONTROL_KINDS.has(kind) && Object.hasOwn(change, 'value')) {
+        if (kind === 'enum' && (Object.hasOwn(change, 'value') || Array.isArray(change.values))) {
+            if (Object.hasOwn(change, 'value')) target.value = change.value;
+            if (Array.isArray(change.values)) target.values = change.values.filter((value) => typeof value === 'string');
+        } else if (SCALAR_CONTROL_KINDS.has(kind) && Object.hasOwn(change, 'value')) {
             target.value = change.value;
         } else if (kind === 'image' && Object.hasOwn(change, 'present')) {
             target.present = Boolean(change.present);

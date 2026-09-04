@@ -4,6 +4,7 @@ pub mod install_counter;
 pub mod isolated_playback;
 pub mod launch_services;
 pub mod mcp;
+pub mod media_export;
 pub mod node_runtime;
 pub mod operational_trace;
 pub mod render_surface;

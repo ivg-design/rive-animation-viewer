@@ -39,6 +39,18 @@ async function flushBridgeMicrotasks() {
 }
 
 describe('platform/mcp-bridge', () => {
+    it('returns native string rejections as errors instead of null successes', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        vi.stubGlobal('setInterval', vi.fn(() => 1));
+        window._mcpLogEvent = vi.fn(); window._mcpUpdateStatus = vi.fn();
+        await import('../../../src/app/platform/mcp/bridge-client.js?test=bridge-native-string');
+        await flushBridgeMicrotasks();
+        const socket = FakeWebSocket.instances[0]; socket.accept();
+        window._mcpBridge.commands.rav_test_native_failure = () => Promise.reject('Output already exists');
+        await socket.onmessage({ data: JSON.stringify({ id: 'native-error', command: 'rav_test_native_failure', params: {} }) });
+        expect(socket.sent.map((v) => JSON.parse(v)).find((v) => v.id === 'native-error'))
+            .toEqual({ id: 'native-error', error: 'Output already exists' });
+    });
     beforeEach(() => {
         vi.useFakeTimers();
         vi.resetModules();

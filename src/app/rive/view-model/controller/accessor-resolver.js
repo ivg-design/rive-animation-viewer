@@ -6,6 +6,7 @@ import {
     resolveVmRootInstance,
 } from '../accessors.js';
 import { getStateMachineInputMetadata } from '../../runtime-compatibility.js';
+import { sourceScopesMatch } from '../../inspection/source-scope.js';
 
 export function createVmControlAccessorResolver({
     getCurrentRuntime,
@@ -13,6 +14,8 @@ export function createVmControlAccessorResolver({
     getRiveInstance,
     isAuthoritativeChildMode,
     remoteControls,
+    getCurrentSourceScope = null,
+    getControlSourceScope = null,
 }) {
     function resolveVmAccessor(descriptor, expectedKind) {
         const normalizedDescriptor = typeof descriptor === 'string'
@@ -50,6 +53,7 @@ export function createVmControlAccessorResolver({
     }
 
     function resolveControlAccessor(descriptor) {
+        if (getCurrentSourceScope && !sourceScopesMatch(getCurrentSourceScope(), getControlSourceScope?.())) return null;
         if (isAuthoritativeChildMode) return remoteControls.resolveAccessor(descriptor);
         if (descriptor?.source === 'state-machine') {
             return resolveStateMachineInputAccessor(descriptor.stateMachineName, descriptor.name, descriptor.kind);

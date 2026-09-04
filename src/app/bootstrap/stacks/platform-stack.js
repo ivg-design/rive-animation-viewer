@@ -1,3 +1,4 @@
+import { createMediaExportController } from '../../platform/media/controller.js';
 import { createDemoExportController } from '../../platform/export/demo-export.js';
 import { createFileSessionController } from '../../platform/session/file-session.js';
 import { createGlobalBindingsController } from '../../platform/global-bindings.js';
@@ -24,6 +25,8 @@ export function createPlatformStack({
         ensureTauriBridge,
         eventLogController,
         getArtboardStateSnapshot,
+        getInspectionMetadata,
+        getCurrentSourceScope,
         getChangedVmControlSnapshot,
         getCurrentFileBuffer,
         getCurrentFileMimeType,
@@ -167,6 +170,9 @@ export function createPlatformStack({
         },
         captureVmControlSnapshot,
         getArtboardStateSnapshot,
+        getInspectionMetadata,
+        getControlSnapshotScope: () => isTauriEnvironment()
+            ? renderSurfaceController.getSourceScope() : getCurrentSourceScope?.(),
         getCurrentFileBuffer,
         getCurrentFileName,
         getCurrentFilePreferenceId,
@@ -206,6 +212,9 @@ export function createPlatformStack({
         demoExportController,
         elements,
     });
+
+    const mediaExportController = createMediaExportController({ getTauriInvoker, getTauriEventListener, renderSurfaceController,
+        getControlSnapshot: captureVmControlSnapshot });
 
     installCounterController = createInstallCounterController({
         elements,
@@ -260,6 +269,7 @@ export function createPlatformStack({
             getLiveConfigState,
             getRenderSurfaceState: () => renderSurfaceController.getState(),
             getRenderSurfaceController: () => renderSurfaceController,
+            getMediaExportController: () => mediaExportController,
             getRuntimeSourceText,
             getRuntimeVersion,
             getScriptConsoleEntries: (limit) => scriptConsoleController.readCaptured(limit),
@@ -321,6 +331,7 @@ export function createPlatformStack({
         demoExportController,
         fileSessionController,
         globalBindingsController,
+        mediaExportController,
         instantiationControlsDialogController,
         installCounterController,
         defaultRivAppController,

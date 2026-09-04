@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Code2, Download, Layers, Monitor, Gamepad2, Terminal, FileCode, Settings, Cable, RefreshCw, Keyboard, HelpCircle, LayoutGrid } from "lucide-react";
+import { Code2, Download, Layers, Monitor, Gamepad2, Terminal, FileCode, Settings, Cable, RefreshCw, Keyboard, HelpCircle, LayoutGrid, Clapperboard } from "lucide-react";
 import { asset } from "@/lib/config";
 import { toCanonicalUrl } from "@/lib/seo";
 
@@ -18,9 +18,10 @@ const topics = [
   { icon: LayoutGrid, title: "Artboard Switcher", desc: "Switch artboards and animations", href: "/docs/artboard-switcher" },
   { icon: Code2, title: "Script Editor", desc: "Live Rive config, APPLY, internal vs editor mode", href: "/docs/script-editor" },
   { icon: Terminal, title: "Consoles", desc: "Event log and JavaScript REPL", href: "/docs/consoles" },
+  { icon: Clapperboard, title: "Media Export & Recording", desc: "Timeline video, animated images, stills, and live interaction capture", href: "/docs/media-export" },
   { icon: FileCode, title: "Export + Snippets", desc: "Standalone HTML and instantiation code", href: "/docs/export" },
   { icon: Settings, title: "Configuration", desc: "Settings panel, renderer, runtime, canvas sizing", href: "/docs/configuration" },
-  { icon: Cable, title: "MCP Integration", desc: "49 tools, bundled sidecar, Script Access", href: "/docs/mcp" },
+  { icon: Cable, title: "MCP Integration", desc: "57 tools, including complete media automation", href: "/docs/mcp" },
   { icon: RefreshCw, title: "Auto Updates", desc: "Built-in updater flow", href: "/docs/updates" },
   { icon: Keyboard, title: "Keyboard Shortcuts", desc: "All implemented keybindings", href: "/docs/shortcuts" },
   { icon: HelpCircle, title: "Troubleshooting", desc: "Common issues and fixes", href: "/docs/troubleshooting" },

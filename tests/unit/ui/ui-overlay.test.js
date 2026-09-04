@@ -9,6 +9,7 @@ import { isValidCanvasDimensionInput } from '../../../src/app/core/canvas-sizing
 
 function createElements() {
     document.body.innerHTML = `
+        <div class="app-shell">
         <button id="settings-btn"></button>
         <div id="settings-popover" hidden>
             <button data-settings-action="about"></button>
@@ -29,6 +30,7 @@ function createElements() {
         <span id="default-riv-app-status" role="status">CHECKING…</span>
         <button id="default-riv-app-action-btn" disabled>UNAVAILABLE</button>
         <button id="install-counter-enabled-btn" aria-pressed="true">ON</button>
+        </div>
     `;
     const byId = (id) => document.getElementById(id);
     return {
@@ -298,8 +300,51 @@ describe('bounded UI overlay', () => {
         await controller.setup();
         await controller.openSettings();
 
-        document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+        const appShell = document.querySelector('.app-shell');
+        const underlyingHandler = vi.fn();
+        elements.canvasSizeAutoButton.addEventListener('pointerdown', underlyingHandler);
+        expect(appShell.hasAttribute('inert')).toBe(true);
+        expect(appShell.classList.contains('is-native-overlay-blocked')).toBe(true);
+
+        const pointerEvent = new Event('pointerdown', { bubbles: true, cancelable: true });
+        elements.canvasSizeAutoButton.dispatchEvent(pointerEvent);
         await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith('close_ui_overlay', { expectedEpoch: 7 }));
+        expect(pointerEvent.defaultPrevented).toBe(true);
+        expect(underlyingHandler).not.toHaveBeenCalled();
+        expect(appShell.hasAttribute('inert')).toBe(false);
+        expect(appShell.classList.contains('is-native-overlay-blocked')).toBe(false);
+        controller.dispose();
+    });
+
+    it('restores parent interaction when a native overlay fails to open', async () => {
+        const elements = createElements();
+        const invoke = vi.fn(async (command) => {
+            if (command === 'is_ui_overlay_supported') return true;
+            if (command === 'show_ui_overlay') throw new Error('window rejected');
+            return null;
+        });
+        const controller = createUiOverlayController({
+            callbacks: {
+                createOverlayRequestToken: () => 'failed-overlay-token',
+                getTauriEventListener: async () => async () => () => {},
+                getTauriInvoker: () => invoke,
+                isTauriEnvironment: () => true,
+                showError: vi.fn(),
+            },
+            documentRef: document,
+            elements,
+            windowRef: window,
+        });
+        await controller.setup();
+
+        await expect(controller.openPurpose({
+            bounds: { height: 400, width: 500, x: 100, y: 100 },
+            purpose: 'export',
+        })).resolves.toBe(false);
+
+        const appShell = document.querySelector('.app-shell');
+        expect(appShell.hasAttribute('inert')).toBe(false);
+        expect(appShell.classList.contains('is-native-overlay-blocked')).toBe(false);
         controller.dispose();
     });
 

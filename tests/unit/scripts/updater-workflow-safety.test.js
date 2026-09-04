@@ -4,6 +4,7 @@ describe('updater release workflow safety', () => {
     const stage = fs.readFileSync('.github/workflows/release.yml', 'utf8');
     const promote = fs.readFileSync('.github/workflows/promote-updater-candidate.yml', 'utf8');
     const repair = fs.readFileSync('.github/workflows/repair-updater-manifest.yml', 'utf8');
+    const macVerifier = fs.readFileSync('scripts/verify-macos-distribution.sh', 'utf8');
     const config = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
     const acceptanceConfig = JSON.parse(fs.readFileSync('src-tauri/tauri.acceptance.conf.json', 'utf8'));
 
@@ -46,5 +47,31 @@ describe('updater release workflow safety', () => {
         expect(stage).toContain('counter_endpoint: ${{ steps.counter.outputs.endpoint }}');
         expect(stage.match(/needs\.prepare-release\.outputs\.counter_endpoint/g)).toHaveLength(2);
         expect(stage.match(/vars\.RAV_COUNTER_ENDPOINT/g)).toHaveLength(1);
+    });
+
+    it('acquires the pinned production encoders before every platform build', () => {
+        expect(stage.match(/encoders\.mjs acquire/g)).toHaveLength(2);
+        expect(stage).toContain('--target "$RAV_ENCODER_TARGET"');
+        expect(stage).toContain('--mac-signing-identity "$APPLE_SIGNING_IDENTITY"');
+        expect(stage).toContain('RAV_ENCODER_TARGET: x86_64-pc-windows-msvc');
+        expect(stage).toContain('APPLE_SIGNING_IDENTITY: ${{ steps.apple.outputs.signing_identity }}');
+        expect(stage).toContain('security list-keychains -d user -s "$keychain_path"');
+        expect(stage).not.toMatch(/gifski/i);
+    });
+
+    it('requires the exact corresponding source in the private byte ledger', () => {
+        expect(stage).toContain('jellyfin-ffmpeg-v7.1.4-3-source.tar.gz');
+        expect(stage).toContain('38fff90f73b3c4f9c3c7270711411a4ec3cbe63b205d4b4a5525bcc532d3d31f');
+        expect(stage).toContain('16698965');
+        expect(stage).not.toMatch(/exit 1\s*\n\s*exit 1/);
+    });
+
+    it('verifies only manifest-declared signed macOS encoder executables', () => {
+        expect(macVerifier).toContain('encoders.mjs" verify-bundle');
+        expect(macVerifier).toContain('encoders/ffmpeg | encoders/ffprobe');
+        expect(macVerifier).toContain('require_signature_contract "$encoder"');
+        expect(macVerifier).toContain('require_hardened_runtime "$encoder"');
+        expect(macVerifier).toContain('require_architecture "$encoder"');
+        expect(macVerifier).toContain('undeclared Mach-O executable in Resources');
     });
 });

@@ -90,6 +90,7 @@ describe('bootstrap/controller-stack', () => {
                 getRuntimeVersion: vi.fn(),
                 setupRuntimeVersionPicker: vi.fn(),
             },
+            inspectionController: { inspect: vi.fn(), getMetadata: vi.fn(), getSourceScope: vi.fn() },
             canvasBackgroundController: {
                 getStateSnapshot: vi.fn(() => ({ canvasColor: '#000000', canvasTransparent: false })),
                 isCanvasBackgroundTransparent: vi.fn(() => false),
@@ -112,12 +113,14 @@ describe('bootstrap/controller-stack', () => {
         const setCurrentCanvasSizing = vi.fn();
         const getCurrentFilePreferenceId = vi.fn(() => 'path:/users/test/demo.riv');
         const loadCurrentAnimation = vi.fn(async () => true);
+        const canonicalScope = { sourceIdentity: 'new-file', runtimeKey: 'webgl2@2.42.0', sessionId: 'new-session' };
+        const getCanonicalSourceScope = vi.fn(() => canonicalScope);
         createPlatformStack.mockReturnValue({
             demoExportController: {},
             fileSessionController: {},
             globalBindingsController: {},
             instantiationControlsDialogController: {},
-            renderSurfaceController: { loadCurrentAnimation },
+            renderSurfaceController: { loadCurrentAnimation, getCanonicalSourceScope },
             shellController: {},
         });
 
@@ -175,6 +178,7 @@ describe('bootstrap/controller-stack', () => {
         const platformStackArgs = createPlatformStack.mock.calls[0]?.[0];
         expect(platformStackArgs?.callbacks?.getCurrentFilePreferenceId).toBe(getCurrentFilePreferenceId);
         const riveStackArgs = createRiveStack.mock.calls[0]?.[0];
+        expect(riveStackArgs?.callbacks?.getCanonicalSourceScope()).toBe(canonicalScope);
         expect(riveStackArgs?.callbacks?.getCurrentRuntimeVersion).toBe(
             createRuntimeStack.mock.results[0].value.runtimeLoaderController.getCurrentRuntimeVersion,
         );

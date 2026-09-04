@@ -1,3 +1,4 @@
+import Link from "next/link";
 import DocsFigure from "@/components/docs/DocsFigure";
 import { asset } from "@/lib/config";
 
@@ -11,6 +12,12 @@ export default function Export() {
       <p>
         RAV can export self-contained HTML demo files and generate canonical web
         instantiation snippets for embedding animations in your codebase.
+      </p>
+
+      <p>
+        Video, animated-image, and still-image output uses the separate desktop
+        <Link href={asset("/docs/media-export")}> Media Export &amp; Recording</Link> workflow in
+        the same <strong>EXPORT</strong> menu.
       </p>
 
       <p>
@@ -37,11 +44,11 @@ export default function Export() {
       <h2>Snippet &amp; Export Controls</h2>
 
       <DocsFigure
-        src={asset("/docs/2.5.3/snippet-preview-cdn-compact.webp")}
-        alt="Snippet and Export Controls showing selected controls and a CDN compact snippet preview"
-        width={2660}
-        height={1960}
-        caption="A CDN + COMPACT preview pairs the selected control tree with the generated embeddable snippet before you copy or export it."
+        src={asset("/docs/2.5.5/snippet-export-settings.webp")}
+        alt="RAV snippet settings with three selected ViewModel properties and a compact CDN code preview"
+        width={2500}
+        height={1800}
+        caption="A compact snippet contains setup plus only the selected property accessors. Standalone HTML remains a separate complete export with its own UI chrome."
       />
 
       <p>
@@ -117,8 +124,7 @@ export default function Export() {
       <p>
         Applied editor callbacks and non-toolbar config execute in the exported standalone page
         after its binding and snapshot-restore lifecycle. Changes still marked as an unapplied
-        draft remain out of the export. The 2.4.3 release was exercised with a live marker in
-        an exported page, confirming that the applied script executes outside RAV.
+        draft remain out of the export.
       </p>
 
       <h2>ViewModel Control Parity</h2>

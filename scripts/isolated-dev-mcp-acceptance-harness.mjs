@@ -10,10 +10,10 @@
  *
  * Usage:
  *   node scripts/isolated-dev-mcp-acceptance-harness.mjs \
- *     --sidecar /absolute/path/to/RAV\ 2.5.4\ DEV.app/Contents/MacOS/rav-mcp \
+ *     --sidecar /absolute/path/to/RAV\ 2.5.5\ DEV.app/Contents/MacOS/rav-mcp \
  *     --port 9278 \
  *     --expected-build b0217-20260827-0000-abcdef0 \
- *     --expected-version 2.5.4 \
+ *     --expected-version 2.5.5 \
  *     --expected-channel dev \
  *     --expected-sidecar-sha256 <64 lowercase hex characters> \
  *     --expected-scenario-sha256 <64 lowercase hex characters> \
@@ -34,11 +34,14 @@ const ISOLATED_PORT = 9278;
 const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_POLL_MS = 100;
 const DEFAULT_POLL_TIMEOUT_MS = 3_000;
-const EXPECTED_TOOL_COUNT = 49;
-const REQUIRED_NEW_TOOLS = [
+const EXPECTED_TOOL_COUNT = 57;
+const REQUIRED_RELEASE_TOOLS = [
     'rav_get_global_vm_tree', 'rav_global_vm_get', 'rav_global_vm_set',
     'rav_global_vm_fire', 'rav_global_vm_set_image', 'rav_global_vm_clear_image',
     'rav_capture_canvas',
+    'rav_media_capabilities', 'rav_export_media', 'rav_record_start',
+    'rav_record_stop', 'rav_media_status', 'rav_media_cancel',
+    'rav_step_frames', 'rav_pointer',
 ];
 
 class AssertionError extends Error {
@@ -470,13 +473,13 @@ async function main() {
             'tools/list: every advertised tool must have a non-empty name.', { listedNames });
         assertion(new Set(listedNames).size === listedNames.length,
             'tools/list: advertised tool names must be unique.', { listedNames });
-        assertion(REQUIRED_NEW_TOOLS.every((name) => listedNames.includes(name)),
-            'tools/list: required GVM/capture tools are not all advertised.', {
-                missing: REQUIRED_NEW_TOOLS.filter((name) => !listedNames.includes(name)),
+        assertion(REQUIRED_RELEASE_TOOLS.every((name) => listedNames.includes(name)),
+            'tools/list: required GVM, capture, and media tools are not all advertised.', {
+                missing: REQUIRED_RELEASE_TOOLS.filter((name) => !listedNames.includes(name)),
             });
-        addPass('tools/list: exact 49 unique tools including GVM/capture names', {
+        addPass('tools/list: exact 57 unique tools including GVM/capture/media names', {
             count: listedTools.length,
-            required: REQUIRED_NEW_TOOLS,
+            required: REQUIRED_RELEASE_TOOLS,
             names: listedNames,
         });
         const before = compactStatus(await status());
@@ -661,6 +664,13 @@ async function main() {
             'images: replayThroughFile must reference a different fixture alias.');
             const results = [];
             for (const path of paths) {
+                const beforeTree = await client.tool('rav_get_vm_tree');
+                const siblingPresence = new Map(paths
+                    .filter((candidate) => candidate !== path)
+                    .map((candidate) => [
+                        candidate,
+                        beforeTree.inputs?.find((input) => input.path === candidate)?.present === true,
+                    ]));
                 const set = await client.tool('rav_vm_set_image', {
                     path, bytes: config.bytes, label: `acceptance-${path.split('/').at(-1)}.png`,
                 });
@@ -669,11 +679,15 @@ async function main() {
                 const tree = await client.tool('rav_get_vm_tree');
                 const input = tree.inputs?.find((candidate) => candidate.path === path);
                 assertion(input?.present === true, `image ${path}: canonical presence missing after set.`, { input });
-                const sibling = paths.find((candidate) => candidate !== path && !results.some((entry) => entry.path === candidate));
-                if (sibling) {
+                for (const [sibling, wasPresent] of siblingPresence) {
                     const siblingInput = tree.inputs?.find((candidate) => candidate.path === sibling);
-                    assertion(siblingInput?.present !== true,
-                        `image ${path}: setting one slot populated untouched sibling ${sibling}.`, { siblingInput });
+                    const isPresent = siblingInput?.present === true;
+                    assertion(isPresent === wasPresent,
+                        `image ${path}: setting one slot changed untouched sibling ${sibling}.`, {
+                            before: wasPresent,
+                            after: isPresent,
+                            siblingInput,
+                        });
                 }
                 results.push({ path, set: true });
             }

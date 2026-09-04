@@ -129,10 +129,19 @@
             events.listen('render-surface:command', function (event) {
                 var command = event && event.payload && typeof event.payload === 'object' ? event.payload : {};
                 if (command.sessionId && renderSurfaceSessionId && command.sessionId !== renderSurfaceSessionId) return;
+                // Abort may interrupt a graceful stop waiting for encoder work.
+                // Its normal ACK still travels through the revision-ordered chain.
+                if (command.type === 'media-record-abort'
+                    && Number(command.protocolVersion || protocolVersion) === protocolVersion
+                    && Number(command.revision) > lastCommandRevision) {
+                    try { abortRenderSurfaceRecording((command.payload || {}).capture_id); } catch (_) {}
+                }
                 commandChain = commandChain.then(function () {
                     if (Number(command.protocolVersion || protocolVersion) !== protocolVersion) throw new Error('Unsupported render-surface protocol version.');
                     var commandRevision = Number(command.revision) || 0;
                     if (commandRevision <= lastCommandRevision) throw new Error('Stale render-surface command revision.');
+                    if (command.type === 'media-record-stop') return withRenderSurfaceStopProgress(command, emitToMain,
+                        function () { return handleRenderSurfaceCommand(command, emitToMain); });
                     return Promise.resolve(handleRenderSurfaceCommand(command, emitToMain));
                 }).then(function (result) {
                     lastCommandRevision = Number(command.revision) || lastCommandRevision;

@@ -1,10 +1,10 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Rive Animation Viewer",
-  "version": "2.5.4",
+  "version": "2.5.5",
   "identifier": "app.rive.animation.viewer",
   "build": {
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "node scripts/encoder-distribution/encoders.mjs verify --directory src-tauri/encoder-resources/encoders && npm run build",
     "beforeDevCommand": "npm run build:mcp:debug && npm run serve",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
@@ -56,7 +56,8 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "icons/RiveFileIcon.icns": "RiveFileIcon.icns"
+      "icons/RiveFileIcon.icns": "RiveFileIcon.icns",
+      "encoder-resources/encoders/": "encoders/"
     },
     "macOS": {
       "hardenedRuntime": true,
@@ -72,12 +73,12 @@
         "role": "Viewer",
         "rank": "Alternate",
         "mimeType": "application/vnd.rive.editor",
-      "contentTypes": [
-        "app.rive.editor.rive-file",
-        "app.rive.riv",
-        "com.play.riv",
-        "app.rive.animation.viewer.riv"
-      ]
+        "contentTypes": [
+          "app.rive.editor.rive-file",
+          "app.rive.riv",
+          "com.play.riv",
+          "app.rive.animation.viewer.riv"
+        ]
       }
     ]
   },

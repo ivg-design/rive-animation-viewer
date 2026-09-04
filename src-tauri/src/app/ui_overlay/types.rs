@@ -228,6 +228,18 @@ impl UiOverlayActionRequest {
             ("export", "package-source") => is_one_of(&self.value, &["cdn", "local"]),
             ("export", "snippet-mode") => is_one_of(&self.value, &["compact", "scaffold"]),
             ("export", "tree-scroll") => is_nonnegative_integer(&self.value, 10_000_000),
+            ("export", "media-select") => is_one_of(&self.value, &["still", "timeline", "record"]),
+            (
+                "export",
+                "media-menu"
+                | "media-html"
+                | "media-submit"
+                | "media-stop"
+                | "media-cancel"
+                | "media-choose-path"
+                | "media-toggle-recording",
+            ) => self.value.is_null(),
+            ("export", "media-change") => is_media_field_change(&self.value),
             _ => false,
         };
         valid
@@ -254,6 +266,31 @@ fn is_bounded_action_id(value: &str) -> bool {
         && value
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+}
+
+fn is_media_field_change(value: &serde_json::Value) -> bool {
+    let Some(object) = value.as_object() else {
+        return false;
+    };
+    if object.len() != 2 {
+        return false;
+    }
+    let Some(name) = object.get("name").and_then(serde_json::Value::as_str) else {
+        return false;
+    };
+    let Some(value) = object.get("value") else {
+        return false;
+    };
+    match name {
+        "aspect_lock" | "alpha" | "cursor" => value.is_boolean(),
+        "format" | "range" | "range_unit" | "start" | "end" | "at_mode" | "at_seconds"
+        | "at_frame" | "width" | "height" | "scale" | "fps" | "quality" | "background"
+        | "stop_mode" | "duration_seconds" | "output_path" | "gif_preset" | "encoder"
+        | "repeat" | "motion_quality" | "lossy_quality" | "target_mib" | "size_policy" => {
+            is_bounded_text_allow_empty(value, 4096)
+        }
+        _ => false,
+    }
 }
 
 fn is_bounded_text(value: &serde_json::Value, max_len: usize) -> bool {

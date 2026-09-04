@@ -1,4 +1,12 @@
-import { createRenderSurfaceActivationCoordinator } from '../../../src/app/platform/render-surface/activation/coordinator.js';
+import { createRenderSurfaceActivationCoordinator as createCoordinator } from '../../../src/app/platform/render-surface/activation/coordinator.js';
+
+function createRenderSurfaceActivationCoordinator(options) {
+    const coordinator = createCoordinator(options);
+    const scope = { sourceIdentity: 'same-file', runtimeKey: 'webgl2@2.42.0', artboardKey: 'Main', vmInstanceKey: null };
+    coordinator.setSourceScope(options.getActiveSessionId?.() || 'active', scope);
+    coordinator.setSourceScope(options.getStagedSessionId?.() || 'staged', scope);
+    return coordinator;
+}
 
 function deferred() {
     let resolve;

@@ -19,48 +19,27 @@
             return true;
         }
 
-        function waitForRenderSurfacePresentationFrames(frameCount) {
-            var requiredFrames = Math.max(1, Number(frameCount) || 2);
-            return new Promise(function (resolve) {
-                var observedFrames = 0;
-                var timerFallbacks = 0;
-                var nextFrame = function (usedTimerFallback) {
-                    if (usedTimerFallback) timerFallbacks += 1;
-                    observedFrames += 1;
-                    if (observedFrames >= requiredFrames) {
-                        var result = { frames: observedFrames, presented: true };
-                        if (timerFallbacks) result.timerFallbacks = timerFallbacks;
-                        resolve(result);
-                        return;
-                    }
-                    schedulePresentationOpportunity();
-                };
-                var schedulePresentationOpportunity = function () {
-                    var settled = false;
-                    var frameId = null;
-                    var timerId = null;
-                    var settle = function (usedTimerFallback) {
+        async function waitForRenderSurfacePresentationFrames(frameCount) {
+            var frames = Math.max(1, Number(frameCount) || 2);
+            var timerFallbacks = 0;
+            for (var i = 0; i < frames; i++) {
+                var fallback = await new Promise(function (resolve) {
+                    var settled = false, frameId = null;
+                    var timer = window.setTimeout(function () { finish(true); }, 150);
+                    function finish(fallback) {
                         if (settled) return;
-                        settled = true;
-                        if (timerId !== null && typeof window.clearTimeout === 'function') {
-                            window.clearTimeout(timerId);
-                        }
-                        if (usedTimerFallback && frameId !== null
-                            && typeof window.cancelAnimationFrame === 'function') {
-                            window.cancelAnimationFrame(frameId);
-                        }
-                        nextFrame(usedTimerFallback);
-                    };
-                    // A fully clipped or backgrounded WKWebView can expose rAF
-                    // while indefinitely suppressing its callbacks. Keep each
-                    // of the two presentation opportunities bounded so the
-                    // child command lane can still transport prepare-frame's
-                    // ACK before the parent command deadline.
-                    timerId = window.setTimeout(function () { settle(true); }, 250);
-                    if (typeof window.requestAnimationFrame === 'function') {
-                        frameId = window.requestAnimationFrame(function () { settle(false); });
+                        settled = true; window.clearTimeout(timer);
+                        if (fallback && frameId != null) window.cancelAnimationFrame(frameId);
+                        resolve(fallback);
                     }
-                };
-                schedulePresentationOpportunity();
-            });
+                    if (typeof window.requestAnimationFrame === 'function') frameId = window.requestAnimationFrame(function () { finish(false); });
+                });
+                if (fallback) timerFallbacks++;
+                // A timer only wakes this barrier. Completion is a real draw and
+                // GPU flush, even if the compositor cannot display a hidden window.
+                renderSurfaceAdvanceFrame(riveInstance, 0);
+                if (riveInstance.isPlaying) riveInstance.startRendering();
+            }
+            return { frames: frames, rendered: true, presented: !document.hidden,
+                timerFallbacks: timerFallbacks, verifiedBy: 'runtime-draw-flush' };
         }

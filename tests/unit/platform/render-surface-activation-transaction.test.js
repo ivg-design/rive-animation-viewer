@@ -138,7 +138,7 @@ describe('platform/render-surface/activation/transaction', () => {
 
         await expect(transaction).resolves.toEqual(expect.objectContaining({
             activated: false,
-            message: expect.stringContaining('superseded before callbacks'),
+            message: expect.stringContaining('stale-session'),
         }));
         expect(options.sendCommand).toHaveBeenCalledTimes(1);
         expect(options.activate).not.toHaveBeenCalled();

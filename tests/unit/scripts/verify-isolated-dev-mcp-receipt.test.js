@@ -9,7 +9,7 @@ import {
 
 function fixture() {
     const directory = mkdtempSync(join(tmpdir(), 'rav-receipt-'));
-    const sidecar = join(directory, 'RAV 2.5.4 DEV.app', 'Contents', 'MacOS', 'rav-mcp');
+    const sidecar = join(directory, 'RAV 2.5.5 DEV.app', 'Contents', 'MacOS', 'rav-mcp');
     const scenario = join(directory, 'scenario.json');
     const scenarioText = JSON.stringify({
         files: { a: '/tmp/a.riv', b: '/tmp/b.riv' },
@@ -20,7 +20,7 @@ function fixture() {
         openRepeats: 2,
         openSequence: ['a', 'b', 'a'],
     });
-    mkdirSync(join(directory, 'RAV 2.5.4 DEV.app', 'Contents', 'MacOS'), { recursive: true });
+    mkdirSync(join(directory, 'RAV 2.5.5 DEV.app', 'Contents', 'MacOS'), { recursive: true });
     writeFileSync(sidecar, 'sidecar');
     writeFileSync(scenario, scenarioText);
     const openAssertions = [];
@@ -37,7 +37,7 @@ function fixture() {
     const expectedScenarioSha256 = createHash('sha256').update(scenarioText).digest('hex');
     const options = {
         expectedBuild: 'b0217-20260827-0300-645bfa9-dirty',
-        expectedVersion: '2.5.4',
+        expectedVersion: '2.5.5',
         expectedChannel: 'dev',
         sidecarPath: sidecar,
         scenarioPath: scenario,
@@ -68,11 +68,14 @@ function fixture() {
                 ...REQUIRED_ASSERTIONS.map((name) => ({
                     name,
                     ok: true,
-                    ...(name === 'tools/list: exact 49 unique tools including GVM/capture names'
-                        ? { count: 49, names: [
+                    ...(name === 'tools/list: exact 57 unique tools including GVM/capture/media names'
+                        ? { count: 57, names: [
                             'rav_get_global_vm_tree', 'rav_global_vm_get', 'rav_global_vm_set',
                             'rav_global_vm_fire', 'rav_global_vm_set_image', 'rav_global_vm_clear_image',
-                            'rav_capture_canvas', ...Array.from({ length: 42 }, (_, index) => `tool-${index}`),
+                            'rav_capture_canvas', 'rav_media_capabilities', 'rav_export_media',
+                            'rav_record_start', 'rav_record_stop', 'rav_media_status',
+                            'rav_media_cancel', 'rav_step_frames', 'rav_pointer',
+                            ...Array.from({ length: 42 }, (_, index) => `tool-${index}`),
                         ] } : {}),
                     ...(name === 'global VM tree/get/set/restore'
                         ? { globalViewModelName: 'GlobalLabels', path: 'label', original: 'Original', restored: 'Original' } : {}),
@@ -89,7 +92,7 @@ describe('isolated DEV MCP receipt verifier', () => {
         const current = fixture();
         expect(verifyReceipt(current.receipt, current.options)).toMatchObject({
             build: current.options.expectedBuild,
-            version: '2.5.4',
+            version: '2.5.5',
         });
     });
 

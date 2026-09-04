@@ -1,3 +1,4 @@
+import { setInspectionMetadata } from '../../../src/app/rive/runtime-compatibility.js';
 import { createRiveInstanceController } from '../../../src/app/rive/instance-controller.js';
 import { selectionAfterLoad } from '../../../src/app/rive/artboards/selection-state.js';
 import { buildStateMachineHierarchy } from '../../../src/app/rive/view-model/hierarchy.js';
@@ -137,6 +138,7 @@ describe('known-empty legacy input metadata', () => {
                 name: 'Main', stateMachines: [{ name: 'Machine', inputs: metadata }],
             }] } }),
         };
+        setInspectionMetadata(instance, instance.contents);
         const resolver = createVmControlAccessorResolver({
             getCurrentRuntime: () => 'webgl2', getLoadedRuntime: () => ({}), getRiveInstance: () => instance,
             isAuthoritativeChildMode: false,

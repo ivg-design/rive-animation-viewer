@@ -95,6 +95,7 @@ export function createControllerStack({
         elements,
         state: runtimeState,
         callbacks: {
+            getCurrentFileBuffer,
             getCurrentFileName,
             getCurrentFilePreferenceId,
             getCurrentFileUrl,
@@ -154,6 +155,15 @@ export function createControllerStack({
             getRiveInstance,
             getRenderSurfaceAuthority: () => platformStack?.renderSurfaceController?.getState?.() || null,
             getRenderSurfaceCanonicalState: () => platformStack?.renderSurfaceController?.getCanonicalState?.() || null,
+            getCanonicalSourceScope: () => platformStack?.renderSurfaceController?.getCanonicalSourceScope?.() || null,
+            inspectFile: runtimeStack.inspectionController.inspect,
+            getInspectionMetadata: runtimeStack.inspectionController.getMetadata,
+            getControlSourceScope: () => isTauriEnvironment()
+                ? platformStack?.renderSurfaceController?.getSourceScope?.() || null
+                : runtimeStack.inspectionController.getSourceScope(riveStack.getArtboardStateSnapshot()),
+            getCurrentSourceScope: () => runtimeStack.inspectionController.getSourceScope(
+                riveStack.getArtboardStateSnapshot(),
+            ),
             getTauriInvoker,
             hideError,
             initLucideIcons,
@@ -189,6 +199,8 @@ export function createControllerStack({
             ensureRuntime,
             ensureTauriBridge,
             getArtboardStateSnapshot: riveStack.getArtboardStateSnapshot,
+            getInspectionMetadata: runtimeStack.inspectionController.getMetadata,
+            getCurrentSourceScope: () => runtimeStack.inspectionController.getSourceScope(riveStack.getArtboardStateSnapshot()),
             getChangedVmControlSnapshot: riveStack.getChangedVmControlSnapshot,
             getCurrentFileBuffer,
             getCurrentFileMimeType,

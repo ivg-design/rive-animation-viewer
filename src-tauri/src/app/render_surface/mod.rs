@@ -16,6 +16,7 @@ mod protocol;
 mod registry;
 mod source;
 
+pub use messages::clock::start as start_frame_clock;
 pub use protocol::serve_render_surface_protocol;
 pub use registry::RenderSurfaceManager;
 pub use source::CreateRenderSurfaceRequest;

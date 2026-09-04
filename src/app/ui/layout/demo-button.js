@@ -20,7 +20,7 @@ export function createDemoButtonController({
             button.disabled = !enabled;
             button.classList.toggle('demo-button--disabled', !enabled);
             button.title = enabled
-                ? 'Package the current animation into a demo executable'
+                ? 'Export media, standalone HTML, or snippets'
                 : 'Available in the desktop app';
         };
 

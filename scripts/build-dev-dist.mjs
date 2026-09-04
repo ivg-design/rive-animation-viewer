@@ -11,6 +11,7 @@ function runNodeScript(script, env = process.env) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
+runNodeScript('scripts/generate-media-tools.mjs');
 runNodeScript('scripts/generate-snippet-modules.mjs');
 runNodeScript('scripts/build-dist.mjs', {
   ...process.env,

@@ -1,3 +1,4 @@
+import { createRenderSourceIdentityResolver } from '../../../src/app/platform/export/render-source-identity.js';
 import {
     arrayBufferToBase64,
     buildDemoBundlePayload,
@@ -111,7 +112,10 @@ describe('platform/demo-export', () => {
             }
             return null;
         });
+        const sourceIdentity = await createRenderSourceIdentityResolver()(buffer);
         const controller = createDemoExportController({
+            getInspectionMetadata: () => ({ sourceIdentity, runtimeKey: 'webgl2@2.0.0', artboards: [] }),
+            getControlSnapshotScope: () => ({ sourceIdentity, runtimeKey: 'webgl2@2.0.0', artboardKey: 'Main', vmInstanceKey: 'Board' }),
             callbacks: {
                 ensureRuntime: vi.fn().mockResolvedValue(undefined),
                 getTauriInvoker: () => invoke,
@@ -196,12 +200,14 @@ describe('platform/demo-export', () => {
             entry('focusIndex', 'number', 0),
             ...Array.from({ length: 150 }, (_, index) => entry(`rows/${index}/introY`, 'number', index)),
         ];
+        const sourceIdentity = await createRenderSourceIdentityResolver()(Uint8Array.from([1, 2]).buffer);
         const controller = createDemoExportController({
+            getControlSnapshotScope: () => ({ sourceIdentity, runtimeKey: 'webgl2@2.38.5' }),
             callbacks: {
                 ensureRuntime: vi.fn().mockResolvedValue(undefined),
             },
             captureVmControlSnapshot: () => fullSnapshot,
-            getCurrentFileBuffer: () => Uint8Array.from([1, 2]).buffer,
+            getCurrentFileBuffer: (() => { const buffer = Uint8Array.from([1, 2]).buffer; return () => buffer; })(),
             getCurrentFileName: () => 'leaderboard.riv',
             getRuntimeAsset: () => ({ text: 'runtime();', version: '2.38.5' }),
         });
@@ -238,7 +244,7 @@ describe('platform/demo-export', () => {
                 showError,
                 updateInfo: vi.fn(),
             },
-            getCurrentFileBuffer: () => Uint8Array.from([1]).buffer,
+            getCurrentFileBuffer: (() => { const buffer = Uint8Array.from([1]).buffer; return () => buffer; })(),
             getCurrentFileName: () => 'demo.riv',
             getCurrentRuntime: () => 'canvas',
         });
@@ -287,7 +293,7 @@ describe('platform/demo-export', () => {
                 currentPlaybackName: null,
                 currentPlaybackType: 'stateMachine',
             }),
-            getCurrentFileBuffer: () => Uint8Array.from([7, 8]).buffer,
+            getCurrentFileBuffer: (() => { const buffer = Uint8Array.from([7, 8]).buffer; return () => buffer; })(),
             getCurrentFileName: () => 'hud.riv',
             getCurrentLayoutAlignment: () => 'centerRight',
             getCurrentLayoutFit: () => 'contain',
@@ -336,7 +342,7 @@ describe('platform/demo-export', () => {
                 logEvent,
                 updateInfo: vi.fn(),
             },
-            getCurrentFileBuffer: () => Uint8Array.from([1, 2]).buffer,
+            getCurrentFileBuffer: (() => { const buffer = Uint8Array.from([1, 2]).buffer; return () => buffer; })(),
             getCurrentFileName: () => 'demo.riv',
             getCurrentRuntime: () => 'webgl2',
             getRuntimeAsset: () => null,
@@ -351,7 +357,7 @@ describe('platform/demo-export', () => {
                 logEvent,
                 updateInfo: vi.fn(),
             },
-            getCurrentFileBuffer: () => Uint8Array.from([1, 2]).buffer,
+            getCurrentFileBuffer: (() => { const buffer = Uint8Array.from([1, 2]).buffer; return () => buffer; })(),
             getCurrentFileName: () => 'demo.riv',
             getCurrentRuntime: () => 'webgl2',
             getRuntimeAsset: () => ({ text: 'runtime();', version: '2.0.0' }),
@@ -379,7 +385,7 @@ describe('platform/demo-export', () => {
             callbacks: {
                 getTauriInvoker: () => invoke,
             },
-            getCurrentFileBuffer: () => Uint8Array.from([3, 4]).buffer,
+            getCurrentFileBuffer: (() => { const buffer = Uint8Array.from([3, 4]).buffer; return () => buffer; })(),
             getCurrentFileName: () => 'default.riv',
             getRuntimeAsset: () => ({ text: 'runtime();', version: '2.0.0' }),
         });

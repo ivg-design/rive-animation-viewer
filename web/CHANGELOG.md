@@ -2,6 +2,30 @@
 
 All notable released changes to this project are documented in this file.
 
+## [2.5.5] - 2026-09-04
+
+### Added
+
+- **Desktop media export and recording** — Export complete or segmented timelines as H.264, H.265, WebM, APNG, or GIF; capture PNG, JPG, and WebP stills; and record live state-machine pointer and ViewModel interaction with an optional cursor. RAV chrome and audio stay outside the capture.
+- **Complete media automation** — Eight new MCP tools discover encoder capabilities, start timeline/still exports, start and stop recordings, report or cancel jobs, advance exact frames, and inject normalized pointer input. Timed recording schedules can apply typed ViewModel values, triggers, images, and pointer operations on the frame clock.
+
+### Changed
+
+- **Compact Export workspace** — Media and web/code outputs share one concise chooser. Each media screen keeps capture settings and output settings compact, uses a persistent format selector, opens a native filename/location picker from a yellow folder button, and anchors the resolved output beside its primary action.
+- **Frame-complete recording** — RAV advances and renders each requested frame at a fixed simulation interval, uses bounded capture/encoder queues, streams supported video configurations, and reports wall-clock lag separately. Manual recording has no product duration limit; available disk space is the practical boundary.
+- **Media status** — Capture, draining, encoding, verification, and saving progress appear in the bottom status bar. EXPORT remains the one entry point for completed results.
+- **Live dependency inventory** — About reports the active Rive Web runtime and the exact FFmpeg, ffprobe and optional gifski versions returned by the desktop capability service, while missing tools remain labeled unavailable.
+- **Bundled production encoders** — macOS and Windows packages include pinned, hash-verified Jellyfin FFmpeg/ffprobe 7.1.4-3 resources, required GPL notices, and exact corresponding source. Production does not fall back to arbitrary encoders on `PATH`; GIF uses the bundled FFmpeg palette path when optional gifski is unavailable.
+
+### Fixed
+
+- **Export presentation** — Capture does not move a centered preview to the top or reduce the live canvas backing resolution. Modal export and snippet surfaces block all pointer input to drawers and controls below them.
+- **Consistent export chrome** — Media, snippet, and standalone export windows use the same compact ghost close control and shared overlay dismissal behavior.
+- **ViewModel initialization** — Authored enum choices populate on the first file load, and cold-load authored values become the compact-snippet baseline instead of making every property look changed.
+- **Playback validation and recovery** — MCP rejects unknown playback names before staging or exporting them. A native activation watchdog recreates a playback child once when WebKit stops responding during load.
+- **Repository and encoder gates** — Native linting and standalone media-harness hygiene are release gates, and production media availability requires pinned, hash-verified encoder resources with documented provenance.
+- **Release validation** — The final desktop candidate passed all eight decoded formats, exact segment matching, fixed-clock timed and manual interaction recordings, cancellation, GIF target search, cold enum population, lean snippets, playback rejection, overlay isolation, and status/About presentation before signed staging.
+
 ## [2.5.4] - 2026-09-01
 
 ### Added

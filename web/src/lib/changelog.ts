@@ -26,7 +26,7 @@ export function parseChangelog(): ChangelogEntry[] {
   let currentSection: 'added' | 'changed' | 'performance' | 'fixed' | 'validation' | null = null;
 
   for (const line of content.split('\n')) {
-    const versionMatch = line.match(/^## \[(.+?)\] - (\d{4}-\d{2}-\d{2})/);
+    const versionMatch = line.match(/^## \[(.+?)\] - (Unreleased|\d{4}-\d{2}-\d{2})/);
     if (versionMatch) {
       if (current) entries.push(current);
       current = {

@@ -37,7 +37,8 @@ export default function ArtboardSwitcher() {
         the runtime status bar. Select the readout to switch between frames and seconds, use the
         duration-aware ticks to judge position, or drag the large unclipped current-time indicator
         to seek. The indicator advances on every rendered animation frame. State machines hide the
-        entire row.
+        entire row. The same authored time/frame scale can be used to define an exact segment in
+        <a href={asset("/docs/media-export")}> Media Export</a>.
       </p>
 
       <h2>VM Instance Selector</h2>

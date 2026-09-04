@@ -77,7 +77,9 @@ Once connected, Claude has access to all RAV tools. Try:
 - "Pause the animation"
 - "Generate the live web instantiation snippet for CDN usage"
 
-## Available Tools (49)
+## Available Tools (57 in 2.5.5)
+
+Media tools require the desktop app and verified encoders. See [media export](../Documentation/MEDIA_EXPORT.md) for formats, GIF controls, limits, and asynchronous examples. Production packages include pinned, hash-verified FFmpeg and ffprobe resources; capability discovery still fails closed whenever an encoder or required format probe is unavailable.
 
 | Tool | Description |
 |------|-------------|
@@ -108,6 +110,11 @@ Once connected, Claude has access to all RAV tools. Try:
 | `rav_set_canvas_color` | Set background color |
 | `rav_set_canvas_size` | Set canvas sizing mode plus explicit pixel width/height and optional aspect lock |
 | `rav_capture_canvas` | Capture the authoritative rendered canvas as a PNG image with render metadata |
+| `rav_media_capabilities` | Verified formats, encoders, alpha support and limits |
+| `rav_export_media` | Export a timeline, segment, or still as an asynchronous job |
+| `rav_record_start` / `rav_record_stop` | Start live state-machine recording or finalize it |
+| `rav_media_status` / `rav_media_cancel` | Inspect a job or cancel it without publishing partial output |
+| `rav_step_frames` / `rav_pointer` | Explicit frame advancement and normalized canvas mouse interactions |
 | `rav_open_isolated_playback` | Open the current animation in an ordinary isolated diagnostic WebView |
 | `rav_export_demo` | Export standalone HTML demo |
 | `rav_export_demo_visual` | Drive the visible export dialog with exact control selection, package source, snippet mode, and output path |

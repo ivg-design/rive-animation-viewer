@@ -6,6 +6,7 @@ import { createOverlayActionClient } from './action-client.js';
 import { createAboutRenderer, createMcpRenderer } from './purpose-renderers.js';
 import { waitForOverlayVisualReadiness } from './readiness.js';
 import { createSettingsOverlayRenderer } from './settings-renderer.js';
+import { createMediaRenderer } from '../media/renderer.js';
 
 const bootstrap = window.__RAV_UI_OVERLAY_BOOTSTRAP__ || {};
 const epoch = Number(bootstrap.epoch) || 0;
@@ -20,6 +21,7 @@ const EXCLUSIVE_ACTIONS = [
     'generate-preview',
     'open-link',
     'default-riv-app-apply',
+    'media-submit', 'media-stop', 'media-cancel', 'media-html', 'media-choose-path',
 ];
 let pendingExclusiveActions = 0;
 
@@ -71,12 +73,17 @@ const renderAbout = createAboutRenderer({ documentRef: document, emitAction });
 const renderMcp = createMcpRenderer({ documentRef: document, emitAction });
 const settingsRenderer = createSettingsOverlayRenderer({ documentRef: document, emitAction, windowRef: window });
 const renderSettings = settingsRenderer.render;
+const mediaRenderer = createMediaRenderer({ documentRef: document, emitAction });
 
 let exportExpandedBranchKeys = new Set();
 let exportHierarchy = null;
 let exportHierarchyRevision = null;
 
 function renderExport(state = {}) {
+    mediaRenderer.render(state.mediaExport);
+    const panel = element('ui-overlay-export');
+    if (panel) panel.hidden = Boolean(state.mediaExport);
+    if (state.mediaExport) return;
     const summary = document.querySelector('[data-overlay-export-summary]');
     if (summary) summary.textContent = String(state.selectionSummary || 'No controls available.');
     const packageSource = document.querySelector('[data-overlay-export-package]');

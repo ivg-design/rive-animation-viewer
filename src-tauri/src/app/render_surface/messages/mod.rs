@@ -1,3 +1,5 @@
+pub(super) mod clock;
+pub(super) mod media_upload;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::app::render_surface::{

@@ -6,6 +6,25 @@ import {
     createRenderSurfaceProtocol,
     renderSurfaceCommandTimeoutMs,
 } from '../../../src/app/platform/render-surface/protocol.js';
+import { reconcileRenderSurfaceState } from '../../../src/app/platform/render-surface/protocol/state-reconciliation.js';
+
+it('retains enum metadata deltas independently of authored selection and rejects stale revisions', () => {
+    const input = { kind: 'enum', path: 'viewMode', value: 'FullMap', values: [] };
+    let record = reconcileRenderSurfaceState(null, {
+        controlsHierarchy: { inputs: [input] }, stateRevision: 1, topologyRevision: 1,
+    });
+    const delta = (revision, values) => ({
+        stateType: 'delta', stateRevision: revision, topologyRevision: 1,
+        controlChanges: [{ key: 'vm:viewMode:enum', kind: 'enum', values }],
+    });
+    record = reconcileRenderSurfaceState(record, delta(2, ['FullMap', 'Focus']));
+    expect(record.canonical.controlChanges).toHaveLength(1);
+    expect(input).toMatchObject({ value: 'FullMap', values: ['FullMap', 'Focus'] });
+    record = reconcileRenderSurfaceState(record, delta(1, []));
+    expect(input.values).toEqual(['FullMap', 'Focus']);
+    reconcileRenderSurfaceState(record, delta(3, []));
+    expect(input).toMatchObject({ value: 'FullMap', values: [] });
+});
 
 function controlHierarchy(value = 1) {
     return {
@@ -822,4 +841,19 @@ describe('platform/render-surface/protocol', () => {
         expect(sent[0].payload.index).toBe(0);
         expect(sent.at(-1).payload.index).toBe(255);
     });
+});
+
+it('extends stop only on advancing, session-matched progress; repeated heartbeats cannot suppress the inactivity deadline', async () => {
+    const sent=[];
+    const protocol=createRenderSurfaceProtocol({canSend:()=>true,documentRef:document,windowRef:window,
+        invokeQuietly:async(_,args)=>{sent.push(args.payload);return true;}});
+    protocol.beginSession('drain',2);const result=vi.fn();protocol.requestCommand('media-record-stop').then(result);
+    await Promise.resolve();const id=sent[0].commandId;
+    const progress=(value,sessionId='drain')=>protocol.handleAck({payload:{commandId:id,sessionId,status:'progress',progress:value}});
+    await vi.advanceTimersByTimeAsync(50000);progress(1);
+    await vi.advanceTimersByTimeAsync(50000);progress(2);
+    expect(result).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(50000);progress(2);progress(3,'wrong');
+    await vi.advanceTimersByTimeAsync(10001);
+    expect(result).toHaveBeenCalledWith(expect.objectContaining({status:'timeout'}));
 });

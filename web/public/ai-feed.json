@@ -1,20 +1,20 @@
 {
   "version": "1.1",
-  "generatedAt": "2026-09-01",
+  "generatedAt": "2026-09-04",
   "project": "RAV",
   "canonical": "https://forge.mograph.life/apps/rav/",
   "releaseStatus": {
-    "version": "2.5.4",
-    "status": "public",
-    "public": true,
-    "note": "2.5.4 is the current public release and is available through the public updater feed. It targets released Web 2.41.1 / runtime-v0.1.344 and adds authoritative isolated-playback evaluation, a timeline-only every-frame scrubber, lean selected-property snippets, compact property controls, one-click macOS .riv ownership, and centered title metadata."
+    "version": "2.5.5",
+    "status": "candidate",
+    "public": false,
+    "note": "2.5.5 is the prepared release candidate; 2.5.4 remains public until signed promotion completes. The candidate adds H.264, H.265, WebM, APNG, GIF, PNG, JPG, and WebP export; full or segmented timelines; live interaction recording; GIF size controls; status-bar progress; bundled verified encoders; and eight media MCP tools for 57 total."
   },
   "entities": [
     {
       "name": "RAV",
       "type": "SoftwareApplication",
       "url": "https://forge.mograph.life/apps/rav/",
-      "description": "RAV desktop Rive animation viewer. The 2.5.4 release targets Rive Web 2.41.1 / runtime-v0.1.344 and adds authoritative isolated-playback evaluation, a timeline-only every-frame scrubber, lean selected-property snippets, compact property controls, one-click macOS .riv ownership, and centered title metadata."
+      "description": "RAV is a desktop Rive animation viewer and exporter with timeline, still-image, animated-image, live interaction recording, bundled verified encoders, and MCP access."
     },
     {
       "name": "IVG Design",

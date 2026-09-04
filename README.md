@@ -1,17 +1,21 @@
 # Rive Animation Viewer
 
-A local and desktop viewer for `.riv` files with runtime controls, JavaScript configuration editing, ViewModelInstance debugging tools, standalone export, a bundled native MCP sidecar, and desktop auto-update support.
+A local and desktop viewer for `.riv` files with runtime controls, JavaScript configuration editing, ViewModelInstance debugging tools, media and standalone export, a bundled native MCP sidecar, and desktop auto-update support.
+
+For media export and recording, see [Media export and recording](Documentation/MEDIA_EXPORT.md). Release history belongs in the [changelog](CHANGELOG.md); validation evidence is kept in [reports](reports/).
 
 ## Release
 
-- Prepared release candidate: `2.5.4` (awaiting signed GitHub build and updater acceptance).
-- Until 2.5.4 is published, public downloads and the normal public `latest.json` updater feed continue to deliver 2.5.3.
-- Release source will be the exact `chore(release): v2.5.4` commit on `main`.
+- Current public release: `2.5.4` ([GitHub release](https://github.com/ivg-design/rive-animation-viewer/releases/tag/v2.5.4)).
+- Prepared release candidate: `2.5.5`.
 - macOS downloads and updater apps are Developer ID signed, notarized, and stapled; updater payloads retain their separate update signatures.
+
+The candidate becomes public only after private staging, signed updater acceptance,
+and promotion of the exact `chore(release): v2.5.5` commit on `main`.
 
 ## Regression Gates
 
-The repo now has explicit prebuild guards for the surfaces that were regressing during the 2.1.x window-chrome and export hardening work:
+The repo has explicit prebuild guards for the application, export, and window-chrome surfaces:
 
 - `npm run check:architecture` enforces file-size and folder-shape budgets
 - `npm run check:deps` enforces dependency-cruiser import boundaries
@@ -20,193 +24,7 @@ The repo now has explicit prebuild guards for the surfaces that were regressing 
 - `npm run test` runs the full Vitest suite before every package build
 - `cargo check --manifest-path src-tauri/Cargo.toml` validates the native Tauri layer
 
-These gates materially reduce regression risk, but they are still code- and DOM-contract tests, not full visual snapshot coverage. If we want pixel-level guarantees from this point forward, the next step is adding screenshot-based desktop smoke tests for the packaged app window.
-
-## 2.5.4 Web 2.41.1 / runtime-v0.1.344 and MCP Authority
-
-- **Exact Web 2.41.1 playback**: The candidate is bound to released Web 2.41.1 / runtime-v0.1.344. A single state machine uses the released singular `stateMachine` option. Multiple machines, mixed animation/state-machine playback, older runtimes, and existing plural editor configs retain the 2.x path.
-- **Complete compatibility surfaces**: The live viewer, reset flow, generated CDN/local snippets, and standalone demos share the same runtime-version boundary while retaining no-target behavior, state-machine inputs, callbacks, text runs, ViewModel-first binding, and global ViewModels.
-- **Authoritative evaluation**: `rav_eval` defaults to the active isolated playback child, supports strict `playback` and diagnostic `host` targets, labels the surface/session used, and never replays arbitrary eval into a replacement child.
-- **Explicit console limits**: MCP console tools continue to operate on the host UI transcript; they do not claim isolated-child `console.*` or live Luau-output authority.
-- **Current dependency locks**: Compatible JavaScript, MCP, website, and Rust updates remove current npm advisories without taking speculative framework/tooling majors.
-- **Purpose-built timeline transport**: Linear animations get a row above the status bar with frame/second modes, duration-aware ticks, a large unclipped playhead, drag-to-seek, and a current-time indicator that advances on every rendered animation frame. State machines keep the row hidden.
-- **Lean snippets, complete standalone exports**: CDN/local snippets contain animation setup plus only the selected typed accessors on `window.riveProperties`; standalone HTML remains the self-contained output with the runtime, embedded file, UI chrome, controls, and selected-value restoration.
-- **Compact property controls**: Color properties use square swatches, while numeric fields reserve enough width for values and native spinner controls.
-- **One-click `.riv` ownership**: On macOS, **MAKE DEFAULT** assigns the effective extension association in one action while RAV dynamically discovers registered `.riv` identifiers for diagnostics and extension-level icon compatibility.
-- **Centered file metadata**: Intrinsically sized file metadata sits in equal flexible title-bar columns, keeping its visible center aligned to the real window center while long paths still truncate.
-
-## 2.5.3 Global VM and Canvas Capture
-
-- **Global VM controls**: A collapsed `GLOBAL VM` section sits above `ROOT VM`. Every file-level global ViewModel used by the animation has its own independently expandable tree, so global and artboard-bound controls can be inspected and changed together.
-- **Complete MCP discovery**: Fresh MCP activation advertises 49 unique tools. Six named global-VM operations inspect, read, write, fire, set images, and clear images without colliding with the root VM.
-- **Rendered-canvas screenshots**: `rav_capture_canvas` returns the authoritative RAV canvas as PNG image content with exact byte length, dimensions, renderer, surface, background, and bounded-downscale metadata.
-- **Stable RAV chrome**: Native flyouts clip their dark backgrounds to the rounded yellow frame. Console warning and error rows use the RAV palette, and first-open JS-console virtualization no longer flickers between painted and blank rows.
-
-## 2.5.2 Reliability Update
-
-- **Switch without flicker**: File, artboard, playback-target, and ViewModel-instance changes keep the last confirmed frame visible until the replacement is ready. Rapid changes discard stale work instead of surfacing blank frames or first-frame errors.
-- **Controls match the canvas**: Scalars, booleans, images, authored instances, and runtime-generated list instances remain synchronized in both directions. Image slots stay independent, and Reset plus Properties `DEFAULT` update playback and controls together.
-- **Timeline progress**: Timeline playback shows current and total frames or seconds in a compact meter that stays hidden for state machines.
-- **Reliable warm opens**: Opening another `.riv` while RAV is already running queues the request and replaces the active file without racing playback activation.
-- **Stable overlays**: Settings, MCP Setup, About, and export remain above playback without stopping it, close from any outside click, and keep consistent RAV chrome, focus, corners, and scrollbars.
-- **macOS `.riv` ownership**: Settings names the actual current handler and provides deliberate Make Default and Repair Icon actions without silently taking ownership. Quick Look remains separate.
-- **Private-by-design opt-out**: Disabling Anonymous Usage sends one final anonymous off status, then stops reporting. No Rive files, paths, hardware identifiers, accounts, or license information are sent.
-
-## 2.5.1 Hotfix
-
-- **Playback controls stay connected**: The dedicated playback surface continues to receive Settings, toolbar, and Properties changes after loading, including background color, fit, alignment, canvas size, playback, and ViewModel controls. Main-interface overlays stay accessible above playback.
-- **Fixed canvas remains predictable**: Fixed uses logical CSS pixels, centers while it fits in the viewer, and scrolls from its authored origin when it is larger than the available space.
-- **Reset without a visible restart**: Toolbar Reset and Properties `DEFAULT` restore the current playback in place, without rebuilding the playback surface, flashing its readiness state, or moving adjacent controls.
-
-### Canvas size, fit, and alignment
-
-`Fixed` sets the size of the playback **canvas viewport**; it does not resize the authored Rive artboard. `Contain` scales the artboard until one dimension touches the canvas edge. As a result, alignment can only visibly move along the other axis—the axis that still has unused canvas space.
-
-For example, a 16:9 artboard inside a taller 500 × 409 canvas fills the full 500-pixel width, leaving vertical space. `Top`, `Center`, and `Bottom` visibly move the artboard; `Left`, `Center`, and `Right` do not, because there is no horizontal space left to move into. To test horizontal alignment with that artboard, use a canvas that is wider than 16:9 or choose a fit mode that leaves horizontal space.
-
-## 2.5.0 Highlights
-
-- **Dedicated desktop playback surface**: Packaged desktop builds place visible Rive playback in a child WebView while the main WebView keeps the controls, drawers, code editor, export, MCP, and diagnostics. The playback surface receives synchronized state, separating its visible render loop from most interface DOM and control work.
-- **Recorded transition comparison**: In two 60 FPS recordings of the same large Rive asset with 999 live control paths and 10 embedded runtime script assets, observed transition holds were 4–16 captured frames in the earlier single-WebView run and 1–2 in the later dedicated-surface run. The worst observed hold was approximately 8× shorter and the median per-transition maximum was approximately 3× shorter. Build profiles, runtime and viewport settings, transition sequences, and capture setups differed, so these are observed results rather than a controlled or universal performance guarantee.
-- **Bounded interface updates**: Visible scalar controls update on a separate interface cadence, list controls rebuild only when membership changes, hidden or collapsed controls skip scalar syncing, and closed consoles stop rebuilding invisible rows.
-- **Automatic runtime selection**: Fresh or unset runtime preferences use `Latest (auto)`, while existing explicit runtime choices remain unchanged.
-- **Accurate export counts**: Export summaries report the actual number of serialized controls, including controls generated from repeated lists.
-- **Drawer reveal controls**: The left and right drawer buttons now live in the main interface strip so they remain accessible beside the separate playback surface.
-- **Anonymous Usage controls**: Official releases can report anonymous installation and monthly usage counts. A first-run notice, a Settings toggle, and Privacy Policy links were added with the feature.
-- **macOS `.riv` ownership and icon repair**: **MAKE DEFAULT** is one action for the effective `.riv` association, regardless of how many compatible identifiers are registered. RAV discovers those aliases internally and includes an extension-level fallback with its document icon, but Settings does not expose them as separate ownership chores. **REPAIR ICON** re-registers the document metadata after RAV is the default; installation never silently takes over, and Quick Look remains a separate macOS provider.
-
-## Anonymous installation counting
-
-Anonymous counting is on by default in official releases. A first-run notice appears before the first report, and the feature can be disabled at any time under Settings → Anonymous Usage.
-
-RAV reports only anonymous installation and monthly usage tokens with the release number. Turning Anonymous Usage off sends one final anonymous disable status, then reporting stops. If that final status cannot be delivered, it remains pending locally and receives at most one retry per later launch until acknowledged, without resuming any other reporting. RAV does not send Rive data, files, paths, hardware identifiers, accounts, or license information. The website displays only an aggregate total; updates usually appear within a few minutes. More information is available in the RAV website's Privacy Policy.
-
-## 2.4.3 Highlights
-
-- **Exact ViewModel list labels**: A row uses its direct authored instance name when available. When the Web wrapper exposes only the ViewModel definition name, RAV accepts a unique match between the definition's canonical instance-name set and a readable string property; ambiguous or missing matches become `Row N`. It never presents `viewModelName` as an authored row label.
-- **Embedded image controls**: Each image property now uses one full-width select containing every embedded raster asset followed by `Open file…` and `Clear`; `Open file…` invokes a hidden file input, with no separate folder or clear button and no `Embedded image…` placeholder. Entries use `uniqueFilename` identity, magic-byte MIME detection, and numbered labels when display names repeat. Non-raster embedded resources stay out of the image catalog. The same catalog and control carry into standalone exports, while decoded image objects remain excluded from JSON snapshots.
-- **Standalone editor-config preservation**: Applied editor configuration and lifecycle callbacks are preserved and run in standalone exports; unsaved drafts remain inactive.
-- **Fixed-canvas centering and overflow**: A fixed canvas uses overflow-safe auto margins: it remains centered while it fits, then the margins collapse safely and scrolling begins at the authored top-left origin when it exceeds the viewport. The central scroller uses the shared styled 10px track, thumb, and corner.
-- **Clean build provenance**: Release builds capture Git status before generating their build identifier, so clean signed artifacts do not report a false `dirty` suffix while genuinely modified builds remain labeled.
-- **macOS `.riv` opening and file identity**: Double-click/open-with and warm single-instance opens route through the native queue and `open-file` bridge. The bundle declares both the official `app.rive.editor.rive-file` UTI and the pre-2.4.3 `app.rive.animation.viewer.riv` compatibility UTI as Viewer types and includes the dedicated `RiveFileIcon.icns` document resource. A version-and-schema-gated post-update launch refreshes the installed bundle registration without restarting Finder or taking over the default handler.
-- **Windows `.riv` document icon**: NSIS and MSI packages ship a dedicated ten-resolution `RiveFileIcon.ico` derived mechanically from the supplied 1024 px master. NSIS repairs Tauri's generated `Rive File\\DefaultIcon` after every install/update and refreshes Explorer; MSI owns the corresponding `Rive Animation Viewer.riv\\DefaultIcon` registry value as an upgrade-aware component that is removed on uninstall.
-- **Runtime compatibility**: RAV protects authored layouts when a selected runtime has known compatibility problems and keeps explicit runtime choices available.
-
-## 2.4.2 Highlights
-
-- **MCP sidecar startup restored**: Packaged RAV builds resolve `rav-mcp` beside the running application executable, so the app-owned bridge starts automatically again.
-- **Updater migration repair**: Existing stable MCP launcher symlinks are refreshed during startup after an app replacement.
-- **Regression coverage**: Rust and smoke tests now enforce the sibling-binary layout instead of relying on Tauri's unrelated generic executable-directory API.
-
-## 2.4.1 Highlights
-
-- **Trusted macOS installs**: Apple Silicon and Intel builds are Developer ID signed with hardened runtime and secure timestamps, then notarized and stapled for normal Gatekeeper-approved launch.
-- **Notarized auto-updates**: Tauri creates each macOS `.app.tar.gz` from the already-notarized app. CI verifies that it has the same code-signing hash as the app inside the notarized DMG before publishing.
-- **Two independent signature layers**: Apple signing and notarization establish macOS platform trust; the existing Tauri `.sig` files authenticate updater downloads before installation.
-- **Single signed MCP binary**: RAV now packages one `rav-mcp` beside the main executable, where Tauri signs it inside-out with the app. The redundant unsigned Resources copy is gone.
-- **Atomic, bounded releases**: Complete platform inventory, signing checks, job timeouts, concurrency protection, and a final draft gate prevent partial or runaway releases from becoming public.
-
-### MCP startup regression resolved in 2.4.2
-
-RAV 2.4.1 includes the signed sidecar at
-`Rive Animation Viewer.app/Contents/MacOS/rav-mcp`, but its packaged macOS
-startup path can report that the sidecar is missing. The bundle has not moved:
-the failure is in resolving the directory that contains the running app
-executable. Update to 2.4.2 or later; reinstalling 2.4.1 does not repair the
-path-resolution failure.
-
-## 2.4.0 Highlights
-
-- **Dynamic ViewModel lists**: List instances populate as soon as a file opens and rebuild when their controlling count changes, with readable `Row 1`, `Row 2`, … labels instead of an arbitrary ten-item ceiling.
-- **Export parity**: Standalone HTML exports and generated snippets preserve the live player's list count and reactive behavior, while controls excluded from export remain absent from the Properties panel and serialized snapshot.
-- **Reliable VM instance selection**: The VM Instance selector stays populated even when the file exposes only one default or unnamed instance.
-- **Playback and trigger parity**: Loaded state machines remain active, triggers continue to fire, and explicit ViewModel instance choices reload with the binding mode required by the runtime.
-- **Selected-instance export parity**: CDN/local snippets and standalone demos bind the selected ViewModel instance before applying the exported control snapshot.
-- **Truthful MCP activity state**: The MCP indicator is green while healthy and ready, blue for 30 seconds after an agent command, yellow while connecting, red after a failure, and muted when disabled.
-- **Release toolchain alignment**: Tauri, its plugins, the Rust graph, Vite, and Vitest are aligned on compatible security-patched versions, and dirty local builds are identified in their build stamp.
-
-## 2.2.3 Highlights
-
-- **Status-strip lifecycle hardening**: Temporary notices like canvas sizing, refresh, restart, runtime, layout, and export confirmations now restore the last structured artboard/playback/ViewModel/instance summary automatically instead of getting stuck in the strip.
-- **Website-matched status icon colors**: The artboard, animation, state-machine, ViewModel, and instance glyphs in the runtime strip now use the RAV green/yellow palette instead of the old purple fallback tint.
-
-## 2.2.2 Highlights
-
-- **Windows window-mode cleanup**: Windows now uses a single window contract instead of mixing decorated config with a runtime undecorated override, so the custom header and native rounded-corner hint are no longer fighting each other.
-- **Shared layout mapping**: The live viewer, canonical snippet export, and standalone demo now all map fit/alignment through the runtime enums instead of passing raw strings into `new Layout(...)`.
-- **Fixed-size export centering hardening**: Explicit pixel-size canvases now keep the selected alignment behavior while staying centered in exported demos and snippets, including on macOS.
-- **Status-strip iconography**: Structured playback status now renders with dedicated artboard / animation / state-machine / instance / ViewModel icons instead of text abbreviations.
-
-## 2.2.1 Highlights
-
-- **Scrollbar regression fix**: Shared app/demo scrollbars on macOS are styled again, and the smoke suite now fails prebuild if shared scrollbar owners mix incompatible WebKit and standardized scrollbar styling paths.
-- **Fixed-size canvas centering**: Explicit pixel-size canvases now stay centered in both the live app and exported demos instead of snapping to the upper-left corner.
-- **Windows rounded-corner hint**: Desktop startup now applies the Windows 11 DWM rounded-corner preference for the custom RAV window so Windows can match the macOS chrome treatment more closely.
-
-## 2.2.0 Highlights
-
-- **Explicit canvas sizing**: You can now pin the viewer to an exact pixel size from Settings, carry that same size through the editor via `canvasSize`, and keep width/height locked to a chosen aspect ratio while editing.
-- **Canvas sizing through MCP**: Agents can now call `rav_set_canvas_size`, and `rav_status` reports the active canvas sizing mode so remote workflows can inspect and control explicit pixel dimensions.
-- **Snippet/demo parity**: Generated snippets and exported demos now preserve the active canvas sizing mode. Fixed-size exports emit explicit `canvas.width`, `canvas.height`, and CSS dimensions instead of silently falling back to fluid layout.
-- **Updater reliability on Windows**: The app-owned MCP bridge is now shut down before updater installation begins, preventing `rive-mcp.exe` from holding the old install open during Windows update handoff.
-
-## 2.1.1 Highlights
-
-- **Desktop chrome stabilization**: macOS now uses a supported overlay-titlebar path with the custom RAV header, rounded outer corners, corrected window controls, and centered file metadata that keeps the filename visible while truncating long directories.
-- **Runtime strip cleanup**: The bottom strip is slimmer and clearer, with compact runtime labeling, a simpler open/close console affordance, and an MCP chip that now distinguishes disabled, connected-idle, and actively-in-use states.
-- **Console hardening**: The JavaScript console keeps full Eruda inspection, no longer freezes when toggled, and its `FOLLOW` behavior stays pinned to the real visible transcript.
-- **Snippet/export hardening**: Generated snippets now stay lean when no controls are selected, preserve falsy VM values correctly, keep triggers manual by default, and avoid the demo bootstrap/runtime helper regressions found during the template audit.
-- **Desktop polish**: About layout, dialog scrollbars, and shared scrollbar theming were tightened so the app no longer exposes stray native scrollbars across its desktop surfaces.
-
-## 2.1.0 Highlights
-
-- **Architecture sweep**: Root runtime drift is gone. App boot now starts from `src/app/main-entry.js`, the frontend MCP bridge lives under `src/app/platform/mcp`, injected snippets are source-backed, and architecture rules now enforce modular growth.
-- **Custom desktop About**: RAV now ships a proper in-app About window with runtime/build metadata, credits, dependency inventory, product links, and native Help-menu integration.
-- **Console mode cleanup**: The runtime strip console control is now open/close only, the console header toggles `Events` / `JS`, and JS `FOLLOW` now tracks the real visible transcript correctly.
-- **Indicator and logging fixes**: Runtime and MCP status chips again reflect the real live state, and cyclic MCP payloads no longer crash the event console renderer.
-- **Windows polish**: Dark-mode menu chrome remains visible and the bundled MCP sidecar no longer opens a stray PowerShell window on launch.
-- **Windows release workflow fix**: The architecture-budget checker now resolves its config path correctly on Windows runners, fixing the `D:\\D:\\...` path error that blocked the original `2.1.0` Windows packaging step.
-
-## 2.0.5 Highlights
-
-- **Windows release fix**: The stable MCP launcher-path helper now compiles on Windows, fixing the cross-platform release failure that blocked the `2.0.4` tag from publishing a complete updater set.
-
-## 2.0.4 Highlights
-
-- **Claude-ready native sidecar**: `rav-mcp` now speaks both normal MCP `Content-Length` framing and Claude's newline-delimited JSON probe format, so Claude health checks no longer fail before the first real tool call.
-- **Real MCP-ready startup**: Packaged builds now load the frontend bridge correctly on launch, so `MCP ready` actually corresponds to a live RAV app bridge and not just a listening sidecar process.
-- **Stable launcher path**: MCP client setup now targets a stable launcher path (`rav-mcp-rav`) instead of the app-bundle-internal binary, which survives app replacements and keeps Claude/Codex registrations valid.
-- **Workspace control tool**: Agents can now call `rav_configure_workspace` to open/close sidebars, switch between internal/editor live source modes, and inject/remove the VM Explorer snippet.
-- **Updater retry self-heal**: `UPDATE RETRY` no longer waits for a manual click forever; the app retries checks automatically on focus, visibility return, online events, and a short timer.
-
-## 2.0.3 Highlights
-
-- **Consistent JS console chrome**: Command, result, warning, error, and app log rows now share the same timestamp-and-badge presentation instead of mixing Eruda chevrons with plain text tags.
-- **Working JS console filters**: Level/search filters now act on the actual visible transcript, so REPL input/output rows no longer punch through warning/error filters.
-- **Copy mirrors the screen**: The JS console copy action now copies the current visible transcript exactly as shown, in newest-first order.
-- **Native object inspection preserved**: `riveInst` and other live objects still use Eruda's lazy inspector instead of being collapsed into fake summary objects.
-- **Docs/site sync**: README, docs, changelog, and feature cards now explicitly describe the normalized console behavior.
-
-## 2.0.2 Highlights
-
-- **Exact playback names**: State machine and animation names are shown exactly as authored in the `.riv` file, without injected display prefixes.
-- **Refined startup layout**: RAV now opens with the right properties panel visible while the editor and console stay closed by default.
-- **Icon-based console actions**: Event and JS consoles now use outlined SVG controls for `FOLLOW`, `COPY`, and `CLEAR`, with clearer active-state styling.
-- **Primary toolbar polish**: `OPEN` stays bright green, auto-fits its icon-plus-label width, and the runtime renderer selector now lives with the main playback/layout controls.
-- **MCP setup responsiveness**: The MCP dialog opens immediately and refreshes install-state data asynchronously instead of blocking the UI.
-- **Release workflow compatibility**: The release pipeline now points at the real published `tauri-action` tag and uses Node 24-compatible JavaScript action settings for future releases.
-
-## 2.0.0 Highlights
-
-- **Bundled native MCP sidecar**: Packaged builds no longer require Node.js to expose MCP. RAV ships with a native `rav-mcp` binary and an always-on bridge.
-- **One-click MCP setup**: The MCP dialog detects Codex, Claude Code, and Claude Desktop, shows whether `rav-mcp` is already configured, and offers `ADD`, `REINSTALL`, and `REMOVE`.
-- **Script Access permission**: MCP scripting tools are gated behind an explicit `Script Access` toggle so you can keep MCP in read-only control mode when needed.
-- **Snippet & Export Controls**: `EXPORT` opens a dialog that previews the generated web snippet, lets you choose CDN vs local package output, and serializes only the selected or changed controls.
-- **Readable integration snippets**: Generated snippets contain only runtime setup plus the selected typed property accessors on `window.riveProperties`; standalone HTML export separately includes the viewer UI and selected-value restoration.
-- **Unified consoles**: Event Console and JavaScript Console now share the same newest-first transcript model, timestamps, search/filter workflow, and `FOLLOW` behavior.
-- **Live-source-aware editor**: The editor title itself indicates whether the live runtime is being driven by internal RAV wiring or the applied editor config.
-- **Background app updates**: The desktop app checks for Tauri-signed updater payloads on launch and exposes an update chip for install/relaunch flow.
-- **Cross-architecture updater feed**: Tauri-signed release feeds publish Apple Silicon, Intel macOS, and Windows updater entries together so one release can serve all supported desktop targets.
+These gates reduce regression risk, but they remain code and DOM contract tests. Packaged desktop behavior still requires native acceptance with a real `.riv` file.
 
 ## Quick Start
 
@@ -296,7 +114,7 @@ RAV includes a built-in MCP (Model Context Protocol) sidecar that lets Claude Co
 
 #### Architecture
 
-Runtime source structure is now enforced by an architecture budget:
+An architecture budget enforces the runtime source structure:
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) defines module and folder rules
 - [architecture-budget.json](architecture-budget.json) locks current oversized files so they cannot keep growing
@@ -338,7 +156,7 @@ args = ["--stdio-only", "--port", "9274"]
 
 Open the RAV desktop app and enable the MCP bridge. The **MCP** chip is muted and crossed out when disabled, yellow while connecting, red after a bridge failure, green when healthy and ready, and blue for 30 seconds after an agent command arrives. From then on, your MCP client can control RAV whenever both are running.
 
-#### Available Tools (49)
+#### Available Tools (57)
 
 | Tool | Description |
 |------|-------------|
@@ -364,6 +182,11 @@ Open the RAV desktop app and enable the MCP bridge. The **MCP** chip is muted an
 | `rav_set_canvas_color` | Set background color or transparent |
 | `rav_set_canvas_size` | Set canvas sizing mode (`auto` or explicit pixels) and optional aspect lock |
 | `rav_capture_canvas` | Capture the authoritative rendered canvas as PNG image content with render metadata |
+| `rav_media_capabilities` | Inspect verified media encoders, formats, transparency support, limits, and production distribution state |
+| `rav_export_media` | Export a complete/segmented timeline or a current/timed still as an asynchronous desktop job |
+| `rav_record_start` / `rav_record_stop` | Record live state-machine interaction manually or for a duration, with optional cursor and scheduled interactions |
+| `rav_media_status` / `rav_media_cancel` | Poll capture/encoding/verification progress or cancel an active media job |
+| `rav_step_frames` / `rav_pointer` | Advance exact frames and send normalized pointer input for agent-controlled playback and recording |
 | `rav_open_isolated_playback` | Open the current animation in an ordinary isolated diagnostic WebView |
 | `rav_export_demo` | Export standalone HTML demo |
 | `rav_export_demo_visual` | Drive the visible export dialog with exact control selection, package source, snippet mode, and output path |
@@ -412,7 +235,7 @@ All MCP commands, responses, and connection events appear in the event console w
 - **Offline Support**: Caches runtime scripts for offline use
 - **Dev Tools Access**: Programmatic DevTools opening via inject button to access console
 - **Background App Updates**: Check, authenticate with the Tauri updater signature, install, and relaunch updates from GitHub Releases
-- **Safe Updater Bridge Shutdown**: Desktop installs now stop the app-owned MCP bridge before updater installation starts, preventing Windows file-lock stalls
+- **Safe Updater Bridge Shutdown**: Desktop installs stop the app-owned MCP bridge before updater installation starts, preventing Windows file-lock stalls
 - **Trusted macOS distribution**: Developer ID signing, notarization, stapling, and parity checks cover both direct-download DMGs and macOS updater apps
 - **Merged updater publishing**: Release automation publishes a combined `latest.json` only after macOS Apple Silicon, macOS Intel, MSI, and NSIS updater payloads are all present
 
@@ -465,7 +288,7 @@ the exact packaged build in the test receipt.
 
 ### Test Build Numbering
 
-`npm run build` now stamps builds as `bNNNN-YYYYMMDD-HHMM-<gitsha>`:
+`npm run build` stamps builds as `bNNNN-YYYYMMDD-HHMM-<gitsha>`:
 - `bNNNN` auto-increments on every local build via `.cache/build-counter.txt`
 - Timestamp uses local system time
 - Tail is short git SHA

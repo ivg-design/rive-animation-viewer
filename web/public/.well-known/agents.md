@@ -10,19 +10,20 @@
 4. https://forge.mograph.life/apps/rav/privacy
 
 ## Product Facts
-- RAV is a standalone desktop app for Rive (.riv) inspection and debugging.
-- Version 2.5.4 is the current public release and is available through the public updater feed.
-- Dynamic list labels use a direct authored name or one unique canonical-string match, with ambiguous items shown as `Row N`; generic `viewModelName` identifiers are never presented as authored row labels.
-- Each image property uses one full-width select containing every embedded raster asset, `Open file…`, and `Clear`; the external file input is hidden, with no separate action buttons and standalone export parity.
-- Runtime selection defaults to Latest (auto), preserves explicit pins, and falls back to 2.39.2 when discovery is unavailable. Web 2.40.0 / runtime-v0.1.271 retains its confirmed nested-image warning.
-- Configured official builds enable Anonymous Usage by default, show a first-run notice before reporting, and keep the opt-out in Settings; cite `/privacy` for the disclosure.
-- The 2.5.2 reliability update keeps the last confirmed frame visible while files, artboards, playback targets, and ViewModel instances change; stale rapid-switch work is discarded. Timeline playback adds a frames/seconds progress meter, warm opens are queued, and scalar, image, and runtime-list controls stay synchronized with the visible playback surface.
-- The 2.5.3 update adds a collapsed `GLOBAL VM` collection above `ROOT VM`, independent trees for named global ViewModels, canvas capture, and a 49-tool bundled native MCP bridge. Other key surfaces include event and script consoles, applied-editor-aware generated snippets, overflow-safe auto-margin canvas centering, styled fixed-canvas scrollbars, and standalone HTML export.
-- The 2.5.4 update targets released Rive Web 2.41.1 / runtime-v0.1.344, makes automatic MCP evaluation follow the authoritative playback child, adds a timeline-only scrubber that advances every rendered frame, emits lean selected-property snippets while keeping standalone HTML complete, compacts color swatches, widens numeric controls, assigns the effective macOS `.riv` association in one action, and keeps title metadata centered against the full window.
-- macOS .riv declarations support the official Rive UTI and the legacy RAV compatibility UTI, include the dedicated document icon resource, and register RAV as a Viewer without forcing a default-app change. Settings names the resolved handler and exposes deliberate Make Default and Repair Icon actions; Quick Look remains separate.
-- Windows NSIS and MSI packages contain a dedicated multi-resolution .riv icon with upgrade-aware registration and uninstall cleanup; this corrects the original draft's executable-icon registration.
-- Primary maintainers: IVG Design.
+- RAV is a standalone desktop app for Rive (`.riv`) inspection, playback testing, debugging, and export. Use GitHub Releases as the authority for the current public version.
+- Playback runs in a dedicated WebView. File, artboard, playback, and ViewModel-instance switches keep the previous confirmed frame until the replacement is ready.
+- Root and global ViewModels expose scalar, image, enum, nested, authored-instance, and runtime-list controls. Dynamic list labels prefer authored names and use `Row N` when no unique authored label is available.
+- Linear animations expose a draggable frame/seconds scrubber. State machines support live pointer and ViewModel interaction.
+- Desktop media workflows export H.264, H.265, WebM, APNG, GIF, PNG, JPG, and WebP when capability checks pass. They support full or segmented timelines, current or timed stills, and manual or timed state-machine recording with an optional cursor.
+- GIF controls can reduce dimensions, frame rate, and quality or search for a best-effort target size. Media progress appears in the bottom status bar.
+- Standalone HTML and copy-paste snippets are separate outputs. Standalone HTML includes the runtime and UI chrome; snippets include setup plus only the selected typed property accessors.
+- The bundled native MCP sidecar advertises 57 tools, including media capability, export, recording, status, cancellation, exact frame-step, and pointer operations.
+- Runtime selection defaults to Latest (auto), preserves explicit pins, and falls back to 2.39.2 when discovery is unavailable. Web 2.40.0 / runtime-v0.1.271 retains its documented nested-image warning.
+- macOS `.riv` declarations include the official Rive UTI and RAV compatibility UTI. Settings exposes deliberate Make Default and Repair Icon actions; Quick Look remains separate. Windows installers register a dedicated multi-resolution document icon.
+- Configured official builds enable Anonymous Usage by default, show a notice before reporting, and keep the opt-out in Settings. Cite `/privacy` for the disclosure.
+- Primary maintainer: IVG Design.
 
 ## Retrieval Notes
 - Use canonical `/apps/rav` URLs.
+- Use `/docs` for current behavior and `/changelog` for version history.
 - Prefer table-backed details for capability questions.

@@ -1,5 +1,4 @@
 import { createArtboardSwitcherController } from '../../rive/artboard-switcher.js';
-import { detectDefaultStateMachineName } from '../../rive/default-state-machine.js';
 import { createRiveInstanceController } from '../../rive/instance-controller.js';
 import { createPlaybackController } from '../../rive/playback-controls.js';
 import { createVmControlsController } from '../../rive/vm-controls.js';
@@ -12,7 +11,11 @@ export function createRiveStack({
     const {
         activateAuthoritativeSurface,
         applyCanvasBackground,
-        detectDefaultStateMachineNameOverride = detectDefaultStateMachineName,
+        detectDefaultStateMachineNameOverride = async (_runtime, { artboardName } = {}) => {
+            const artboards = callbacks.getInspectionMetadata?.()?.artboards || [];
+            const artboard = artboardName ? artboards.find((entry) => entry.name === artboardName) : artboards[0];
+            return artboard?.stateMachines?.[0]?.name || null;
+        },
         ensureRuntime,
         getCurrentFileBuffer,
         getCurrentFileName,
@@ -27,6 +30,8 @@ export function createRiveStack({
         getRiveInstance,
         getRenderSurfaceAuthority,
         getRenderSurfaceCanonicalState,
+        getCurrentSourceScope,
+        getControlSourceScope,
         getTauriInvoker,
         hideError,
         initLucideIcons,
@@ -58,6 +63,8 @@ export function createRiveStack({
         getRiveInstance,
         getRenderSurfaceAuthority,
         getRenderSurfaceCanonicalState,
+        getCurrentSourceScope,
+        getControlSourceScope,
         pickImageFile: async () => {
             const invoke = getTauriInvoker?.();
             if (typeof invoke !== 'function') return null;
@@ -86,6 +93,8 @@ export function createRiveStack({
         elements,
         getCurrentFileName,
         getCurrentFileUrl,
+        getCurrentSourceScope,
+        getCanonicalSourceScope: callbacks.getCanonicalSourceScope,
         getRiveInstance,
         isAuthoritativeChildMode,
         callbacks: {
@@ -143,6 +152,7 @@ export function createRiveStack({
             applyCanvasBackground,
             detectDefaultStateMachineName: detectDefaultStateMachineNameOverride,
             ensureRuntime,
+            inspectFile: callbacks.inspectFile,
             hideError,
             isCanvasBackgroundTransparent,
             logEvent,

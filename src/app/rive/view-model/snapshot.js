@@ -7,6 +7,7 @@ import {
     buildVmHierarchy,
     stripNestedRootVmInputs,
 } from './hierarchy.js';
+import { createSnapshotScopeGuard } from '../inspection/source-scope.js';
 
 function cloneSnapshotEntry(entry) {
     if (!entry?.descriptor) {
@@ -81,11 +82,13 @@ export function createVmSnapshotController({
     buildStateMachineHierarchy,
     getBindings,
     getRiveInstance,
+    getCurrentSourceScope = null,
     resolveControlAccessor,
     syncVmControlBindings,
 }) {
     let baselineVmControlSnapshot = [];
     let pendingVmControlSnapshot = new Map();
+    const scopeGuard = createSnapshotScopeGuard(getCurrentSourceScope);
 
     function snapshotEntryKey(entry) {
         return controlSnapshotKeyForDescriptor(entry?.descriptor);
@@ -93,6 +96,7 @@ export function createVmSnapshotController({
 
     function queueVmControlSnapshot(snapshot) {
         pendingVmControlSnapshot = new Map();
+        if (!scopeGuard.accept(snapshot)) return;
         if (!Array.isArray(snapshot)) {
             return;
         }
@@ -157,6 +161,7 @@ export function createVmSnapshotController({
     }
 
     function retryPendingVmControlSnapshot() {
+        if (!scopeGuard.isCurrent()) pendingVmControlSnapshot.clear();
         if (!pendingVmControlSnapshot.size) {
             return 0;
         }
@@ -248,7 +253,7 @@ export function createVmSnapshotController({
             snapshot.push(snapshotEntry);
         });
 
-        return snapshot;
+        return scopeGuard.capture(snapshot);
     }
 
     function setVmControlBaselineSnapshot(snapshot = captureVmControlSnapshot()) {

@@ -62,6 +62,9 @@ function applyRemoteControlChanges(controlsByKey, changes) {
         const control = controlsByKey.get(key);
         if (!control) return;
         if (Object.hasOwn(change, 'value')) control.value = change.value;
+        if (control.kind === 'enum' && Array.isArray(change.values)) {
+            control.values = change.values.filter((value) => typeof value === 'string');
+        }
         if (Object.hasOwn(change, 'present')) control.present = Boolean(change.present);
         if (Object.hasOwn(change, 'receipt')) {
             control.receipt = Math.max(control.receipt || 0, Number(change.receipt) || 0);
@@ -74,6 +77,7 @@ function applyRemoteControlChanges(controlsByKey, changes) {
 
 export function createRemoteControlsAdapter({
     getCanonicalState = () => null,
+    getExpectedSessionId = () => getCanonicalState()?.sessionId || null,
 } = {}) {
     let cachedHierarchy = null;
     let cachedRevision = null;
@@ -82,6 +86,8 @@ export function createRemoteControlsAdapter({
     const accessorsByKey = new Map();
 
     function rebuild(state) {
+        if (state?.sessionId !== cachedState?.sessionId || state?.artboard !== cachedState?.artboard
+            || state?.vmInstance?.key !== cachedState?.vmInstance?.key) accessorsByKey.clear();
         cachedState = state;
         cachedRevision = revisionOf(state);
         cachedHierarchy = normalizeRemoteNode(state?.controlsHierarchy);
@@ -97,6 +103,8 @@ export function createRemoteControlsAdapter({
     }
 
     function acceptCanonicalState(state) {
+        const expected = getExpectedSessionId();
+        if (state && expected && state.sessionId !== expected) return cachedState;
         if (!state) {
             if (cachedState !== null) rebuild(null);
             return null;
@@ -143,22 +151,30 @@ export function createRemoteControlsAdapter({
         const key = controlSnapshotKeyForDescriptor(descriptor);
         if (!key || !getControl(descriptor)) return null;
         if (!accessorsByKey.has(key)) {
+            const sessionId = cachedRevision?.sessionId;
+            const artboard = cachedState?.artboard;
+            const vmInstanceKey = cachedState?.vmInstance?.key;
+            const capturedControl = () => {
+                const control = getControl(descriptor);
+                return cachedRevision?.sessionId === sessionId && cachedState?.artboard === artboard
+                    && cachedState?.vmInstance?.key === vmInstanceKey ? control : null;
+            };
             accessorsByKey.set(key, {
                 get value() {
-                    return getControl(descriptor)?.value;
+                    return capturedControl()?.value;
                 },
                 get values() {
-                    return getControl(descriptor)?.values || [];
+                    return capturedControl()?.values || [];
                 },
                 get present() {
-                    return Boolean(getControl(descriptor)?.present);
+                    return Boolean(capturedControl()?.present);
                 },
                 get metadata() {
-                    const metadata = getControl(descriptor)?.metadata;
+                    const metadata = capturedControl()?.metadata;
                     return metadata && typeof metadata === 'object' ? { ...metadata } : null;
                 },
                 get receipt() {
-                    return Number(getControl(descriptor)?.receipt) || 0;
+                    return Number(capturedControl()?.receipt) || 0;
                 },
             });
         }

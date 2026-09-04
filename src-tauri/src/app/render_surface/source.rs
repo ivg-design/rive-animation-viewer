@@ -139,6 +139,10 @@ pub(super) fn render_surface_label(session_id: &str) -> String {
     format!("{RENDER_SURFACE_LABEL_PREFIX}{session_id}")
 }
 
+pub(super) fn render_surface_retry_label(session_id: &str, generation: u64) -> String {
+    format!("{RENDER_SURFACE_LABEL_PREFIX}{session_id}-watchdog-retry-1-{generation}")
+}
+
 pub(super) fn render_surface_file_name(session_id: &str) -> String {
     format!("{RENDER_SURFACE_FILE_PREFIX}{session_id}.html")
 }
@@ -251,7 +255,7 @@ mod tests {
     use super::{
         cleanup_stale_render_surface_cache, is_safe_app_url, navigable_url, normalize_session_id,
         remove_render_surface_cache_file, render_surface_cache_path, render_surface_file_name,
-        render_surface_protocol_url,
+        render_surface_protocol_url, render_surface_retry_label,
     };
 
     #[test]
@@ -299,6 +303,14 @@ mod tests {
         assert!(normalize_session_id(None).is_err());
         assert!(normalize_session_id(Some("../escape")).is_err());
         assert!(normalize_session_id(Some("session 12")).is_err());
+    }
+
+    #[test]
+    fn watchdog_retry_label_is_distinct_and_generation_bound() {
+        assert_eq!(
+            render_surface_retry_label("session-12", 7),
+            "render-surface-session-12-watchdog-retry-1-7"
+        );
     }
 
     #[test]

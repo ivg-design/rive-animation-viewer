@@ -48,6 +48,7 @@ export function createGlobalBindingsController({
         }),
         getRenderSurfaceState = () => null,
         getRenderSurfaceController = () => null,
+        getMediaExportController = () => null,
         getSidebarVisibility = () => ({ left: false, right: true }),
         getScriptConsoleEntries = () => ({ total: 0, returned: 0, entries: [] }),
         getVmExplorerSnippetState = () => ({ injected: false }),
@@ -189,6 +190,7 @@ export function createGlobalBindingsController({
         windowRef._mcpGetLiveConfigState = () => getLiveConfigState();
         windowRef._mcpGetRenderSurfaceState = () => getRenderSurfaceState();
         windowRef._mcpGetRenderSurfaceController = () => getRenderSurfaceController();
+        windowRef._mcpGetMediaExportController = () => getMediaExportController();
         windowRef._mcpGetSidebarVisibility = () => getSidebarVisibility();
         windowRef._mcpGetVmExplorerSnippetState = () => getVmExplorerSnippetState();
         windowRef._mcpSetLiveConfigSource = async (sourceMode) => setLiveConfigSource(sourceMode);

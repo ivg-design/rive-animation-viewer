@@ -1,6 +1,8 @@
 import { bindUiActionHandlers } from '../ui/action-bindings.js';
 import { buildEffectiveInstantiationDescriptor } from '../platform/export/web-instantiation.js';
 import { runTelemetryAcceptanceAction } from '../platform/install-counter/acceptance-driver.js';
+import { resolveMediaOptions } from '../platform/media/options.js';
+import { createMediaExportUiController } from '../ui/media/controller.js';
 
 export function createAppLifecycle({
     callbacks,
@@ -65,6 +67,19 @@ export function createAppLifecycle({
         updateVersionInfo,
         windowChromeController,
     } = callbacks;
+
+    const mediaUi = createMediaExportUiController({
+        elements, windowRef, isDesktop: () => Boolean(getTauriInvoker()),
+        getService: () => windowRef._mcpGetMediaExportController?.(), resolveOptions: resolveMediaOptions,
+        getSourceInfo: async () => {
+            const response = await renderSurfaceController?.requestActiveCommand?.('media-info');
+            if (!response?.applied) throw new Error(response?.error || 'Load a Rive file first.');
+            return { ...response.result, label: getCurrentFileName() };
+        },
+        requestUiOverlay: (request) => shellController?.openUiOverlay?.(request),
+        closeUiOverlay: (options) => shellController?.uiOverlayController?.close(options),
+        openHtmlExport: () => instantiationControlsDialogController?.openDialog(), showError,
+    });
 
     function buildLiveInstantiationDescriptor() {
         const liveConfigState = getLiveConfigState();
@@ -207,6 +222,7 @@ export function createAppLifecycle({
         resolveAppVersion?.();
         updateVersionInfo('Loading runtime...');
         await windowChromeController?.setup?.();
+        mediaUi.setup();
         bindUiActionHandlers({
             elements,
             actions: {
@@ -216,7 +232,7 @@ export function createAppLifecycle({
                 pause,
                 play,
                 reset,
-                showInstantiationControlsDialogForExport: () => instantiationControlsDialogController?.openDialog(),
+                showInstantiationControlsDialogForExport: () => mediaUi.open(),
                 showMcpSetup,
             },
         });
@@ -265,6 +281,7 @@ export function createAppLifecycle({
         refreshInfoStrip();
         windowRef.addEventListener('resize', handleResize);
         const teardownAppShell = () => {
+            mediaUi.dispose();
             scriptConsoleController.destroy();
             operationsDiagnosticsController?.dispose?.();
             shellController?.dispose();

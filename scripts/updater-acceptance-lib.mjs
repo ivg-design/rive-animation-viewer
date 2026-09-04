@@ -9,6 +9,7 @@ import {
 
 export const STAGING_LEDGER_NAME = 'updater-staging-ledger.json';
 export const ACCEPTANCE_RECEIPT_NAME = 'updater-acceptance-receipt.json';
+export const ENCODER_SOURCE_ASSET_NAME = 'jellyfin-ffmpeg-v7.1.4-3-source.tar.gz';
 
 function fail(message) {
   throw new Error(message);
@@ -34,6 +35,7 @@ export function expectedUpdaterAssetNames(version) {
     `Rive.Animation.Viewer_${version}_x64_en-US.msi.sig`,
     `Rive.Animation.Viewer_${version}_x64-setup.exe`,
     `Rive.Animation.Viewer_${version}_x64-setup.exe.sig`,
+    ENCODER_SOURCE_ASSET_NAME,
     'latest.json',
   ];
 }

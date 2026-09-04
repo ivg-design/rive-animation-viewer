@@ -59,50 +59,12 @@
             return Object.assign({}, entry.selection);
         }
 
-        function waitForRenderSurfaceImagePresentation(mutationAdvanceRevision) {
-            var presentationTimeoutMs = 2000;
-            var scheduleFrame = typeof window.requestAnimationFrame === 'function'
-                ? window.requestAnimationFrame.bind(window)
-                : function (callback) { return window.setTimeout(callback, 0); };
-            // Browser RAF is only a compositor opportunity. It does not prove
-            // that Rive advanced after consuming this mutation. Wait for a
-            // child-owned onAdvance revision, then cross one compositor frame
-            // before acknowledging or releasing the decoded image. Bound this
-            // child-owned fence below the parent's command timeout: a runtime
-            // that never advances must reject this command and release the
-            // serialized bridge for later controls instead of wedging it.
-            return new Promise(function (resolve, reject) {
-                var settled = false;
-                var timeoutId = window.setTimeout(function () {
-                    if (settled) return;
-                    settled = true;
-                    reject(new Error('Image presentation timed out before the Rive renderer advanced.'));
-                }, presentationTimeoutMs);
-                var resolvePresented = function (result) {
-                    if (settled) return;
-                    settled = true;
-                    window.clearTimeout(timeoutId);
-                    resolve(result);
-                };
-                var waitForAdvance = function () {
-                    if (settled) return;
-                    var currentRevision = Number(renderSurfaceAdvanceRevision) || 0;
-                    if (currentRevision <= mutationAdvanceRevision) {
-                        scheduleFrame(waitForAdvance);
-                        return;
-                    }
-                    scheduleFrame(function () {
-                        if (settled) return;
-                        resolvePresented({
-                            advanceRevision: currentRevision,
-                            frames: 1,
-                            presented: true,
-                            rendererAdvanced: true,
-                        });
-                    });
-                };
-                scheduleFrame(waitForAdvance);
-            });
+        async function waitForRenderSurfaceImagePresentation(mutationAdvanceRevision) {
+            var receipt = await waitForRenderSurfacePresentationFrames(1);
+            if (renderSurfaceAdvanceRevision <= mutationAdvanceRevision) {
+                throw new Error('Image mutation did not advance in the renderer.');
+            }
+            return Object.assign(receipt, { advanceRevision: renderSurfaceAdvanceRevision, rendererAdvanced: true });
         }
 
         function restartRenderSurfaceAfterImageMutation() {
@@ -153,12 +115,13 @@
             } catch (error) {
                 return Promise.reject(error);
             }
-            var imageAdvanceRevision = Number(renderSurfaceAdvanceRevision) || 0;
-            return Promise.resolve(loadedRiveRuntime.decodeImage(imageBytes)).then(function (image) {
+            return Promise.resolve(loadedRiveRuntime.decodeImage(imageBytes)).then(async function (image) {
                 if (!image) throw new Error('The runtime could not decode the image.');
-                imageAccessor.value = image;
-                var imageRendering = restartRenderSurfaceAfterImageMutation();
-                return waitForRenderSurfaceImagePresentation(imageAdvanceRevision).then(function (presentation) {
+                try {
+                    var imageAdvanceRevision = Number(renderSurfaceAdvanceRevision) || 0;
+                    imageAccessor.value = image;
+                    var imageRendering = restartRenderSurfaceAfterImageMutation();
+                    var presentation = await waitForRenderSurfaceImagePresentation(imageAdvanceRevision);
                     if (remember) rememberRenderSurfaceImageCommand(imageDescriptor);
                     return {
                         descriptor: imageDescriptor,
@@ -166,12 +129,12 @@
                         presentation: presentation,
                         rendering: imageRendering,
                     };
-                }).finally(function () {
+                } finally {
                     // The accessor retains the assigned render image. Keep our
                     // temporary decode reference alive until the frame fence so
                     // a deferred WebGL draw can never observe a released asset.
                     if (typeof image.unref === 'function') image.unref();
-                });
+                }
             });
         }
 
@@ -203,76 +166,30 @@
         function settleRenderSurfaceResetAfterPresentation(pendingReset) {
             if (!pendingReset || pendingReset.presentationScheduled) return;
             pendingReset.presentationScheduled = true;
-            var resetFrame = typeof window.requestAnimationFrame === 'function'
-                ? window.requestAnimationFrame.bind(window)
-                : function (callback) { return window.setTimeout(callback, 0); };
-            var resetSnapshot = Array.isArray(pendingReset.snapshot)
-                ? pendingReset.snapshot
-                : currentControlSnapshot;
-            Promise.resolve().then(function () {
-                // Scalar/enum/state-machine values can be recreated by a
-                // runtime reset, just like image accessors. Re-queue before
-                // image restoration so both kinds resolve against the same
-                // live ViewModel instance.
-                applyControlSnapshot(resetSnapshot);
-                return restoreRenderSurfaceImageSnapshot({ pruneFailures: false });
-            }).then(function () {
-                // reset() recreated animatables as playing but did not restart
-                // the runtime RAF loop in affected Web runtime builds. Restart
-                // only after VM/list/image restoration so the first advancing
-                // frame observes the authoritative reset snapshot.
-                pendingReset.playbackRestart = restartRenderSurfacePlaybackAfterReset(
-                    riveInstance,
-                    pendingReset.params,
-                );
-                resetFrame(function () {
-                    resetFrame(function () {
-                        // Some list-backed accessors appear on the first
-                        // advance after reset. Retrying here keeps their
-                        // restoration bounded without polling topology.
-                        if (pendingRenderSurfaceReset !== pendingReset) return;
-                        restoreRenderSurfaceImageSnapshot({ pruneFailures: true }).then(function () {
-                            if (pendingRenderSurfaceReset !== pendingReset) return;
-                            retryPendingControlSnapshot();
-                            var unresolvedControlCount = pendingControlSnapshot.size;
-                            if (unresolvedControlCount > 0) {
-                                // Runtime-list rows can disappear or be replaced
-                                // during reset. Do not leave their old descriptors
-                                // queued where an unrelated future row at the same
-                                // path could inherit stale pre-reset data.
-                                pendingControlSnapshot.clear();
-                                if (typeof scheduleRenderSurfaceCanonicalRefresh === 'function') {
-                                    scheduleRenderSurfaceCanonicalRefresh('reset-first-frame', true);
-                                }
-                                pendingReset.reject(new Error(
-                                    'Playback reset could not restore '
-                                    + unresolvedControlCount
-                                    + ' control value'
-                                    + (unresolvedControlCount === 1 ? '.' : 's.'),
-                                ));
-                                return;
-                            }
-                            pendingReset.resolve({
-                                pending: 0,
-                                reset: true,
-                                restored: resetSnapshot.length,
-                                playbackRestart: pendingReset.playbackRestart,
-                                presentationFrames: 2,
-                            });
-                        }).catch(function (error) {
-                            pendingControlSnapshot.clear();
-                            if (typeof scheduleRenderSurfaceCanonicalRefresh === 'function') {
-                                scheduleRenderSurfaceCanonicalRefresh('reset-first-frame', true);
-                            }
-                            pendingReset.reject(error);
-                        });
-                    });
-                });
+            var snapshot = Array.isArray(pendingReset.snapshot) ? pendingReset.snapshot : currentControlSnapshot;
+            Promise.resolve().then(async function () {
+                applyControlSnapshot(snapshot);
+                await restoreRenderSurfaceImageSnapshot({ pruneFailures: false });
+                pendingReset.playbackRestart = restartRenderSurfacePlaybackAfterReset(riveInstance, pendingReset.params);
+                var receipt = await waitForRenderSurfacePresentationFrames(2);
+                if (pendingRenderSurfaceReset !== pendingReset) return;
+                await restoreRenderSurfaceImageSnapshot({ pruneFailures: true });
+                retryPendingControlSnapshot();
+                var unresolved = pendingControlSnapshot.size;
+                if (unresolved) {
+                    throw new Error(
+                        'Playback reset could not restore '
+                        + unresolved
+                        + ' control value'
+                        + (unresolved === 1 ? '.' : 's.'),
+                    );
+                }
+                pendingReset.resolve({ pending: 0, reset: true, restored: snapshot.length,
+                    playbackRestart: pendingReset.playbackRestart, presentationFrames: receipt.frames,
+                    rendered: receipt.rendered, presented: receipt.presented });
             }).catch(function (error) {
                 pendingControlSnapshot.clear();
-                if (typeof scheduleRenderSurfaceCanonicalRefresh === 'function') {
-                    scheduleRenderSurfaceCanonicalRefresh('reset-first-frame', true);
-                }
+                if (typeof scheduleRenderSurfaceCanonicalRefresh === 'function') scheduleRenderSurfaceCanonicalRefresh('reset-first-frame', true);
                 pendingReset.reject(error);
             });
         }

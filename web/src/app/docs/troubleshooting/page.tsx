@@ -64,7 +64,7 @@ export default function Troubleshooting() {
         <li>Verify the server is registered: <code>claude mcp list</code> or <code>codex mcp list</code></li>
         <li>The bridge auto-reconnects &mdash; if the client started after RAV, wait a few seconds</li>
         <li>Change the bridge port in the MCP Setup dialog if 9274 is occupied</li>
-        <li>If RAV 2.4.1 reports that the bundled sidecar is missing, update to 2.4.2 or later; reinstalling 2.4.1 does not repair its path-resolution regression</li>
+        <li>If RAV reports that the bundled sidecar is missing after an update, install the current release from GitHub, relaunch RAV, and reopen MCP Setup</li>
       </ul>
 
       <h2>Getting Help</h2>

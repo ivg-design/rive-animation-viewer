@@ -1,0 +1,4145 @@
+[
+  {
+    "id": "timeline-h264-alpha0-cursor0",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "h264",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": false,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-h264-alpha0-cursor1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "h264",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": false,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-h264-alpha1-cursor0",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "h264",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": true,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-h264-alpha1-cursor1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "h264",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": true,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-h265-alpha0-cursor0",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "h265",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": false,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-h265-alpha0-cursor1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "h265",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": false,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-h265-alpha1-cursor0",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "h265",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": true,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-h265-alpha1-cursor1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "h265",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": true,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-webm-alpha0-cursor0",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "webm",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": false,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-webm-alpha0-cursor1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "webm",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": false,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-webm-alpha1-cursor0",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "webm",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": true,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-webm-alpha1-cursor1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "webm",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": true,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-apng-alpha0-cursor0",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": false,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-apng-alpha0-cursor1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": false,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-apng-alpha1-cursor0",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": true,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-apng-alpha1-cursor1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": true,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-gif-alpha0-cursor0",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": false,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-gif-alpha0-cursor1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": false,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-gif-alpha1-cursor0",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": true,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timeline-gif-alpha1-cursor1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": true,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-png-alpha0-cursor0",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "png",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "alpha": false,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-png-alpha0-cursor1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "png",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "alpha": false,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-png-alpha1-cursor0",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "png",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "alpha": true,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-png-alpha1-cursor1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "png",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "alpha": true,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-jpg-alpha0-cursor0",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "jpg",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "alpha": false,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-jpg-alpha0-cursor1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "jpg",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "alpha": false,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-jpg-alpha1-cursor0",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "jpg",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "alpha": true,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-jpg-alpha1-cursor1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "jpg",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "alpha": true,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-webp-alpha0-cursor0",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "webp",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "alpha": false,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-webp-alpha0-cursor1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "webp",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "alpha": false,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-webp-alpha1-cursor0",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "webp",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "alpha": true,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-webp-alpha1-cursor1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "webp",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "alpha": true,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-h264-alpha0-cursor0",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "h264",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": false,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-h264-alpha0-cursor1",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "h264",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": false,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-h264-alpha1-cursor0",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "h264",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": true,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-h264-alpha1-cursor1",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "h264",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": true,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-h265-alpha0-cursor0",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "h265",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": false,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-h265-alpha0-cursor1",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "h265",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": false,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-h265-alpha1-cursor0",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "h265",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": true,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-h265-alpha1-cursor1",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "h265",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": true,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-webm-alpha0-cursor0",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "webm",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": false,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-webm-alpha0-cursor1",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "webm",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": false,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-webm-alpha1-cursor0",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "webm",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": true,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-webm-alpha1-cursor1",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "webm",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": true,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-apng-alpha0-cursor0",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": false,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-apng-alpha0-cursor1",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": false,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-apng-alpha1-cursor0",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": true,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-apng-alpha1-cursor1",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": true,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-gif-alpha0-cursor0",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": false,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-gif-alpha0-cursor1",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": false,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-gif-alpha1-cursor0",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": true,
+      "cursor": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-gif-alpha1-cursor1",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "alpha": true,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-reject-still-png",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "png",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-png-at-seconds",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "png",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "at_seconds": 0.5
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-png-at-frame",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "png",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "at_seconds": 0.5
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-reject-still-jpg",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "jpg",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-jpg-at-seconds",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "jpg",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "at_seconds": 0.5
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-jpg-at-frame",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "jpg",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "at_seconds": 0.5
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-reject-still-webp",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "webp",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-webp-at-seconds",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "webp",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "at_seconds": 0.5
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "still-webp-at-frame",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "webp",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "at_seconds": 0.5
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "segment-full",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "segment-seconds",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0.25,
+      "end_seconds": 0.75
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "segment-native-frames",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_frame": 15,
+      "end_frame": 30
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "segment-frame-precedence",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "start_frame": 15,
+      "end_frame": 30
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "segment-empty",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0.5,
+      "end_seconds": 0.5
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "segment-reversed",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0.75,
+      "end_seconds": 0.25
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "segment-beyond-timeline",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 999
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "fps-timeline-1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "fps-record-1",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "fps-timeline-12",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "fps-record-12",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "fps-timeline-24",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 24,
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "fps-record-24",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 24,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "fps-timeline-30",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 30,
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "fps-record-30",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 30,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "fps-timeline-50",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 50,
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "fps-record-50",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 50,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "fps-timeline-60",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 60,
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "fps-record-60",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 60,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "fps-timeline-{'numerator': 30000, 'denominator': 1001}",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": {
+        "numerator": 30000,
+        "denominator": 1001
+      },
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "fps-record-{'numerator': 30000, 'denominator': 1001}",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": {
+        "numerator": 30000,
+        "denominator": 1001
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "resize-timeline-source",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "resize-record-source",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "resize-timeline-width-only",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "resize-record-width-only",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "resize-timeline-height-only",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "resize-record-height-only",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "resize-timeline-exact",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 400,
+      "height": 200,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "resize-record-exact",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 400,
+      "height": 200,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "resize-timeline-scale",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "scale": 0.5
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "resize-record-scale",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "fps": 12,
+      "duration_seconds": 3,
+      "scale": 0.5
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "resize-timeline-explicit-over-scale",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 400,
+      "height": 200,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "scale": 0.5
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "resize-record-explicit-over-scale",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 400,
+      "height": 200,
+      "fps": 12,
+      "duration_seconds": 3,
+      "scale": 0.5
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-timeline-preset-source",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 1000,
+      "height": 600,
+      "fps": 30,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif_preset": "source"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-record-preset-source",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 1000,
+      "height": 600,
+      "fps": 30,
+      "duration_seconds": 3,
+      "gif_preset": "source"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-timeline-preset-balanced",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 1000,
+      "height": 600,
+      "fps": 30,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif_preset": "balanced"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-record-preset-balanced",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 1000,
+      "height": 600,
+      "fps": 30,
+      "duration_seconds": 3,
+      "gif_preset": "balanced"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-timeline-preset-small",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 1000,
+      "height": 600,
+      "fps": 30,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif_preset": "small"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-record-preset-small",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 1000,
+      "height": 600,
+      "fps": 30,
+      "duration_seconds": 3,
+      "gif_preset": "small"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-timeline-preset-custom",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 1000,
+      "height": 600,
+      "fps": 30,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif_preset": "custom"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-record-preset-custom",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 1000,
+      "height": 600,
+      "fps": 30,
+      "duration_seconds": 3,
+      "gif_preset": "custom"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-timeline-preset-target-size",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 1000,
+      "height": 600,
+      "fps": 30,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif_preset": "target-size",
+      "gif": {
+        "max_bytes": 50000,
+        "size_policy": "quality_only"
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-record-preset-target-size",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 1000,
+      "height": 600,
+      "fps": 30,
+      "duration_seconds": 3,
+      "gif_preset": "target-size",
+      "gif": {
+        "max_bytes": 50000,
+        "size_policy": "quality_only"
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-encoder-auto",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif": {
+        "encoder": "auto"
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-encoder-ffmpeg",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif": {
+        "encoder": "ffmpeg"
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-encoder-gifski",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif": {
+        "encoder": "gifski"
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "quality-1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "quality": 1,
+      "gif_preset": "custom"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "quality-record-1",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "quality": 1,
+      "gif_preset": "custom"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "webp-quality-1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "webp",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "quality": 1
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "quality-60",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "quality": 60,
+      "gif_preset": "custom"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "quality-record-60",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "quality": 60,
+      "gif_preset": "custom"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "webp-quality-60",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "webp",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "quality": 60
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "quality-80",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "quality": 80,
+      "gif_preset": "custom"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "quality-record-80",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "quality": 80,
+      "gif_preset": "custom"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "webp-quality-80",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "webp",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "quality": 80
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "quality-100",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "quality": 100,
+      "gif_preset": "custom"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "quality-record-100",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "quality": 100,
+      "gif_preset": "custom"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "webp-quality-100",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "webp",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "quality": 100
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-repeat--1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif": {
+        "repeat": -1
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-repeat-0",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif": {
+        "repeat": 0
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-repeat-1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif": {
+        "repeat": 1
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-repeat-32767",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif": {
+        "repeat": 32767
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-motion_quality-gifski",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif": {
+        "encoder": "gifski",
+        "motion_quality": 65
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-motion_quality-ffmpeg",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif": {
+        "encoder": "ffmpeg",
+        "motion_quality": 65
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-lossy_quality-gifski",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif": {
+        "encoder": "gifski",
+        "lossy_quality": 65
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-lossy_quality-ffmpeg",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif": {
+        "encoder": "ffmpeg",
+        "lossy_quality": 65
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-target-quality_only-1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif_preset": "target-size",
+      "gif": {
+        "max_bytes": 1,
+        "size_policy": "quality_only"
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-target-quality_only-1000000",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif_preset": "target-size",
+      "gif": {
+        "max_bytes": 1000000,
+        "size_policy": "quality_only"
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-target-quality_fps_scale-1",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif_preset": "target-size",
+      "gif": {
+        "max_bytes": 1,
+        "size_policy": "quality_fps_scale"
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-target-quality_fps_scale-1000000",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif_preset": "target-size",
+      "gif": {
+        "max_bytes": 1000000,
+        "size_policy": "quality_fps_scale"
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-quality-conflict",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "quality": 75,
+      "gif": {
+        "quality": 5
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "gif-quality-only-ignored",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif": {
+        "quality": 5
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "invalid-odd-video",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "h264",
+      "width": 321,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "invalid-zero-width",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 0,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "invalid-scale-zero",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "scale": 0
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "invalid-scale-nine",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "scale": 9
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "invalid-fps-zero",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 0,
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "invalid-fps-sixtyone",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 61,
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "invalid-rational-zero",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": {
+        "numerator": 30,
+        "denominator": 0
+      },
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "invalid-rational-huge",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": {
+        "numerator": 30000000,
+        "denominator": 1000000
+      },
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "invalid-gif-fps-51",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 51,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif_preset": "custom"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "invalid-quality-zero",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "quality": 0
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "invalid-quality-high",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "quality": 101
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "invalid-bad-background",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "background": "red"
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "invalid-repeat-high",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif": {
+        "repeat": 32768
+      }
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "invalid-gif-target-missing",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif_preset": "target-size"
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "invalid-gif-policy-without-target",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif": {
+        "size_policy": "quality_only"
+      }
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "limit-width",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 4097,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "limit-height",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 4097,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "lifecycle-manual-stop",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "lifecycle-early-stop",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "lifecycle-cancel-capture",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "lifecycle-cancel-latest",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "lifecycle-cancel-encoding",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "lifecycle-cancel-overwrite",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "lifecycle-overwrite-denied",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "lifecycle-overwrite-allowed",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "lifecycle-concurrent-start",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "lifecycle-source-change",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "lifecycle-pause-resume",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "lifecycle-resize-during",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "lifecycle-stop-idempotency",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timed-boolean",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timed-number",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timed-string",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timed-enum",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timed-color",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timed-trigger",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timed-image",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timed-clear_image",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timed-global_boolean",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timed-global_number",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timed-global_string",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timed-global_enum",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timed-global_color",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timed-global_trigger",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timed-global_image",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "timed-global_clear_image",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "pointer-click",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "pointer-hover",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "pointer-drag",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "pointer-exit",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "pointer-edges",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "cursor": true
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "pointer-reject-below",
+    "tool": "rav_pointer",
+    "args": {
+      "type": "move",
+      "x": -0.1,
+      "y": 0.5
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "pointer-reject-above",
+    "tool": "rav_pointer",
+    "args": {
+      "type": "move",
+      "x": 1.1,
+      "y": 0.5
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "pointer-reject-multitouch",
+    "tool": "rav_pointer",
+    "args": {
+      "type": "down",
+      "x": 0.5,
+      "y": 0.5,
+      "id": 1
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "step-1-60",
+    "tool": "rav_step_frames",
+    "args": {
+      "frames": 1,
+      "fps": 60
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "step-30-30",
+    "tool": "rav_step_frames",
+    "args": {
+      "frames": 30,
+      "fps": 30
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "step-600-240",
+    "tool": "rav_step_frames",
+    "args": {
+      "frames": 600,
+      "fps": 240
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "step-0-60",
+    "tool": "rav_step_frames",
+    "args": {
+      "frames": 0,
+      "fps": 60
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "step-601-60",
+    "tool": "rav_step_frames",
+    "args": {
+      "frames": 601,
+      "fps": 60
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "step-1-241",
+    "tool": "rav_step_frames",
+    "args": {
+      "frames": 1,
+      "fps": 241
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "strict-validation-unknown_setting",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "unknown_setting": true
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "strict-validation-width",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320.5,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "strict-validation-alpha",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "alpha": "true"
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "strict-validation-gif_preset",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "gif_preset": "typo"
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "scheduled-root-boolean",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-root-number",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-root-string",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-root-enum",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-root-color",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-root-trigger",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-root-image",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-root-clear_image",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-nested-boolean",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-nested-number",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-nested-string",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-nested-enum",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-nested-color",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-nested-trigger",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-nested-image",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-nested-clear_image",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-list-boolean",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-list-number",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-list-string",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-list-enum",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-list-color",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-list-trigger",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-list-image",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-list-clear_image",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-global-boolean",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-global-number",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-global-string",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-global-enum",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-global-color",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-global-trigger",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-global-image",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-global-clear_image",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-click",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-hover",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-drag",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-exit",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-edges",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-equal-time-order",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-time-zero",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-late-catchup",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": true
+  },
+  {
+    "id": "scheduled-invalid-negative-time",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "interactions": [
+        {
+          "at_seconds": -1,
+          "type": "pointer",
+          "event": "move",
+          "x": 0.5,
+          "y": 0.5
+        }
+      ]
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "scheduled-invalid-at-end",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "interactions": [
+        {
+          "at_seconds": 3,
+          "type": "pointer",
+          "event": "move",
+          "x": 0.5,
+          "y": 0.5
+        }
+      ]
+    },
+    "schema_valid": true,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "scheduled-invalid-wrong-value",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "interactions": [
+        {
+          "at_seconds": 0,
+          "type": "vm-set",
+          "descriptor": {
+            "path": "x",
+            "kind": "boolean"
+          },
+          "value": "true"
+        }
+      ]
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "scheduled-invalid-unknown-op",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "interactions": [
+        {
+          "at_seconds": 0,
+          "type": "wheel"
+        }
+      ]
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "scheduled-invalid-image-byte",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "interactions": [
+        {
+          "at_seconds": 0,
+          "type": "vm-set",
+          "descriptor": {
+            "path": "image",
+            "kind": "image"
+          },
+          "bytes": [
+            256
+          ]
+        }
+      ]
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "unlimited-null-manual",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": null
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "unlimited-over-300",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "h264",
+      "width": 160,
+      "height": 90,
+      "fps": 1,
+      "duration_seconds": null
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-timeline-preset-target-size",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 1000,
+      "height": 600,
+      "fps": 30,
+      "gif_preset": "target-size",
+      "gif": {
+        "max_bytes": 50000,
+        "size_policy": "quality_only"
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-encoder-auto",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif": {
+        "encoder": "auto"
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-encoder-ffmpeg",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif": {
+        "encoder": "ffmpeg"
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-encoder-gifski",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif": {
+        "encoder": "gifski"
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-repeat--1",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif": {
+        "repeat": -1
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-repeat-0",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif": {
+        "repeat": 0
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-repeat-1",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif": {
+        "repeat": 1
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-repeat-32767",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif": {
+        "repeat": 32767
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-motion_quality-gifski",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif": {
+        "encoder": "gifski",
+        "motion_quality": 65
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-motion_quality-ffmpeg",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif": {
+        "encoder": "ffmpeg",
+        "motion_quality": 65
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-lossy_quality-gifski",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif": {
+        "encoder": "gifski",
+        "lossy_quality": 65
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-lossy_quality-ffmpeg",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif": {
+        "encoder": "ffmpeg",
+        "lossy_quality": 65
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-target-quality_only-1",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif_preset": "target-size",
+      "gif": {
+        "max_bytes": 1,
+        "size_policy": "quality_only"
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-target-quality_only-1000000",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif_preset": "target-size",
+      "gif": {
+        "max_bytes": 1000000,
+        "size_policy": "quality_only"
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-target-quality_fps_scale-1",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif_preset": "target-size",
+      "gif": {
+        "max_bytes": 1,
+        "size_policy": "quality_fps_scale"
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-target-quality_fps_scale-1000000",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif_preset": "target-size",
+      "gif": {
+        "max_bytes": 1000000,
+        "size_policy": "quality_fps_scale"
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-quality-conflict",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "quality": 75,
+      "gif": {
+        "quality": 5
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-gif-quality-only-ignored",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif": {
+        "quality": 5
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-invalid-repeat-high",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif": {
+        "repeat": 32768
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": false,
+    "normalize_valid": false,
+    "unbound_schedule": false
+  },
+  {
+    "id": "record-controls-invalid-gif-policy-without-target",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "gif",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "gif": {
+        "size_policy": "quality_only"
+      },
+      "duration_seconds": 3
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "background-timeline",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "start_seconds": 0,
+      "end_seconds": 1,
+      "background": "#2a507c",
+      "alpha": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "background-record",
+    "tool": "rav_record_start",
+    "args": {
+      "format": "apng",
+      "width": 320,
+      "height": 180,
+      "fps": 12,
+      "duration_seconds": 3,
+      "background": "#2a507c",
+      "alpha": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  },
+  {
+    "id": "background-still",
+    "tool": "rav_export_media",
+    "args": {
+      "format": "png",
+      "width": 320,
+      "height": 180,
+      "fps": 1,
+      "background": "#2a507c",
+      "alpha": false
+    },
+    "schema_valid": true,
+    "normalize_valid": true,
+    "unbound_schedule": false
+  }
+]

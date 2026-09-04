@@ -21,6 +21,7 @@ export default function Shortcuts() {
           <tr><td><code>Arrow Down</code></td><td>JS Console REPL</td><td>Next command in history</td></tr>
           <tr><td><code>Enter</code></td><td>Runtime version field</td><td>Apply the custom semver</td></tr>
           <tr><td><code>Enter</code></td><td>MCP port field</td><td>Apply the typed port</td></tr>
+          <tr><td><code>Cmd/Ctrl+Shift+R</code></td><td>State-machine media recording</td><td>Start the configured recording or stop the active recording; ignored in typing fields</td></tr>
           <tr><td><code>Escape</code></td><td>Settings popover</td><td>Close the popover</td></tr>
         </tbody>
       </table>

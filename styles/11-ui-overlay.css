@@ -5,6 +5,7 @@
 @import url("./10-about-dialog.css");
 @import url("./05-mcp-dialog.css");
 @import url("./05-instantiation-dialog.css");
+@import url("../src/app/ui/media/media.css");
 
 :root {
     --alert: #fa541c;

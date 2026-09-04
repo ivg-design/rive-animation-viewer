@@ -15,6 +15,7 @@ fn registry_with_active() -> RenderSurfaceRegistry {
             session_id: "active".to_string(),
             label: "render-surface-active".to_string(),
             target_bounds: bounds(),
+            activation_attempt: 0,
         }),
         ..Default::default()
     }
@@ -82,6 +83,7 @@ fn first_ready_can_route_to_a_candidate_before_its_child_is_shown() {
         session_id: "candidate".to_string(),
         label: "render-surface-candidate".to_string(),
         target_bounds: bounds(),
+        activation_attempt: 0,
     };
 
     // Creation stages the label before native add_child/show can start the
@@ -157,11 +159,13 @@ fn rollback_of_an_old_candidate_cannot_remove_a_newer_same_session_stage() {
         session_id: "candidate".to_string(),
         label: "render-surface-old".to_string(),
         target_bounds: bounds(),
+        activation_attempt: 0,
     };
     let newer = SurfaceResource {
         session_id: "candidate".to_string(),
         label: "render-surface-new".to_string(),
         target_bounds: bounds(),
+        activation_attempt: 0,
     };
     registry.stage(old.session_id.clone(), old.label.clone(), old.target_bounds);
     registry.stage(
@@ -211,6 +215,7 @@ fn shutdown_snapshot_contains_active_multiple_pending_and_retired_once_each() {
         session_id: "retired".to_string(),
         label: "render-surface-retired".to_string(),
         target_bounds: bounds(),
+        activation_attempt: 0,
     });
     // A duplicated native label must still be closed exactly once.
     staged(&mut registry, "duplicate-label", "render-surface-active");
@@ -260,6 +265,7 @@ fn retired_surfaces_remain_managed_for_final_cleanup() {
         session_id: "retired".to_string(),
         label: "render-surface-retired".to_string(),
         target_bounds: bounds(),
+        activation_attempt: 0,
     };
     registry.record_retired(retired.clone());
     registry.record_retired(retired);
@@ -333,3 +339,6 @@ fn activation_commits_latest_pending_bounds_after_a_resize() {
     assert_eq!(registry.active.as_ref(), Some(&activated));
     assert!(registry.pending_surface("pending").is_none());
 }
+
+#[path = "registry_tests/watchdog.rs"]
+mod watchdog;

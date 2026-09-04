@@ -1,7 +1,7 @@
 export function formatToolResult(name, result) {
   if (name !== 'rav_capture_canvas') {
     const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
-    return { content: [{ type: 'text', text }] };
+    return { content: [{ type: 'text', text }], ...(result?.applied === false ? { isError: true } : {}) };
   }
 
   const data = result?.image?.data;

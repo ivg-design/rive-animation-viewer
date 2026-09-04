@@ -31,6 +31,8 @@ pub struct DemoBundlePayload {
     #[serde(default)]
     pub control_snapshot: Option<String>,
     #[serde(default)]
+    pub inspection_metadata: Option<String>,
+    #[serde(default)]
     pub default_instantiation_package_source: String,
     #[serde(default)]
     pub editor_code: String,

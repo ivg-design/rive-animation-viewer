@@ -24,6 +24,8 @@ const demoBundleSource = readFileSync(
 const timelineStateSource = readTemplateSource('vm/timeline-state.js');
 const preambleSource = readTemplateSource('core/preamble.js');
 const firstFrameSource = readTemplateSource('core/load/first-frame.js');
+const frameClockSource = readTemplateSource('media/frame-clock.js');
+const diagnosticCaptureSource = readTemplateSource('media/diagnostic-capture.js');
 const riveLoaderSource = readTemplateSource('core/rive-loader.js');
 const editorConfigSource = readTemplateSource('core/editor-config.js');
 const controlsRenderSource = readTemplateSource('vm/controls-render.js');
@@ -114,15 +116,17 @@ describe('render surface VM numeric presentation', () => {
 describe('render surface canvas capture', () => {
     it('keeps capture on the child canvas with background compositing and bounded retries', () => {
         expect(bootstrapSource).toContain("type === 'capture-canvas'");
-        expect(bootstrapSource).toContain('window.getComputedStyle(canvas)');
-        expect(bootstrapSource).toContain('context.fillStyle = backgroundColor');
-        expect(bootstrapSource).toContain("riveInstance.stopRendering()");
-        expect(bootstrapSource).toContain("riveInstance.startRendering()");
-        expect(bootstrapSource).toContain("riveInstance.drawOptimization = 'alwaysDraw'");
-        expect(bootstrapSource).toContain('attempts <= 4');
-        expect(bootstrapSource).toContain('12 * 1024 * 1024');
-        expect(bootstrapSource).toContain("data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0");
-        expect(bootstrapSource).toContain("emitToMain('render-surface:capture'");
+        expect(bootstrapSource).toContain('captureRenderSurfaceDiagnostic(payload, emitToMain)');
+        expect(demoBundleSource).toContain('include_str!("../demo-template/js/media/diagnostic-capture.js")');
+        expect(diagnosticCaptureSource).toContain('window.getComputedStyle(canvas)');
+        expect(diagnosticCaptureSource).toContain('context.fillStyle = backgroundColor');
+        expect(diagnosticCaptureSource).toContain("riveInstance.stopRendering()");
+        expect(diagnosticCaptureSource).toContain("riveInstance.startRendering()");
+        expect(diagnosticCaptureSource).toContain("riveInstance.drawOptimization = 'alwaysDraw'");
+        expect(diagnosticCaptureSource).toContain('attempts <= 4');
+        expect(diagnosticCaptureSource).toContain('12 * 1024 * 1024');
+        expect(diagnosticCaptureSource).toContain("data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0");
+        expect(diagnosticCaptureSource).toContain("emitToMain('render-surface:capture'");
     });
 });
 
@@ -218,24 +222,24 @@ describe('standalone runtime deprecation compatibility', () => {
 
     it('does not probe deprecated stateMachineInputs when exact active-artboard metadata says a machine is empty', () => {
         const stateMachineInputs = vi.fn(() => []);
+        const contents = vi.fn(() => { throw new Error('Live contents must never be inspected'); });
         const riveInstance = {
             activeArtboard: 'Main',
-            contents: {
-                artboards: [{
-                    name: 'Main',
-                    stateMachines: [{ name: 'Machine', inputs: [] }],
-                }],
-            },
+            get contents() { return contents(); },
             stateMachineInputs,
             stateMachineNames: ['Machine'],
         };
-        const harness = createDemoVmHarness(riveInstance, { renderSurfaceMode: true });
+        const harness = createDemoVmHarness(riveInstance, {
+            renderSurfaceMode: true,
+            inspectionMetadata: { artboards: [{ name: 'Main', stateMachines: [{ name: 'Machine', inputs: [] }] }] },
+        });
 
         expect(harness.captureRenderSurfaceControlsHierarchy().children).toEqual([]);
         expect(harness.resolveStateMachineInputAccessor('Machine', 'missing', 'trigger')).toBeNull();
         expect(harness.fireStateMachineTriggerByName('missing')).toBe(0);
         harness.publishRenderSurfaceCanonicalState(true, 'initial');
         expect(stateMachineInputs).not.toHaveBeenCalled();
+        expect(contents).not.toHaveBeenCalled();
     });
 
     it('keeps explicit legacy callbacks while avoiding irrelevant automatic event subscriptions', () => {
@@ -291,6 +295,7 @@ function createDemoVmHarness(riveInstance, {
     controlSnapshot = [],
     deferCanonicalUntilActivation = false,
     imageRuntime = null,
+    inspectionMetadata = null,
     renderSurfaceMode = false,
     vmHierarchy = null,
 } = {}) {
@@ -300,10 +305,11 @@ function createDemoVmHarness(riveInstance, {
     else delete window.__ravRenderSurfaceDefersCanonical;
     const emitted = [];
     window.__ravRenderSurfaceEmit = (event, payload) => emitted.push({ event, payload });
-    const build = new Function('riveInstance', 'CONTROL_SELECTION_KEYS', 'CONTROL_SNAPSHOT', 'VM_HIERARCHY', 'IS_RENDER_SURFACE_MODE', 'IMAGE_RUNTIME', `
-        const CONFIG = { artboardName: null, viewModelInstanceName: null };
+    const build = new Function('riveInstance', 'CONTROL_SELECTION_KEYS', 'CONTROL_SNAPSHOT', 'VM_HIERARCHY', 'IS_RENDER_SURFACE_MODE', 'IMAGE_RUNTIME', 'INSPECTION_METADATA', `
+        const CONFIG = { artboardName: null, viewModelInstanceName: null, runtimeVersion: '2.41.1' };
         ${runtimeCompatibilitySource}
         const runtimeCompatibility = createRiveRuntimeCompatibility();
+        runtimeCompatibility.setInspectionMetadata(riveInstance, INSPECTION_METADATA);
         const isRenderSurfaceMode = IS_RENDER_SURFACE_MODE;
         const VM_CONTROL_SYNC_INTERVAL_MS = 120;
         const VM_TOPOLOGY_SYNC_INTERVAL_MS = 1000;
@@ -312,6 +318,8 @@ function createDemoVmHarness(riveInstance, {
         let vmControlSyncTimer = null;
         let vmListTopologySignature = null;
         let pendingControlSnapshot = new Map();
+        let currentControlSnapshot = CONTROL_SNAPSHOT;
+        let pendingRenderSurfaceReset = null;
         let renderSurfaceImageSnapshot = new Map();
         let renderSurfaceAdvanceRevision = 0;
         let loadedRiveRuntime = IMAGE_RUNTIME;
@@ -370,6 +378,11 @@ function createDemoVmHarness(riveInstance, {
                 .filter(Boolean)
         );
         ${accessorsSource}
+        ${frameClockSource}
+        ${firstFrameSource}
+        ${resetContractSource}
+        // Match the loader's onAdvance revision; never advance from a host RAF alone.
+        if (riveInstance) riveInstance.onAdvance = () => { renderSurfaceAdvanceRevision += 1; };
         ${imageValidationSource}
         ${imageResetSource}
         ${hierarchySource}
@@ -413,7 +426,9 @@ function createDemoVmHarness(riveInstance, {
             recordRenderSurfaceTriggerReceipt,
             readAcknowledgedRenderSurfaceImagePresence,
             readAcknowledgedRenderSurfaceImageMetadata,
-            advanceRenderer: () => { renderSurfaceAdvanceRevision += 1; },
+            runtime: riveInstance,
+            setPendingReset: (pending) => { pendingRenderSurfaceReset = pending; },
+            settleRenderSurfaceResetAfterPresentation,
             waitForRenderSurfaceImagePresentation,
             restoreRenderSurfaceImageSnapshot,
             resolveStateMachineInputAccessor,
@@ -425,7 +440,7 @@ function createDemoVmHarness(riveInstance, {
             topologyRenderCount: () => topologyRenderCount,
         };
     `);
-    return { ...build(riveInstance, controlSelectionKeys, controlSnapshot, vmHierarchy, renderSurfaceMode, imageRuntime), emitted };
+    return { ...build(installFrameRuntime(riveInstance), controlSelectionKeys, controlSnapshot, vmHierarchy, renderSurfaceMode, imageRuntime, inspectionMetadata), emitted };
 }
 
 const resetContractRuntimePreamble = `
@@ -441,18 +456,60 @@ function createResetContractHelpers() {
     };`)();
 }
 
-async function withImmediateAnimationFrames(task) {
-    const previousRaf = window.requestAnimationFrame;
-    window.requestAnimationFrame = (callback) => {
-        queueMicrotask(callback);
-        return 1;
+// A runtime boundary double: the production clock owns fencing and zero-delta
+// advancement, while draw invokes the same onAdvance hook wired by rive-loader.
+function createFrameRuntime(overrides = {}) {
+    const order = [];
+    const deltas = [];
+    const player = {
+        loaded: true,
+        artboard: {},
+        isPlaying: false,
+        frameCount: 0,
+        drawOptimization: 'drawOnChanged',
+        order,
+        deltas,
+        stopRendering: vi.fn(() => order.push('stop')),
+        startRendering: vi.fn(() => order.push('start')),
+        play: vi.fn(),
+        runtime: { resolveAnimationFrame: vi.fn(() => order.push('flush')) },
+        draw: vi.fn(function (time) {
+            order.push('draw');
+            deltas.push((time - this.lastRenderTime) / 1000);
+            this.frameCount++;
+            this.onAdvance?.();
+        }),
     };
-    try {
-        return await task();
-    } finally {
-        if (typeof previousRaf === 'function') window.requestAnimationFrame = previousRaf;
-        else delete window.requestAnimationFrame;
+    // Preserve accessor descriptors, including poison .contents getters.
+    return Object.defineProperties(player, Object.getOwnPropertyDescriptors(overrides));
+}
+
+function installFrameRuntime(player) {
+    if (!player) return player;
+    const defaults = createFrameRuntime();
+    for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(defaults))) {
+        if (!(key in player)) Object.defineProperty(player, key, descriptor);
     }
+    return player;
+}
+
+async function drainMicrotasks() {
+    for (let i = 0; i < 16; i++) await Promise.resolve();
+}
+
+async function presentFrame(frames) {
+    expect(frames.length).toBeGreaterThan(0);
+    frames.shift()();
+    await drainMicrotasks();
+}
+
+function queuePresentationFrames() {
+    const frames = [];
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+        frames.push(callback);
+        return frames.length;
+    });
+    return frames;
 }
 
 async function withRendererAdvance(harness, task) {
@@ -469,34 +526,23 @@ async function withRendererAdvance(harness, task) {
         let result;
         pending.then((value) => { settled = true; result = value; }, (error) => { settled = true; rejected = error; });
         for (let cycle = 0; cycle < 64 && !settled; cycle += 1) {
-            await Promise.resolve();
-            if (!frames.length) continue;
-            frames.shift()();
-            harness.advanceRenderer();
+            await drainMicrotasks();
+            if (frames.length) await presentFrame(frames);
         }
-        if (!settled) throw new Error('Image task did not settle after renderer advances.');
+        if (!settled) throw new Error('Image task did not settle after explicit runtime draws.');
         if (rejected) throw rejected;
         return result;
     } finally {
-        if (typeof previousRaf === 'function') window.requestAnimationFrame = previousRaf;
-        else delete window.requestAnimationFrame;
+        window.requestAnimationFrame = previousRaf;
     }
 }
 
-async function settleImageTaskWithRendererAdvance({ advanceRenderer, frames, task }) {
-    const pending = task();
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(frames.length).toBeGreaterThan(0);
-    frames.shift()();
-    await Promise.resolve();
-    advanceRenderer();
-    expect(frames.length).toBeGreaterThan(0);
-    frames.shift()();
-    await Promise.resolve();
-    expect(frames.length).toBeGreaterThan(0);
-    frames.shift()();
-    return pending;
+function createPresentationHarness(runtime, hostWindow = window, hostDocument = document) {
+    return new Function('riveInstance', 'window', 'document', `
+        ${frameClockSource}
+        ${firstFrameSource}
+        return waitForRenderSurfacePresentationFrames;
+    `)(runtime, hostWindow, hostDocument);
 }
 
 function createEmbeddedImageAssetHarness() {
@@ -637,9 +683,9 @@ describe('exported demo ViewModel snapshot runtime', () => {
             .toBeGreaterThan(0);
         expect(imageResetSource).toContain('function settleRenderSurfaceResetAfterPresentation');
         const presentationStart = imageResetSource.indexOf('function settleRenderSurfaceResetAfterPresentation');
-        expect(imageResetSource.indexOf('applyControlSnapshot(resetSnapshot);', presentationStart))
-            .toBeLessThan(imageResetSource.indexOf('return restoreRenderSurfaceImageSnapshot({ pruneFailures: false });', presentationStart));
-        expect(imageResetSource.indexOf('return restoreRenderSurfaceImageSnapshot({ pruneFailures: false });', presentationStart))
+        expect(imageResetSource.indexOf('applyControlSnapshot(snapshot);', presentationStart))
+            .toBeLessThan(imageResetSource.indexOf('await restoreRenderSurfaceImageSnapshot({ pruneFailures: false });', presentationStart));
+        expect(imageResetSource.indexOf('await restoreRenderSurfaceImageSnapshot({ pruneFailures: false });', presentationStart))
             .toBeLessThan(imageResetSource.indexOf('restartRenderSurfacePlaybackAfterReset(', presentationStart));
         expect(imageResetSource.indexOf('restartRenderSurfacePlaybackAfterReset(', presentationStart))
             .toBeLessThan(imageResetSource.indexOf('pendingReset.resolve({'));
@@ -649,65 +695,29 @@ describe('exported demo ViewModel snapshot runtime', () => {
     it('replays child-owned image set and clear state before a reset can acknowledge', async () => {
         const avatar = { value: null };
         const decodedImages = [];
-        const imageFrames = [];
-        const helpers = new Function('resolveLiveAccessor', 'loadedRiveRuntime', 'riveInstance', 'window', 'publishRenderSurfaceCanonicalState', 'pendingControlSnapshot', `
-            let renderSurfaceImageSnapshot = new Map();
-            let renderSurfaceAdvanceRevision = 0;
-            ${imageValidationSource}
-            ${imageResetSource}
-            return {
-                applyRenderSurfaceImageCommand,
-                advanceRenderer: () => { renderSurfaceAdvanceRevision += 1; },
-                restoreRenderSurfaceImageSnapshot,
-                settleRenderSurfaceResetAfterPresentation,
-            };
-        `)(
-            (path, kind) => path === 'avatar' && kind === 'image' ? avatar : null,
-            {
-                decodeImage: vi.fn(async (bytes) => {
-                    const image = { bytes: Array.from(bytes), unref: vi.fn() };
-                    decodedImages.push(image);
-                    return image;
-                }),
-            },
-            { startRendering: vi.fn() },
-            {
-                requestAnimationFrame: (callback) => { imageFrames.push(callback); return imageFrames.length; },
-                clearTimeout: vi.fn(),
-                setTimeout: () => 1,
-            },
-            vi.fn(),
-            new Map(),
-        );
-
+        const harness = createDemoVmHarness({
+            viewModelInstance: { image: (name) => name === 'avatar' ? avatar : null, properties: [{ name: 'avatar' }] },
+        }, {
+            imageRuntime: { decodeImage: vi.fn(async (bytes) => {
+                const image = { bytes: [...bytes], unref: vi.fn() };
+                decodedImages.push(image);
+                return image;
+            }) },
+        });
         const imageBytes = validPngBytes(1);
-        await settleImageTaskWithRendererAdvance({
-            advanceRenderer: helpers.advanceRenderer,
-            frames: imageFrames,
-            task: () => helpers.applyRenderSurfaceImageCommand({ path: 'avatar', value: imageBytes }, true),
-        });
-        expect(avatar.value).toBe(decodedImages[0]);
-        avatar.value = null; // The runtime reset has recreated the accessor value.
-        await settleImageTaskWithRendererAdvance({
-            advanceRenderer: helpers.advanceRenderer,
-            frames: imageFrames,
-            task: () => helpers.restoreRenderSurfaceImageSnapshot(),
-        });
+        await withRendererAdvance(harness, () => harness.applyRenderSurfaceImageCommand({ path: 'avatar', value: imageBytes }, true));
+        avatar.value = null; // Reset recreates the accessor value.
+        await withRendererAdvance(harness, () => harness.restoreRenderSurfaceImageSnapshot());
         expect(avatar.value).toBe(decodedImages[1]);
         expect(decodedImages[1].bytes).toEqual(imageBytes);
+        expect(decodedImages.every((image) => image.unref.mock.calls.length === 1)).toBe(true);
 
-        await settleImageTaskWithRendererAdvance({
-            advanceRenderer: helpers.advanceRenderer,
-            frames: imageFrames,
-            task: () => helpers.applyRenderSurfaceImageCommand({ action: 'clear-image', path: 'avatar', value: null }, true),
-        });
+        await withRendererAdvance(harness, () => harness.applyRenderSurfaceImageCommand({ action: 'clear-image', path: 'avatar', value: null }, true));
         avatar.value = { stale: true };
-        await settleImageTaskWithRendererAdvance({
-            advanceRenderer: helpers.advanceRenderer,
-            frames: imageFrames,
-            task: () => helpers.restoreRenderSurfaceImageSnapshot(),
-        });
+        await withRendererAdvance(harness, () => harness.restoreRenderSurfaceImageSnapshot());
         expect(avatar.value).toBeNull();
+        expect(harness.runtime.draw).toHaveBeenCalledTimes(4);
+        expect(harness.runtime.runtime.resolveAnimationFrame).toHaveBeenCalledTimes(4);
     });
 
     it('prunes a missing list image and still restores later valid journal entries', async () => {
@@ -802,266 +812,122 @@ describe('exported demo ViewModel snapshot runtime', () => {
     });
 
     it('settles an in-place reset from the child presentation barrier without waiting for onLoad', async () => {
-        const presentationFrames = [];
-        const published = vi.fn(() => ({ stateRevision: 42 }));
-        const appliedSnapshots = [];
-        const restoredValues = { enabled: false };
-        const retries = vi.fn(() => 0);
-        const resolved = vi.fn();
-        const runtime = { play: vi.fn(), startRendering: vi.fn() };
-        const helpers = new Function('window', 'publishRenderSurfaceCanonicalState', 'applyControlSnapshot', 'retryPendingControlSnapshot', 'riveInstance', `
-            let currentControlSnapshot = [];
-            let pendingControlSnapshot = new Map();
-            let pendingRenderSurfaceReset = null;
-            let renderSurfaceImageSnapshot = new Map();
-            let renderSurfaceAdvanceRevision = 0;
-            ${resetContractRuntimePreamble}
-            ${resetContractSource}
-            ${imageValidationSource}
-            ${imageResetSource}
-            return {
-                pending: () => pendingRenderSurfaceReset,
-                setPending: (pending) => { pendingRenderSurfaceReset = pending; },
-                settleRenderSurfaceResetAfterPresentation,
-            };
-        `)(
-            {
-                requestAnimationFrame: (callback) => {
-                    presentationFrames.push(callback);
-                    return presentationFrames.length;
-                },
-                setTimeout: (callback) => callback(),
-            },
-            published,
-            (snapshot) => {
-                appliedSnapshots.push(snapshot);
-                restoredValues.enabled = snapshot[0]?.value;
-            },
-            retries,
-            runtime,
-        );
-        const resetSnapshot = [{ descriptor: { kind: 'boolean', path: 'enabled' }, kind: 'boolean', value: true }];
+        const frames = queuePresentationFrames();
+        const enabled = { value: false };
+        const harness = createDemoVmHarness({ viewModelInstance: {
+            boolean: (name) => name === 'enabled' ? enabled : null, properties: [{ name: 'enabled' }],
+        } });
         const pendingReset = {
             params: { animations: 'Timeline', autoplay: true },
-            resolve: resolved,
-            snapshot: resetSnapshot,
+            reject: vi.fn(),
+            resolve: vi.fn(),
+            snapshot: [{ descriptor: { kind: 'boolean', path: 'enabled' }, kind: 'boolean', value: true }],
         };
-        helpers.setPending(pendingReset);
-
-        helpers.settleRenderSurfaceResetAfterPresentation(pendingReset);
-        helpers.settleRenderSurfaceResetAfterPresentation(pendingReset);
-        // The image restoration chain deliberately crosses several promise
-        // boundaries; drain them without relying on host timers.
-        for (let microtask = 0; microtask < 6; microtask += 1) {
-            await Promise.resolve();
-        }
-        expect(appliedSnapshots).toEqual([resetSnapshot]);
-        expect(restoredValues.enabled).toBe(true);
-        expect(runtime.startRendering).toHaveBeenCalledTimes(1);
-        expect(runtime.play).not.toHaveBeenCalled();
-        expect(presentationFrames).toHaveLength(1);
-        expect(resolved).not.toHaveBeenCalled();
-
-        presentationFrames.shift()();
-        expect(presentationFrames).toHaveLength(1);
-        presentationFrames.shift()();
-        for (let microtask = 0; microtask < 12; microtask += 1) await Promise.resolve();
-
-        expect(retries).toHaveBeenCalledTimes(1);
-        expect(published).not.toHaveBeenCalled();
-        expect(resolved).toHaveBeenCalledWith(expect.objectContaining({
-            pending: 0,
-            playbackRestart: { names: ['Timeline'], restarted: true },
-            presentationFrames: 2,
-            reset: true,
-            restored: 1,
-        }));
+        harness.setPendingReset(pendingReset);
+        harness.settleRenderSurfaceResetAfterPresentation(pendingReset);
+        harness.settleRenderSurfaceResetAfterPresentation(pendingReset);
+        await drainMicrotasks();
+        expect(enabled.value).toBe(true);
+        expect(harness.runtime.startRendering).toHaveBeenCalledTimes(1);
+        expect(harness.runtime.play).not.toHaveBeenCalled();
+        expect(frames).toHaveLength(1);
+        expect(pendingReset.resolve).not.toHaveBeenCalled();
+        await presentFrame(frames);
+        expect(pendingReset.resolve).not.toHaveBeenCalled();
+        expect(harness.runtime.runtime.resolveAnimationFrame).toHaveBeenCalledTimes(1);
+        await presentFrame(frames);
+        expect(pendingReset.reject).not.toHaveBeenCalled();
+        expect(pendingReset.resolve).toHaveBeenCalledExactlyOnceWith({
+            pending: 0, playbackRestart: { names: ['Timeline'], restarted: true },
+            presentationFrames: 2, reset: true, restored: 1, rendered: true, presented: !document.hidden,
+        });
+        expect(harness.runtime.deltas).toEqual([0, 0]);
+        expect(harness.runtime.runtime.resolveAnimationFrame).toHaveBeenCalledTimes(2);
+        expect(harness.emitted).toEqual([]);
         expect(renderSurfaceBridgeSource).toContain("commandType === 'reset'");
         expect(renderSurfaceBridgeSource).toContain("scheduleRenderSurfaceCanonicalRefresh('reset-first-frame', true)");
     });
 
     it('rejects reset restoration with unresolved runtime-list rows and clears their stale snapshot', async () => {
-        const presentationFrames = [];
-        const rejected = vi.fn();
-        const runtime = { play: vi.fn(), startRendering: vi.fn() };
-        const helpers = new Function('window', 'riveInstance', `
-            let currentControlSnapshot = [];
-            let pendingControlSnapshot = new Map();
-            let pendingRenderSurfaceReset = null;
-            let renderSurfaceImageSnapshot = new Map();
-            let renderSurfaceAdvanceRevision = 0;
-            let runtimeRowAvailable = false;
-            let staleValueApplied = false;
-            function applyControlSnapshot(snapshot) {
-                pendingControlSnapshot.set('vm:rows/0/title:string', snapshot[0]);
-                return 0;
-            }
-            function retryPendingControlSnapshot() {
-                if (runtimeRowAvailable && pendingControlSnapshot.has('vm:rows/0/title:string')) {
-                    staleValueApplied = true;
-                    pendingControlSnapshot.delete('vm:rows/0/title:string');
-                    return 1;
-                }
-                return 0;
-            }
-            ${resetContractRuntimePreamble}
-            ${resetContractSource}
-            ${imageValidationSource}
-            ${imageResetSource}
-            return {
-                pendingCount: () => pendingControlSnapshot.size,
-                retry: retryPendingControlSnapshot,
-                setPending: (pending) => { pendingRenderSurfaceReset = pending; },
-                setRuntimeRowAvailable: (value) => { runtimeRowAvailable = value; },
-                settleRenderSurfaceResetAfterPresentation,
-                staleValueApplied: () => staleValueApplied,
-            };
-        `)(
-            {
-                requestAnimationFrame: (callback) => {
-                    presentationFrames.push(callback);
-                    return presentationFrames.length;
-                },
-                setTimeout: (callback) => callback(),
-            },
-            runtime,
-        );
+        const frames = queuePresentationFrames();
+        const rows = [];
+        const harness = createDemoVmHarness({ viewModelInstance: {
+            list: (name) => name === 'rows' ? { get length() { return rows.length; }, instanceAt: (i) => rows[i] || null } : null,
+            properties: [{ name: 'rows' }],
+        } });
         const pendingReset = {
             params: { animations: 'Timeline', autoplay: true },
-            reject: rejected,
-            resolve: vi.fn(),
+            reject: vi.fn(), resolve: vi.fn(),
             snapshot: [{ descriptor: { kind: 'string', path: 'rows/0/title' }, kind: 'string', value: 'old row' }],
         };
-        helpers.setPending(pendingReset);
-
-        helpers.settleRenderSurfaceResetAfterPresentation(pendingReset);
-        for (let microtask = 0; microtask < 6; microtask += 1) await Promise.resolve();
-        presentationFrames.shift()();
-        presentationFrames.shift()();
-        for (let microtask = 0; microtask < 6; microtask += 1) await Promise.resolve();
-
-        expect(rejected).toHaveBeenCalledWith(expect.objectContaining({
+        harness.setPendingReset(pendingReset);
+        harness.settleRenderSurfaceResetAfterPresentation(pendingReset);
+        await drainMicrotasks();
+        expect(harness.pendingCount()).toBe(1);
+        await presentFrame(frames);
+        expect(pendingReset.reject).not.toHaveBeenCalled();
+        await presentFrame(frames);
+        expect(pendingReset.reject).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
             message: 'Playback reset could not restore 1 control value.',
         }));
         expect(pendingReset.resolve).not.toHaveBeenCalled();
-        expect(helpers.pendingCount()).toBe(0);
-
-        helpers.setRuntimeRowAvailable(true);
-        expect(helpers.retry()).toBe(0);
-        expect(helpers.staleValueApplied()).toBe(false);
+        expect(harness.pendingCount()).toBe(0);
+        const title = { value: 'new row' };
+        rows.push({ string: (name) => name === 'title' ? title : null, properties: [{ name: 'title' }] });
+        expect(harness.retryPendingControlSnapshot()).toBe(0);
+        expect(title.value).toBe('new row');
     });
 
     it('restores a runtime-generated list image that appears after reset starts advancing', async () => {
-        const presentationFrames = [];
         const rows = [];
         const decoded = [];
-        const createRow = () => {
-            const imageAccessor = { value: null };
-            return {
-                image: (name) => name === 'avatar' ? imageAccessor : null,
-                imageAccessor,
-                properties: [{ name: 'avatar' }],
-            };
-        };
-        const runtime = {
+        const row = () => ({ value: null });
+        let createRowOnDraw = false;
+        const runtime = createFrameRuntime({ viewModelInstance: {
+            list: (name) => name === 'rows' ? {
+                get length() { return rows.length; },
+                instanceAt: (i) => rows[i] ? { image: () => rows[i], properties: [{ name: 'avatar' }] } : null,
+            } : null,
+            properties: [{ name: 'rows' }],
+        } });
+        const draw = runtime.draw;
+        runtime.draw = vi.fn(function (time) {
+            draw.call(this, time);
+            if (createRowOnDraw && !rows.length) rows.push(row());
+        });
+        const harness = createDemoVmHarness(runtime, { imageRuntime: {
             decodeImage: vi.fn(async (bytes) => {
                 const image = { bytes: [...bytes], unref: vi.fn() };
                 decoded.push(image);
                 return image;
             }),
-            startRendering: vi.fn(() => {
-                if (!rows.length) rows.push(createRow());
-            }),
-        };
-        const helpers = new Function('window', 'resolveLiveAccessor', 'loadedRiveRuntime', 'riveInstance', `
-            let currentControlSnapshot = [];
-            let pendingControlSnapshot = new Map();
-            let pendingRenderSurfaceReset = null;
-            let renderSurfaceImageSnapshot = new Map();
-            let renderSurfaceAdvanceRevision = 0;
-            function applyControlSnapshot() { return 0; }
-            function retryPendingControlSnapshot() { return 0; }
-            ${resetContractRuntimePreamble}
-            ${resetContractSource}
-            ${imageValidationSource}
-            ${imageResetSource}
-            return {
-                applyRenderSurfaceImageCommand,
-                advanceRenderer: () => { renderSurfaceAdvanceRevision += 1; },
-                readAcknowledgedRenderSurfaceImagePresence,
-                setPending: (pending) => { pendingRenderSurfaceReset = pending; },
-                settleRenderSurfaceResetAfterPresentation,
-            };
-        `)(
-            {
-                requestAnimationFrame: (callback) => {
-                    presentationFrames.push(callback);
-                    return presentationFrames.length;
-                },
-                clearTimeout: vi.fn(),
-                setTimeout: () => 1,
-            },
-            (path, kind) => kind === 'image' && path === 'rows/0/avatar'
-                ? rows[0]?.imageAccessor || null
-                : null,
-            runtime,
-            runtime,
-        );
-        const descriptor = {
-            kind: 'image',
-            name: 'avatar',
-            path: 'rows/0/avatar',
-            source: 'view-model',
-        };
-
-        rows.push(createRow());
-        const listImageBytes = validPngBytes(4);
-        const initialImageApply = helpers.applyRenderSurfaceImageCommand({ ...descriptor, value: listImageBytes }, true);
-        await Promise.resolve();
-        presentationFrames.shift()();
-        await Promise.resolve();
-        helpers.advanceRenderer();
-        presentationFrames.shift()();
-        await Promise.resolve();
-        presentationFrames.shift()();
-        await initialImageApply;
+        } });
+        const descriptor = { kind: 'image', name: 'avatar', path: 'rows/0/avatar', source: 'view-model' };
+        rows.push(row());
+        const bytes = validPngBytes(4);
+        await withRendererAdvance(harness, () => harness.applyRenderSurfaceImageCommand({ ...descriptor, value: bytes }, true));
+        const frames = queuePresentationFrames();
         rows.length = 0;
-
-        const pendingReset = {
-            params: { animations: 'Timeline', autoplay: true },
-            reject: vi.fn(),
-            resolve: vi.fn(),
-            snapshot: [],
-        };
-        helpers.setPending(pendingReset);
-        helpers.settleRenderSurfaceResetAfterPresentation(pendingReset);
-        // Reset restoration first crosses its two-frame barrier; only then
-        // does playback restart create the runtime-generated row.
-        await vi.waitFor(() => expect(presentationFrames.length).toBeGreaterThan(0));
-        presentationFrames.shift()();
-        await Promise.resolve();
-        await vi.waitFor(() => expect(presentationFrames.length).toBeGreaterThan(0));
-        presentationFrames.shift()();
-        await vi.waitFor(() => expect(runtime.startRendering).toHaveBeenCalledTimes(3));
-
+        createRowOnDraw = true;
+        const pendingReset = { params: { animations: 'Timeline', autoplay: true }, reject: vi.fn(), resolve: vi.fn(), snapshot: [] };
+        harness.setPendingReset(pendingReset);
+        harness.settleRenderSurfaceResetAfterPresentation(pendingReset);
+        await drainMicrotasks();
+        expect(rows).toHaveLength(0);
+        expect(harness.readAcknowledgedRenderSurfaceImagePresence(descriptor)).toBe(true);
+        await presentFrame(frames);
         expect(rows).toHaveLength(1);
-        expect(rows[0].imageAccessor.value?.bytes).toEqual(listImageBytes);
-        expect(helpers.readAcknowledgedRenderSurfaceImagePresence(descriptor)).toBe(true);
-
-        // The list-image retry must observe a real renderer advance and then
-        // cross its post-advance compositor frame before reset can resolve.
-        for (let frame = 0; frame < 3; frame += 1) {
-            await vi.waitFor(() => expect(presentationFrames.length).toBeGreaterThan(0));
-            presentationFrames.shift()();
-            if (frame === 0) helpers.advanceRenderer();
-            await Promise.resolve();
-        }
-        for (let microtask = 0; microtask < 8; microtask += 1) await Promise.resolve();
-
+        expect(rows[0].value).toBeNull();
+        await presentFrame(frames);
+        expect(rows[0].value?.bytes).toEqual(bytes);
+        expect(pendingReset.resolve).not.toHaveBeenCalled();
+        expect(decoded[1].unref).not.toHaveBeenCalled();
+        await presentFrame(frames); // The final image restore must itself draw and flush.
         expect(pendingReset.reject).not.toHaveBeenCalled();
-        expect(pendingReset.resolve).toHaveBeenCalledWith(expect.objectContaining({ reset: true }));
-        expect(rows[0].imageAccessor.value.bytes).toEqual(listImageBytes);
+        expect(pendingReset.resolve).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ reset: true }));
+        expect(harness.readAcknowledgedRenderSurfaceImagePresence(descriptor)).toBe(true);
         expect(decoded).toHaveLength(2);
+        expect(decoded[1].unref).toHaveBeenCalledOnce();
     });
 
     it.each([
@@ -1591,187 +1457,273 @@ describe('exported demo ViewModel snapshot runtime', () => {
         expect(callbacks).toEqual(['load:candidate:ready', 'advance']);
     });
 
-    it('waits for two child presentation opportunities before prepare-frame can ACK', async () => {
-        const helperStart = firstFrameSource.indexOf('function waitForRenderSurfacePresentationFrames(frameCount)');
-        const helperEnd = firstFrameSource.length;
-        expect(helperStart).toBeGreaterThan(-1);
-        expect(helperEnd).toBeGreaterThan(helperStart);
-        const frames = [];
-        const timers = [];
-        const waitForFrames = new Function('window', `${firstFrameSource.slice(helperStart, helperEnd)}; return waitForRenderSurfacePresentationFrames;`)({
-            requestAnimationFrame: (callback) => frames.push(callback),
-            setTimeout: (callback) => { timers.push(callback); return timers.length; },
-            clearTimeout: vi.fn(),
-        });
+    it('waits for two real zero-delta draws and flushes before prepare-frame can ACK', async () => {
+        const frames = queuePresentationFrames();
+        const runtime = createFrameRuntime({ isPlaying: true });
+        const waitForFrames = createPresentationHarness(runtime);
         let settled = false;
         const pending = waitForFrames(2).then((result) => { settled = true; return result; });
         expect(frames).toHaveLength(1);
-        expect(timers).toHaveLength(1);
-        frames.shift()();
-        await Promise.resolve();
+        expect(runtime.draw).not.toHaveBeenCalled();
+        await presentFrame(frames);
         expect(settled).toBe(false);
-        expect(frames).toHaveLength(1);
-        expect(timers).toHaveLength(2);
-        frames.shift()();
-        await expect(pending).resolves.toEqual({ frames: 2, presented: true });
-    });
-
-    it('bounds both prepare-frame opportunities when an offscreen WebView starves rAF', async () => {
-        const helperStart = firstFrameSource.indexOf('function waitForRenderSurfacePresentationFrames(frameCount)');
-        const helperEnd = firstFrameSource.length;
-        const frames = [];
-        const timers = [];
-        const cancelledFrames = [];
-        const waitForFrames = new Function('window', `${firstFrameSource.slice(helperStart, helperEnd)}; return waitForRenderSurfacePresentationFrames;`)({
-            cancelAnimationFrame: (frameId) => cancelledFrames.push(frameId),
-            clearTimeout: vi.fn(),
-            requestAnimationFrame: (callback) => {
-                frames.push(callback);
-                return frames.length;
-            },
-            setTimeout: (callback, delay) => {
-                timers.push({ callback, delay });
-                return timers.length;
-            },
-        });
-
-        let settled = false;
-        const pending = waitForFrames(2).then((result) => { settled = true; return result; });
-        expect(frames).toHaveLength(1);
-        expect(timers).toEqual([{ callback: expect.any(Function), delay: 250 }]);
-
-        timers.shift().callback();
-        await Promise.resolve();
-        expect(settled).toBe(false);
-        expect(frames).toHaveLength(2);
-        expect(timers).toEqual([{ callback: expect.any(Function), delay: 250 }]);
-
-        timers.shift().callback();
+        expect(runtime.order).toEqual(['stop', 'draw', 'flush', 'stop', 'start']);
+        await presentFrame(frames);
         await expect(pending).resolves.toEqual({
-            frames: 2,
-            presented: true,
-            timerFallbacks: 2,
+            frames: 2, rendered: true, presented: !document.hidden, timerFallbacks: 0, verifiedBy: 'runtime-draw-flush',
         });
-        expect(cancelledFrames).toEqual([1, 2]);
+        expect(runtime.deltas).toEqual([0, 0]);
+        expect(runtime.runtime.resolveAnimationFrame).toHaveBeenCalledTimes(2);
+        expect(runtime.drawOptimization).toBe('drawOnChanged');
+        expect(vi.getTimerCount()).toBe(0);
+    });
 
-        // Starved rAF callbacks can arrive after native activation. They must
-        // remain inert rather than counting extra opportunities or ACKing twice.
+    it('bounds both prepare-frame draws at 150ms when a hidden WebView starves RAF without claiming presentation', async () => {
+        const frames = queuePresentationFrames();
+        const cancel = vi.spyOn(window, 'cancelAnimationFrame');
+        vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+        const runtime = createFrameRuntime();
+        const waitForFrames = createPresentationHarness(runtime);
+        let settled = false;
+        const pending = waitForFrames(2).then((result) => { settled = true; return result; });
+        await vi.advanceTimersByTimeAsync(149);
+        expect(runtime.draw).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(1);
+        expect(settled).toBe(false);
+        expect(runtime.draw).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(149);
+        expect(settled).toBe(false);
+        await vi.advanceTimersByTimeAsync(1);
+        await expect(pending).resolves.toEqual({
+            frames: 2, rendered: true, presented: false, timerFallbacks: 2, verifiedBy: 'runtime-draw-flush',
+        });
+        expect(cancel.mock.calls).toEqual([[1], [2]]);
+        expect(runtime.deltas).toEqual([0, 0]);
+        expect(runtime.runtime.resolveAnimationFrame).toHaveBeenCalledTimes(2);
         frames.forEach((callback) => callback());
-        expect(cancelledFrames).toEqual([1, 2]);
+        await drainMicrotasks();
+        expect(runtime.draw).toHaveBeenCalledTimes(2);
+        expect(vi.getTimerCount()).toBe(0);
     });
 
-    it('does not acknowledge an image mutation or release its decode until that exact mutation has presented', async () => {
-        const frames = [];
-        const previousRaf = window.requestAnimationFrame;
-        window.requestAnimationFrame = (callback) => { frames.push(callback); return frames.length; };
-        try {
-            const imageOne = { unref: vi.fn() };
-            const imageTwo = { unref: vi.fn() };
-            const accessors = { image1: { value: null }, image2: { value: null } };
-            const root = {
-                image: (name) => accessors[name] || null,
-                properties: [{ name: 'image1' }, { name: 'image2' }],
-            };
-            const harness = createDemoVmHarness({ stateMachineNames: [], viewModelInstance: root }, {
-                imageRuntime: { decodeImage: vi.fn().mockResolvedValueOnce(imageOne).mockResolvedValueOnce(imageTwo) },
-                renderSurfaceMode: true,
+    it('does not acknowledge an image mutation or release its decode until that exact mutation has drawn and flushed', async () => {
+        const frames = queuePresentationFrames();
+        const order = [];
+        const imageOne = { unref: vi.fn(() => order.push('release:1')) };
+        const imageTwo = { unref: vi.fn(() => order.push('release:2')) };
+        const accessors = { image1: { value: null }, image2: { value: null } };
+        let expectedImage;
+        let currentAccessor;
+        const runtime = createFrameRuntime({
+            viewModelInstance: { image: (name) => accessors[name] || null, properties: [{ name: 'image1' }, { name: 'image2' }] },
+            runtime: { resolveAnimationFrame: vi.fn(() => {
+                expect(currentAccessor.value).toBe(expectedImage);
+                expect(expectedImage.unref).not.toHaveBeenCalled();
+                order.push('flush');
+            }) },
+        });
+        const draw = runtime.draw;
+        runtime.draw = vi.fn(function (time) {
+            expect(currentAccessor.value).toBe(expectedImage);
+            expect(expectedImage.unref).not.toHaveBeenCalled();
+            order.push('draw');
+            draw.call(this, time);
+        });
+        const harness = createDemoVmHarness(runtime, {
+            imageRuntime: { decodeImage: vi.fn().mockResolvedValueOnce(imageOne).mockResolvedValueOnce(imageTwo) },
+            renderSurfaceMode: true,
+        });
+        for (const [index, image] of [imageOne, imageTwo].entries()) {
+            expectedImage = image;
+            currentAccessor = accessors['image' + (index + 1)];
+            const descriptor = { action: 'set-image', kind: 'image', path: 'image' + (index + 1), source: 'view-model', value: validPngBytes(index) };
+            const pending = harness.applyRenderSurfaceImageCommand(descriptor, true).then((result) => {
+                order.push('ack:' + (index + 1));
+                return result;
             });
-            let firstAcknowledged = false;
-            const first = harness.applyRenderSurfaceImageCommand({
-                action: 'set-image', kind: 'image', path: 'image1', source: 'view-model', value: validPngBytes(1),
-            }, true).then(() => { firstAcknowledged = true; });
-
-            await Promise.resolve();
-            await Promise.resolve();
-            expect(accessors.image1.value).toBe(imageOne);
-            expect(firstAcknowledged).toBe(false);
-            expect(imageOne.unref).not.toHaveBeenCalled();
+            await drainMicrotasks();
+            expect(currentAccessor.value).toBe(image);
+            expect(image.unref).not.toHaveBeenCalled();
+            expect(harness.readAcknowledgedRenderSurfaceImagePresence(descriptor)).toBeNull();
             expect(frames).toHaveLength(1);
-            frames.shift()();
-            await Promise.resolve();
-            expect(firstAcknowledged).toBe(false);
-            harness.advanceRenderer();
-            expect(frames).toHaveLength(1);
-            frames.shift()();
-            await Promise.resolve();
-            expect(frames).toHaveLength(1);
-            frames.shift()();
-            await first;
-            expect(firstAcknowledged).toBe(true);
-            expect(imageOne.unref).toHaveBeenCalledOnce();
-
-            let secondAcknowledged = false;
-            const second = harness.applyRenderSurfaceImageCommand({
-                action: 'set-image', kind: 'image', path: 'image2', source: 'view-model', value: validPngBytes(2),
-            }, true).then(() => { secondAcknowledged = true; });
-            await Promise.resolve();
-            await Promise.resolve();
-            expect(accessors.image1.value).toBe(imageOne);
-            expect(accessors.image2.value).toBe(imageTwo);
-            expect(secondAcknowledged).toBe(false);
-            frames.shift()();
-            await Promise.resolve();
-            harness.advanceRenderer();
-            frames.shift()();
-            await Promise.resolve();
-            frames.shift()();
-            await second;
-            expect(secondAcknowledged).toBe(true);
-            expect(imageTwo.unref).toHaveBeenCalledOnce();
-        } finally {
-            if (typeof previousRaf === 'function') window.requestAnimationFrame = previousRaf;
-            else delete window.requestAnimationFrame;
-        }
-    });
-
-    it('rejects a stalled image presentation before the parent deadline and stops scheduling frame work', async () => {
-        const frames = [];
-        const previousRaf = window.requestAnimationFrame;
-        window.requestAnimationFrame = (callback) => { frames.push(callback); return frames.length; };
-        try {
-            const image = { unref: vi.fn() };
-            const accessor = { value: null };
-            const root = {
-                image: (name) => name === 'avatar' ? accessor : null,
-                properties: [{ name: 'avatar' }],
-            };
-            const harness = createDemoVmHarness({ stateMachineNames: [], viewModelInstance: root }, {
-                imageRuntime: { decodeImage: vi.fn().mockResolvedValue(image) },
-                renderSurfaceMode: true,
-            });
-            const pending = harness.applyRenderSurfaceImageCommand({
-                action: 'set-image', kind: 'image', path: 'avatar', source: 'view-model', value: validPngBytes(7),
-            }, true);
-
-            const outcome = pending.then(
-                (value) => ({ status: 'resolved', value }),
-                (error) => ({ status: 'rejected', error }),
-            );
-            for (let microtask = 0; microtask < 6; microtask += 1) await Promise.resolve();
-            expect(frames).toHaveLength(1);
-            await vi.advanceTimersByTimeAsync(1_999);
-            await expect(Promise.race([outcome.then(() => 'settled'), Promise.resolve('pending')]))
-                .resolves.toBe('pending');
-
-            await vi.advanceTimersByTimeAsync(1);
-            const result = await outcome;
-            expect(result.status).toBe('rejected');
-            expect(result.error).toEqual(expect.objectContaining({
-                message: 'Image presentation timed out before the Rive renderer advanced.',
-            }));
+            await presentFrame(frames);
+            await expect(pending).resolves.toEqual(expect.objectContaining({ imageApplied: true, presentation: expect.objectContaining({ rendered: true, rendererAdvanced: true }) }));
             expect(image.unref).toHaveBeenCalledOnce();
-            expect(accessor.value).toBe(image);
-            expect(harness.readAcknowledgedRenderSurfaceImagePresence({
-                kind: 'image', path: 'avatar', source: 'view-model',
-            })).toBeNull();
-
-            frames.shift()();
-            await Promise.resolve();
-            expect(frames).toHaveLength(0);
-        } finally {
-            if (typeof previousRaf === 'function') window.requestAnimationFrame = previousRaf;
-            else delete window.requestAnimationFrame;
+            expect(harness.readAcknowledgedRenderSurfaceImagePresence(descriptor)).toBe(true);
         }
+        expect(accessors.image1.value).toBe(imageOne);
+        expect(accessors.image2.value).toBe(imageTwo);
+        expect(order).toEqual(['draw', 'flush', 'release:1', 'ack:1', 'draw', 'flush', 'release:2', 'ack:2']);
+    });
+
+    it('rejects a failed image draw on the 150ms fallback, releases its decode, and never journals success', async () => {
+        const frames = queuePresentationFrames();
+        const image = { unref: vi.fn() };
+        const accessor = { value: null };
+        const harness = createDemoVmHarness({
+            viewModelInstance: { image: () => accessor, properties: [{ name: 'avatar' }] },
+            draw: vi.fn(() => { throw new Error('GPU lost'); }),
+        }, { imageRuntime: { decodeImage: vi.fn().mockResolvedValue(image) }, renderSurfaceMode: true });
+        const descriptor = { action: 'set-image', kind: 'image', path: 'avatar', source: 'view-model', value: validPngBytes(7) };
+        const rejected = vi.fn();
+        const pending = harness.applyRenderSurfaceImageCommand(descriptor, true).catch(rejected);
+        await drainMicrotasks();
+        await vi.advanceTimersByTimeAsync(149);
+        expect(rejected).not.toHaveBeenCalled();
+        expect(image.unref).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(1);
+        await pending;
+        expect(rejected).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ message: 'GPU lost' }));
+        expect(image.unref).toHaveBeenCalledOnce();
+        expect(harness.readAcknowledgedRenderSurfaceImagePresence(descriptor)).toBeNull();
+        expect(harness.runtime.runtime.resolveAnimationFrame).not.toHaveBeenCalled();
+        expect(harness.runtime.drawOptimization).toBe('drawOnChanged');
+        expect(harness.runtime.stopRendering).toHaveBeenCalledTimes(2);
+        await presentFrame(frames); // A late RAF after the timer rejection is inert.
+        expect(harness.runtime.draw).toHaveBeenCalledOnce();
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('keeps a hidden reset pending through deferred restore, zero-delta flushes, and final image pruning', async () => {
+        const slots = { stale: { value: null }, good: { value: null } };
+        const decoded = [];
+        const decodeImage = vi.fn(async () => {
+            const image = { unref: vi.fn() };
+            decoded.push(image);
+            return image;
+        });
+        const harness = createDemoVmHarness({ viewModelInstance: {
+            image: (name) => slots[name] || null,
+            properties: [{ name: 'stale' }, { name: 'good' }],
+        } }, { imageRuntime: { decodeImage } });
+        const stale = { kind: 'image', path: 'stale', value: validPngBytes(1) };
+        const good = { kind: 'image', path: 'good', value: validPngBytes(2) };
+        await withRendererAdvance(harness, () => harness.applyRenderSurfaceImageCommand(stale, true));
+        await withRendererAdvance(harness, () => harness.applyRenderSurfaceImageCommand(good, true));
+        delete slots.stale;
+        slots.good.value = null;
+        harness.runtime.order.length = 0;
+        harness.runtime.deltas.length = 0;
+        const frames = queuePresentationFrames();
+        vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+        let finishDecode;
+        decodeImage.mockImplementationOnce(() => new Promise((resolve) => { finishDecode = resolve; }));
+        const pendingReset = { params: { animations: 'Timeline', autoplay: true }, snapshot: [], resolve: vi.fn(), reject: vi.fn() };
+        harness.setPendingReset(pendingReset);
+        harness.settleRenderSurfaceResetAfterPresentation(pendingReset);
+        await drainMicrotasks();
+        await vi.advanceTimersByTimeAsync(600);
+        // A pending restore cannot be replaced by elapsed wall time or a fabricated frame receipt.
+        expect(finishDecode).toBeTypeOf('function');
+        expect(harness.runtime.order).toEqual([]);
+        expect(pendingReset.resolve).not.toHaveBeenCalled();
+        expect(pendingReset.reject).not.toHaveBeenCalled();
+        expect(harness.readAcknowledgedRenderSurfaceImagePresence(stale)).toBe(true);
+        const restored = { unref: vi.fn() };
+        finishDecode(restored);
+        await drainMicrotasks();
+        expect(slots.good.value).toBe(restored);
+        expect(restored.unref).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(149);
+        expect(pendingReset.resolve).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(1); // First image restore draws and releases.
+        expect(restored.unref).toHaveBeenCalledOnce();
+        expect(harness.runtime.deltas).toEqual([0]);
+        await vi.advanceTimersByTimeAsync(300); // Reset's two draws complete, then final pruning/restore starts.
+        expect(harness.runtime.deltas).toEqual([0, 0, 0]);
+        expect(harness.readAcknowledgedRenderSurfaceImagePresence(stale)).toBeNull();
+        expect(slots.good.value).toBe(decoded[2]);
+        expect(decoded[2].unref).not.toHaveBeenCalled();
+        expect(pendingReset.resolve).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(150); // Final restore has its own draw/flush before ACK.
+        expect(decoded[2].unref).toHaveBeenCalledOnce();
+        expect(pendingReset.reject).not.toHaveBeenCalled();
+        expect(pendingReset.resolve).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+            pending: 0, reset: true, rendered: true, presented: false, presentationFrames: 2,
+        }));
+        expect(harness.runtime.deltas).toEqual([0, 0, 0, 0]);
+        expect(harness.runtime.order.filter((event) => event === 'flush')).toHaveLength(4);
+        expect(harness.readAcknowledgedRenderSurfaceImagePresence(good)).toBe(true);
+        frames.forEach((callback) => callback());
+        await drainMicrotasks();
+        expect(harness.runtime.deltas).toHaveLength(4);
+    });
+
+    it.each(['RAF', 'timer'])('rejects reset on a failed %s draw without an ACK or extra scheduled draw', async (wake) => {
+        const frames = queuePresentationFrames();
+        const harness = createDemoVmHarness({ draw: vi.fn(() => { throw new Error('reset GPU failure'); }) });
+        const pendingReset = { params: { autoplay: false }, snapshot: [], resolve: vi.fn(), reject: vi.fn() };
+        harness.setPendingReset(pendingReset);
+        harness.settleRenderSurfaceResetAfterPresentation(pendingReset);
+        await drainMicrotasks();
+        if (wake === 'RAF') await presentFrame(frames);
+        else await vi.advanceTimersByTimeAsync(150);
+        expect(pendingReset.resolve).not.toHaveBeenCalled();
+        expect(pendingReset.reject).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ message: 'reset GPU failure' }));
+        expect(harness.runtime.runtime.resolveAnimationFrame).not.toHaveBeenCalled();
+        expect(harness.runtime.drawOptimization).toBe('drawOnChanged');
+        expect(harness.pendingCount()).toBe(0);
+        frames.forEach((callback) => callback());
+        await vi.advanceTimersByTimeAsync(500);
+        expect(harness.runtime.draw).toHaveBeenCalledOnce();
+    });
+
+    it('rejects an image frame that draws and flushes without an onAdvance receipt', async () => {
+        const frames = queuePresentationFrames();
+        const image = { unref: vi.fn() };
+        const accessor = { value: null };
+        const harness = createDemoVmHarness({
+            draw: vi.fn(), // Simulate a renderer that never invokes onAdvance.
+            viewModelInstance: { image: () => accessor },
+        }, { imageRuntime: { decodeImage: vi.fn().mockResolvedValue(image) } });
+        const descriptor = { kind: 'image', path: 'avatar', value: validPngBytes(1) };
+        const outcome = harness.applyRenderSurfaceImageCommand(descriptor, true).then(
+            (value) => ({ value }), (error) => ({ error }),
+        );
+        await drainMicrotasks();
+        await presentFrame(frames);
+        expect(await outcome).toEqual({ error: expect.objectContaining({ message: 'Image mutation did not advance in the renderer.' }) });
+        expect(harness.runtime.runtime.resolveAnimationFrame).toHaveBeenCalledOnce();
+        expect(image.unref).toHaveBeenCalledOnce();
+        expect(harness.readAcknowledgedRenderSurfaceImagePresence(descriptor)).toBeNull();
+    });
+
+    it('releases a decoded image if assigning it to the runtime accessor fails', async () => {
+        const image = { unref: vi.fn() };
+        const accessor = { set value(_) { throw new Error('accessor was invalidated'); }, get value() { return null; } };
+        const harness = createDemoVmHarness({ viewModelInstance: { image: () => accessor } }, {
+            imageRuntime: { decodeImage: vi.fn().mockResolvedValue(image) },
+        });
+        const descriptor = { kind: 'image', path: 'avatar', value: validPngBytes(1) };
+        await expect(harness.applyRenderSurfaceImageCommand(descriptor, true)).rejects.toThrow('accessor was invalidated');
+        expect(harness.readAcknowledgedRenderSurfaceImagePresence(descriptor)).toBeNull();
+        expect(harness.runtime.draw).not.toHaveBeenCalled();
+        expect(image.unref).toHaveBeenCalledOnce();
+    });
+
+    it('does not count an advance before decoding finishes as an advance of the assigned image', async () => {
+        const frames = queuePresentationFrames();
+        const image = { unref: vi.fn() };
+        const accessor = { value: null };
+        let finishDecode;
+        const harness = createDemoVmHarness({
+            viewModelInstance: { image: () => accessor },
+        }, { imageRuntime: { decodeImage: vi.fn(() => new Promise((resolve) => { finishDecode = resolve; })) } });
+        const descriptor = { kind: 'image', path: 'avatar', value: validPngBytes(1) };
+        const outcome = harness.applyRenderSurfaceImageCommand(descriptor, true).then(
+            (value) => ({ value }), (error) => ({ error }),
+        );
+        const precedingFrame = createPresentationHarness(harness.runtime)(1);
+        await presentFrame(frames); // An unrelated real draw/flush while decode is still pending.
+        await precedingFrame;
+        harness.runtime.draw = vi.fn(); // The image's own fence draws but never advances.
+        finishDecode(image);
+        await drainMicrotasks();
+        expect(accessor.value).toBe(image);
+        await presentFrame(frames);
+        expect(await outcome).toEqual({ error: expect.objectContaining({ message: 'Image mutation did not advance in the renderer.' }) });
+        expect(harness.readAcknowledgedRenderSurfaceImagePresence(descriptor)).toBeNull();
+        expect(image.unref).toHaveBeenCalledOnce();
     });
 
     it('captures copied embedded-image bytes while preserving the applied asset loader return', () => {
@@ -2470,88 +2422,45 @@ describe('exported demo ViewModel snapshot runtime', () => {
     });
 
     it('restarts the reset render loop before its O(1) ACK delta captures advanced timeline time', async () => {
-        const scheduledFrames = [];
-        const active = {
-            animation: { duration: 60, fps: 60 },
-            name: 'Focus Fullscreen Mode',
-            playing: true,
-            time: 0,
-        };
-        const windowMock = {
-            requestAnimationFrame: (callback) => {
-                scheduledFrames.push(callback);
-                return scheduledFrames.length;
-            },
-            setTimeout: (callback) => callback(),
-        };
+        const frames = queuePresentationFrames();
+        const active = { animation: { duration: 60, fps: 60 }, name: 'Focus Fullscreen Mode', playing: true, time: 0 };
         const runtime = {
-            artboard: { name: 'TrackMap' },
-            animator: { animations: [active] },
-            isPlaying: true,
-            playingAnimationNames: ['Focus Fullscreen Mode'],
-            playingStateMachineNames: [],
-            stateMachineNames: [],
+            artboard: { name: 'TrackMap' }, animator: { animations: [active] }, isPlaying: true,
+            playingAnimationNames: ['Focus Fullscreen Mode'], playingStateMachineNames: [], stateMachineNames: [],
             startRendering: vi.fn(() => {
-                windowMock.requestAnimationFrame(() => { active.time += 0.25; });
+                // Model the first playback tick separately from explicit zero-delta barrier draws.
+                if (active.time === 0) window.requestAnimationFrame(() => { active.time += 0.25; });
             }),
             viewModelInstance: { properties: [] },
         };
-        const helpers = new Function('window', 'publishRenderSurfaceCanonicalState', 'riveInstance', `
-            let currentControlSnapshot = [];
-            let pendingControlSnapshot = new Map();
-            let pendingRenderSurfaceReset = null;
-            let renderSurfaceImageSnapshot = new Map();
-            let renderSurfaceAdvanceRevision = 0;
-            function applyControlSnapshot() { return 0; }
-            function retryPendingControlSnapshot() { return 0; }
-            ${resetContractRuntimePreamble}
-            ${resetContractSource}
-            ${imageValidationSource}
-            ${imageResetSource}
-            return {
-                setPending: (pending) => { pendingRenderSurfaceReset = pending; },
-                settleRenderSurfaceResetAfterPresentation,
-            };
-        `)(windowMock, vi.fn(), runtime);
-        const resolved = vi.fn();
+        const harness = createDemoVmHarness(runtime, { renderSurfaceMode: true });
         const pendingReset = {
             params: { animations: 'Focus Fullscreen Mode', autoplay: true },
-            resolve: resolved,
-            snapshot: [],
+            resolve: vi.fn(), reject: vi.fn(), snapshot: [],
         };
-        helpers.setPending(pendingReset);
-
-        helpers.settleRenderSurfaceResetAfterPresentation(pendingReset);
-        for (let microtask = 0; microtask < 6; microtask += 1) await Promise.resolve();
+        harness.setPendingReset(pendingReset);
+        harness.settleRenderSurfaceResetAfterPresentation(pendingReset);
+        await drainMicrotasks();
         expect(active.time).toBe(0);
-        expect(scheduledFrames).toHaveLength(2);
-
-        scheduledFrames.shift()(); // runtime draw scheduled by play()
-        scheduledFrames.shift()(); // first reset presentation barrier
-        expect(scheduledFrames).toHaveLength(1);
-        scheduledFrames.shift()(); // second reset presentation barrier
-        for (let microtask = 0; microtask < 6; microtask += 1) await Promise.resolve();
-
+        expect(frames).toHaveLength(2);
+        await presentFrame(frames); // Authored playback resumes.
+        await presentFrame(frames); // First explicit barrier draw.
+        expect(pendingReset.resolve).not.toHaveBeenCalled();
+        await presentFrame(frames); // Second explicit barrier draw.
         expect(active.time).toBe(0.25);
-        expect(resolved).toHaveBeenCalledWith(expect.objectContaining({
+        expect(harness.runtime.deltas).toEqual([0, 0]);
+        expect(pendingReset.reject).not.toHaveBeenCalled();
+        expect(pendingReset.resolve).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
             playbackRestart: { names: ['Focus Fullscreen Mode'], restarted: true },
         }));
-        const canonicalHarness = createDemoVmHarness(runtime, { renderSurfaceMode: true });
-        canonicalHarness.setRenderSurfaceTarget({ name: 'Focus Fullscreen Mode', type: 'animation' });
-        const resetAckDelta = canonicalHarness.captureRenderSurfaceCommandCanonicalDelta(
-            { payload: {}, type: 'reset' },
-            resolved.mock.calls[0][0],
+        harness.setRenderSurfaceTarget({ name: 'Focus Fullscreen Mode', type: 'animation' });
+        const resetAckDelta = harness.captureRenderSurfaceCommandCanonicalDelta(
+            { payload: {}, type: 'reset' }, pendingReset.resolve.mock.calls[0][0],
         );
         expect(resetAckDelta).toEqual(expect.objectContaining({
-            artboard: 'TrackMap',
-            controlChanges: [],
-            playback: expect.objectContaining({
-                currentSeconds: 0.25,
-                name: 'Focus Fullscreen Mode',
-                type: 'animation',
-            }),
-            reason: 'command:reset',
-            stateType: 'delta',
+            artboard: 'TrackMap', controlChanges: [],
+            playback: expect.objectContaining({ currentSeconds: 0.25, name: 'Focus Fullscreen Mode', type: 'animation' }),
+            reason: 'command:reset', stateType: 'delta',
         }));
         expect(resetAckDelta).not.toHaveProperty('controlsHierarchy');
     });
@@ -2676,6 +2585,64 @@ describe('exported demo ViewModel snapshot runtime', () => {
             expect.objectContaining({ key: 'sm:Machine:armed:boolean', value: true }),
             expect.objectContaining({ key: 'sm:Machine:gain:number', value: 4 }),
         ]));
+    });
+
+    it('publishes late enum choices without changing the authored value or rebuilding topology', () => {
+        const writes = vi.fn();
+        const choices = [];
+        const mode = { get value() { return 'line'; }, set value(value) { writes(value); }, values: choices };
+        const harness = createDemoVmHarness({
+            stateMachineNames: [],
+            viewModelInstance: { properties: [{ name: 'mode' }], enum: (name) => name === 'mode' ? mode : null },
+        }, { renderSurfaceMode: true });
+        const initial = harness.publishRenderSurfaceCanonicalState(true, 'initial');
+        expect(initial.controlsHierarchy.children[0].inputs[0]).toMatchObject({ value: 'line', values: [] });
+
+        harness.observeRenderSurfaceControlBudget();
+        expect(harness.publishRenderSurfaceCanonicalState(true, 'unchanged').controlChanges).toEqual([]);
+        choices.push('bar', 'line');
+        harness.observeRenderSurfaceControlBudget();
+        const refreshed = harness.publishRenderSurfaceCanonicalState(true, 'late-choices');
+        expect(refreshed.topologyRevision).toBe(initial.topologyRevision);
+        expect(refreshed).not.toHaveProperty('controlsHierarchy');
+        expect(refreshed.controlChanges).toEqual([{ key: 'vm:mode:enum', kind: 'enum', value: 'line', values: ['bar', 'line'] }]);
+        // Captured choices must not alias the runtime's mutable array.
+        choices.reverse();
+        harness.observeRenderSurfaceControlBudget();
+        expect(harness.publishRenderSurfaceCanonicalState(true, 'reorder').controlChanges[0].values).toEqual(['line', 'bar']);
+        expect(refreshed.controlChanges[0].values).toEqual(['bar', 'line']);
+        choices.length = 0;
+        harness.observeRenderSurfaceControlBudget();
+        expect(harness.publishRenderSurfaceCanonicalState(true, 'clear').controlChanges[0]).toMatchObject({ value: 'line', values: [] });
+        harness.observeRenderSurfaceControlBudget();
+        expect(harness.publishRenderSurfaceCanonicalState(true, 'settled').controlChanges).toEqual([]);
+        expect(writes).not.toHaveBeenCalled();
+    });
+
+    it('retains late enum choices when a value change or command ACK supersedes a queued observation', () => {
+        const mode = { value: 'line', values: [] };
+        const descriptor = { kind: 'enum', name: 'mode', path: 'mode', source: 'view-model' };
+        const harness = createDemoVmHarness({
+            stateMachineNames: [],
+            viewModelInstance: { properties: [{ name: 'mode' }], enum: (name) => name === 'mode' ? mode : null },
+        }, { renderSurfaceMode: true });
+        harness.publishRenderSurfaceCanonicalState(true, 'initial');
+        mode.values = ['bar', 'line'];
+        harness.observeRenderSurfaceControlBudget();
+        mode.value = 'bar';
+        harness.observeRenderSurfaceControlBudget();
+        expect(harness.publishRenderSurfaceCanonicalState(true, 'coalesced').controlChanges).toEqual([
+            { key: 'vm:mode:enum', kind: 'enum', value: 'bar', values: ['bar', 'line'] },
+        ]);
+        mode.values = ['bar', 'line', 'area'];
+        harness.observeRenderSurfaceControlBudget();
+        mode.value = 'area';
+        const ack = harness.captureRenderSurfaceCommandCanonicalDelta({ type: 'vm-set', payload: { descriptor } }, { descriptor, value: 'area' });
+        expect(ack.controlChanges).toEqual([
+            { key: 'vm:mode:enum', kind: 'enum', value: 'area', values: ['bar', 'line', 'area'] },
+        ]);
+        harness.observeRenderSurfaceControlBudget();
+        expect(harness.publishRenderSurfaceCanonicalState(true, 'after-ack').controlChanges).toEqual([]);
     });
 
     it('publishes numeric fallback keys for empty authored ViewModel instance names', () => {
@@ -3113,7 +3080,7 @@ describe('exported demo ViewModel snapshot runtime', () => {
         }, true));
         expect(first.value).toBe(decoded[0]);
         expect(second.value).toBe(decoded[1]);
-        expect(startRendering).toHaveBeenCalledTimes(1);
+        expect(startRendering).toHaveBeenCalledTimes(2);
     });
 
     it('keeps two image slots independent through set-set-clear canonical publication', async () => {

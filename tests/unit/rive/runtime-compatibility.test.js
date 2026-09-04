@@ -1,4 +1,5 @@
 import {
+    setInspectionMetadata,
     clearStateMachineInputMetadata,
     getStateMachineInputMetadata,
     getStateMachineNames,
@@ -40,38 +41,23 @@ describe('Rive runtime compatibility', () => {
             .toEqual({});
     });
 
-    it('only treats exact active-artboard metadata as evidence of empty legacy inputs', () => {
-        const inputs = [{ name: 'progress', type: 56 }];
-        const instance = {
-            activeArtboard: 'Main',
-            contents: { artboards: [
-                { name: 'Other', stateMachines: [{ name: 'sm', inputs }] },
-                { name: 'Main', stateMachines: [{ name: 'sm', inputs: [] }] },
-            ] },
-        };
-        expect(getStateMachineInputMetadata(instance, 'sm')).toEqual([]);
-        expect(getStateMachineInputMetadata(instance, 'missing')).toBeNull();
-        expect(getStateMachineInputMetadata({ ...instance, activeArtboard: 'Other' }, 'sm')).toBe(inputs);
-        expect(getStateMachineInputMetadata({ ...instance, activeArtboard: '' }, 'sm')).toBeNull();
-        expect(getStateMachineInputMetadata({ ...instance, activeArtboard: 'Absent' }, 'sm')).toBeNull();
-        expect(getStateMachineInputMetadata({ get contents() { throw new Error('not loaded'); } }, 'sm')).toBeNull();
-    });
-
-    it('enumerates contents once across polling/artboard changes and invalidates when a file loads', () => {
-        let inputs = [];
-        const contents = vi.fn(() => ({ artboards: [
-            { name: 'Main', stateMachines: [{ name: 'sm', inputs }] },
-            { name: 'Other', stateMachines: [{ name: 'sm', inputs: [{ name: 'legacy' }] }] },
-        ] }));
+    it('uses only bound inspection metadata and never reads the live getter', () => {
+        const contents = vi.fn(() => { throw new Error('live getter forbidden'); });
         const instance = { activeArtboard: 'Main', get contents() { return contents(); } };
-        for (let tick = 0; tick < 20; tick += 1) expect(getStateMachineInputMetadata(instance, 'sm')).toEqual([]);
+        const metadata = { artboards: [
+            { name: 'Main', stateMachines: [{ name: 'sm', inputs: [] }] },
+            { name: 'Other', stateMachines: [{ name: 'sm', inputs: [{ name: 'legacy' }] }] },
+        ] };
+        expect(getStateMachineInputMetadata(instance, 'sm')).toBeNull();
+        setInspectionMetadata(instance, metadata);
+        for (let i = 0; i < 20; i++) expect(getStateMachineInputMetadata(instance, 'sm')).toEqual([]);
         instance.activeArtboard = 'Other';
         expect(getStateMachineInputMetadata(instance, 'sm')).toEqual([{ name: 'legacy' }]);
-        expect(contents).toHaveBeenCalledTimes(1);
-        inputs = [{ name: 'new-file-input' }];
-        instance.activeArtboard = 'Main';
+        instance.activeArtboard = 'Absent';
+        expect(getStateMachineInputMetadata(instance, 'sm')).toBeNull();
         clearStateMachineInputMetadata(instance);
-        expect(getStateMachineInputMetadata(instance, 'sm')).toEqual(inputs);
-        expect(contents).toHaveBeenCalledTimes(2);
+        instance.activeArtboard = 'Main';
+        expect(getStateMachineInputMetadata(instance, 'sm')).toBeNull();
+        expect(contents).not.toHaveBeenCalled();
     });
 });

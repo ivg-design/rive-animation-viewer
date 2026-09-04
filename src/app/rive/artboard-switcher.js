@@ -6,7 +6,7 @@ import { createLatestSelectionScheduler } from './artboards/selection-scheduler.
 import { createSelectionInteractionGuard } from './artboards/selection-interaction.js';
 import { createArtboardSelectionUi } from './artboards/selection-ui.js';
 import { setupArtboardSwitcher as setupArtboardSwitcherUi } from './artboards/setup.js';
-import { buildArtboardStateSnapshot, resolveImplicitVmInstanceKey, selectionAfterLoad, selectionFromCanonical,
+import { buildArtboardStateSnapshot, canonicalSelectionMatchesSource, resolveImplicitVmInstanceKey, selectionAfterLoad, selectionFromCanonical,
     selectionFromConfig } from './artboards/selection-state.js';
 import { buildPlaybackStatusLabel } from './playback-status.js';
 import { normalizeStateMachineSelection } from './default-state-machine.js';
@@ -20,6 +20,8 @@ export function createArtboardSwitcherController({
     documentRef = globalThis.document,
     getCurrentFileName = () => null,
     getCurrentFileUrl = () => null,
+    getCurrentSourceScope = null,
+    getCanonicalSourceScope = null,
     getRiveInstance = () => null,
     isAuthoritativeChildMode = () => false,
     setTimeoutFn = globalThis.setTimeout?.bind(globalThis),
@@ -179,6 +181,12 @@ export function createArtboardSwitcherController({
 
     function syncStateFromCanonical(state) {
         if (!state || !isAuthoritativeChildMode()) return false;
+        // A file load resets requestedSelectionTransitionId while the old child
+        // is still active. Reject its ticks both before inspection is ready and
+        // after it resolves the replacement file's identity.
+        if ((getCurrentSourceScope || getCanonicalSourceScope) && !canonicalSelectionMatchesSource(
+            state, getCurrentSourceScope?.(), getCanonicalSourceScope?.(),
+        )) return false;
         // The active child stays authoritative only until a replacement has
         // been requested. Its ticks must not replace the target artboard,
         // playback, or explicit ViewModel selection while the new render

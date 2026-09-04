@@ -12,6 +12,7 @@ const CHILD_ERROR_EVENT = 'render-surface:error';
 const CHILD_DIAGNOSTIC_EVENT = 'render-surface:diagnostic';
 const CHILD_METRICS_EVENT = 'render-surface:metrics';
 const CHILD_CAPTURE_EVENT = 'render-surface:capture';
+const CHILD_ACTIVATION_WATCHDOG_EVENT = 'render-surface:activation-watchdog';
 
 export function createRenderSurfaceActivationLifecycle({
     getProtocolVersion = () => 1,
@@ -24,6 +25,15 @@ export function createRenderSurfaceActivationLifecycle({
     const deferredLoaded = new Map();
     const processing = new Map();
     const rejecting = new Set();
+    const requiredActivationAttempts = new Map();
+
+    function acceptsActivationAttempt(event) {
+        const sessionId = event?.payload?.sessionId;
+        if (!sessionId) return true;
+        const requiredAttempt = requiredActivationAttempts.get(sessionId) || 0;
+        const receiptAttempt = Math.max(0, Number(event?.payload?.activationAttempt) || 0);
+        return receiptAttempt >= requiredAttempt;
+    }
 
     function run(sessionId, task) {
         const current = activation;
@@ -44,6 +54,7 @@ export function createRenderSurfaceActivationLifecycle({
     function handleLoaded(event, handler) {
         const sessionId = event?.payload?.sessionId;
         if (!sessionId) return handler(event);
+        if (!acceptsActivationAttempt(event)) return false;
         if (rejecting.has(sessionId) || claimed.has(sessionId)) return true;
         if (matches(event) && !created.has(sessionId)) {
             const deferred = deferredLoaded.get(sessionId);
@@ -56,7 +67,10 @@ export function createRenderSurfaceActivationLifecycle({
         if (getProtocolVersion() >= protocolVersion && event?.payload?.firstFrame !== true) return handler(event);
         if (processing.has(sessionId)) return processing.get(sessionId);
         const pending = Promise.resolve(handler(event)).then((consumed) => {
-            if (consumed !== false) claimed.add(sessionId);
+            if (consumed !== false) {
+                claimed.add(sessionId);
+                requiredActivationAttempts.delete(sessionId);
+            }
             return consumed;
         }).finally(() => {
             if (processing.get(sessionId) === pending) processing.delete(sessionId);
@@ -66,14 +80,17 @@ export function createRenderSurfaceActivationLifecycle({
     }
 
     return {
+        acceptsActivationAttempt,
         beginRejection(sessionId) {
             if (rejecting.has(sessionId)) return false;
             rejecting.add(sessionId); claimed.add(sessionId);
             deferredLoaded.delete(sessionId); created.delete(sessionId);
+            requiredActivationAttempts.delete(sessionId);
             return true;
         },
         dispose() {
             claimed.clear(); created.clear(); deferredLoaded.clear(); processing.clear(); rejecting.clear();
+            requiredActivationAttempts.clear();
         },
         endRejection: (sessionId) => rejecting.delete(sessionId),
         handleLoaded,
@@ -81,7 +98,18 @@ export function createRenderSurfaceActivationLifecycle({
             && created.has(sessionId) && !rejecting.has(sessionId),
         isRejecting: (sessionId) => rejecting.has(sessionId),
         markCreated: (sessionId) => created.add(sessionId),
-        retire(sessionId) { claimed.delete(sessionId); created.delete(sessionId); },
+        requireActivationAttempt(sessionId, attempt) {
+            const normalized = Math.max(0, Math.floor(Number(attempt) || 0));
+            if (!sessionId || normalized <= (requiredActivationAttempts.get(sessionId) || 0)) return false;
+            requiredActivationAttempts.set(sessionId, normalized);
+            deferredLoaded.delete(sessionId);
+            claimed.delete(sessionId);
+            return true;
+        },
+        retire(sessionId) {
+            claimed.delete(sessionId); created.delete(sessionId);
+            requiredActivationAttempts.delete(sessionId);
+        },
         run,
         takeDeferred(sessionId) {
             const event = deferredLoaded.get(sessionId) || null;
@@ -103,9 +131,10 @@ export function createRenderSurfaceStartupReceiptGate() {
             const payload = event?.payload || {};
             if (!payload.sessionId) return handler(event);
             const attempt = eventName === CHILD_READY_EVENT ? payload.attempt ?? '' : '';
+            const activationAttempt = Number(payload.activationAttempt) || 0;
             const firstFrame = eventName === CHILD_LOADED_EVENT ? payload.firstFrame === true : '';
             const phase = eventName === CHILD_ERROR_EVENT ? payload.phase || '' : '';
-            const key = `${payload.sessionId}\u0000${eventName}\u0000${attempt}\u0000${firstFrame}\u0000${phase}`;
+            const key = `${payload.sessionId}\u0000${eventName}\u0000${activationAttempt}\u0000${attempt}\u0000${firstFrame}\u0000${phase}`;
             if (accepted.has(key)) return undefined;
             if (processing.has(key)) return processing.get(key);
             let result;
@@ -136,22 +165,33 @@ export function createRenderSurfaceStartupReceiptGate() {
 }
 
 export function registerRenderSurfaceControllerListeners({
+    acceptsActivationAttempt = () => true,
     getTauriEventListener,
     handlers,
     unlistenCallbacks,
 }) {
     const gateStartupReceipt = createRenderSurfaceStartupReceiptGate();
+    const gateActivationAttempt = (handler) => (event) => (
+        acceptsActivationAttempt(event) ? handler(event) : false
+    );
     return registerRenderSurfaceListeners({
         getTauriEventListener,
         registrations: [
-            [CHILD_READY_EVENT, gateStartupReceipt(CHILD_READY_EVENT, handlers.handleChildReady)],
-            [CHILD_DIAGNOSTIC_EVENT, handlers.handleChildDiagnostic],
+            [CHILD_READY_EVENT, gateStartupReceipt(
+                CHILD_READY_EVENT,
+                gateActivationAttempt(handlers.handleChildReady),
+            )],
+            [CHILD_DIAGNOSTIC_EVENT, gateActivationAttempt(handlers.handleChildDiagnostic)],
             [CHILD_ACK_EVENT, handlers.handleChildAck],
             [CHILD_STATE_EVENT, handlers.handleChildState],
             [CHILD_TIMELINE_EVENT, handlers.handleChildTimeline],
             [CHILD_POINTER_DOWN_EVENT, handlers.handleChildPointerDown],
+            [CHILD_ACTIVATION_WATCHDOG_EVENT, handlers.handleActivationWatchdog || (() => {})],
             [CHILD_LOADED_EVENT, gateStartupReceipt(CHILD_LOADED_EVENT, handlers.handleChildLoaded)],
-            [CHILD_ERROR_EVENT, gateStartupReceipt(CHILD_ERROR_EVENT, handlers.handleChildError)],
+            [CHILD_ERROR_EVENT, gateStartupReceipt(
+                CHILD_ERROR_EVENT,
+                gateActivationAttempt(handlers.handleChildError),
+            )],
             [CHILD_METRICS_EVENT, handlers.handleChildMetrics],
             [CHILD_CAPTURE_EVENT, handlers.handleChildCapture || (() => {})],
         ],

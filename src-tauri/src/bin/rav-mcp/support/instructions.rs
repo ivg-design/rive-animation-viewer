@@ -11,11 +11,12 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 6. Use **rav_get_global_vm_tree** and **rav_global_vm_get/set/fire** for named file-level global ViewModels; always pass both the global ViewModel name and its property path.
 7. Use **rav_global_vm_set_image** / **rav_global_vm_clear_image** for global ViewModel image properties; image writes require the authoritative desktop playback surface.
 8. Use **rav_capture_canvas** when you need PNG image content from the canvas exactly as RAV rendered it.
+9. For media, call **rav_media_capabilities**, then **rav_export_media** or **rav_record_start**. Poll **rav_media_status** by job_id; **rav_record_stop** finalizes a manual recording and **rav_media_cancel** discards it. Desktop only; no audio. Use **rav_pointer** for normalized canvas mouse interaction and **rav_step_frames** for explicit advancement followed by pause.
 
 ## Key Concepts
 
 ### Rive Runtime API
-- `contents`, `stateMachineNames`, `animationNames` are **properties** (not functions) on the Rive instance.
+- `stateMachineNames` and `animationNames` are **properties**, not functions. Never read `contents` on the live file: metadata enumeration can create instances and disturb playback. Use RAV's metadata tools, which inspect an independently owned file.
 - `stateMachineInputs(smName)` IS a function that takes the state machine name.
 - `viewModelInstance` is a **property** that returns the currently bound ViewModel instance. `autoBind: true` binds the default instance automatically; RAV uses `autoBind: false` when it explicitly binds a named instance.
 

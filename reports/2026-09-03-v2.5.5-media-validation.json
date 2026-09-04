@@ -1,0 +1,374 @@
+{
+  "status": "local_desktop_validation_not_release",
+  "build": "b0191-20260903-0653-95eb566-dirty",
+  "platform": "macOS 26.6 arm64",
+  "runtime": "WebGL2 2.42.0",
+  "encoder": "FFmpeg/ffprobe 7.1.1",
+  "animated_frame_size": [
+    640,
+    360
+  ],
+  "formats": [
+    {
+      "format": "h264",
+      "decoded_frames": 24,
+      "unique_frames": 24,
+      "nonblank_frames": 24,
+      "alpha_min": 255,
+      "alpha_max": 255,
+      "has_fractional_alpha": false,
+      "bytes": 29075,
+      "artifact": "h264.mp4",
+      "sha256": "7e9ff995d0144b7a13b7d8c1121bd7d2b2e146940ccdf57244367368eb1bd9e5"
+    },
+    {
+      "format": "h265",
+      "decoded_frames": 24,
+      "unique_frames": 24,
+      "nonblank_frames": 24,
+      "alpha_min": 255,
+      "alpha_max": 255,
+      "has_fractional_alpha": false,
+      "bytes": 33595,
+      "artifact": "h265.mp4",
+      "sha256": "7045976c3490895f801337020d1e3a3773b147b067925f36b48ae84a11188281"
+    },
+    {
+      "format": "webm",
+      "decoded_frames": 24,
+      "unique_frames": 24,
+      "nonblank_frames": 23,
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "has_fractional_alpha": true,
+      "bytes": 46905,
+      "artifact": "webm.webm",
+      "sha256": "81a25ba9eb64606c6f57d47eb4234f3c41368ee2d6ce921492f6dd229a51b054"
+    },
+    {
+      "format": "apng",
+      "decoded_frames": 24,
+      "unique_frames": 24,
+      "nonblank_frames": 23,
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "has_fractional_alpha": true,
+      "bytes": 119690,
+      "artifact": "apng.apng",
+      "sha256": "a0d11e9af2929c0ddf2eda481222365fce076bd198740e0df061c5cb3044ec94"
+    },
+    {
+      "format": "gif",
+      "decoded_frames": 20,
+      "unique_frames": 20,
+      "nonblank_frames": 19,
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "has_fractional_alpha": false,
+      "bytes": 77718,
+      "artifact": "gif.gif",
+      "sha256": "2909dc7696226b2db44a1eb9cdcd8502d95f3395852403a89aa3dbb2c3119661"
+    },
+    {
+      "format": "png",
+      "decoded_frames": 1,
+      "unique_frames": 1,
+      "nonblank_frames": 1,
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "has_fractional_alpha": true,
+      "bytes": 11673,
+      "artifact": "png.png",
+      "sha256": "0daa9a2b1e1bc81cd13577fa0c429be23be93cd95fffc90d1d4163ffae941a77"
+    },
+    {
+      "format": "jpg",
+      "decoded_frames": 1,
+      "unique_frames": 1,
+      "nonblank_frames": 1,
+      "alpha_min": 255,
+      "alpha_max": 255,
+      "has_fractional_alpha": false,
+      "bytes": 13834,
+      "artifact": "jpg.jpg",
+      "sha256": "adb703a863c2b9095c8344ba5aad04475c5ebcc768fe6531f782812b55dc244e"
+    },
+    {
+      "format": "webp",
+      "decoded_frames": 1,
+      "unique_frames": 1,
+      "nonblank_frames": 1,
+      "alpha_min": 0,
+      "alpha_max": 255,
+      "has_fractional_alpha": true,
+      "bytes": 6294,
+      "artifact": "webp.webp",
+      "sha256": "148cc53cd8a39581398b0f3c8182cc7e9c0b851c6399e76c057628145a68d93f"
+    }
+  ],
+  "timeline_pixel_comparison": {
+    "full_frames": 60,
+    "segment_frames": 30,
+    "unique_full": 60,
+    "unique_segment": 30,
+    "segment_matches_full_30_to_60": true
+  },
+  "full_hd": {
+    "frames": 60,
+    "unique_frames": 60,
+    "width": 1920,
+    "height": 1080,
+    "fps": 60
+  },
+  "native_backend_tests": {
+    "passed": 12,
+    "failed": 0,
+    "includes_gifski": "1.34.0 temporary local test build"
+  },
+  "release_gates": [
+    "reviewed encoder packaging and redistribution",
+    "signed platform builds",
+    "Windows runtime QA",
+    "Intel macOS runtime QA"
+  ],
+  "private_fixture_pixels_committed": false,
+  "final_retest": {
+    "build": "b0194-20260903-0716-95eb566-dirty",
+    "segment_decoded_frames": 30,
+    "segment_unique_frames": 30,
+    "segment_equals_full_frames_30_to_59": true,
+    "still_equals_full_frame_45": true,
+    "sha256": {
+      "lowerthird-final-segment.apng": "df9172a4e322c106018246b6e346eb40ddde58d4d2336777a86e5168e00499eb",
+      "lowerthird-final-at.png": "5592c791effffef8638ae476863a3cf9e12e3879984fec7aeb762c8fcde2a1e2"
+    },
+    "cold_start_fresh_filename_first_open": true,
+    "trackmap_controls": 481,
+    "trackmap_authored_sectors": 3,
+    "metadata_enumeration_preserved_state": true
+  },
+  "automated_checks": {
+    "vitest": 910,
+    "vitest_files": 110,
+    "node_endpoint": 18,
+    "native_media": 12,
+    "native_overlay": 8,
+    "architecture": "passed",
+    "dependencies": "passed"
+  },
+  "user_reported_regressions": {
+    "build": "b0197-20260903-0821-95eb566-dirty",
+    "cold_enum_loads": {
+      "v6": [
+        {
+          "value": "FullMap",
+          "disabled": false,
+          "options": [
+            "FullMap",
+            "fullMapNoChrome",
+            "sectorFocusLayout",
+            "driverFocusLayout",
+            "sectorFocusFullScreen",
+            "driverFocusFullScreen"
+          ]
+        },
+        {
+          "value": "Bottom Left",
+          "disabled": false,
+          "options": [
+            "Bottom Left",
+            "Bottom Right",
+            "Top Right"
+          ]
+        }
+      ],
+      "v7.5": [
+        {
+          "value": "FullMap",
+          "disabled": false,
+          "options": [
+            "FullMap",
+            "fullMapNoChrome",
+            "sectorFocusLayout",
+            "driverFocusLayout",
+            "sectorFocusFullScreen",
+            "driverFocusFullScreen"
+          ]
+        },
+        {
+          "value": "Bottom Left",
+          "disabled": false,
+          "options": [
+            "Bottom Left",
+            "Bottom Right",
+            "Top Right"
+          ]
+        }
+      ]
+    },
+    "startup_enums": [
+      {
+        "value": "FullMap",
+        "disabled": false,
+        "options": [
+          "FullMap",
+          "fullMapNoChrome",
+          "sectorFocusLayout",
+          "driverFocusLayout",
+          "sectorFocusFullScreen",
+          "driverFocusFullScreen"
+        ]
+      },
+      {
+        "value": "Bottom Left",
+        "disabled": false,
+        "options": [
+          "Bottom Left",
+          "Bottom Right",
+          "Top Right"
+        ]
+      }
+    ],
+    "recording_toolbar": {
+      "mediaButtons": 0,
+      "stop": true
+    },
+    "geometry": {
+      "before": {
+        "canvas": {
+          "bottom": 754,
+          "height": 754,
+          "left": 0,
+          "right": 922,
+          "top": 0,
+          "width": 922,
+          "x": 0,
+          "y": 0
+        },
+        "classes": "canvas-container",
+        "container": {
+          "bottom": 754,
+          "height": 754,
+          "left": 0,
+          "right": 922,
+          "top": 0,
+          "width": 922,
+          "x": 0,
+          "y": 0
+        }
+      },
+      "during": {
+        "canvas": {
+          "bottom": 636.3125,
+          "height": 518.625,
+          "left": 0,
+          "right": 922,
+          "top": 117.6875,
+          "width": 922,
+          "x": 0,
+          "y": 117.6875
+        },
+        "classes": "canvas-container canvas-container-media-capture",
+        "container": {
+          "bottom": 754,
+          "height": 754,
+          "left": 0,
+          "right": 922,
+          "top": 0,
+          "width": 922,
+          "x": 0,
+          "y": 0
+        }
+      },
+      "after": {
+        "canvas": {
+          "bottom": 754,
+          "height": 754,
+          "left": 0,
+          "right": 922,
+          "top": 0,
+          "width": 922,
+          "x": 0,
+          "y": 0
+        },
+        "classes": "canvas-container",
+        "container": {
+          "bottom": 754,
+          "height": 754,
+          "left": 0,
+          "right": 922,
+          "top": 0,
+          "width": 922,
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    "tests": {
+      "vitest_files": 112,
+      "vitest_passed": 930,
+      "node_passed": 18
+    },
+    "recordings": [
+      {
+        "case": "interactions",
+        "state": "completed",
+        "output_frames": 600,
+        "received_frames": 588,
+        "warnings": [
+          "12 presentation frames hold preceding captures; duration is preserved."
+        ],
+        "artifact": "1080p60-interactions.mp4",
+        "bytes": 386779,
+        "sha256": "ffd367af6775fc965ed84cd85512b02b6febed795290aecf29493055d6405e76"
+      },
+      {
+        "case": "steady",
+        "state": "completed",
+        "output_frames": 300,
+        "received_frames": 300,
+        "warnings": [],
+        "artifact": "ui-result.mp4",
+        "bytes": 241975,
+        "sha256": "5ed15f70ee56dbe1bc2a5c9b9e4c05dcad58f7e23ad8b0233d4fdbe50bb00a5f"
+      },
+      {
+        "case": "manual-alpha",
+        "state": "completed",
+        "output_frames": 41,
+        "received_frames": 41,
+        "warnings": [],
+        "artifact": "manual-alpha.apng",
+        "bytes": 21503,
+        "sha256": "c6d208d42087f0b4546fbf827a8571a78e844b377d729245b15179eb80ef27a2"
+      },
+      {
+        "case": "segment",
+        "state": "completed",
+        "output_frames": 30,
+        "received_frames": 30,
+        "warnings": [],
+        "artifact": "segment.apng",
+        "bytes": 191434,
+        "sha256": "df9172a4e322c106018246b6e346eb40ddde58d4d2336777a86e5168e00499eb"
+      }
+    ],
+    "cancel": "cancelled",
+    "pixel_verification": {
+      "segment_frames": 30,
+      "segment_matches_prior_full_30_59": true,
+      "recorded_alpha_range": [
+        0,
+        255
+      ],
+      "fractional_alpha": true
+    },
+    "worker_pixel_verification": {
+      "worker_vs_sync_rgba_exact": [
+        true,
+        true
+      ],
+      "transparent_canvas_reuse_checked": true
+    }
+  }
+}

@@ -4,47 +4,46 @@ site_name: RAV
 site_url: https://forge.mograph.life/apps/rav/
 canonical_url: https://forge.mograph.life/apps/rav/
 owner: IVG Design
-last_updated: 2026-09-01
+last_updated: 2026-09-04
 language: en
 
 ## Purpose
-RAV is a standalone desktop app for inspecting, debugging, and testing Rive (.riv) files offline. Version 2.5.4 is the current public release and is available through the public updater feed.
+RAV is a standalone desktop app for inspecting, debugging, testing, and exporting Rive (`.riv`) files offline. Use GitHub Releases as the authority for the current public version.
 
 ## Canonical Sources
-- Home: https://forge.mograph.life/apps/rav/
+- Home and downloads: https://forge.mograph.life/apps/rav/
 - Documentation: https://forge.mograph.life/apps/rav/docs
 - Changelog: https://forge.mograph.life/apps/rav/changelog
 - Privacy and anonymous usage counting: https://forge.mograph.life/apps/rav/privacy
 
 ## Core Feature Anchors
-- ViewModel controls: https://forge.mograph.life/apps/rav/docs#viewmodel-controls
-- ViewModel lists use a direct authored name or one unique canonical-string match; ambiguous items become `Row N`, and generic `viewModelName` identifiers are never shown as authored labels: https://forge.mograph.life/apps/rav/docs/viewmodel-controls
-- Each image property uses one full-width select containing every embedded raster asset, Open file, and Clear; the external file input stays hidden, with no separate action buttons and standalone parity: https://forge.mograph.life/apps/rav/docs/viewmodel-controls
-- Event console: https://forge.mograph.life/apps/rav/docs#event-console
-- Script console: https://forge.mograph.life/apps/rav/docs#script-console
-- Canvas backgrounds and standalone export: https://forge.mograph.life/apps/rav/docs#configuration
-- Standalone export: https://forge.mograph.life/apps/rav/docs#standalone-export
-- Applied editor config and lifecycle callbacks are preserved and executed in standalone exports: https://forge.mograph.life/apps/rav/docs/script-editor
-- macOS .riv declarations cover the official Rive UTI and legacy RAV compatibility UTI, include the dedicated document icon resource, and register RAV as a Viewer without default takeover: https://forge.mograph.life/apps/rav/docs/opening-files
-- Windows NSIS and MSI packages ship a dedicated multi-resolution .riv icon; installs and updates own the matching document-icon value, while uninstall cleanup preserves the association that preceded RAV: https://forge.mograph.life/apps/rav/docs/opening-files
-- RAV defaults to Latest (auto), preserves explicit runtime pins, and falls back to 2.39.2 if discovery is unavailable; the confirmed 2.40.0 nested-image risk remains labeled: https://forge.mograph.life/apps/rav/docs/configuration
-- The 2.5.2 reliability update keeps the last confirmed frame visible while files, artboards, playback targets, and ViewModel instances change; stale rapid-switch work is discarded, warm opens are queued, and scalar/image/list controls stay synchronized: https://forge.mograph.life/apps/rav/changelog
-- The 2.5.3 update labels the collapsed global-ViewModel collection `GLOBAL VM` above `ROOT VM`, provides independent trees for named globals, and adds canvas capture plus a 49-tool bundled native MCP surface: https://forge.mograph.life/apps/rav/docs/mcp
-- The 2.5.4 update targets released Rive Web 2.41.1 / runtime-v0.1.344, sends automatic MCP evaluation to the authoritative playback child, adds a timeline-only scrubber that advances every rendered frame, emits lean selected-property snippets while retaining complete standalone HTML export, compacts color swatches, widens numeric fields, assigns the effective macOS `.riv` association in one action, and keeps title metadata centered against the real window: https://forge.mograph.life/apps/rav/changelog
-- Fixed size is the canvas viewport, not the Rive artboard; with Contain, alignment only moves on an axis with unused canvas space: https://forge.mograph.life/apps/rav/docs/ui-layout
-- Configured official builds enable anonymous installation and monthly-active counts by default, show a first-run notice before reporting, and keep the opt-out in Settings: https://forge.mograph.life/apps/rav/privacy
+- ViewModel controls, authored instances, dynamic lists, images, and globals: https://forge.mograph.life/apps/rav/docs/viewmodel-controls
+- Timeline scrubber, artboard selection, and playback selection: https://forge.mograph.life/apps/rav/docs/artboard-switcher
+- Video, animated-image, still-image, and interaction recording: https://forge.mograph.life/apps/rav/docs/media-export
+- Standalone HTML and selected-property snippets: https://forge.mograph.life/apps/rav/docs/export
+- Runtime selection, renderer, canvas size, fit, alignment, and background: https://forge.mograph.life/apps/rav/docs/configuration
+- Event and JavaScript consoles: https://forge.mograph.life/apps/rav/docs/consoles
+- Applied editor configuration and callbacks: https://forge.mograph.life/apps/rav/docs/script-editor
+- macOS and Windows `.riv` opening, default ownership, and document icons: https://forge.mograph.life/apps/rav/docs/opening-files
+- Native MCP bridge and all 57 tools: https://forge.mograph.life/apps/rav/docs/mcp
+- Automatic updates: https://forge.mograph.life/apps/rav/docs/updates
+- Keyboard shortcuts: https://forge.mograph.life/apps/rav/docs/shortcuts
 
-## Entity Facts
-- Product: RAV (Rive Animation Viewer)
-- Category: DeveloperApplication / DesktopApplication
-- Platforms: macOS (Apple Silicon + Intel), Windows
-- Organization: IVG Design
-- License context: open-source references are available in linked GitHub surfaces
+## Current Behavior Facts
+- Linear animations show a draggable frame/seconds scrubber; state machines hide it.
+- Standalone HTML includes the runtime and UI chrome. Copy-paste snippets include setup plus only selected typed property accessors.
+- Desktop media formats are H.264, H.265, WebM, APNG, GIF, PNG, JPG, and WebP when capability checks pass.
+- Timeline export supports authored duration or an exact segment. State-machine recording supports live pointer and ViewModel interaction, optional cursor, manual or timed stop, and no product duration ceiling.
+- GIF controls can reduce dimensions, FPS, and quality or perform a best-effort target-size search.
+- Media progress uses the bottom status bar. EXPORT remains the single entry point for settings and completed results.
+- The bundled native MCP sidecar advertises 57 tools, including eight media operations.
+- Fixed canvas size describes the playback viewport rather than the authored artboard. With Contain, alignment moves only along an axis with unused space.
+- Configured official builds enable anonymous installation and monthly-active counting by default and provide an opt-out in Settings.
 
 ## Citation Policy
 - Cite canonical URLs under `https://forge.mograph.life/apps/rav`.
-- Prefer docs/changelog URLs for feature and recency claims.
-- Avoid unsupported comparisons unless backed by a cited source.
+- Use docs for current behavior and the changelog for version history.
+- Avoid unsupported comparisons.
 
 ## Machine-Readable Companions
 - llms-full: https://forge.mograph.life/apps/rav/llms-full.txt

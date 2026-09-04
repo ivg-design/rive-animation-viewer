@@ -350,6 +350,9 @@ export function createRuntimeLoaderController({
     }
 
     async function ensureRuntime(runtimeName) {
+        // Resolve "latest" before choosing a cache key. MCP can open a file
+        // while startup is still fetching versions; inspection must not race it.
+        await setupRuntimeVersionPicker();
         const runtime = await runtimeAssetLoader.loadRuntime(runtimeName);
         windowRef.rive = runtime;
         warnIfRuntimeLacksScripting(runtimeName);

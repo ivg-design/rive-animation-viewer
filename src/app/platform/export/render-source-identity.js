@@ -32,7 +32,6 @@ export function createRenderSourceIdentityResolver({
     TextEncoderCtor = globalThis.TextEncoder,
     BufferCtor = globalThis.Buffer,
 } = {}) {
-    const contentDigests = new WeakMap();
     const encoder = new TextEncoderCtor();
 
     async function digest(bytes) {
@@ -44,18 +43,12 @@ export function createRenderSourceIdentityResolver({
         );
     }
 
-    function resolveContentDigest(buffer) {
-        if (!contentDigests.has(buffer)) {
-            contentDigests.set(buffer, digest(buffer));
-        }
-        return contentDigests.get(buffer);
-    }
-
     return async (buffer, preferenceId = null) => {
         if (!(buffer instanceof ArrayBuffer)) return null;
         const normalizedPreferenceId = String(preferenceId || '').trim();
         const preferenceBytes = encoder.encode(normalizedPreferenceId);
-        const contentDigest = await resolveContentDigest(buffer);
+        // ArrayBuffer contents are mutable, even when the object is unchanged.
+        const contentDigest = await digest(buffer.slice(0));
         const sourceDigest = await digest(joinIdentityMaterial(preferenceBytes, contentDigest));
         return `riv-source-v1:${toHex(sourceDigest)}`;
     };

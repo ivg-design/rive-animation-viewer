@@ -20,11 +20,15 @@ export const ABOUT_LINKS = [
     { label: 'mograph.life', url: 'https://mograph.life' },
 ];
 
-export function buildDependencyEntries(packageData = {}) {
+export function buildDependencyEntries(packageData = {}, additionalEntries = []) {
     const merged = {
         ...(packageData.dependencies || {}),
         ...(packageData.devDependencies || {}),
     };
+    (Array.isArray(additionalEntries) ? additionalEntries : []).forEach((entry) => {
+        const name = String(entry?.name || '').trim();
+        if (name) merged[name] = String(entry?.version || 'available');
+    });
     return Object.entries(merged)
         .sort(([left], [right]) => left.localeCompare(right))
         .map(([name, version]) => ({ name, version }));

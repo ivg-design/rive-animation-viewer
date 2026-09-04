@@ -18,6 +18,10 @@ import { createRenderSurfaceVisibilityController, observeBlockingMainUi } from '
 import { createRenderSurfaceCaptureSession } from './capture-router.js';
 export { measureRenderSurfaceBounds } from './bounds.js';
 const LOAD_TIMEOUT_MS = 15_000;
+// The native host retries one activation after 15 seconds. Once native child
+// creation succeeds, allow both bounded attempts plus teardown margin while
+// keeping preflight/context creation on the existing 15-second contract.
+const ACTIVATION_TIMEOUT_MS = 35_000;
 export const RENDER_SURFACE_AUTHORITY_EVENT = 'rav:render-surface-authority-change';
 export function createRenderSurfaceController({
     callbacks = {},
@@ -144,7 +148,7 @@ export function createRenderSurfaceController({
                 logText: 'Staged render surface did not report a first frame; retaining the previous surface.',
             });
         },
-        timeoutMs: LOAD_TIMEOUT_MS,
+        timeoutMs: ACTIVATION_TIMEOUT_MS,
         windowRef,
     });
     function restoreActiveSession() {
@@ -200,6 +204,7 @@ export function createRenderSurfaceController({
             getSurfaceSessionId: () => surfaceSessionId,
             markCreated: () => { surfaceCreated = true; },
         },
+        activationTimeoutMs: ACTIVATION_TIMEOUT_MS,
         showError, timeoutMs: LOAD_TIMEOUT_MS, updateInfo, windowRef,
     });
     const loadCurrentAnimation = loadOperation.load;
@@ -258,6 +263,20 @@ export function createRenderSurfaceController({
     function handleChildLoaded(event) {
         return activationLifecycle.handleLoaded(event, activateChildLoaded);
     }
+    function handleActivationWatchdog(event) {
+        const payload = event?.payload || {};
+        if (disposed || !protocol.matches(event) || payload.phase !== 'retry-started') return;
+        const activationAttempt = Math.max(0, Math.floor(Number(payload.activationAttempt) || 0));
+        if (!activationLifecycle.requireActivationAttempt(payload.sessionId, activationAttempt)) return;
+        loadTracker.armTimeout(payload.sessionId);
+        logEvent(
+            'native',
+            'render-surface-activation-watchdog-retry',
+            'The staged playback renderer stopped responding; recreating it once.',
+            payload,
+        );
+        updateInfo('Playback renderer stalled; retrying once while the previous frame remains visible.');
+    }
     const handlers = createRenderSurfaceBridgeHandlers({
         clearLoadTimeout: loadTracker.clearTimeout,
         documentRef,
@@ -284,9 +303,11 @@ export function createRenderSurfaceController({
         isSetup = true;
         try {
             await registerRenderSurfaceControllerListeners({
+                acceptsActivationAttempt: activationLifecycle.acceptsActivationAttempt,
                 getTauriEventListener,
                 handlers: {
                     ...handlers,
+                    handleActivationWatchdog,
                     handleChildAck: protocol.handleAck,
                     handleChildState: protocol.handleState,
                     handleChildLoaded,
@@ -345,6 +366,10 @@ export function createRenderSurfaceController({
     return {
         dispose,
         getCanonicalState: () => protocol.getState().canonicalState,
+        getSourceScope: activationCoordinator.getActiveSourceScope,
+        // activateSession publishes its canonical baseline before the outer
+        // controller commits activeSessionId. Identify that publisher directly.
+        getCanonicalSourceScope: () => activationCoordinator.getSourceScope(protocol.getState().canonicalState?.sessionId),
         getState,
         loadCurrentAnimation,
         loadCurrentAnimationForSelection,

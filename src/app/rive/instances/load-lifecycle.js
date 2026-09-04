@@ -2,7 +2,7 @@ import { dispatchAnimationLoaded } from '../control-events.js';
 import { runUserOnLoadWithVmRestore } from '../instance/load-hooks.js';
 import { buildPlaybackContext, buildPlaybackStatusLabel } from '../playback-status.js';
 import { normalizeLoadErrorMessage } from './load-settlement.js';
-import { clearStateMachineInputMetadata, getStateMachineNames } from '../runtime-compatibility.js';
+import { clearStateMachineInputMetadata, getStateMachineNames, setInspectionMetadata } from '../runtime-compatibility.js';
 import { normalizeStateMachineSelection } from '../default-state-machine.js';
 import {
     captureTimelineProgressForInstance,
@@ -33,6 +33,7 @@ export function configureRiveLoadLifecycle({
     getRiveInstance,
     hideError,
     isCurrentLoad = () => true,
+    inspectionMetadata = null,
     loadSettled,
     logEvent,
     notifyLoadFailure,
@@ -63,6 +64,7 @@ export function configureRiveLoadLifecycle({
             return;
         }
         clearStateMachineInputMetadata(getRiveInstance());
+        setInspectionMetadata(getRiveInstance(), inspectionMetadata);
         const inPlaceReset = takePendingInPlaceReset();
         hideError();
         resizeCanvas(config.canvas, userConfig);

@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (for example 2.4.1). Leave empty to use package.json."
+        description: "Release version (for example 2.5.5). Leave empty to use package.json."
         required: false
         type: string
 
@@ -304,7 +304,7 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Validate Apple settings and materialize the API key
+      - name: Import the release signing identity and materialize the API key
         id: apple
         shell: bash
         env:
@@ -332,14 +332,85 @@ jobs:
           done
 
           key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+          certificate_path="$RUNNER_TEMP/rav-developer-id.p12"
+          keychain_path="$RUNNER_TEMP/rav-release-signing.keychain-db"
+          keychain_password=$(openssl rand -hex 32)
+          echo "api_key_path=$key_path" >> "$GITHUB_OUTPUT"
+          echo "certificate_path=$certificate_path" >> "$GITHUB_OUTPUT"
+          echo "keychain_path=$keychain_path" >> "$GITHUB_OUTPUT"
 
           printf '%s' "$APPLE_API_PRIVATE_KEY_BASE64" \
             | openssl base64 -d -A -out "$key_path"
           chmod 600 "$key_path"
-
           openssl pkey -in "$key_path" -check -noout
 
-          echo "api_key_path=$key_path" >> "$GITHUB_OUTPUT"
+          printf '%s' "$APPLE_CERTIFICATE" \
+            | openssl base64 -d -A -out "$certificate_path"
+          chmod 600 "$certificate_path"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" \
+            -k "$keychain_path" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$keychain_password" \
+            "$keychain_path"
+
+          existing_keychains=()
+          while IFS= read -r existing_keychain; do
+            existing_keychain=${existing_keychain//\"/}
+            [[ -n "$existing_keychain" ]] && existing_keychains+=("$existing_keychain")
+          done < <(security list-keychains -d user)
+          security list-keychains -d user -s "$keychain_path" "${existing_keychains[@]}"
+
+          identities=$(security find-identity -v -p codesigning "$keychain_path" \
+            | sed -n "s/.*\"\(Developer ID Application:.*(${APPLE_TEAM_ID})\)\".*/\1/p")
+          identity_count=$(printf '%s\n' "$identities" | sed '/^$/d' | wc -l | tr -d ' ')
+          if [[ "$identity_count" != 1 ]]; then
+            echo "Expected exactly one Developer ID Application identity for $APPLE_TEAM_ID; found $identity_count"
+            exit 1
+          fi
+          signing_identity=$(printf '%s\n' "$identities" | sed -n '1p')
+
+          echo "signing_identity=$signing_identity" >> "$GITHUB_OUTPUT"
+
+      - name: Acquire, sign, and verify production encoders (${{ matrix.name }})
+        shell: bash
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ steps.apple.outputs.signing_identity }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RAV_ENCODER_TARGET: ${{ matrix.rust_target }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          work_dir="$RUNNER_TEMP/rav-encoder-work-${RAV_ENCODER_TARGET}"
+          cache_dir="$RUNNER_TEMP/rav-encoder-cache-${RAV_ENCODER_TARGET}"
+          output_dir="$GITHUB_WORKSPACE/src-tauri/encoder-resources/encoders"
+          node scripts/encoder-distribution/encoders.mjs acquire \
+            --target "$RAV_ENCODER_TARGET" \
+            --work-dir "$work_dir" \
+            --cache-dir "$cache_dir" \
+            --output "$output_dir" \
+            --mac-signing-identity "$APPLE_SIGNING_IDENTITY"
+          node scripts/encoder-distribution/encoders.mjs verify \
+            --target "$RAV_ENCODER_TARGET" \
+            --directory "$output_dir"
+
+          if [[ "$RAV_ENCODER_TARGET" == "aarch64-apple-darwin" ]]; then
+            source_asset="$RUNNER_TEMP/jellyfin-ffmpeg-v7.1.4-3-source.tar.gz"
+            cp "$cache_dir/v7.1.4-3.tar.gz" "$source_asset"
+            test "$(stat -f %z "$source_asset")" = "16698965"
+            test "$(shasum -a 256 "$source_asset" | awk '{print $1}')" \
+              = "38fff90f73b3c4f9c3c7270711411a4ec3cbe63b205d4b4a5525bcc532d3d31f"
+            gh release upload "$TAG" "$source_asset" --repo "$REPO" --clobber
+          fi
 
       - name: Build, sign, notarize app, and upload (${{ matrix.name }})
         id: tauri
@@ -350,11 +421,12 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: Developer ID Application
+          APPLE_SIGNING_IDENTITY: ${{ steps.apple.outputs.signing_identity }}
           APPLE_API_KEY: ${{ vars.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ vars.APPLE_API_ISSUER }}
           APPLE_API_KEY_PATH: ${{ steps.apple.outputs.api_key_path }}
           RAV_COUNTER_ENDPOINT: ${{ needs.prepare-release.outputs.counter_endpoint }}
+          RAV_ENCODER_TARGET: ${{ matrix.rust_target }}
           RAV_OFFICIAL_RELEASE: "1"
         with:
           tauriScript: npm run tauri
@@ -433,7 +505,11 @@ jobs:
         run: |
           rm -f \
             "${{ steps.apple.outputs.api_key_path }}" \
+            "${{ steps.apple.outputs.certificate_path }}" \
             "$RUNNER_TEMP/dmg-notarization.json"
+          if [[ -n "${{ steps.apple.outputs.keychain_path }}" ]]; then
+            security delete-keychain "${{ steps.apple.outputs.keychain_path }}" || true
+          fi
 
   build-windows:
     needs: prepare-release
@@ -462,6 +538,26 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Acquire and verify production encoders
+        shell: pwsh
+        env:
+          RAV_ENCODER_TARGET: x86_64-pc-windows-msvc
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $workDir = Join-Path $env:RUNNER_TEMP "rav-encoder-work-$env:RAV_ENCODER_TARGET"
+          $cacheDir = Join-Path $env:RUNNER_TEMP "rav-encoder-cache-$env:RAV_ENCODER_TARGET"
+          $outputDir = Join-Path $env:GITHUB_WORKSPACE 'src-tauri\encoder-resources\encoders'
+          node scripts/encoder-distribution/encoders.mjs acquire `
+            --target $env:RAV_ENCODER_TARGET `
+            --work-dir $workDir `
+            --cache-dir $cacheDir `
+            --output $outputDir
+          if ($LASTEXITCODE -ne 0) { throw 'Production encoder acquisition failed' }
+          node scripts/encoder-distribution/encoders.mjs verify `
+            --target $env:RAV_ENCODER_TARGET `
+            --directory $outputDir
+          if ($LASTEXITCODE -ne 0) { throw 'Production encoder verification failed' }
+
       - name: Build and upload Windows x64
         uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0.6.2
         env:
@@ -469,6 +565,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           RAV_COUNTER_ENDPOINT: ${{ needs.prepare-release.outputs.counter_endpoint }}
+          RAV_ENCODER_TARGET: x86_64-pc-windows-msvc
           RAV_OFFICIAL_RELEASE: "1"
         with:
           tauriScript: npm run tauri
@@ -527,6 +624,7 @@ jobs:
             "Rive.Animation.Viewer_${VERSION}_x64_en-US.msi.sig"
             "Rive.Animation.Viewer_${VERSION}_x64-setup.exe"
             "Rive.Animation.Viewer_${VERSION}_x64-setup.exe.sig"
+            "jellyfin-ffmpeg-v7.1.4-3-source.tar.gz"
           )
 
           for asset in "${required_assets[@]}"; do
@@ -535,6 +633,11 @@ jobs:
               exit 1
             }
           done
+
+          source_asset="$asset_dir/jellyfin-ffmpeg-v7.1.4-3-source.tar.gz"
+          test "$(stat -f %z "$source_asset")" = "16698965"
+          test "$(shasum -a 256 "$source_asset" | awk '{print $1}')" \
+            = "38fff90f73b3c4f9c3c7270711411a4ec3cbe63b205d4b4a5525bcc532d3d31f"
 
       - name: Cryptographically verify every updater payload
         shell: bash
@@ -667,6 +770,10 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$COMMIT"
+          source_asset="/tmp/rav-updater-stage/jellyfin-ffmpeg-v7.1.4-3-source.tar.gz"
+          test "$(stat -c %s "$source_asset")" = "16698965"
+          test "$(sha256sum "$source_asset" | awk '{print $1}')" \
+            = "38fff90f73b3c4f9c3c7270711411a4ec3cbe63b205d4b4a5525bcc532d3d31f"
           node scripts/updater-staging-ledger.mjs create \
             --asset-dir /tmp/rav-updater-stage \
             --commit "$COMMIT" \

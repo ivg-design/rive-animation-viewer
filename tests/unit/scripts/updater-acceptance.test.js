@@ -5,6 +5,7 @@ import path from 'node:path';
 import {
     createLoopbackUpdaterManifest,
     createUpdaterStagingLedger,
+    ENCODER_SOURCE_ASSET_NAME,
     expectedUpdaterAssetNames,
     sha256File,
     verifyUpdaterAcceptanceReceipt,
@@ -131,7 +132,8 @@ describe('updater acceptance provenance', () => {
         const fixture = createFixture();
         try {
             const ledger = await createLedger(fixture);
-            expect(ledger.assets).toHaveLength(11);
+            expect(ledger.assets).toHaveLength(12);
+            expect(ledger.assets.map(({ name }) => name)).toContain(ENCODER_SOURCE_ASSET_NAME);
             await expect(verifyUpdaterStagingLedger({
                 assetDir: fixture.assetDir,
                 configPath: fixture.configPath,
@@ -150,6 +152,24 @@ describe('updater acceptance provenance', () => {
         try {
             await createLedger(fixture);
             fs.appendFileSync(path.join(fixture.assetDir, 'Rive.Animation.Viewer_aarch64.app.tar.gz'), '!');
+            await expect(verifyUpdaterStagingLedger({
+                assetDir: fixture.assetDir,
+                configPath: fixture.configPath,
+                expectedCommit: COMMIT,
+                expectedReleaseId: '1234',
+                expectedRepository: 'owner/repo',
+                ledgerPath: fixture.ledgerPath,
+            })).rejects.toThrow(/bytes changed/);
+        } finally {
+            fixture.cleanup();
+        }
+    });
+
+    it('rejects corresponding-source drift after staging', async () => {
+        const fixture = createFixture();
+        try {
+            await createLedger(fixture);
+            fs.appendFileSync(path.join(fixture.assetDir, ENCODER_SOURCE_ASSET_NAME), '!');
             await expect(verifyUpdaterStagingLedger({
                 assetDir: fixture.assetDir,
                 configPath: fixture.configPath,

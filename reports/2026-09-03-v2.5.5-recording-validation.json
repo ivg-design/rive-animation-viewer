@@ -1,0 +1,671 @@
+{
+  "date": "2026-09-03",
+  "release": "2.5.5-unreleased",
+  "platform": "macOS Apple silicon",
+  "runtime": "WebGL2 2.42.0",
+  "recordings": [
+    {
+      "case": "hevc-soak",
+      "state": "completed",
+      "format": "h265",
+      "width": 1920,
+      "height": 1080,
+      "fps": {
+        "denominator": 1000,
+        "numerator": 60000
+      },
+      "alpha": false,
+      "frames": 18605,
+      "received_frames": 18605,
+      "bytes": 40380162,
+      "warnings": [
+        "3265 presentation frames hold preceding captures; duration is preserved."
+      ],
+      "clock": null,
+      "capture": {
+        "encoded_frames": 18605,
+        "max_encode_queue": 0,
+        "repeated_frames": 3265
+      },
+      "verification": {
+        "codec": "hevc",
+        "decoded_frames": 18605,
+        "duration_seconds": 310.083333,
+        "timing_tolerance_seconds": 0.016666666666666666
+      },
+      "capture_seconds": 310.220093167,
+      "encode_seconds": 0.177727917,
+      "verify_seconds": 17.82848125,
+      "schedule": {
+        "applied": 630,
+        "cancelled": false,
+        "error": null,
+        "pending": 0,
+        "scheduled": 630
+      },
+      "max_event_lateness": 0.013666666666666938,
+      "late_after_300": [
+        {
+          "applied_seconds": 306.00800000000004,
+          "frame_index": 18360,
+          "index": 629,
+          "lateness_seconds": 0.008000000000038199,
+          "scheduled_seconds": 306,
+          "type": "vm-set"
+        }
+      ],
+      "build": "b0202",
+      "acceptance": "superseded-failed-smoothness-baseline",
+      "artifact": {
+        "name": "hevc-soak.mp4",
+        "sha256": "24a235f9dc21f2d07201eed93f68e262408e478bb9c88b3a3f63a46f04499a69"
+      }
+    },
+    {
+      "case": "fixed-clock-smoke",
+      "state": "completed",
+      "format": "h265",
+      "width": 1920,
+      "height": 1080,
+      "fps": {
+        "denominator": 1000,
+        "numerator": 60000
+      },
+      "alpha": false,
+      "frames": 1200,
+      "received_frames": 1200,
+      "bytes": 3554464,
+      "warnings": [],
+      "clock": {
+        "max_lag_ms": 20,
+        "mode": "fixed-step"
+      },
+      "capture": {
+        "encoded_frames": 1200,
+        "max_encode_queue": 0,
+        "repeated_frames": 0
+      },
+      "verification": {
+        "codec": "hevc",
+        "decoded_frames": 1200,
+        "duration_seconds": 20,
+        "timing_tolerance_seconds": 0.016666666666666666
+      },
+      "capture_seconds": 20.217383625,
+      "encode_seconds": 0.093335792,
+      "verify_seconds": 1.335163292,
+      "schedule": {
+        "applied": 601,
+        "cancelled": false,
+        "error": null,
+        "pending": 0,
+        "scheduled": 601
+      },
+      "max_event_lateness": 0.01666666666666665,
+      "late_after_300": [],
+      "build": "b0203",
+      "acceptance": "passed-with-documented-device-lag",
+      "artifact": {
+        "name": "fixed-clock-smoke.mp4",
+        "sha256": "8744d0ad0089720d4ba89f940b61b642da0832660f59ae803579abb0a8b3919a"
+      }
+    },
+    {
+      "case": "apng-alpha-clock",
+      "state": "completed",
+      "format": "apng",
+      "width": 1920,
+      "height": 1080,
+      "fps": {
+        "denominator": 1000,
+        "numerator": 60000
+      },
+      "alpha": true,
+      "frames": 300,
+      "received_frames": 300,
+      "bytes": 465504,
+      "warnings": [],
+      "clock": {
+        "max_lag_ms": 26.33333333334788,
+        "mode": "fixed-step"
+      },
+      "capture": null,
+      "verification": {
+        "codec": "apng",
+        "decoded_frames": 300,
+        "duration_seconds": 5.001000000000017,
+        "timing_tolerance_seconds": 0.016666666666666666
+      },
+      "capture_seconds": 5.037597167,
+      "encode_seconds": 9.68183825,
+      "verify_seconds": 0.36886325,
+      "schedule": {
+        "applied": 240,
+        "cancelled": false,
+        "error": null,
+        "pending": 0,
+        "scheduled": 240
+      },
+      "max_event_lateness": 0.01666666666666665,
+      "late_after_300": [],
+      "build": "b0203",
+      "acceptance": "passed-with-documented-device-lag",
+      "artifact": {
+        "name": "apng-alpha-clock.apng",
+        "sha256": "4fc5c193e93491785c8280e176c30b89892aaabffa797bc1bd21afa9b3755a3a"
+      }
+    },
+    {
+      "case": "webm-alpha-clock",
+      "state": "completed",
+      "format": "webm",
+      "width": 1920,
+      "height": 1080,
+      "fps": {
+        "denominator": 1000,
+        "numerator": 60000
+      },
+      "alpha": true,
+      "frames": 300,
+      "received_frames": 300,
+      "bytes": 659350,
+      "warnings": [],
+      "clock": {
+        "max_lag_ms": 20.999999999985448,
+        "mode": "fixed-step"
+      },
+      "capture": null,
+      "verification": {
+        "codec": "vp9",
+        "decoded_frames": 300,
+        "duration_seconds": 5,
+        "timing_tolerance_seconds": 0.016666666666666666
+      },
+      "capture_seconds": 5.039642667,
+      "encode_seconds": 12.599078958,
+      "verify_seconds": 0.535032708,
+      "schedule": {
+        "applied": 240,
+        "cancelled": false,
+        "error": null,
+        "pending": 0,
+        "scheduled": 240
+      },
+      "max_event_lateness": 0.01666666666666665,
+      "late_after_300": [],
+      "build": "b0203",
+      "acceptance": "passed-with-documented-device-lag",
+      "artifact": {
+        "name": "webm-alpha-clock.webm",
+        "sha256": "bad57a4631292b730761fe5faf7bba1bc7ab21f8095f825b71f813f7aed7dd16"
+      }
+    },
+    {
+      "case": "h264-opaque-clock",
+      "state": "completed",
+      "format": "h264",
+      "width": 1920,
+      "height": 1080,
+      "fps": {
+        "denominator": 1000,
+        "numerator": 60000
+      },
+      "alpha": false,
+      "frames": 300,
+      "received_frames": 300,
+      "bytes": 882832,
+      "warnings": [],
+      "clock": {
+        "max_lag_ms": 21.33333333333303,
+        "mode": "fixed-step"
+      },
+      "capture": {
+        "encoded_frames": 300,
+        "max_encode_queue": 0,
+        "repeated_frames": 0
+      },
+      "verification": {
+        "codec": "h264",
+        "decoded_frames": 300,
+        "duration_seconds": 5,
+        "timing_tolerance_seconds": 0.016666666666666666
+      },
+      "capture_seconds": 5.173764833,
+      "encode_seconds": 0.092426417,
+      "verify_seconds": 0.349879291,
+      "schedule": {
+        "applied": 240,
+        "cancelled": false,
+        "error": null,
+        "pending": 0,
+        "scheduled": 240
+      },
+      "max_event_lateness": 0.01666666666666665,
+      "late_after_300": [],
+      "build": "b0203",
+      "acceptance": "passed-with-documented-device-lag",
+      "artifact": {
+        "name": "h264-opaque-clock.mp4",
+        "sha256": "eaf4bfe2fbc7f4a90611a48a1283bc1f1e058a7158b997c435869dcc201e6940"
+      }
+    },
+    {
+      "case": "webm-opaque-clock",
+      "state": "completed",
+      "format": "webm",
+      "width": 1920,
+      "height": 1080,
+      "fps": {
+        "denominator": 1000,
+        "numerator": 60000
+      },
+      "alpha": false,
+      "frames": 300,
+      "received_frames": 300,
+      "bytes": 1767639,
+      "warnings": [],
+      "clock": {
+        "max_lag_ms": 16.66666666666697,
+        "mode": "fixed-step"
+      },
+      "capture": {
+        "encoded_frames": 300,
+        "max_encode_queue": 0,
+        "repeated_frames": 0
+      },
+      "verification": {
+        "codec": "vp9",
+        "decoded_frames": 300,
+        "duration_seconds": 5,
+        "timing_tolerance_seconds": 0.016666666666666666
+      },
+      "capture_seconds": 5.055607834,
+      "encode_seconds": 0.093520042,
+      "verify_seconds": 0.435640292,
+      "schedule": {
+        "applied": 240,
+        "cancelled": false,
+        "error": null,
+        "pending": 0,
+        "scheduled": 240
+      },
+      "max_event_lateness": 0.01666666666666665,
+      "late_after_300": [],
+      "build": "b0203",
+      "acceptance": "passed-with-documented-device-lag",
+      "artifact": {
+        "name": "webm-opaque-clock.webm",
+        "sha256": "c30c97cd437e3785c7e30cd659675dfe319eaae8538d53e0244371c46bd699f5"
+      }
+    },
+    {
+      "case": "final-soak",
+      "state": "completed",
+      "format": "h265",
+      "width": 1920,
+      "height": 1080,
+      "fps": {
+        "denominator": 1000,
+        "numerator": 60000
+      },
+      "alpha": false,
+      "frames": 18604,
+      "received_frames": 18604,
+      "bytes": 40347284,
+      "warnings": [],
+      "clock": {
+        "max_lag_ms": 649,
+        "mode": "fixed-step"
+      },
+      "capture": {
+        "encoded_frames": 18604,
+        "max_encode_queue": 4,
+        "repeated_frames": 0
+      },
+      "verification": {
+        "codec": "hevc",
+        "decoded_frames": 18604,
+        "duration_seconds": 310.066667,
+        "timing_tolerance_seconds": 0.016666666666666666
+      },
+      "capture_seconds": 310.196368,
+      "encode_seconds": 0.182736375,
+      "verify_seconds": 17.506352084,
+      "schedule": {
+        "applied": 630,
+        "cancelled": false,
+        "error": null,
+        "pending": 0,
+        "scheduled": 630
+      },
+      "max_event_lateness": 1.7763568394002505e-15,
+      "late_after_300": [
+        {
+          "applied_seconds": 306,
+          "frame_index": 18360,
+          "index": 629,
+          "lateness_seconds": 0,
+          "scheduled_seconds": 306,
+          "type": "vm-set"
+        }
+      ],
+      "build": "b0204",
+      "acceptance": "passed-with-documented-device-lag",
+      "artifact": {
+        "name": "final-soak.mp4",
+        "sha256": "3f39bab02921be0289046af68dc8f933b06578ced22523dcb8fa6bd63fcf02d2"
+      }
+    },
+    {
+      "case": "final-b0206",
+      "state": "completed",
+      "format": "h265",
+      "width": 1920,
+      "height": 1080,
+      "fps": {
+        "denominator": 1000,
+        "numerator": 60000
+      },
+      "frames": 600,
+      "received_frames": 600,
+      "bytes": 2373171,
+      "warnings": [],
+      "clock": {
+        "max_lag_ms": 21.33333333333337,
+        "mode": "fixed-step"
+      },
+      "capture": {
+        "encoded_frames": 600,
+        "max_encode_queue": 0,
+        "repeated_frames": 0
+      },
+      "verification": {
+        "codec": "hevc",
+        "decoded_frames": 600,
+        "duration_seconds": 10,
+        "timing_tolerance_seconds": 0.016666666666666666
+      },
+      "capture_seconds": 10.135600875,
+      "encode_seconds": 0.093465584,
+      "verify_seconds": 0.755355667,
+      "schedule": {
+        "applied": 600,
+        "cancelled": false,
+        "error": null,
+        "pending": 0,
+        "scheduled": 600
+      },
+      "distinct_scheduled_frames": 600,
+      "max_event_lateness": 1.7763568394002505e-15,
+      "build": "b0206",
+      "acceptance": "passed-with-documented-device-lag",
+      "artifact": {
+        "name": "final-b0206.mp4",
+        "sha256": "049aa41f17c6596cf3dfe69f2b68aba8ff289ef59b0c32a311a258378dcbe14b"
+      }
+    },
+    {
+      "case": "final-b0208",
+      "state": "completed",
+      "format": "h265",
+      "width": 1920,
+      "height": 1080,
+      "fps": {
+        "denominator": 1000,
+        "numerator": 60000
+      },
+      "frames": 600,
+      "received_frames": 600,
+      "bytes": 2373171,
+      "warnings": [],
+      "clock": {
+        "max_lag_ms": 25,
+        "mode": "fixed-step"
+      },
+      "capture": {
+        "encoded_frames": 600,
+        "max_encode_queue": 0,
+        "repeated_frames": 0
+      },
+      "verification": {
+        "codec": "hevc",
+        "decoded_frames": 600,
+        "duration_seconds": 10,
+        "timing_tolerance_seconds": 0.016666666666666666
+      },
+      "capture_seconds": 10.082103292,
+      "encode_seconds": 0.087728667,
+      "verify_seconds": 0.796484042,
+      "schedule": {
+        "applied": 600,
+        "cancelled": false,
+        "error": null,
+        "pending": 0,
+        "scheduled": 600
+      },
+      "distinct_scheduled_frames": 600,
+      "max_event_lateness": 1.7763568394002505e-15,
+      "decoded_frame_hashes": {
+        "count": 600,
+        "distinct": 600,
+        "duplicates": 0
+      },
+      "build": "b0208-20260903-1451-95eb566-dirty",
+      "acceptance": "passed-mechanics-and-decoded-motion",
+      "artifact": {
+        "name": "final-b0208.mp4",
+        "sha256": "049aa41f17c6596cf3dfe69f2b68aba8ff289ef59b0c32a311a258378dcbe14b"
+      }
+    }
+  ],
+  "decoded_motion": {
+    "sample_seconds": 10,
+    "decoded_frames": 600,
+    "unique_pixel_hashes": 600,
+    "adjacent_equal": 0
+  },
+  "fault_tests_b0205": [
+    {
+      "case": "step-guard-and-cancel",
+      "state": "cancelled",
+      "cancel_ms": 24
+    },
+    {
+      "case": "renderer-prefix-recovery",
+      "state": "failed",
+      "accepted_frames": 30,
+      "recovered_decoded_frames": 30,
+      "published": false
+    },
+    {
+      "case": "cancel-stalled-stop",
+      "cancel_ms": 49,
+      "state": "cancelled"
+    },
+    {
+      "case": "failed-preparation-cleanup",
+      "recording_active": false
+    },
+    {
+      "case": "fresh-recording-after-faults",
+      "frames": 120,
+      "state": "completed"
+    }
+  ],
+  "scope_notes": [
+    "No production, Launch Services, or file-association changes.",
+    "Hardware preference is not proof of hardware encoding on every machine.",
+    "A 649ms minimize/restore stall caught up without synthetic holds; zero wall-time stalls on arbitrary hardware is not guaranteed.",
+    "Explicit gifski CLI still has a platform argument-count ceiling; automatic long GIF chooses FFmpeg when available.",
+    "Packaging and redistribution review, Windows/Linux runtime QA, signing/notarization, and user acceptance remain separate."
+  ],
+  "preview_density": {
+    "build": "b0208-20260903-1451-95eb566-dirty",
+    "output": {
+      "width": 320,
+      "height": 180,
+      "fps": 60,
+      "frames": 480,
+      "duration_seconds": 8,
+      "sha256": "775a714539cd227333d9056d68ee6b4ea5cdb8b9e27fbb9d2d4e2804d78d3380"
+    },
+    "during_capture": {
+      "backingHeight": 1037,
+      "backingWidth": 1844,
+      "cssHeight": 518.625,
+      "cssWidth": 922,
+      "devicePixelRatio": 2,
+      "renderPixelRatio": 5.7625
+    },
+    "after_capture": {
+      "backingWidth": 1844,
+      "backingHeight": 1508,
+      "cssWidth": 922,
+      "cssHeight": 754,
+      "devicePixelRatio": 2,
+      "recording": false
+    },
+    "visual_evidence": "b0208-preview-density.png",
+    "result": "crisp visible preview; small output retained requested pixels"
+  },
+  "mcp_matrix": {
+    "build": "b0206-20260903-1024-95eb566-dirty",
+    "cases": 267,
+    "states": {
+      "passed_rejection": 57,
+      "passed_mechanics": 72,
+      "passed_mechanics_needs_visual_review": 122,
+      "passed_command": 3,
+      "blocked_fixture_gap": 12,
+      "failed_pre_fix": 1
+    },
+    "artifacts": 190,
+    "artifact_bytes": 4521988,
+    "recordings_with_fixed_clock": 112,
+    "held_frames": 0,
+    "max_recording_lag_ms": 199.6666666666667,
+    "tools_total": 57,
+    "media_tools": [
+      "rav_media_capabilities",
+      "rav_export_media",
+      "rav_record_start",
+      "rav_record_stop",
+      "rav_media_status",
+      "rav_media_cancel",
+      "rav_step_frames",
+      "rav_pointer"
+    ],
+    "blocked_fixture_categories": [
+      "timed global boolean/enum/trigger/image/clear-image",
+      "scheduled list image/clear-image",
+      "scheduled global boolean/enum/trigger/image/clear-image"
+    ],
+    "note": "The single source-replacement lifecycle failure was fixed and rerun on b0207 and final b0208; blocked rows were not claimed."
+  },
+  "source_replacement_final": {
+    "build": "b0208-20260903-1451-95eb566-dirty",
+    "state": "passed-mechanics",
+    "elapsed_seconds": 1.3118592919781804,
+    "terminal_state": "failed",
+    "error": "Capture stopped because the source or playback selection changed.",
+    "received_frames_retained": 8,
+    "published": false,
+    "recovery_spool_cleaned_after_inspection": true
+  },
+  "fault_tests_b0207": [
+    {
+      "case": "step-guard-and-cancel",
+      "state": "cancelled",
+      "cancel_ms": 9
+    },
+    {
+      "case": "renderer-prefix-recovery",
+      "state": "failed",
+      "accepted_frames": 30,
+      "recovered_decoded_frames": 30,
+      "published": false
+    },
+    {
+      "case": "cancel-stalled-stop",
+      "cancel_ms": 34,
+      "state": "cancelled"
+    },
+    {
+      "case": "failed-preparation-cleanup",
+      "recording_active": false
+    },
+    {
+      "case": "fresh-recording-after-faults",
+      "frames": 120,
+      "state": "completed"
+    }
+  ],
+  "long_drain_b0207": {
+    "build": "b0207",
+    "injected_slow_drain": true,
+    "injection": {
+      "frames": 19,
+      "injected_debt": 70
+    },
+    "stop_response_ms": 1,
+    "stop_state": "encoding",
+    "after_60s": {
+      "elapsed": 62.19908104185015,
+      "state": "encoding",
+      "stage": "draining",
+      "received_frames": 75
+    },
+    "state": "completed",
+    "wall_drain_seconds": 71.86444862512872,
+    "frame_count": 90,
+    "verification": {
+      "codec": "hevc",
+      "decoded_frames": 90,
+      "duration_seconds": 1.5,
+      "timing_tolerance_seconds": 0.016666666666666666
+    },
+    "warnings": []
+  },
+  "automated_checks": {
+    "source": {
+      "architecture_files": 372,
+      "dependency_modules": 203,
+      "dependency_edges": 337,
+      "dependency_violations": 0,
+      "vitest_files": 118,
+      "vitest_tests": 1385,
+      "telemetry_tests": 18
+    },
+    "native": {
+      "unit_passed": 35,
+      "unit_ignored_real_tool_cases": 8,
+      "real_artifact_streaming_passed": 4
+    },
+    "build": {
+      "id": "b0208-20260903-1451-95eb566-dirty",
+      "unsigned_dev": true,
+      "warnings": 7
+    }
+  },
+  "final_preflight": {
+    "build": "b0208-20260903-1451-95eb566-dirty",
+    "tools": 57,
+    "formats_available": [
+      "h264",
+      "h265",
+      "webm",
+      "apng",
+      "gif",
+      "png",
+      "jpg",
+      "webp"
+    ],
+    "product_caps": {
+      "duration_seconds": null,
+      "frames": null,
+      "job_lifetime_seconds": null,
+      "output_bytes": null,
+      "spool_bytes": null
+    }
+  }
+}

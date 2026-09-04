@@ -311,11 +311,42 @@ describe('platform/mcp authoritative render-surface contract', () => {
 
     it('rejects an artboard switch when the child does not confirm the requested playback target', async () => {
         const harness = makeHarness();
+        harness.canonicalState.animationNames = ['Missing'];
+        harness.canonicalState.artboards = ['Visible'];
         harness.windowRef._mcpSwitchArtboard = vi.fn(async () => {});
         const commands = createStatusPlaybackCommands({ documentRef: document, windowRef: harness.windowRef });
 
         await expect(commands.rav_switch_artboard({ artboard: 'Visible', playback: 'anim:Missing' }))
             .resolves.toEqual(expect.objectContaining({ applied: false, status: 'rejected' }));
+    });
+
+    it('rejects an unknown playback before dispatch even when the child would echo it', async () => {
+        const harness = makeHarness();
+        harness.canonicalState.animationNames = ['Timeline'];
+        harness.canonicalState.artboards = ['Visible'];
+        harness.windowRef._mcpSwitchArtboard = vi.fn(async (_artboard, playback) => {
+            harness.canonicalState.playback = {
+                type: 'animation', name: String(playback).slice(5), isPlaying: true, isPaused: false,
+            };
+        });
+        const commands = createStatusPlaybackCommands({ documentRef: document, windowRef: harness.windowRef });
+
+        await expect(commands.rav_switch_artboard({ artboard: 'Visible', playback: 'anim:Definitely Missing' }))
+            .rejects.toThrow('Animation "Definitely Missing" was not found on artboard "Visible"');
+        expect(harness.windowRef._mcpSwitchArtboard).not.toHaveBeenCalled();
+    });
+
+    it('rejects a playback type mismatch before dispatch', async () => {
+        const harness = makeHarness();
+        harness.canonicalState.animationNames = ['Shared'];
+        harness.canonicalState.stateMachines = ['Machine'];
+        harness.canonicalState.artboards = ['Visible'];
+        harness.windowRef._mcpSwitchArtboard = vi.fn();
+        const commands = createStatusPlaybackCommands({ documentRef: document, windowRef: harness.windowRef });
+
+        await expect(commands.rav_switch_artboard({ artboard: 'Visible', playback: 'sm:Shared' }))
+            .rejects.toThrow('State machine "Shared" was not found on artboard "Visible"');
+        expect(harness.windowRef._mcpSwitchArtboard).not.toHaveBeenCalled();
     });
 
     it('includes canonical timeline totals in status for the timecode panel', async () => {

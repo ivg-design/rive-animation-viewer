@@ -1,4 +1,6 @@
-import { normalizeStateMachineSelection } from '../../rive/default-state-machine.js';
+import { buildDemoBundlePayload } from './demo-payload.js';
+export { arrayBufferToBase64, resolveExportStateMachines, buildDemoBundlePayload } from './demo-payload.js';
+import { createSourceScope, sourceScopesMatch } from '../../rive/inspection/source-scope.js';
 import {
     controlSelectionKeyForDescriptor,
     isControlDescriptorSelected,
@@ -10,76 +12,6 @@ import {
 } from './web-instantiation.js';
 import { createRenderSourceIdentityResolver } from './render-source-identity.js';
 
-export function arrayBufferToBase64(buffer) {
-    if (!(buffer instanceof ArrayBuffer)) {
-        return '';
-    }
-    let binary = '';
-    const bytes = new Uint8Array(buffer);
-    const chunkSize = 0x8000;
-    for (let index = 0; index < bytes.length; index += chunkSize) {
-        const chunk = bytes.subarray(index, index + chunkSize);
-        binary += String.fromCharCode.apply(null, chunk);
-    }
-    return btoa(binary);
-}
-
-export function resolveExportStateMachines(configStateMachines, detectedStateMachines = []) {
-    const configuredStateMachines = normalizeStateMachineSelection(configStateMachines);
-    return configuredStateMachines.length ? configuredStateMachines : detectedStateMachines;
-}
-
-export function buildDemoBundlePayload({
-    artboardState = {},
-    controlSelectionKeys = [],
-    controlSnapshot = null,
-    currentFileBuffer,
-    currentLayoutAlignment = 'center',
-    currentCanvasSizing = null,
-    currentFileName,
-    currentLayoutFit = 'contain',
-    defaultInstantiationPackageSource = 'cdn',
-    editorCode = '',
-    editorConfig = {},
-    layoutState = {},
-    instantiationSnippets = null,
-    runtimeName,
-    runtimeScript,
-    runtimeVersion,
-    stateMachines = [],
-    canvasBackgroundState = {},
-    vmHierarchy = null,
-    instantiationCode = '',
-    instantiationSourceMode = 'internal',
-} = {}) {
-    return {
-        file_name: currentFileName,
-        animation_base64: arrayBufferToBase64(currentFileBuffer),
-        runtime_name: runtimeName,
-        runtime_version: runtimeVersion,
-        runtime_script: runtimeScript,
-        autoplay: typeof editorConfig.autoplay === 'boolean' ? editorConfig.autoplay : true,
-        layout_alignment: currentLayoutAlignment,
-        layout_fit: currentLayoutFit,
-        state_machines: stateMachines,
-        animations: artboardState.currentPlaybackType === 'animation' && artboardState.currentPlaybackName ? [artboardState.currentPlaybackName] : [],
-        artboard_name: artboardState.currentArtboard,
-        canvas_color: canvasBackgroundState.canvasTransparent ? null : canvasBackgroundState.canvasColor,
-        canvas_sizing: currentCanvasSizing ? JSON.stringify(currentCanvasSizing) : null,
-        canvas_transparent: canvasBackgroundState.canvasTransparent,
-        control_selection_keys: JSON.stringify(controlSelectionKeys),
-        control_snapshot: controlSnapshot ? JSON.stringify(controlSnapshot) : null,
-        default_instantiation_package_source: defaultInstantiationPackageSource,
-        editor_code: editorCode,
-        instantiation_code: instantiationCode,
-        instantiation_snippets: instantiationSnippets ? JSON.stringify(instantiationSnippets) : null,
-        instantiation_source_mode: instantiationSourceMode,
-        layout_state: JSON.stringify(layoutState),
-        view_model_instance_name: artboardState.currentVmInstanceName ?? null,
-        vm_hierarchy: vmHierarchy ? JSON.stringify(vmHierarchy) : null,
-    };
-}
-
 export function createDemoExportController({
     callbacks = {},
     getArtboardStateSnapshot = () => ({}),
@@ -87,6 +19,8 @@ export function createDemoExportController({
     getCurrentFileBuffer = () => null,
     getCurrentFileName = () => null,
     getCurrentFilePreferenceId = () => null,
+    getControlSnapshotScope = () => null,
+    getInspectionMetadata = () => null,
     getCurrentCanvasSizing = () => null,
     getCurrentLayoutAlignment = () => 'center',
     getCurrentLayoutFit = () => 'contain',
@@ -155,12 +89,27 @@ export function createDemoExportController({
         }
 
         const runtimeName = getCurrentRuntime();
+        const buffer = getCurrentFileBuffer();
+        const preferenceId = getCurrentFilePreferenceId();
+        const selection = getArtboardStateSnapshot();
+        const runtimeToken = getRuntimeVersionToken();
         await ensureRuntime(runtimeName);
+        if (currentFileName !== getCurrentFileName() || buffer !== getCurrentFileBuffer()
+            || preferenceId !== getCurrentFilePreferenceId() || runtimeName !== getCurrentRuntime()
+            || runtimeToken !== getRuntimeVersionToken()
+            || JSON.stringify(selection) !== JSON.stringify(getArtboardStateSnapshot())) {
+            throw new Error('Snippet source changed during preparation.');
+        }
         const runtimeAsset = getRuntimeAsset(runtimeName);
         const selectedRuntimeSemver = runtimeAsset?.version || getEffectiveRuntimeVersionToken(getRuntimeVersionToken());
+        const metadata = getInspectionMetadata();
+        const canCapture = sourceScopesMatch(getControlSnapshotScope(), createSourceScope({
+            sourceIdentity: metadata?.sourceIdentity, runtimeKey: `${runtimeName}@${selectedRuntimeSemver}`,
+            artboardKey: selection.currentArtboard, vmInstanceKey: selection.currentVmInstanceName,
+        }));
         const liveConfigState = getLiveConfigState();
         const controlSelectionKeys = resolveSelectedControlKeys(selectedControlKeys);
-        const controlSnapshot = snippetMode === 'scaffold'
+        const controlSnapshot = !canCapture ? [] : snippetMode === 'scaffold'
             ? resolveAllControlSnapshot()
             : resolveSelectedControlSnapshot(controlSelectionKeys);
         const descriptor = buildEffectiveInstantiationDescriptor({
@@ -200,7 +149,20 @@ export function createDemoExportController({
         }
 
         const runtimeName = getCurrentRuntime();
+        const preferenceId = getCurrentFilePreferenceId();
+        const runtimeToken = getRuntimeVersionToken();
+        const initialSelection = JSON.stringify(getArtboardStateSnapshot());
+        const assertCurrent = () => {
+            if (currentFileBuffer !== getCurrentFileBuffer() || currentFileName !== getCurrentFileName()
+                || preferenceId !== getCurrentFilePreferenceId() || runtimeName !== getCurrentRuntime()
+                || runtimeToken !== getRuntimeVersionToken() || initialSelection !== JSON.stringify(getArtboardStateSnapshot())) {
+                throw new Error('Export source changed during preparation.');
+            }
+        };
+        const sourceIdentity = await resolveRenderSourceIdentity(currentFileBuffer, preferenceId);
+        assertCurrent();
         await ensureRuntime(runtimeName);
+        assertCurrent();
 
         const runtimeAsset = getRuntimeAsset(runtimeName);
         if (!runtimeAsset?.text) {
@@ -208,9 +170,14 @@ export function createDemoExportController({
         }
 
         const selectedRuntimeSemver = runtimeAsset.version || getEffectiveRuntimeVersionToken(getRuntimeVersionToken());
+        const selection = getArtboardStateSnapshot();
+        const sourceScope = createSourceScope({ sourceIdentity,
+            runtimeKey: `${runtimeName}@${selectedRuntimeSemver}`,
+            artboardKey: selection.currentArtboard, vmInstanceKey: selection.currentVmInstanceName });
+        const canCapture = sourceScopesMatch(getControlSnapshotScope(), sourceScope);
         const defaultPackageSource = packageSource === 'local' ? 'local' : 'cdn';
         const controlSelectionKeys = resolveSelectedControlKeys(selectedControlKeys);
-        const controlSnapshot = resolveSelectedControlSnapshot(controlSelectionKeys);
+        const controlSnapshot = canCapture ? resolveSelectedControlSnapshot(controlSelectionKeys) : [];
         const descriptor = buildEffectiveInstantiationDescriptor({
             artboardState: getArtboardStateSnapshot(),
             currentFileName,
@@ -229,13 +196,13 @@ export function createDemoExportController({
         });
         const instantiationSnippets = {
             cdn: buildWebInstantiationResult(descriptor, {
-                controlSnapshot: snippetMode === 'scaffold' ? resolveAllControlSnapshot() : controlSnapshot,
+                controlSnapshot: snippetMode === 'scaffold' && canCapture ? resolveAllControlSnapshot() : controlSnapshot,
                 packageSource: 'cdn',
                 selectedControlKeys: controlSelectionKeys,
                 snippetMode,
             }),
             local: buildWebInstantiationResult(descriptor, {
-                controlSnapshot: snippetMode === 'scaffold' ? resolveAllControlSnapshot() : controlSnapshot,
+                controlSnapshot: snippetMode === 'scaffold' && canCapture ? resolveAllControlSnapshot() : controlSnapshot,
                 packageSource: 'local',
                 selectedControlKeys: controlSelectionKeys,
                 snippetMode,
@@ -272,20 +239,24 @@ export function createDemoExportController({
             runtimeVersion: selectedRuntimeSemver,
             stateMachines: descriptor.stateMachines,
             canvasBackgroundState: getCanvasBackgroundStateSnapshot(),
-            vmHierarchy: serializeVmHierarchy(),
+            vmHierarchy: canCapture ? serializeVmHierarchy() : null,
+            inspectionMetadata: getInspectionMetadata(),
         });
 
+        assertCurrent();
+        if (sourceIdentity !== await resolveRenderSourceIdentity(currentFileBuffer, preferenceId)) {
+            throw new Error('Export source bytes changed during preparation.');
+        }
+        assertCurrent();
         return {
+            assertCurrent, sourceScope,
             currentFileName,
             instantiationResult: instantiationSnippets[defaultPackageSource],
             instantiationSnippets,
             payload,
             runtimeName,
             runtimeVersion: selectedRuntimeSemver,
-            sourceIdentity: await resolveRenderSourceIdentity(
-                currentFileBuffer,
-                getCurrentFilePreferenceId(),
-            ),
+            sourceIdentity,
         };
     }
 
@@ -295,7 +266,9 @@ export function createDemoExportController({
             selectedControlKeys: [],
             snippetMode: 'compact',
         });
-        const controlSnapshot = resolveAllControlSnapshot();
+        context.assertCurrent();
+        const controlSnapshot = sourceScopesMatch(getControlSnapshotScope(), context.sourceScope)
+            ? resolveAllControlSnapshot() : [];
         return {
             ...context,
             payload: {

@@ -1,6 +1,6 @@
 {
   "name": "rive-animation-viewer",
-  "version": "2.5.4",
+  "version": "2.5.5",
   "description": "Desktop and web viewer for .riv files with ViewModel controls, artboard/animation switching, script editor, event console, standalone export, and MCP remote control",
   "main": "index.html",
   "scripts": {
@@ -11,7 +11,7 @@
     "generate:snippets": "node scripts/generate-snippet-modules.mjs",
     "check:architecture": "node scripts/check-architecture.mjs",
     "check:deps": "depcruise --config .dependency-cruiser.cjs mcp-server/index.js src/app",
-    "test": "npm run generate:snippets && npm run check:architecture && npm run check:deps && vitest run && npm run test:counter",
+    "test": "npm run generate:snippets && npm run generate:media-tools && npm run check:architecture && npm run check:deps && vitest run && npm run test:counter",
     "test:counter": "npm --prefix telemetry/worker test",
     "test:unit": "vitest run tests/unit",
     "test:smoke": "vitest run tests/smoke",
@@ -24,7 +24,7 @@
     "prebuild": "npm run test",
     "build:mcp": "node scripts/build-mcp-sidecar.mjs",
     "build:mcp:debug": "node scripts/build-mcp-sidecar.mjs --debug",
-    "build": "npm run generate:snippets && node scripts/build-dist.mjs",
+    "build": "npm run generate:snippets && npm run generate:media-tools && node scripts/build-dist.mjs",
     "build:dev:web": "node scripts/build-dev-dist.mjs",
     "build:dev": "tauri build --bundles app --no-sign --config src-tauri/tauri.flicker-test.conf.json",
     "build:docs-capture": "npm run build:dev -- --features docs-capture",
@@ -35,7 +35,8 @@
     "sync": "node scripts/sync-version.mjs",
     "verify:updater-signatures": "node scripts/verify-updater-signatures.mjs",
     "verify:updater-staging": "node scripts/updater-staging-ledger.mjs",
-    "verify:windows-document-icon": "node scripts/verify-windows-document-icon.mjs"
+    "verify:windows-document-icon": "node scripts/verify-windows-document-icon.mjs",
+    "generate:media-tools": "node scripts/generate-media-tools.mjs"
   },
   "keywords": [
     "rive",

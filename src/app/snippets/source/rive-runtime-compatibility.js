@@ -41,12 +41,8 @@ function createRiveRuntimeCompatibility() {
         try {
             const activeArtboard = instance?.activeArtboard;
             if (typeof activeArtboard !== 'string' || !activeArtboard) return null;
-            let artboards = inputMetadata.get(instance);
-            if (!artboards) {
-                artboards = instance?.contents?.artboards;
-                if (!Array.isArray(artboards)) return null;
-                inputMetadata.set(instance, artboards);
-            }
+            const artboards = getInspectionMetadata(instance)?.artboards;
+            if (!Array.isArray(artboards)) return null;
             const artboard = artboards.find((entry) => entry?.name === activeArtboard);
             if (!Array.isArray(artboard?.stateMachines)) return null;
             const machine = artboard.stateMachines.find((entry) => entry?.name === stateMachineName);
@@ -56,11 +52,19 @@ function createRiveRuntimeCompatibility() {
         }
     }
 
-    // File contents are immutable, but Rive.load() can reuse a wrapper. Call at
+    function setInspectionMetadata(instance, metadata) {
+        if (!instance) return;
+        if (Array.isArray(metadata?.artboards)) inputMetadata.set(instance, metadata);
+        else inputMetadata.delete(instance);
+    }
+
+    function getInspectionMetadata(instance) { return instance ? inputMetadata.get(instance) || null : null; }
+
+    // Inspected metadata is immutable, but Rive.load() can reuse a wrapper. Call at
     // the start of onLoad before rebuilding controls or invoking user code.
     function clearStateMachineInputMetadata(instance) {
         if (instance) inputMetadata.delete(instance);
     }
 
-    return { isModernRuntime, getStateMachineNames, normalizePlaybackConfig, getStateMachineInputMetadata, clearStateMachineInputMetadata };
+    return { isModernRuntime, getStateMachineNames, normalizePlaybackConfig, getStateMachineInputMetadata, clearStateMachineInputMetadata, setInspectionMetadata, getInspectionMetadata };
 }

@@ -27,9 +27,11 @@ fi
 case "$expected_arch" in
   aarch64 | arm64)
     expected_macho_arch=arm64
+    encoder_target=aarch64-apple-darwin
     ;;
   x86_64 | x64)
     expected_macho_arch=x86_64
+    encoder_target=x86_64-apple-darwin
     ;;
   *)
     echo "Unsupported architecture: $expected_arch" >&2
@@ -176,6 +178,11 @@ verify_app() {
   local bundle_id
   local bundle_short_version
   local bundle_version
+  local encoder
+  local encoder_name
+  local encoder_root
+  local relative_resource
+  local resource_file
 
   codesign --verify --deep --strict --verbose=4 "$app_path"
   require_signature_contract "$app_path"
@@ -212,13 +219,30 @@ verify_app() {
   [[ "$sidecar_count" == 1 ]] \
     || fail "$label contains $sidecar_count rav-mcp binaries; expected exactly one"
 
-  if [[ -d "$app_path/Contents/Resources" ]]; then
-    while IFS= read -r -d '' resource_file; do
-      if file -b "$resource_file" | grep -Fq 'Mach-O'; then
-        fail "$label contains an unexpected Mach-O executable in Resources: $resource_file"
-      fi
-    done < <(find "$app_path/Contents/Resources" -type f -print0)
-  fi
+  node "$repo_root/scripts/encoder-distribution/encoders.mjs" verify-bundle \
+    --target "$encoder_target" \
+    --app "$app_path"
+
+  encoder_root="$app_path/Contents/Resources/encoders"
+  for encoder_name in ffmpeg ffprobe; do
+    encoder="$encoder_root/$encoder_name"
+    [[ -x "$encoder" ]] || fail "$label production encoder is missing: $encoder"
+    codesign --verify --strict --verbose=4 "$encoder"
+    require_signature_contract "$encoder"
+    require_hardened_runtime "$encoder"
+    require_architecture "$encoder"
+    reject_forbidden_entitlements "$encoder"
+  done
+
+  while IFS= read -r -d '' resource_file; do
+    if file -b "$resource_file" | grep -Fq 'Mach-O'; then
+      relative_resource=${resource_file#"$app_path/Contents/Resources/"}
+      case "$relative_resource" in
+        encoders/ffmpeg | encoders/ffprobe) ;;
+        *) fail "$label contains an undeclared Mach-O executable in Resources: $resource_file" ;;
+      esac
+    fi
+  done < <(find "$app_path/Contents/Resources" -type f -print0)
 
   for executable in "$main_binary" "$sidecar"; do
     codesign --verify --strict --verbose=4 "$executable"

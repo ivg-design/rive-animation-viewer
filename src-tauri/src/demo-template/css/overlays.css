@@ -104,6 +104,19 @@ body.render-surface-mode #rive-canvas.rive-canvas-fixed-size {
     margin: auto;
 }
 
+/* Output aspect ratio can leave space around a live recording canvas. */
+body.render-surface-mode #canvas-container.canvas-container-media-capture {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+body.render-surface-mode .canvas-container-media-capture #rive-canvas {
+    flex: none;
+    margin: auto;
+}
+
 /* ── Responsive ──────────────────────────────────────────── */
 
 @media (max-width: 1100px) {

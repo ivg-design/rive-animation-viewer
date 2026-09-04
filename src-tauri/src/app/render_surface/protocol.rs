@@ -5,8 +5,9 @@ use tauri::{
 };
 
 use super::{
-    registry::RenderSurfaceManager, source::render_surface_file_name, MAIN_WINDOW_LABEL,
-    RENDER_SURFACE_BRIDGE_PROBE_PATH, RENDER_SURFACE_DIRECTORY, RENDER_SURFACE_LABEL_PREFIX,
+    registry::{RenderSurfaceManager, SurfaceResource},
+    source::render_surface_file_name,
+    MAIN_WINDOW_LABEL, RENDER_SURFACE_BRIDGE_PROBE_PATH, RENDER_SURFACE_DIRECTORY,
     RENDER_SURFACE_STARTUP_RECEIPT_PATH,
 };
 
@@ -16,18 +17,34 @@ use super::{
 pub fn serve_render_surface_protocol<R: Runtime>(
     context: UriSchemeContext<'_, R>,
     request: Request<Vec<u8>>,
+    responder: tauri::UriSchemeResponder,
+) {
+    if request.uri().path().starts_with("/__rav-media/") {
+        super::messages::media_upload::serve(
+            context.app_handle().clone(),
+            context.webview_label().to_owned(),
+            request,
+            responder,
+        );
+    } else {
+        responder.respond(serve_document(context, request));
+    }
+}
+
+fn serve_document<R: Runtime>(
+    context: UriSchemeContext<'_, R>,
+    request: Request<Vec<u8>>,
 ) -> Response<Vec<u8>> {
-    let Some(session_id) = context
-        .webview_label()
-        .strip_prefix(RENDER_SURFACE_LABEL_PREFIX)
+    let Some(surface) = authorized_surface_for_label(context.app_handle(), context.webview_label())
     else {
         return protocol_error(StatusCode::NOT_FOUND, "Render surface resource not found");
     };
+    let session_id = surface.session_id.as_str();
     if request.uri().path() == RENDER_SURFACE_BRIDGE_PROBE_PATH {
-        return serve_bridge_probe(&context, session_id, request.uri().query());
+        return serve_bridge_probe(&context, &surface, request.uri().query());
     }
     if request.uri().path() == RENDER_SURFACE_STARTUP_RECEIPT_PATH {
-        return serve_startup_receipt(&context, session_id, request.uri().query());
+        return serve_startup_receipt(&context, &surface, request.uri().query());
     }
     let expected_file_name = render_surface_file_name(session_id);
     let requested_file_name = request.uri().path().trim_start_matches('/');
@@ -63,21 +80,46 @@ pub fn serve_render_surface_protocol<R: Runtime>(
 
 fn serve_startup_receipt<R: Runtime>(
     context: &UriSchemeContext<'_, R>,
-    session_id: &str,
+    surface: &SurfaceResource,
     query: Option<&str>,
 ) -> Response<Vec<u8>> {
-    if !receipt_session_is_authorized(context.app_handle(), session_id) {
+    let Some(current) = authorized_surface_for_label(context.app_handle(), context.webview_label())
+    else {
+        return protocol_error(
+            StatusCode::GONE,
+            "Render surface session is no longer active",
+        );
+    };
+    if current != *surface {
         return protocol_error(
             StatusCode::GONE,
             "Render surface session is no longer active",
         );
     }
-    let Some((event_name, payload)) = parse_startup_receipt(session_id, query) else {
+    let Some((event_name, mut payload)) = parse_startup_receipt(&surface.session_id, query) else {
         return protocol_error(
             StatusCode::BAD_REQUEST,
             "Invalid render surface startup receipt",
         );
     };
+    payload["activationAttempt"] = surface.activation_attempt.into();
+    if event_name == "render-surface:loaded" {
+        let acknowledged = context
+            .app_handle()
+            .try_state::<RenderSurfaceManager>()
+            .and_then(|manager| {
+                manager
+                    .acknowledge_first_frame(&surface.label)
+                    .ok()
+                    .flatten()
+            });
+        if acknowledged.as_ref() != Some(surface) {
+            return protocol_error(
+                StatusCode::GONE,
+                "Render surface session is no longer active",
+            );
+        }
+    }
     let _ = context
         .app_handle()
         .emit_to(MAIN_WINDOW_LABEL, event_name, payload);
@@ -204,10 +246,12 @@ fn sanitize_binding(value: Option<&serde_json::Value>) -> Option<serde_json::Val
 /// child IPC facade from a lost or rejected event handshake.
 fn serve_bridge_probe<R: Runtime>(
     context: &UriSchemeContext<'_, R>,
-    session_id: &str,
+    surface: &SurfaceResource,
     query: Option<&str>,
 ) -> Response<Vec<u8>> {
-    if !receipt_session_is_authorized(context.app_handle(), session_id) {
+    if authorized_surface_for_label(context.app_handle(), context.webview_label()).as_ref()
+        != Some(surface)
+    {
         return protocol_error(
             StatusCode::GONE,
             "Render surface session is no longer active",
@@ -216,7 +260,8 @@ fn serve_bridge_probe<R: Runtime>(
     let fields = parse_bridge_probe(query);
     let phase = fields.get("phase").map(String::as_str).unwrap_or("unknown");
     let mut payload = serde_json::json!({
-        "sessionId": session_id,
+        "activationAttempt": surface.activation_attempt,
+        "sessionId": surface.session_id,
         "source": "custom-protocol",
         "phase": phase,
         "eventApi": {
@@ -239,13 +284,21 @@ fn serve_bridge_probe<R: Runtime>(
         .expect("valid render surface bridge probe response")
 }
 
-fn receipt_session_is_authorized<R: Runtime>(app: &tauri::AppHandle<R>, session_id: &str) -> bool {
+fn authorized_surface_for_label<R: Runtime>(
+    app: &tauri::AppHandle<R>,
+    label: &str,
+) -> Option<SurfaceResource> {
     app.try_state::<RenderSurfaceManager>()
-        .is_some_and(|manager| manager_authorizes_receipt(&manager, session_id))
+        .and_then(|manager| manager.routable_surface_for_label(label).ok().flatten())
 }
 
-fn manager_authorizes_receipt(manager: &RenderSurfaceManager, session_id: &str) -> bool {
-    manager.route_label(Some(session_id)).is_ok()
+#[cfg(test)]
+fn manager_authorizes_receipt(manager: &RenderSurfaceManager, label: &str) -> bool {
+    manager
+        .routable_surface_for_label(label)
+        .ok()
+        .flatten()
+        .is_some()
 }
 
 fn parse_bridge_probe(query: Option<&str>) -> std::collections::BTreeMap<String, String> {
@@ -274,93 +327,5 @@ fn protocol_error(status: StatusCode, message: &str) -> Response<Vec<u8>> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{manager_authorizes_receipt, parse_bridge_probe, parse_startup_receipt};
-    use crate::app::render_surface::{
-        geometry::RenderSurfaceBounds, registry::RenderSurfaceManager,
-    };
-    use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
-
-    #[test]
-    fn bridge_probe_accepts_only_small_expected_diagnostic_fields() {
-        let fields = parse_bridge_probe(Some(
-            "phase=boot&available=1&listen=1&emitTo=0&emit=1&detail=decoder-stalled&ignored=secret&phase=last",
-        ));
-        assert_eq!(fields.get("phase"), Some(&"last".to_string()));
-        assert_eq!(fields.get("available"), Some(&"1".to_string()));
-        assert_eq!(fields.get("detail"), Some(&"decoder-stalled".to_string()));
-        assert!(!fields.contains_key("ignored"));
-    }
-
-    #[test]
-    fn startup_receipts_are_authorized_only_for_pending_or_active_sessions() {
-        let manager = RenderSurfaceManager::default();
-        let bounds = RenderSurfaceBounds::new(10.0, 20.0, 300.0, 200.0).unwrap();
-        manager
-            .stage(
-                "candidate".into(),
-                "render-surface-candidate".into(),
-                bounds,
-            )
-            .unwrap();
-        assert!(manager_authorizes_receipt(&manager, "candidate"));
-
-        let candidate = manager.pending_surface("candidate").unwrap().unwrap();
-        assert!(manager.rollback_pending_surface(&candidate).unwrap());
-        assert!(!manager_authorizes_receipt(&manager, "candidate"));
-
-        manager
-            .stage(
-                "replacement".into(),
-                "render-surface-replacement".into(),
-                bounds,
-            )
-            .unwrap();
-        let plan = manager.activation_plan("replacement").unwrap();
-        manager.commit_activation(&plan).unwrap();
-        assert!(manager_authorizes_receipt(&manager, "replacement"));
-        assert!(!manager_authorizes_receipt(&manager, "candidate"));
-    }
-
-    #[test]
-    fn startup_receipt_allows_only_bounded_critical_events() {
-        let encoded = URL_SAFE_NO_PAD.encode(
-            br#"{"attempt":2,"handshake":"pending","protocolVersion":2,"reason":"retry","sessionId":"forged"}"#,
-        );
-        let query = format!("event=ready&payload={encoded}");
-        let (event, payload) = parse_startup_receipt("native-session", Some(&query)).unwrap();
-        assert_eq!(event, "render-surface:ready");
-        assert_eq!(payload["sessionId"], "native-session");
-        assert_eq!(payload["attempt"], 2);
-        assert_eq!(payload["transport"], "custom-protocol");
-
-        let encoded = URL_SAFE_NO_PAD.encode(br#"{"commandId":"x"}"#);
-        assert!(parse_startup_receipt(
-            "native-session",
-            Some(&format!("event=ack&payload={encoded}"))
-        )
-        .is_none());
-    }
-
-    #[test]
-    fn first_frame_receipt_preserves_binding_and_rejects_pre_frame_loaded() {
-        let encoded = URL_SAFE_NO_PAD.encode(
-            br#"{"binding":{"applied":false,"key":"Board","requested":true},"firstFrame":true,"protocolVersion":2}"#,
-        );
-        let (event, payload) = parse_startup_receipt(
-            "loaded-session",
-            Some(&format!("event=loaded&payload={encoded}")),
-        )
-        .unwrap();
-        assert_eq!(event, "render-surface:loaded");
-        assert_eq!(payload["binding"]["key"], "Board");
-        assert_eq!(payload["firstFrame"], true);
-
-        let encoded = URL_SAFE_NO_PAD.encode(br#"{"firstFrame":false}"#);
-        assert!(parse_startup_receipt(
-            "loaded-session",
-            Some(&format!("event=loaded&payload={encoded}")),
-        )
-        .is_none());
-    }
-}
+#[path = "protocol/tests.rs"]
+mod tests;

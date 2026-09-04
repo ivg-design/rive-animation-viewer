@@ -1,5 +1,6 @@
 import { createRuntimeLoaderController } from '../../platform/runtime/runtime-loader.js';
 import { createCanvasBackgroundController } from '../../platform/canvas-background-controller.js';
+import { createRuntimeInspectionController } from '../../platform/runtime/inspection-controller.js';
 
 export function createRuntimeStack({
     elements,
@@ -45,7 +46,13 @@ export function createRuntimeStack({
         elements,
     });
 
+    const inspectionController = createRuntimeInspectionController({
+        getCurrentFileBuffer: callbacks.getCurrentFileBuffer,
+        getCurrentFilePreferenceId, getCurrentRuntime,
+        getCurrentRuntimeVersion: runtimeLoaderController.getCurrentRuntimeVersion,
+    });
     return {
+        inspectionController,
         canvasBackgroundController,
         runtimeLoaderController,
     };

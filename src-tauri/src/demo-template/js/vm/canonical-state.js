@@ -69,6 +69,9 @@
                     values: descriptor.kind === 'enum' ? readEnumValues(accessor) : [],
                 };
                 var binding = { accessor: accessor, descriptor: descriptor, key: key, kind: descriptor.kind };
+                // Choices can arrive after the first snapshot without changing
+                // the authored selection. Keep an independent metadata baseline.
+                if (descriptor.kind === 'enum') binding.values = canonicalInput.values.slice();
                 if (descriptor.kind === 'image') {
                     binding.present = readCanonicalImagePresence(descriptor, accessor);
                     binding.metadata = readCanonicalImageMetadata(descriptor);
@@ -305,6 +308,12 @@
             // mutation a second time. This is cache reconciliation only; it
             // never writes the runtime accessor or re-fires a trigger.
             var binding = bridgeState.controlBindingIndex.get(key);
+            if (descriptor.kind === 'enum') {
+                // An ACK replaces a queued update for this key. Include choices
+                // so a simultaneous metadata refresh cannot be lost.
+                change.values = readEnumValues(binding ? binding.accessor : resolveControlAccessor(descriptor));
+                if (binding) binding.values = change.values.slice();
+            }
             if (binding) {
                 if (descriptor.kind === 'trigger') binding.receipt = change.receipt;
                 else if (descriptor.kind === 'image') {
@@ -318,32 +327,6 @@
             bridgeState.lastPublishedAt = performance.now();
             delta.controlChanges = [change];
             return delta;
-        }
-
-        function captureRenderSurfaceStaticState() {
-            var rootVm = resolveVmRootInstance();
-            var target = window.__ravRenderSurfaceTarget || {};
-            var defaultDefinition = null;
-            try {
-                defaultDefinition = riveInstance && typeof riveInstance.defaultViewModel === 'function'
-                    ? riveInstance.defaultViewModel()
-                    : null;
-            } catch (e) { defaultDefinition = null; }
-            return {
-                artboard: readCanonicalMember(riveInstance && riveInstance.artboard, 'name') || CONFIG.artboardName || null,
-                vmInstance: {
-                    key: target.vmInstanceKey == null ? (CONFIG.viewModelInstanceName || null) : target.vmInstanceKey,
-                    name: readCanonicalMember(rootVm, 'name') || readCanonicalMember(rootVm, 'instanceName'),
-                    definition: readCanonicalMember(rootVm, 'viewModelName') || readCanonicalMember(defaultDefinition, 'name'),
-                    availableKeys: captureAvailableVmInstanceKeys(),
-                },
-                animationNames: Array.isArray(riveInstance && riveInstance.animationNames)
-                    ? riveInstance.animationNames.filter(Boolean) : [],
-                artboards: riveInstance && riveInstance.contents && Array.isArray(riveInstance.contents.artboards)
-                    ? riveInstance.contents.artboards.map(function (artboard) { return artboard && artboard.name; }).filter(Boolean) : [],
-                stateMachines: Array.isArray(riveInstance && riveInstance.stateMachineNames)
-                    ? riveInstance.stateMachineNames.filter(Boolean) : [],
-            };
         }
 
         function captureRenderSurfaceCanonicalState(reason, forceTopologyScan) {

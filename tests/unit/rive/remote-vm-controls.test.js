@@ -53,6 +53,38 @@ function canonicalState({
 }
 
 describe('child-authoritative ViewModel controls', () => {
+    it('adopts the first complete child hierarchy as the cold-load baseline', () => {
+        const elements = createElements();
+        let state = null;
+        const controller = createVmControlsController({
+            documentRef: document,
+            elements,
+            getRenderSurfaceCanonicalState: () => state,
+            isAuthoritativeChildMode: true,
+        });
+
+        // Desktop's hidden candidate loads first, before the visible child has
+        // published any controls. This used to leave every later control marked
+        // as changed and generated a 481-property "compact" snippet.
+        controller.renderVmInputControls();
+        controller.setVmControlBaselineSnapshot();
+        expect(controller.captureVmControlSnapshot()).toEqual([]);
+
+        state = canonicalState({ enabled: false, revision: 1, sessionId: 'cold-load' });
+        document.dispatchEvent(new CustomEvent('rav:render-surface-state', { detail: state }));
+        expect(controller.captureVmControlSnapshot()).toEqual([
+            expect.objectContaining({ kind: 'boolean', value: false }),
+        ]);
+        expect(controller.getChangedVmControlSnapshot()).toEqual([]);
+
+        state = canonicalState({ enabled: true, revision: 2, sessionId: 'cold-load' });
+        document.dispatchEvent(new CustomEvent('rav:render-surface-state', { detail: state }));
+        expect(controller.getChangedVmControlSnapshot()).toEqual([
+            expect.objectContaining({ kind: 'boolean', value: true }),
+        ]);
+        controller.stopVmControlSync();
+    });
+
     it('renders canonical child values, sends mutations without writing the hidden parent, and reconciles by revision', () => {
         const elements = createElements();
         let state = canonicalState();
@@ -288,6 +320,96 @@ describe('child-authoritative ViewModel controls', () => {
         expect(mutations).toEqual([]);
         controller.stopVmControlSync();
         document.removeEventListener('rav:vm-control-mutated', onMutation);
+    });
+
+    it('recovers enum options after initial accessor authority arrives with unchanged canonical metadata', () => {
+        const elements = createElements();
+        const state = canonicalState({ sessionId: 'authority-late' });
+        const inputs = state.controlsHierarchy.children[0].inputs;
+        inputs.length = 0;
+        const addInput = (kind, name, value, values) => inputs.push({
+            descriptor: { kind, name, path: name, source: 'view-model' }, kind, value, values,
+        });
+        addInput('enum', 'viewMode', 'FullMap', ['CloseUp', 'FullMap']);
+        addInput('enum', 'LegendPosition', 'Bottom Left', ['Top Left', 'Bottom Left', 'Bottom Right']);
+        addInput('number', 'currentLap', 1);
+        const currentScope = { sourceIdentity: 'fixture-v7.5', runtimeKey: 'webgl2-2.42.0', artboardKey: 'TrackMap', vmInstanceKey: '0' };
+        let controlScope = null;
+        const controller = createVmControlsController({
+            documentRef: document, elements, isAuthoritativeChildMode: true,
+            getRenderSurfaceCanonicalState: () => state,
+            getCurrentSourceScope: () => currentScope,
+            getControlSourceScope: () => controlScope,
+        });
+        controller.renderVmInputControls();
+        const selects = [...elements.vmControlsTree.querySelectorAll('select')];
+        expect(selects.map((select) => select.textContent)).toEqual(['(no enum values)', '(no enum values)']);
+
+        // The complete canonical hierarchy was already correct. Only the
+        // source guard settles; no selected value or topology revision changes.
+        controlScope = currentScope;
+        document.dispatchEvent(new CustomEvent('rav:render-surface-state', { detail: state }));
+        expect([...elements.vmControlsTree.querySelectorAll('select')]).toEqual(selects);
+        expect(selects.map((select) => select.value)).toEqual(['FullMap', 'Bottom Left']);
+        expect(selects.map((select) => [...select.options].map((option) => option.value))).toEqual([
+            ['CloseUp', 'FullMap'], ['Top Left', 'Bottom Left', 'Bottom Right'],
+        ]);
+        expect(elements.vmControlsTree.querySelector('input[type="number"]').value).toBe('1.00');
+        controller.stopVmControlSync();
+    });
+
+    it('refreshes late enum choices in place without treating metadata as a selected-value edit', () => {
+        const elements = createElements();
+        const mutations = vi.fn();
+        document.addEventListener('rav:vm-control-mutated', mutations);
+        let state = canonicalState({ sessionId: 'late-enum' });
+        const input = state.controlsHierarchy.children[0].inputs[0];
+        Object.assign(input, { kind: 'enum', value: 'line', values: [] });
+        Object.assign(input.descriptor, { kind: 'enum', name: 'mode', path: 'mode' });
+        const controller = createVmControlsController({
+            documentRef: document, elements, isAuthoritativeChildMode: true,
+            getRenderSurfaceCanonicalState: () => state,
+        });
+        const publish = (changes) => {
+            state = { ...state, revision: state.revision + 1, stateRevision: state.stateRevision + 1, controlChanges: changes };
+            document.dispatchEvent(new CustomEvent('rav:render-surface-state', { detail: state }));
+        };
+        controller.renderVmInputControls();
+        controller.setVmControlBaselineSnapshot();
+        const select = elements.vmControlsTree.querySelector('select');
+        expect(select.textContent).toBe('(no enum values)');
+        expect(select.disabled).toBe(true);
+
+        publish([{ key: 'vm:mode:enum', kind: 'enum', values: ['bar', 'line'] }]);
+        expect(elements.vmControlsTree.querySelector('select')).toBe(select);
+        expect([...select.options].map((option) => option.value)).toEqual(['bar', 'line']);
+        expect(select.disabled).toBe(false);
+        expect(select.value).toBe('line');
+        expect(controller.captureVmControlSnapshot()[0]).toMatchObject({ value: 'line', enumValues: ['bar', 'line'] });
+        expect(controller.getChangedVmControlSnapshot()).toEqual([]);
+
+        const originalOption = select.options[0];
+        publish([]);
+        expect(select.options[0]).toBe(originalOption);
+        select.focus();
+        publish([{ key: 'vm:mode:enum', kind: 'enum', value: 'area', values: ['line', 'area', 'bar'] }]);
+        expect(select.options[0]).toBe(originalOption);
+        expect(select.value).toBe('line');
+        select.blur();
+        controller.syncVmControlBindings();
+        expect(select.value).toBe('area');
+        expect([...select.options].map((option) => option.value)).toEqual(['line', 'area', 'bar']);
+        expect(controller.getChangedVmControlSnapshot()[0]).toMatchObject({ value: 'area' });
+
+        publish([{ key: 'vm:mode:enum', kind: 'enum', values: [] }]);
+        expect(select.disabled).toBe(true);
+        expect(select.textContent).toBe('(no enum values)');
+        expect(controller.captureVmControlSnapshot()[0].value).toBe('area');
+        publish([{ key: 'vm:mode:enum', kind: 'enum', value: '', values: ['bar', 'line'] }]);
+        expect(select.selectedIndex).toBe(-1);
+        expect(mutations).not.toHaveBeenCalled();
+        controller.stopVmControlSync();
+        document.removeEventListener('rav:vm-control-mutated', mutations);
     });
 
     it('defers enum canonical updates while the native select is focused', () => {

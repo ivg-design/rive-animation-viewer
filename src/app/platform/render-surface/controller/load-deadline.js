@@ -13,7 +13,8 @@ export function createRenderSurfaceLoadDeadline({
     windowRef = globalThis,
 } = {}) {
     const boundedTimeout = Math.max(1, Number(timeoutMs) || 1);
-    const deadlineAt = now() + boundedTimeout;
+    let currentTimeoutMs = boundedTimeout;
+    let deadlineAt = now() + boundedTimeout;
     let expired = false;
     const timeoutIds = new Set();
 
@@ -42,13 +43,13 @@ export function createRenderSurfaceLoadDeadline({
         const observedOperation = Promise.resolve(operation);
         if (expired) {
             observeLateSettlement(observedOperation, onLateFulfilled);
-            return Promise.reject(new RenderSurfaceLoadDeadlineError(phase, boundedTimeout));
+            return Promise.reject(new RenderSurfaceLoadDeadlineError(phase, currentTimeoutMs));
         }
         const remaining = Math.max(0, deadlineAt - now());
         if (!remaining) {
             expired = true;
             observeLateSettlement(observedOperation, onLateFulfilled);
-            return Promise.reject(new RenderSurfaceLoadDeadlineError(phase, boundedTimeout));
+            return Promise.reject(new RenderSurfaceLoadDeadlineError(phase, currentTimeoutMs));
         }
         return new Promise((resolve, reject) => {
             let settled = false;
@@ -57,7 +58,7 @@ export function createRenderSurfaceLoadDeadline({
                 settled = true;
                 timeoutIds.delete(timeoutId);
                 expired = true;
-                reject(new RenderSurfaceLoadDeadlineError(phase, boundedTimeout));
+                reject(new RenderSurfaceLoadDeadlineError(phase, currentTimeoutMs));
             }, remaining);
             timeoutIds.add(timeoutId);
             observedOperation.then((value) => {
@@ -80,6 +81,13 @@ export function createRenderSurfaceLoadDeadline({
     return {
         dispose() {
             [...timeoutIds].forEach(clear);
+        },
+        extendFromNow(extensionMs) {
+            if (expired || timeoutIds.size) return false;
+            const boundedExtension = Math.max(1, Number(extensionMs) || 1);
+            currentTimeoutMs = boundedExtension;
+            deadlineAt = Math.max(deadlineAt, now() + boundedExtension);
+            return true;
         },
         hasExpired: () => expired,
         waitFor,

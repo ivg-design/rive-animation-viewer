@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "release": {
+    "project": "Jellyfin FFmpeg",
+    "tag": "v7.1.4-3",
+    "ffmpeg_version": "7.1.4-Jellyfin",
+    "base_url": "https://github.com/jellyfin/jellyfin-ffmpeg/releases/download/v7.1.4-3/",
+    "source": {
+      "url": "https://github.com/jellyfin/jellyfin-ffmpeg/archive/refs/tags/v7.1.4-3.tar.gz",
+      "sha256": "38fff90f73b3c4f9c3c7270711411a4ec3cbe63b205d4b4a5525bcc532d3d31f",
+      "size_bytes": 16698965,
+      "license_files": [
+        {
+          "member": "jellyfin-ffmpeg-7.1.4-3/COPYING.GPLv3",
+          "file": "licenses/COPYING.GPLv3"
+        },
+        {
+          "member": "jellyfin-ffmpeg-7.1.4-3/LICENSE.md",
+          "file": "licenses/FFmpeg-LICENSE.md"
+        },
+        {
+          "member": "jellyfin-ffmpeg-7.1.4-3/debian/copyright",
+          "file": "licenses/Jellyfin-FFmpeg-debian-copyright"
+        }
+      ]
+    }
+  },
+  "distribution": {
+    "license_spdx": "GPL-3.0-or-later",
+    "redistribution_basis": "The pinned Jellyfin GPL portable build is redistributed under GPL-3.0-or-later with the GPLv3 license text and exact corresponding-source URL and hash.",
+    "review_reference": "src-tauri/encoder-distribution/README.md#approved-jellyfin-release",
+    "approval": {
+      "redistribution_approved": true,
+      "approved_by": "RAV project owner",
+      "approved_at": "2026-09-03",
+      "review_reference": "Pinned Jellyfin FFmpeg v7.1.4-3 production encoder policy",
+      "signing_required": true
+    }
+  },
+  "targets": {
+    "aarch64-apple-darwin": {
+      "distribution_target": "macos-aarch64",
+      "asset": "jellyfin-ffmpeg_7.1.4-3_portable_macarm64-gpl.tar.xz",
+      "sha256": "99d689816a41075574928a0b3059101fd454fc58f465c99105a73b5c415ac86d",
+      "size_bytes": 31063636,
+      "archive_type": "tar.xz",
+      "ffmpeg_member": "ffmpeg",
+      "ffprobe_member": "ffprobe"
+    },
+    "x86_64-apple-darwin": {
+      "distribution_target": "macos-x86_64",
+      "asset": "jellyfin-ffmpeg_7.1.4-3_portable_mac64-gpl.tar.xz",
+      "sha256": "943f78e94d2760d3925fc0d9cc15f8329b11dbcdae7b0fd0d225b64e5a1aae29",
+      "size_bytes": 36614016,
+      "archive_type": "tar.xz",
+      "ffmpeg_member": "ffmpeg",
+      "ffprobe_member": "ffprobe"
+    },
+    "x86_64-pc-windows-msvc": {
+      "distribution_target": "windows-x86_64",
+      "asset": "jellyfin-ffmpeg_7.1.4-3_portable_win64-clang-gpl.zip",
+      "sha256": "113adeb702683c38be40a65d859f8ef7ffb07bae9df16dfb6c3df5ac3d95ef3c",
+      "size_bytes": 60257737,
+      "archive_type": "zip",
+      "ffmpeg_member": "ffmpeg.exe",
+      "ffprobe_member": "ffprobe.exe"
+    }
+  }
+}

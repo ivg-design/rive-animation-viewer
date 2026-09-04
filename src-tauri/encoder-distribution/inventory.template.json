@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "distribution": {
+    "id": "REPLACE_WITH_APPROVED_DISTRIBUTION_ID",
+    "target": "macos-aarch64",
+    "provenance_summary": "REPLACE_WITH_REVIEWED_PROVENANCE_SUMMARY",
+    "approval": {
+      "redistribution_approved": false,
+      "approved_by": "REPLACE_WITH_APPROVER",
+      "approved_at": "REPLACE_WITH_APPROVAL_DATE",
+      "review_reference": "REPLACE_WITH_REVIEW_RECORD",
+      "signing_required": true
+    }
+  },
+  "binaries": [
+    {
+      "id": "ffmpeg",
+      "source_file": "bin/ffmpeg",
+      "file": "ffmpeg",
+      "sha256": "REPLACE_WITH_64_HEX_DIGEST",
+      "size_bytes": 0,
+      "version": "REPLACE_WITH_EXACT_VERSION_AND_BUILD_CONFIGURATION",
+      "source": {
+        "kind": "REPLACE_WITH_upstream_release_OR_vendor_supplied_OR_self_built_from_upstream",
+        "artifact_url": "REPLACE_WITH_HTTPS_ARTIFACT_URL",
+        "artifact_sha256": "REPLACE_WITH_64_HEX_DIGEST",
+        "source_code_url": "REPLACE_WITH_HTTPS_CORRESPONDING_SOURCE_URL",
+        "source_code_sha256": "REPLACE_WITH_64_HEX_DIGEST"
+      },
+      "provenance_file": {
+        "source_file": "provenance/ffmpeg-build.json",
+        "file": "provenance/ffmpeg-build.json",
+        "sha256": "REPLACE_WITH_64_HEX_DIGEST",
+        "size_bytes": 0
+      },
+      "license": {
+        "spdx": "REPLACE_WITH_REVIEWED_SPDX_EXPRESSION",
+        "notice_files": [
+          {
+            "source_file": "licenses/FFmpeg-NOTICE.txt",
+            "file": "licenses/FFmpeg-NOTICE.txt",
+            "sha256": "REPLACE_WITH_64_HEX_DIGEST",
+            "size_bytes": 0
+          }
+        ],
+        "redistribution_basis": "REPLACE_WITH_BUILD_SPECIFIC_LICENSE_BASIS",
+        "review_reference": "REPLACE_WITH_LICENSE_REVIEW_RECORD"
+      }
+    },
+    {
+      "id": "ffprobe",
+      "source_file": "bin/ffprobe",
+      "file": "ffprobe",
+      "sha256": "REPLACE_WITH_64_HEX_DIGEST",
+      "size_bytes": 0,
+      "version": "REPLACE_WITH_EXACT_VERSION_AND_BUILD_CONFIGURATION",
+      "source": {
+        "kind": "REPLACE_WITH_upstream_release_OR_vendor_supplied_OR_self_built_from_upstream",
+        "artifact_url": "REPLACE_WITH_HTTPS_ARTIFACT_URL",
+        "artifact_sha256": "REPLACE_WITH_64_HEX_DIGEST",
+        "source_code_url": "REPLACE_WITH_HTTPS_CORRESPONDING_SOURCE_URL",
+        "source_code_sha256": "REPLACE_WITH_64_HEX_DIGEST"
+      },
+      "provenance_file": {
+        "source_file": "provenance/ffprobe-build.json",
+        "file": "provenance/ffprobe-build.json",
+        "sha256": "REPLACE_WITH_64_HEX_DIGEST",
+        "size_bytes": 0
+      },
+      "license": {
+        "spdx": "REPLACE_WITH_REVIEWED_SPDX_EXPRESSION",
+        "notice_files": [
+          {
+            "source_file": "licenses/FFmpeg-NOTICE.txt",
+            "file": "licenses/FFmpeg-NOTICE.txt",
+            "sha256": "REPLACE_WITH_64_HEX_DIGEST",
+            "size_bytes": 0
+          }
+        ],
+        "redistribution_basis": "REPLACE_WITH_BUILD_SPECIFIC_LICENSE_BASIS",
+        "review_reference": "REPLACE_WITH_LICENSE_REVIEW_RECORD"
+      }
+    }
+  ]
+}

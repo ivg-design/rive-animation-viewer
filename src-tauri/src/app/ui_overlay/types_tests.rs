@@ -4,6 +4,49 @@ use super::{
 };
 
 #[test]
+fn media_export_intents_are_allowlisted_and_keep_typed_bounded_fields() {
+    let mut action = UiOverlayActionRequest {
+        epoch: 1,
+        action_id: "media-1".into(),
+        purpose: "export".into(),
+        action: "media-select".into(),
+        value: serde_json::json!("still"),
+    };
+    assert!(action.validate().is_ok());
+    for name in [
+        "media-menu",
+        "media-html",
+        "media-submit",
+        "media-stop",
+        "media-cancel",
+        "media-choose-path",
+        "media-toggle-recording",
+    ] {
+        action.action = name.into();
+        action.value = serde_json::Value::Null;
+        assert!(action.validate().is_ok(), "{name}");
+    }
+    action.action = "media-change".into();
+    for value in [
+        serde_json::json!({"name":"width","value":"640"}),
+        serde_json::json!({"name":"alpha","value":true}),
+        serde_json::json!({"name":"output_path","value":""}),
+    ] {
+        action.value = value;
+        assert!(action.validate().is_ok());
+    }
+    for value in [
+        serde_json::json!({"name":"arbitrary_command","value":"x"}),
+        serde_json::json!({"name":"alpha","value":"true"}),
+        serde_json::json!({"name":"width","value":[]}),
+        serde_json::json!({"name":"fps","value":"30","extra":true}),
+    ] {
+        action.value = value;
+        assert!(action.validate().is_err());
+    }
+}
+
+#[test]
 fn validates_bounded_allowlisted_overlay_requests() {
     let request = ShowUiOverlayRequest {
         purpose: "settings".into(),

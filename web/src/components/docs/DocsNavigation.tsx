@@ -21,6 +21,7 @@ export const docsGroups: { title: string; pages: DocsPage[] }[] = [
   { title: "Build & debug", pages: [
     { id: "script-editor", title: "Script Editor" },
     { id: "consoles", title: "Consoles" },
+    { id: "media-export", title: "Media Export & Recording", keywords: "video h264 h265 webm apng gif png jpg webp timeline state machine recording" },
     { id: "export", title: "Export + Snippets" },
   ] },
   { title: "Reference", pages: [

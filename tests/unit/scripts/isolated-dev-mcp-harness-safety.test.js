@@ -12,7 +12,7 @@ function runHarness(args) {
 
 describe('isolated DEV MCP acceptance harness safety', () => {
     const base = [
-        '--sidecar', '/tmp/RAV 2.5.4 DEV.app/Contents/MacOS/rav-mcp',
+        '--sidecar', '/tmp/RAV 2.5.5 DEV.app/Contents/MacOS/rav-mcp',
         '--port', '9278',
         '--scenario', '/tmp/scenario.json',
     ];
@@ -29,7 +29,7 @@ describe('isolated DEV MCP acceptance harness safety', () => {
     it('refuses production and non-DEV targets before filesystem access', () => {
         const identity = [
             '--expected-build', 'b0217-20260827-0300-645bfa9',
-            '--expected-version', '2.5.4',
+            '--expected-version', '2.5.5',
             '--expected-channel', 'dev',
             '--expected-sidecar-sha256', '0'.repeat(64),
             '--expected-scenario-sha256', '0'.repeat(64),
@@ -40,7 +40,7 @@ describe('isolated DEV MCP acceptance harness safety', () => {
         const releaseChannel = runHarness([
             ...base,
             '--expected-build', 'b0217-20260827-0300-645bfa9',
-            '--expected-version', '2.5.4',
+            '--expected-version', '2.5.5',
             '--expected-channel', 'release',
             '--expected-sidecar-sha256', '0'.repeat(64),
             '--expected-scenario-sha256', '0'.repeat(64),
@@ -58,7 +58,7 @@ describe('isolated DEV MCP acceptance harness safety', () => {
             '--port', '9278',
             '--scenario', '/tmp/does-not-exist-rav-scenario.json',
             '--expected-build', 'b0217-20260827-0300-645bfa9',
-            '--expected-version', '2.5.4',
+            '--expected-version', '2.5.5',
             '--expected-channel', 'dev',
             '--expected-sidecar-sha256', '0'.repeat(64),
             '--expected-scenario-sha256', '0'.repeat(64),
@@ -83,6 +83,8 @@ describe('isolated DEV MCP acceptance harness safety', () => {
         expect(source).toContain('next.vmHasRoot && next.vmPathCount > 0');
         expect(source).toContain('numeric and automatic VM instance transitions');
         expect(source).toContain('independent image slots replay through playback reset, default reset, and A/B/A');
+        expect(source).toContain('const siblingPresence = new Map(paths');
+        expect(source).toContain('isPresent === wasPresent');
         expect(source).toContain('config.replayThroughFile !== config.file');
         expect(source).toContain("await client.tool('rav_reset_artboard')");
         expect(source).toContain('runtime list shrink and stale-path rejection');

@@ -365,6 +365,24 @@ health `204`, installations `0 → 1`, monthly active `0 → 1`, stored release
 Repeat the gate on the final clean release commit if any callback-related source
 or build wiring changes afterward.
 
+## Pinned production encoder distribution
+
+Production packages acquire Jellyfin FFmpeg `v7.1.4-3` GPL through
+`scripts/encoder-distribution/encoders.mjs`. The catalog permits exactly
+`ffmpeg` and `ffprobe`; `gifski` is not part of the production payload.
+
+| Target | Upstream archive | SHA-256 |
+| --- | --- | --- |
+| macOS arm64 | `jellyfin-ffmpeg_7.1.4-3_portable_macarm64-gpl.tar.xz` | `99d689816a41075574928a0b3059101fd454fc58f465c99105a73b5c415ac86d` |
+| macOS x86_64 | `jellyfin-ffmpeg_7.1.4-3_portable_mac64-gpl.tar.xz` | `943f78e94d2760d3925fc0d9cc15f8329b11dbcdae7b0fd0d225b64e5a1aae29` |
+| Windows x86_64 | `jellyfin-ffmpeg_7.1.4-3_portable_win64-clang-gpl.zip` | `113adeb702683c38be40a65d859f8ef7ffb07bae9df16dfb6c3df5ac3d95ef3c` |
+
+The required public corresponding-source asset is
+`jellyfin-ffmpeg-v7.1.4-3-source.tar.gz`, 16,698,965 bytes, SHA-256
+`38fff90f73b3c4f9c3c7270711411a4ec3cbe63b205d4b4a5525bcc532d3d31f`.
+The private staging ledger records that exact archive with every installer and
+updater artifact, and promotion re-verifies the same bytes before publication.
+
 ## CI release sequence
 
 Pushing the guarded release commit to `main` starts this sequence:
@@ -373,30 +391,43 @@ Pushing the guarded release commit to `main` starts this sequence:
    root changelog section. It creates the draft once, or reuses it only when it
    is still a draft for the exact release commit. An existing public release is
    never mutated.
-2. Two macOS jobs import the `.p12` into Tauri's temporary keychain, sign the
-   app and nested `rav-mcp` inside-out, notarize/staple the app, and create the
-   `.app.tar.gz` updater archive from that final app.
-3. The existing Tauri updater key signs the updater archive.
-4. Each final DMG is submitted to Apple separately, stapled, and replaces the
+2. Two macOS jobs import the `.p12` into a temporary keychain, acquire the
+   pinned Jellyfin FFmpeg `v7.1.4-3` GPL archive for their exact architecture,
+   sign `ffmpeg` and `ffprobe` with the same Developer ID identity and hardened
+   runtime used by the app, then package the manifest-verified encoder payload.
+   The Apple Silicon job also uploads the exact corresponding-source archive as
+   `jellyfin-ffmpeg-v7.1.4-3-source.tar.gz`.
+3. The macOS jobs sign the app and nested `rav-mcp` inside-out,
+   notarize/staple the app, and create the `.app.tar.gz` updater archive from
+   that final app.
+4. The existing Tauri updater key signs the updater archive.
+5. Each final DMG is submitted to Apple separately, stapled, and replaces the
    pre-staple asset in the still-draft release.
-5. The Windows job builds MSI and NSIS installers plus updater signatures.
-6. `verify-draft-release` downloads the actual draft assets and checks:
+6. The Windows job acquires the pinned Windows x64 encoder payload before it
+   builds MSI and NSIS installers plus updater signatures.
+7. `verify-draft-release` downloads the actual draft assets and checks:
    - Developer ID authority, expected Team ID, secure timestamp, and hardened
      runtime;
    - no ad-hoc signatures and exactly one `rav-mcp`;
+   - exactly the manifest-declared `ffmpeg` and `ffprobe` under
+     `Contents/Resources/encoders`, with the expected architecture, Developer
+     ID team, hardened runtime, no undeclared `@rpath`, and no extra Mach-O
+     resources;
    - valid app and DMG notarization tickets;
    - Gatekeeper distribution assessment;
    - every updater payload cryptographically matches its `.sig` and the Tauri
      public key embedded in the app;
    - matching app `CDHash` in the DMG and updater archive;
-   - complete macOS, MSI, and NSIS artifact inventory.
-7. `stage-private-updater-candidate` creates a deterministic complete
+   - complete macOS, MSI, NSIS, and corresponding-source artifact inventory;
+   - source archive size `16698965` and SHA-256
+     `38fff90f73b3c4f9c3c7270711411a4ec3cbe63b205d4b4a5525bcc532d3d31f`.
+8. `stage-private-updater-candidate` creates a deterministic complete
    `latest.json`, uploads it to the draft, cryptographically verifies the
    updater payloads again, and records every release byte in
    `updater-staging-ledger.json`.
-8. The workflow stops. The draft, its tag name, and all assets remain private;
+9. The workflow stops. The draft, its tag name, and all assets remain private;
    no Git tag exists and `releases/latest` remains unchanged.
-9. After local signed acceptance, an operator uploads the generated
+10. After local signed acceptance, an operator uploads the generated
    `updater-acceptance-receipt.json` and explicitly dispatches
    `.github/workflows/promote-updater-candidate.yml`. Promotion checks out the
    ledger's exact commit, rehashes every staged asset, re-verifies every updater
@@ -600,7 +631,7 @@ fixture, the pre-RAV ProgID is `Rive Animation`:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\verify-windows-document-icon.ps1 `
-  -ExpectedVersion 2.5.4 `
+  -ExpectedVersion 2.5.5 `
   -ExpectedBundleType NSS `
   -ExpectedPreviousProgId 'Rive Animation' `
   -ExpectedIconSha256 13e12927439f4c98db3250516389822d706e4d1b7fdf3e2b2dad0fc6cff785fb `
@@ -634,7 +665,8 @@ manual release requires:
 1. both macOS architectures built and notarized on a Mac;
 2. MSI and NSIS payloads built on Windows or a Windows VM;
 3. the existing Tauri updater private key to create every `.sig`;
-4. all artifacts uploaded to one draft GitHub Release;
+4. all artifacts plus the pinned Jellyfin FFmpeg corresponding-source archive
+   uploaded to one draft GitHub Release;
 5. `scripts/verify-updater-signatures.mjs` run against both macOS archives and
    both Windows installers;
 6. `scripts/verify-macos-distribution.sh` run for both Mac architectures;
@@ -678,17 +710,18 @@ documented few-minute cache window. Do not claim a strict 60-second guarantee.
 1. Confirm every build and verification job is green.
 2. Confirm the release is public, not a draft or prerelease.
 3. Confirm both DMGs, both macOS updater archives and signatures, MSI and NSIS
-   installers and signatures, and `latest.json` are attached.
+   installers and signatures, `latest.json`, and
+   `jellyfin-ffmpeg-v7.1.4-3-source.tar.gz` are attached.
 4. Confirm `latest.json` is version `X.Y.Z` and contains all required platform
    keys with canonical `/releases/download/vX.Y.Z/` URLs.
 5. Download a DMG through a browser, install it on a clean Mac, disconnect
    networking, and confirm Gatekeeper launches it normally using the stapled
    ticket.
-6. For the 2.4.2 hotfix, install 2.4.1, update to 2.4.2 in-app, and relaunch.
-   Confirm About reports 2.4.2, the next updater check reports no newer
-   version, `Contents/MacOS/rav-mcp` exists in the installed app, the MCP chip
-   reaches its healthy state, and the stable client launcher resolves to that
-   bundled sidecar.
+6. Install the immediately previous public version, update to the new release
+   in-app, and relaunch. Confirm About reports the new version, the next updater
+   check reports no newer version, `Contents/MacOS/rav-mcp` exists in the
+   installed app, the MCP chip reaches its healthy state, and the stable client
+   launcher resolves to that bundled sidecar.
 7. Run the Windows `.riv` document-icon acceptance above against both NSIS and
    MSI packages, including the NSIS uninstall restoration check.
 8. Deploy the website and verify its downloads and changelog.

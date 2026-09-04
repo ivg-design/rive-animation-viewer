@@ -1,10 +1,11 @@
+import { setInspectionMetadata } from '../../../src/app/rive/runtime-compatibility.js';
 import { createStatusPlaybackCommands } from '../../../src/app/platform/mcp/commands/status-playback.js';
 
 describe('MCP legacy input discovery', () => {
     function setup(inputs) {
         const stateMachineInputs = vi.fn(() => inputs || []);
         const instance = { activeArtboard: 'Main', stateMachineNames: ['sm'], stateMachineInputs };
-        if (inputs) instance.contents = { artboards: [{ name: 'Main', stateMachines: [{ name: 'sm', inputs }] }] };
+        if (inputs) setInspectionMetadata(instance, { artboards: [{ name: 'Main', stateMachines: [{ name: 'sm', inputs }] }] });
         return {
             stateMachineInputs,
             commands: createStatusPlaybackCommands({ documentRef: document, windowRef: { riveInst: instance } }),

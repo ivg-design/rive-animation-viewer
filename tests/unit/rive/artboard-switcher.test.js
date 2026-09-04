@@ -1,3 +1,4 @@
+import { setInspectionMetadata } from '../../../src/app/rive/runtime-compatibility.js';
 import {
     createArtboardSwitcherController,
     parsePlaybackTarget,
@@ -41,6 +42,7 @@ function createHarness(overrides = {}) {
     let currentFileName = overrides.currentFileName ?? 'demo.riv';
     let riveInstance = overrides.riveInstance ?? null;
 
+    setInspectionMetadata(riveInstance, riveInstance?.contents);
     const callbacks = {
         initLucideIcons: vi.fn(),
         loadRiveAnimation: vi.fn(async (_url, _name, options) => {
@@ -78,6 +80,7 @@ function createHarness(overrides = {}) {
         },
         setRiveInstance(nextInstance) {
             riveInstance = nextInstance;
+            setInspectionMetadata(riveInstance, riveInstance?.contents);
         },
     };
 }
@@ -1028,7 +1031,7 @@ describe('rive/artboard-switcher', () => {
                 ensureRuntime: () => new Promise((resolve) => { releaseRuntime = resolve; }),
             },
             getArtboardStateSnapshot: () => harness.controller.getStateSnapshot(),
-            getCurrentFileBuffer: () => Uint8Array.from([1]).buffer,
+            getCurrentFileBuffer: (() => { const buffer = Uint8Array.from([1]).buffer; return () => buffer; })(),
             getCurrentFileName: () => 'demo.riv',
             getRuntimeAsset: () => ({ text: 'runtime();', version: '2.40.1' }),
         });
@@ -1047,6 +1050,7 @@ describe('rive/artboard-switcher', () => {
                 vmInstance: { key: 'OldChild' },
             },
         }));
+        await vi.waitFor(() => expect(releaseRuntime).toBeTypeOf('function'));
         releaseRuntime();
 
         await expect(renderContextPromise).resolves.toMatchObject({
@@ -1409,7 +1413,7 @@ describe('rive/artboard-switcher', () => {
             elements,
             getCurrentFileName: () => 'demo.riv',
             getCurrentFileUrl: () => 'blob:demo',
-            getRiveInstance: () => ({
+            getRiveInstance: (() => { const instance = {
                 bindViewModelInstance: vi.fn(),
                 contents: {
                     artboards: [{
@@ -1425,7 +1429,7 @@ describe('rive/artboard-switcher', () => {
                     name: 'VM',
                 }),
                 viewModelInstance: { name: 'Preview' },
-            }),
+            }; setInspectionMetadata(instance, instance.contents); return () => instance; })(),
             setTimeoutFn: (callback) => {
                 callback();
                 return 1;

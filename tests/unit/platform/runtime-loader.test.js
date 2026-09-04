@@ -94,6 +94,33 @@ function createHarness(overrides = {}) {
 }
 
 describe('platform/runtime-loader', () => {
+    it('holds an early file load until latest discovery settles and shares concurrent setup', async () => {
+        let completeDiscovery;
+        const fetchImpl = vi.fn(() => new Promise((resolve) => { completeDiscovery = resolve; }));
+        const oldRuntime = { version: '2.31.0' };
+        const currentRuntime = { version: '2.42.0' };
+        const select = document.createElement('select');
+        const addListener = vi.spyOn(select, 'addEventListener');
+        const harness = createHarness({
+            elements: { runtimeVersionSelect: select }, fetchImpl,
+            runtimeRegistry: { 'webgl2@2.31.0': oldRuntime, 'webgl2@2.42.0': currentRuntime },
+        });
+        let loaded = false;
+        const earlyLoad = harness.controller.ensureRuntime('webgl2').then((value) => { loaded = true; return value; });
+        const startup = harness.controller.setupRuntimeVersionPicker();
+        await Promise.resolve();
+        expect(loaded).toBe(false);
+        completeDiscovery({ ok: true, json: async () => ({
+            'dist-tags': { latest: '2.42.0' }, versions: { '2.42.0': {}, '2.31.0': {} },
+        }) });
+        await startup;
+        await expect(earlyLoad).resolves.toBe(currentRuntime);
+        await harness.controller.setupRuntimeVersionPicker();
+        expect(fetchImpl).toHaveBeenCalledTimes(1);
+        expect(addListener).toHaveBeenCalledTimes(1);
+        expect(harness.controller.getCurrentRuntimeVersion()).toBe('2.42.0');
+    });
+
     beforeEach(() => {
         delete window.rive;
     });

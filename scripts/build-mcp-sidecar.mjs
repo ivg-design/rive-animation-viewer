@@ -2,6 +2,7 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import './generate-media-tools.mjs';
 
 const root = process.cwd();
 const tauriDir = path.join(root, 'src-tauri');

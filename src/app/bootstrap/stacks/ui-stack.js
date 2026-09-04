@@ -149,6 +149,26 @@ export function createUiStack({
         callbacks: {
             getAppBuildLabel: () => statusController?.getBuildStampLabel?.() || 'DEV · dev',
             getAppVersionLabel: () => statusController?.getResolvedAppVersion?.() || 'dev',
+            getAdditionalDependencyEntries: async () => {
+                const entries = [{
+                    name: `Rive Web Runtime (${String(getCurrentRuntime()).toUpperCase()})`,
+                    version: getCurrentRuntimeVersion() || 'latest',
+                }];
+                const invoke = getTauriInvoker();
+                if (!invoke) return entries;
+                try {
+                    const capabilities = await invoke('media_export_capabilities');
+                    (capabilities?.encoders || []).forEach((encoder) => {
+                        entries.push({
+                            name: `${encoder.id}${encoder.id === 'gifski' ? ' (optional)' : ''}`,
+                            version: encoder.available ? (encoder.version || 'available') : 'unavailable',
+                        });
+                    });
+                } catch {
+                    entries.push({ name: 'Media encoders', version: 'unavailable' });
+                }
+                return entries;
+            },
             getCurrentRuntime,
             getCurrentRuntimeVersion: () => getCurrentRuntimeVersion() || 'latest',
             getOpenExternalUrl: () => {

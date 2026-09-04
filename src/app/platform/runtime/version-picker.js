@@ -19,7 +19,8 @@ export function createRuntimeVersionPickerController({
     renderRuntimeVersionPickerOptions,
     showError,
 } = {}) {
-    return async function setupRuntimeVersionPicker() {
+    let setupPromise;
+    async function setupRuntimeVersionPicker() {
         const select = elements?.runtimeVersionSelect;
         if (!select) {
             return;
@@ -83,5 +84,7 @@ export function createRuntimeVersionPickerController({
             renderRuntimeVersionPickerOptions();
             select.disabled = false;
         }
-    };
+    }
+    // Startup and an early file-open share discovery and bind the UI only once.
+    return () => setupPromise ??= setupRuntimeVersionPicker();
 }

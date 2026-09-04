@@ -16,6 +16,26 @@ export function formatVmNumber(value) {
     return Number.isFinite(numericValue) ? numericValue.toFixed(2) : '0.00';
 }
 
+export function syncVmEnumInput(input, accessor, documentRef, canEdit = true) {
+    const values = Array.isArray(accessor?.values) ? accessor.values : [];
+    const options = values.length ? values : [''];
+    const labels = values.length ? values : ['(no enum values)'];
+    if (input.options.length !== options.length || options.some((value, index) => (
+        input.options[index]?.value !== value || input.options[index]?.textContent !== labels[index]
+    ))) {
+        input.replaceChildren(...options.map((value, index) => {
+            const option = documentRef.createElement('option');
+            option.value = value;
+            option.textContent = labels[index];
+            return option;
+        }));
+    }
+    // Never infer the selected value from the first available choice.
+    const value = values.length && typeof accessor?.value === 'string' ? accessor.value : '';
+    if (input.value !== value) input.value = value;
+    input.disabled = !canEdit || !accessor || values.length === 0;
+}
+
 export function syncVmBindings(
     bindings,
     resolveControlAccessor,
@@ -35,7 +55,9 @@ export function syncVmBindings(
         const setDisabled = (element, disabled) => {
             if (element && element.disabled !== disabled) element.disabled = disabled;
         };
-        setDisabled(binding.input, !canEdit || (binding.kind === 'image' && !canDecodeImage));
+        if (binding.kind !== 'enum' || !canEdit) {
+            setDisabled(binding.input, !canEdit || (binding.kind === 'image' && !canDecodeImage));
+        }
         setDisabled(binding.colorInput, !canEdit);
         setDisabled(binding.alphaInput, !canEdit);
         setDisabled(binding.clearButton, !canEdit);
@@ -84,12 +106,11 @@ export function syncVmBindings(
         }
 
         if (binding.kind === 'enum') {
-            const nextValue = typeof accessor.value === 'string' ? accessor.value : '';
             // A native select's popup is owned by the browser. Updating its
             // value while it has focus closes that popup, so defer routine
             // canonical deltas until the user finishes choosing an option.
             if (!force && isEditingControl(binding.input)) return;
-            if (binding.input.value !== nextValue) binding.input.value = nextValue;
+            syncVmEnumInput(binding.input, accessor, documentRef, canEdit);
             return;
         }
 

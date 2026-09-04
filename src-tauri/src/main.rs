@@ -1,13 +1,6 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
 mod app;
-
-use std::collections::VecDeque;
-use std::sync::Mutex;
-
-use tauri::{Emitter, Manager};
-
 use crate::app::constants::{
     is_official_app_identifier, ABOUT_MENU_ID, DEFAULT_MCP_PORT, ISOLATED_DEV_MCP_PORT,
     ONLINE_DOCS_MENU_ID, RAV_DOCS_URL,
@@ -29,7 +22,9 @@ use crate::app::window::controls::apply_windows_corner_preference;
 #[cfg(target_os = "macos")]
 use crate::app::window::controls::hide_macos_traffic_lights;
 use crate::app::window::controls::open_external_url;
-
+use std::collections::VecDeque;
+use std::sync::Mutex;
+use tauri::{Emitter, Manager};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 fn main() {
     let opened_files = extract_opened_riv_file_args();
@@ -38,9 +33,8 @@ fn main() {
     let telemetry_acceptance =
         app::install_counter::telemetry_acceptance::TelemetryAcceptanceDriver::from_process_env()
             .unwrap_or_else(|error| panic!("invalid telemetry acceptance configuration: {error}"));
-
     tauri::Builder::default()
-        .register_uri_scheme_protocol(
+        .register_asynchronous_uri_scheme_protocol(
             app::render_surface::RENDER_SURFACE_PROTOCOL,
             app::render_surface::serve_render_surface_protocol,
         )
@@ -154,8 +148,9 @@ fn main() {
             ) {
                 main_window.set_focus()?;
             }
-
             // Retire stale generated surfaces before any child WebView exists.
+            app::support::media::configure_encoders(app.handle());
+            app::render_surface::start_frame_clock(app.handle().clone());
             let render_surface_manager = app.state::<RenderSurfaceManager>();
             if let Err(error) = app::render_surface::cleanup_render_surface_cache_on_startup(
                 app.handle(),
@@ -163,7 +158,6 @@ fn main() {
             ) {
                 eprintln!("[rav-app] failed to clean stale render surfaces: {error}");
             }
-
             #[cfg(desktop)]
             {
                 let menu = app::window::menu::build_desktop_menu(app.handle())?;
@@ -243,6 +237,14 @@ fn main() {
             app::mcp::commands::install_mcp_client,
             app::mcp::commands::remove_mcp_client,
             app::node_runtime::detect_node_runtime,
+            app::media_export::media_export_capabilities,
+            app::media_export::media_export_choose_path,
+            app::media_export::media_export_begin,
+            app::media_export::media_export_frame,
+            app::media_export::media_export_finish,
+            app::media_export::media_export_status,
+            app::media_export::media_export_cancel,
+            app::media_export::media_export_abort,
             app::render_surface::create_render_surface,
             app::render_surface::set_render_surface_bounds,
             app::render_surface::show_render_surface,

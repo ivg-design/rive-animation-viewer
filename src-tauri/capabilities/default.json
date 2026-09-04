@@ -59,6 +59,14 @@
     "allow-get-rav-operational-trace",
     "allow-clear-rav-operational-trace",
     "allow-get-opened-file",
-    "allow-read-riv-file"
+    "allow-read-riv-file",
+    "allow-media-export-capabilities",
+    "allow-media-export-choose-path",
+    "allow-media-export-begin",
+    "allow-media-export-frame",
+    "allow-media-export-finish",
+    "allow-media-export-status",
+    "allow-media-export-cancel",
+    "allow-media-export-abort"
   ]
 }

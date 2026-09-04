@@ -23,8 +23,8 @@ const primaryFeatures = [
   },
   {
     label: "Export",
-    title: "From viewer to codebase",
-    description: "Choose controls, CDN or local packages, then copy a snippet or export a self-contained HTML demo. Applied editor configuration and lifecycle callbacks are preserved and executed with the selected file, canvas, layout, and control state.",
+    title: "From animation to any output",
+    description: "Export H.264, H.265, WebM, APNG, GIF, PNG, JPG, or WebP from timelines and live state-machine interaction. Or choose controls, CDN or local packages, then copy a focused snippet or export a self-contained HTML demo.",
     image: "/docs/export-controls.webp",
     imageAlt: "Snippet & Export Controls dialog with tree checkboxes and live code preview",
     imageWidth: 800,
@@ -34,7 +34,7 @@ const primaryFeatures = [
   {
     label: "MCP",
     title: "AI agents as co-pilots",
-    description: "A bundled native sidecar exposes 49 MCP tools. Claude, Codex, or any MCP client can open files, inspect root and global ViewModels, drive playback, capture the canvas, edit scripts, generate snippets, control the console panel, and export demos — without touching the UI. One-click install from the app.",
+    description: "A bundled native sidecar exposes 57 MCP tools. Claude, Codex, or any MCP client can inspect and drive playback, record timed interactions, export every media format, edit scripts, generate snippets, and control the console panel. One-click install from the app.",
     image: "/docs/mcp-setup.webp",
     imageAlt: "MCP Setup dialog with client detection, one-click install, and snippet copy",
     imageWidth: 500,

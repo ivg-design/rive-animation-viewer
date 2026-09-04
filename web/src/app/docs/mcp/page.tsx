@@ -60,11 +60,12 @@ export default function McpIntegration() {
         <li><strong>Manual snippets</strong> &mdash; copy-paste configurations for any MCP client</li>
       </ul>
 
-      <h2>Available Tools (49)</h2>
+      <h2>Available Tools (57)</h2>
       <p>
-        The bundled native sidecar advertises these 49 unique tools. Root ViewModel
-        paths use the regular <code>rav_vm_*</code> tools; global ViewModels use a
-        separate global name plus property path.
+        The bundled native sidecar advertises 57 unique tools. Root ViewModel paths
+        use the regular <code>rav_vm_*</code> tools; global ViewModels use a separate global
+        name plus property path. Eight desktop media tools expose the same export and
+        recording service as the <strong>EXPORT</strong> menu.
       </p>
       <table>
         <thead><tr><th>Tool</th><th>Description</th></tr></thead>
@@ -98,6 +99,14 @@ export default function McpIntegration() {
           <tr><td><code>rav_set_canvas_color</code></td><td>Set background color</td></tr>
           <tr><td><code>rav_set_canvas_size</code></td><td>Set canvas sizing mode, dimensions, and aspect lock</td></tr>
           <tr><td><code>rav_capture_canvas</code></td><td>Capture the currently rendered RAV canvas as PNG image content</td></tr>
+          <tr><td><code>rav_media_capabilities</code></td><td>Inspect verified encoders, formats, alpha support, limits, and production distribution state</td></tr>
+          <tr><td><code>rav_export_media</code></td><td>Start an asynchronous whole/segment timeline export or current/timed still capture</td></tr>
+          <tr><td><code>rav_record_start</code></td><td>Start live state-machine recording, optionally timed and supplied with recording-clock interactions</td></tr>
+          <tr><td><code>rav_record_stop</code></td><td>Seal a manual recording and begin finalization; continue polling its job</td></tr>
+          <tr><td><code>rav_media_status</code></td><td>Read capture, encoding, verification, warnings, resolved settings, and output details</td></tr>
+          <tr><td><code>rav_media_cancel</code></td><td>Cancel an active media job and clean that job&apos;s temporary capture</td></tr>
+          <tr><td><code>rav_step_frames</code></td><td>Advance and draw an exact number of frames while not recording</td></tr>
+          <tr><td><code>rav_pointer</code></td><td>Send normalized mouse down, move, up, or exit input to the live canvas</td></tr>
           <tr><td><code>rav_open_isolated_playback</code></td><td>Open playback in an isolated surface</td></tr>
           <tr><td><code>rav_export_demo</code></td><td>Export standalone HTML demo (programmatic, no dialog)</td></tr>
           <tr><td><code>rav_export_demo_visual</code></td><td>Visibly orchestrate the export dialog (selection, package, snippet mode) and save &mdash; for screen recordings or non-default selections</td></tr>
@@ -114,6 +123,22 @@ export default function McpIntegration() {
           <tr><td><code>rav_console_read</code> / <code>rav_console_exec</code></td><td>Read console output or run REPL code (exec requires Script Access)</td></tr>
         </tbody>
       </table>
+
+      <h2>Media automation</h2>
+      <p>
+        Media tools are desktop-only and asynchronous. Call <code>rav_media_capabilities</code>
+        before selecting a codec, then poll <code>rav_media_status</code> until the returned job
+        is completed, failed, or cancelled. Omitting <code>output_path</code> opens the native Save
+        dialog; unattended agents should supply an absolute path with the matching extension.
+      </p>
+      <p>
+        <code>rav_record_start</code> accepts scheduled typed ViewModel sets, trigger fires, image
+        changes, and normalized pointer events. Operations run on the recording clock before the
+        corresponding frame is drawn, and completion reports requested and applied times. Existing
+        ViewModel and global-ViewModel tools can also be used interactively while a manual recording
+        is active. See <a href={asset("/docs/media-export")}>Media Export &amp; Recording</a> for formats,
+        settings, GIF size controls, and recording behavior.
+      </p>
 
       <h2>GLOBAL VM in RAV</h2>
       <p>

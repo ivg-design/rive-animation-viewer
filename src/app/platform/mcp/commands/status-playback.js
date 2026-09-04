@@ -1,8 +1,9 @@
 import { dispatchVmControlMutation } from '../../../rive/control-events.js';
 import { buildPlaybackResetContract } from '../../../rive/reset-contract.js';
 import { parsePlaybackTarget } from '../../../rive/artboards/playback-target.js';
-import { getStateMachineInputMetadata } from '../../../rive/runtime-compatibility.js';
+import { getInspectionMetadata, getStateMachineInputMetadata } from '../../../rive/runtime-compatibility.js';
 import { createMcpOpenFileCommand } from './open-file.js';
+import { assertKnownPlaybackTarget } from './playback-validation.js';
 import {
     assertAuthoritativeRenderSurface,
     canonicalControlSnapshot,
@@ -150,6 +151,7 @@ export function createStatusPlaybackCommands({
             if (!artboard) throw new Error('artboard is required');
             const requestedPlayback = playback ? parsePlaybackTarget(playback) : null;
             const authoritative = getAuthoritative();
+            assertKnownPlaybackTarget({ artboardName: artboard, authoritative, requestedPlayback, windowRef });
             if (authoritative) {
                 if (typeof windowRef._mcpSwitchArtboard !== 'function') throw new Error('Artboard switcher not available');
                 await windowRef._mcpSwitchArtboard(artboard, playback || null);
@@ -189,7 +191,6 @@ export function createStatusPlaybackCommands({
             await windowRef._mcpResetArtboard();
             return { ok: true };
         },
-
         async rav_set_anonymous_usage({ enabled }) {
             if (typeof enabled !== 'boolean') throw new Error('enabled must be a boolean');
             if (typeof windowRef._mcpSetInstallCounterEnabled !== 'function') {
@@ -198,7 +199,6 @@ export function createStatusPlaybackCommands({
             const applied = await windowRef._mcpSetInstallCounterEnabled(enabled);
             return { applied: applied === true, enabled, status: applied === true ? 'applied' : 'rejected' };
         },
-
         rav_open_file: ravOpenFile,
 
         async rav_play() {
@@ -255,7 +255,7 @@ export function createStatusPlaybackCommands({
             }
             const inst = windowRef.riveInst;
             if (!inst) throw new Error('No animation loaded');
-            const contents = inst.contents;
+            const contents = getInspectionMetadata(inst);
             if (contents?.artboards) {
                 return {
                     artboards: contents.artboards.map((artboard) => (
@@ -263,7 +263,7 @@ export function createStatusPlaybackCommands({
                     )),
                 };
             }
-            return { artboards: [{ name: inst.artboardName || '(default)' }] };
+            return { artboards: [], metadataAvailable: false };
         },
 
         async rav_get_state_machines() {
@@ -282,7 +282,7 @@ export function createStatusPlaybackCommands({
             if (Array.isArray(names) && names.length > 0) {
                 return { stateMachines: names };
             }
-            const contents = inst.contents;
+            const contents = getInspectionMetadata(inst);
             if (contents?.artboards) {
                 for (const artboard of contents.artboards) {
                     if (artboard.stateMachines?.length) {

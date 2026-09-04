@@ -8,7 +8,7 @@ import { shouldResumePlaybackForTrigger } from './accessors.js';
 import { countAllInputs } from './hierarchy.js';
 import { appendVmImageControl } from './image-control.js';
 import { dispatchVmControlMutation } from '../control-events.js';
-import { formatVmNumber, updateStringInputRows } from './ui/binding-sync.js';
+import { formatVmNumber, syncVmEnumInput, updateStringInputRows } from './ui/binding-sync.js';
 
 export function createVmControlRowFactory({
     documentRef,
@@ -135,23 +135,7 @@ export function createVmControlRowFactory({
                 enumInteractionActive = false;
                 onEnumInteractionEnd();
             };
-            const values = Array.isArray(accessor?.values) ? accessor.values : [];
-            values.forEach((value) => {
-                const option = documentRef.createElement('option');
-                option.value = value;
-                option.textContent = value;
-                select.appendChild(option);
-            });
-            if (!values.length) {
-                const fallback = documentRef.createElement('option');
-                fallback.value = '';
-                fallback.textContent = '(no enum values)';
-                select.appendChild(fallback);
-            }
-            if (typeof accessor?.value === 'string') {
-                select.value = accessor.value;
-            }
-            select.disabled = isDisabled || values.length === 0;
+            syncVmEnumInput(select, accessor, documentRef, !isDisabled);
             select.addEventListener('pointerdown', beginEnumInteraction);
             select.addEventListener('mousedown', beginEnumInteraction);
             select.addEventListener('touchstart', beginEnumInteraction, { passive: true });

@@ -1,5 +1,6 @@
 import { createStatusPlaybackCommands } from '../../../src/app/platform/mcp/commands/status-playback.js';
 import { createViewModelCommands } from '../../../src/app/platform/mcp/commands/view-model.js';
+import { setInspectionMetadata } from '../../../src/app/rive/runtime-compatibility.js';
 
 describe('platform/mcp/status-playback', () => {
     it('routes anonymous usage changes through the installed preference controller', async () => {
@@ -122,6 +123,55 @@ describe('platform/mcp/status-playback', () => {
                 type: 'animation',
             }),
         }));
+    });
+
+    it('uses inspected cross-WebView metadata to reject an unknown target before child staging', async () => {
+        const hiddenParentInstance = { isPlaying: false };
+        setInspectionMetadata(hiddenParentInstance, {
+            artboards: [{
+                name: 'LowerThird',
+                animations: [{ name: 'LowerThids-In' }],
+                stateMachines: [{ name: 'LowerThirdSM', inputs: [] }],
+            }],
+        });
+        const canonicalState = {
+            animationNames: ['LowerThids-In'],
+            artboard: 'LowerThird',
+            artboards: ['LowerThird'],
+            playback: { type: 'animation', name: 'LowerThids-In', isPlaying: false, isPaused: true },
+            stateMachines: ['LowerThirdSM'],
+        };
+        const renderSurfaceController = {
+            getCanonicalState: () => canonicalState,
+            getState: () => ({ activeSessionId: 'surface-1', isLoaded: true, surfaceCreated: true }),
+            requestCommand: vi.fn(),
+        };
+        const windowRef = {
+            __TAURI__: {},
+            riveInst: hiddenParentInstance,
+            _mcpSwitchArtboard: vi.fn(async (_artboard, target) => {
+                canonicalState.playback = {
+                    type: 'animation', name: String(target).slice(5), isPlaying: true, isPaused: false,
+                };
+            }),
+        };
+        const commands = createStatusPlaybackCommands({
+            documentRef: document,
+            renderSurfaceController,
+            windowRef,
+        });
+
+        await expect(commands.rav_switch_artboard({
+            artboard: 'LowerThird',
+            playback: 'anim:Definitely Missing',
+        })).rejects.toThrow('Animation "Definitely Missing" was not found on artboard "LowerThird"');
+        expect(windowRef._mcpSwitchArtboard).not.toHaveBeenCalled();
+
+        await expect(commands.rav_switch_artboard({
+            artboard: 'LowerThird',
+            playback: 'anim:LowerThids-In',
+        })).resolves.toEqual(expect.objectContaining({ applied: true, status: 'applied' }));
+        expect(windowRef._mcpSwitchArtboard).toHaveBeenCalledOnce();
     });
 
     it('rolls back MCP file identity when visible activation rejects the new file', async () => {

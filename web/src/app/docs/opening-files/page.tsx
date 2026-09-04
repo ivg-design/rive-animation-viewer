@@ -19,7 +19,7 @@ export default function OpeningFiles() {
 
       <h2>Double-Click (Desktop)</h2>
       <p>
-        On macOS, current RAV releases seed the known Rive content identifiers and dynamically
+        On macOS, RAV seeds the known Rive content identifiers and dynamically
         discover every registered UTI tagged with the <code>.riv</code> extension. The app also
         declares an extension-level alternate Viewer entry backed by the dedicated
         <code>RiveFileIcon.icns</code>. RAV does not silently replace your chosen default app
@@ -34,7 +34,7 @@ export default function OpeningFiles() {
         after the new surface is ready.
       </p>
       <p>
-        After an app update, the first launch of the new version refreshes that installed bundle&apos;s
+        On the first launch after an app update, RAV refreshes the installed bundle&apos;s
         Launch Services registration once for the version and schema, without restarting Finder or
         changing the Viewer/Alternate rank. The declarations include the dedicated document icon
         resource, known compatibility identifiers, and the extension-level fallback for identifiers

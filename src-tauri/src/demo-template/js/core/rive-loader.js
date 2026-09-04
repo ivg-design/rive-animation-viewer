@@ -89,6 +89,8 @@
                 }
                 riveConfig.onLoad = function () {
                     runtimeCompatibility.clearStateMachineInputMetadata(riveInstance);
+                    runtimeCompatibility.setInspectionMetadata(riveInstance, CONFIG.inspectionMetadata);
+                    setupRenderSurfaceFrameClock(riveInstance);
                     reportRenderSurfaceLoadStage('rive-onload');
                     var callbackArgs = Array.prototype.slice.call(arguments);
                     // Auto-detect state machine if none specified

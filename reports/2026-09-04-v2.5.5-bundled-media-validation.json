@@ -1,0 +1,241 @@
+{
+  "schema": "rav-release-validation-v1",
+  "release": "2.5.5",
+  "validated_at": "2026-09-04",
+  "source_base_commit": "95eb566cefa3e28a6c448ad5c07fa6c23ee62e7f",
+  "desktop_build": "b0216-20260904-0006-95eb566-dirty",
+  "desktop_identity": "app.rive.animation.viewer.flicker-test",
+  "mcp_port": 9278,
+  "production_port_touched": false,
+  "runtime": {
+    "name": "webgl2",
+    "version": "2.42.0"
+  },
+  "encoder_distribution": {
+    "id": "jellyfin-ffmpeg-v7.1.4-3-aarch64-apple-darwin",
+    "origin": "bundled",
+    "ready": true,
+    "hash_verified": true,
+    "review_required": false,
+    "inventory_sha256": "430da419d0577ded75c0752e796575316e5b6e498581601b97cd1aca55ad75ec",
+    "ffmpeg_sha256": "04fd5077fa6d93be047e58e304d84fa04a1847610ab8b6265b31588b53f1d4da",
+    "ffprobe_sha256": "5f067081b57779435f0711b16f7fbb349137f0f12b0d794f1e9baa53f2139081",
+    "corresponding_source_sha256": "38fff90f73b3c4f9c3c7270711411a4ec3cbe63b205d4b4a5525bcc532d3d31f",
+    "license_spdx": "GPL-3.0-or-later",
+    "macos_code_signature": "Developer ID Application: Ilya Gusinski (7S422NVLUK)",
+    "local_notarization": "not_stapled_dev_bundle",
+    "release_notarization_gate": "github_actions"
+  },
+  "limits": {
+    "max_duration_seconds": null,
+    "max_frames": null,
+    "max_job_lifetime_seconds": null,
+    "max_output_bytes": null,
+    "max_spool_bytes": null,
+    "max_fps": 60,
+    "max_edge": 4096,
+    "max_pixels": 4194304,
+    "disk_reserve_bytes": 134217728
+  },
+  "timeline_fixture": {
+    "file": "cardelement-lowerthird.riv",
+    "artboard": "LowerThird",
+    "animation": "LowerThids-In",
+    "duration_seconds": 1,
+    "fps": 60,
+    "frames": 60
+  },
+  "format_matrix": [
+    {
+      "format": "png",
+      "file": "still.png",
+      "width": 640,
+      "height": 72,
+      "decoded_frames": 1,
+      "unique_frames": 1,
+      "size_bytes": 14564,
+      "sha256": "f533701f08302aadc27ef3b1fbca7939480514fbbb7e07f3b305355a551ca5d8",
+      "alpha_values": 36,
+      "full_decode": true
+    },
+    {
+      "format": "h264",
+      "file": "timeline-h264.mp4",
+      "width": 640,
+      "height": 72,
+      "decoded_frames": 60,
+      "unique_frames": 60,
+      "duration_seconds": 1,
+      "size_bytes": 42372,
+      "sha256": "675ec70fc1802755715f39a06794980604983473657e3e6299c7c40b08d04709",
+      "full_decode": true
+    },
+    {
+      "format": "h265",
+      "file": "timeline-h265.mp4",
+      "width": 640,
+      "height": 72,
+      "decoded_frames": 60,
+      "unique_frames": 60,
+      "duration_seconds": 1,
+      "size_bytes": 34833,
+      "sha256": "78c684d9afe2e1f4762ff10784bad11a54fcc023624ca3773b4613516cc7d541",
+      "full_decode": true
+    },
+    {
+      "format": "webm",
+      "file": "timeline-alpha.webm",
+      "width": 640,
+      "height": 72,
+      "decoded_frames": 60,
+      "unique_frames": 60,
+      "duration_seconds": 1,
+      "size_bytes": 95283,
+      "sha256": "d1c7157dfe9404050452294b1f6f5fcbb9851d4cc27e78d21187a97ec247ed82",
+      "alpha_values": 190,
+      "alpha_decoder": "libvpx-vp9",
+      "full_decode": true
+    },
+    {
+      "format": "apng",
+      "file": "timeline.apng",
+      "width": 640,
+      "height": 72,
+      "decoded_frames": 60,
+      "unique_frames": 60,
+      "size_bytes": 279508,
+      "sha256": "885825177e93540bd9d0078a61006171652752a4a6049c353a4985f136299fea",
+      "alpha_values": 5,
+      "full_decode": true
+    },
+    {
+      "format": "gif",
+      "file": "timeline.gif",
+      "width": 640,
+      "height": 72,
+      "decoded_frames": 20,
+      "unique_frames": 20,
+      "duration_seconds": 1,
+      "size_bytes": 78093,
+      "sha256": "62baced1c66184c7a1dc411c8208ce222a6f19d1d931acf58afde1455a16e7a9",
+      "alpha_values": 2,
+      "full_decode": true
+    },
+    {
+      "format": "jpg",
+      "file": "still.jpg",
+      "width": 640,
+      "height": 72,
+      "decoded_frames": 1,
+      "unique_frames": 1,
+      "size_bytes": 16101,
+      "sha256": "5276c7d4aa8e6732d8b151fc531e5316d5823463ad5d57574dad441b008bb72f",
+      "full_decode": true
+    },
+    {
+      "format": "webp",
+      "file": "still.webp",
+      "width": 640,
+      "height": 72,
+      "decoded_frames": 1,
+      "unique_frames": 1,
+      "size_bytes": 9324,
+      "sha256": "fa5655e837ece97555f18f470df1567d64a598ee9fba8bb1c99ceb5288712822",
+      "alpha_values": 36,
+      "full_decode": true
+    }
+  ],
+  "segment_validation": {
+    "format": "apng",
+    "start_frame": 30,
+    "end_frame_exclusive": 60,
+    "decoded_frames": 30,
+    "duration_seconds": 0.5,
+    "matches_full_timeline_frames": true
+  },
+  "timed_state_machine_recording": {
+    "file": "trackmap-interactions-h264.mp4",
+    "width": 320,
+    "height": 180,
+    "fps": 60,
+    "duration_seconds": 5,
+    "captured_frames": 300,
+    "received_frames": 300,
+    "decoded_frames": 300,
+    "unique_visual_frames": 216,
+    "repeated_frames": 0,
+    "max_capture_lag_ms": 43.33333333333337,
+    "warnings": [],
+    "scheduled_interactions": 5,
+    "applied_interactions": 5,
+    "maximum_interaction_lateness_seconds": 0,
+    "interaction_frames": [30, 60, 90, 93, 150]
+  },
+  "manual_state_machine_recording": {
+    "file": "trackmap-manual-stop-h264.mp4",
+    "width": 320,
+    "height": 180,
+    "fps": 60,
+    "duration_seconds": 1.65,
+    "captured_frames": 99,
+    "received_frames": 99,
+    "decoded_frames": 99,
+    "repeated_frames": 0,
+    "max_capture_lag_ms": 28.666666666666657,
+    "live_interactions": ["view_model_set", "pointer_move", "pointer_down", "pointer_up"],
+    "warnings": []
+  },
+  "cancellation": {
+    "requested_duration_seconds": 30,
+    "format": "apng",
+    "final_state": "cancelled",
+    "destination_published": false
+  },
+  "gif_target_search": {
+    "requested_max_bytes": 30000,
+    "attempts": 5,
+    "final_bytes": 40924,
+    "target_met": false,
+    "duration_preserved_seconds": 1,
+    "initial": { "width": 640, "height": 72, "fps": 30, "quality": 90 },
+    "final": { "width": 320, "height": 36, "fps": 15, "quality": 23 },
+    "explicit_unavailable_gifski_failed_closed": true
+  },
+  "view_model_regression": {
+    "fixture": "trackmap_v7.5.riv",
+    "path_count": 481,
+    "authored_enum": "viewMode",
+    "value_before_reset": "FullMap",
+    "choices_before_reset": [
+      "FullMap",
+      "fullMapNoChrome",
+      "sectorFocusLayout",
+      "driverFocusLayout",
+      "sectorFocusFullScreen",
+      "driverFocusFullScreen"
+    ]
+  },
+  "snippet_regression": {
+    "cold_zero_change_lines": 33,
+    "cold_zero_change_bytes": 964,
+    "cold_zero_change_accessors": 0,
+    "one_selected_property_lines": 40,
+    "one_selected_property_bytes": 1254,
+    "one_selected_property_accessors": 1,
+    "standalone_html_bytes": 1191349,
+    "standalone_contains_ui_chrome": true
+  },
+  "playback_validation": {
+    "unknown_animation_rejected": true,
+    "valid_playback_preserved_after_rejection": true
+  },
+  "result": "passed",
+  "remaining_release_only_gates": [
+    "clean release commit",
+    "cross-platform GitHub Actions build",
+    "Apple notarization and stapling",
+    "Windows package acceptance",
+    "isolated signed updater acceptance",
+    "byte-preserving public promotion"
+  ]
+}

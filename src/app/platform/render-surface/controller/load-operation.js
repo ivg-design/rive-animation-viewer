@@ -7,6 +7,7 @@ import {
 const TIMEOUT_MESSAGE = 'Playback surface update timed out; previous frame retained.';
 
 export function createRenderSurfaceLoadOperation({
+    activationTimeoutMs,
     activationCoordinator,
     activationFailure,
     activationLifecycle,
@@ -98,6 +99,12 @@ export function createRenderSurfaceLoadOperation({
                 context.payload?.view_model_instance_name,
                 context.payload?.artboard_name,
             );
+            activationCoordinator.setSourceScope(sessionId, context.sourceScope || {
+                sourceIdentity: context.sourceIdentity,
+                runtimeKey: `${context.runtimeName}@${context.runtimeVersion}`,
+                artboardKey: context.payload?.artboard_name,
+                vmInstanceKey: context.payload?.view_model_instance_name,
+            });
             nativeCreatePromise = invoke('create_render_surface', {
                 request: {
                     ...bounds,
@@ -117,6 +124,8 @@ export function createRenderSurfaceLoadOperation({
                 loadTracker.settle(sessionId, false);
                 return false;
             }
+
+            deadline.extendFromNow(activationTimeoutMs);
 
             sessionState.markCreated();
             activationLifecycle.markCreated(sessionId);

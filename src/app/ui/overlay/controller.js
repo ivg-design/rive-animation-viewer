@@ -1,7 +1,7 @@
 import { applySettingsOverlayAction, captureSettingsOverlayState, measureSettingsOverlay } from './settings-state.js';
 import { completeUiOverlayAction } from './action-completion.js';
 import { describeDefaultRivAppFailure } from './default-riv-app/error.js';
-
+import { createOverlayParentLock } from './interaction/parent-lock.js';
 export function createUiOverlayController({
     callbacks = {},
     documentRef = globalThis.document,
@@ -36,6 +36,7 @@ export function createUiOverlayController({
     let nativeSupportPromise = null;
     let operationChain = Promise.resolve();
     let setupPromise = null;
+    const parentInteraction = createOverlayParentLock(documentRef);
     const unlistenCallbacks = [];
     const syncTimers = new Set();
     const handleRenderSurfacePointerDown = () => {
@@ -43,11 +44,9 @@ export function createUiOverlayController({
         void close({ restoreFocus: false });
     };
     const handleMainPointerDown = (event) => {
-        if (!activeEpoch && !pendingEpoch) return;
+        if (!parentInteraction.isLocked() && !activeEpoch && !pendingEpoch) return;
         const trigger = activeDefinition?.restoreFocusTarget;
-        const path = event?.composedPath?.() || [];
-        if (trigger && (path.includes(trigger) || trigger.contains?.(event?.target))) return;
-        void close({ restoreFocus: false });
+        void close({ restoreFocus: parentInteraction.consumePointer(event, trigger) });
     };
     const handleWindowResize = () => {
         if (!activeEpoch && !pendingEpoch) return;
@@ -89,6 +88,7 @@ export function createUiOverlayController({
         activePurpose = null;
         pendingEpoch = null;
         previousEpoch = null;
+        parentInteraction.unlock();
         elements.settingsButton?.setAttribute?.('aria-expanded', 'false');
     }
     async function closeNow({ restoreFocus = true } = {}) {
@@ -383,6 +383,7 @@ export function createUiOverlayController({
         activeFocusTarget = null;
         activePurpose = String(purpose);
         previousEpoch = null;
+        parentInteraction.lock();
         try {
             const state = await definition.getState();
             const epoch = await getTauriInvoker()('show_ui_overlay', {

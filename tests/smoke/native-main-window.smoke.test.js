@@ -17,6 +17,6 @@ describe('native main-window startup contract', () => {
 
   it('gives the isolated bundle a unique process identity for native automation', () => {
     expect(isolatedConfig.identifier).toBe('app.rive.animation.viewer.flicker-test');
-    expect(isolatedConfig.mainBinaryName).toBe('rav-2.5.4-dev');
+    expect(isolatedConfig.mainBinaryName).toBe('rav-2.5.5-dev');
   });
 });

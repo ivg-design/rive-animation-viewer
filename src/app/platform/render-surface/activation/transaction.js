@@ -1,3 +1,5 @@
+import { snapshotForScope } from '../../../rive/inspection/source-scope.js';
+
 function failure(message, result = null) {
     return { activated: false, message, result };
 }
@@ -13,13 +15,20 @@ export async function prepareAndActivateRenderSurface({
     replayImageCommands = [],
     recordImageReplayOutcome = () => {},
     sealActivationBarrier = async () => true,
-    sendCommand,
+    sendCommand: sendUnchecked,
+    targetScope = null,
     validateImageReplayEntry = () => ({ valid: true }),
     waitForCanonicalBaseline = async () => ({ ready: true, status: 'ready' }),
 } = {}) {
+    if (!isCurrentSession()) return failure('Playback surface activation was superseded.');
+    const sendCommand = async (...args) => {
+        if (!isCurrentSession()) return { applied: false, status: 'stale-session' };
+        const result = await sendUnchecked(...args);
+        return isCurrentSession() ? result : { applied: false, status: 'stale-session' };
+    };
     let snapshot = [];
     try {
-        snapshot = getControlSnapshot?.() || [];
+        snapshot = snapshotForScope(getControlSnapshot?.(), targetScope);
     } catch {
         // Mutations queued while loading remain authoritative.
     }

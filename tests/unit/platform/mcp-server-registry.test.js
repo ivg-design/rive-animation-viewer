@@ -18,6 +18,7 @@ function nativeToolNames() {
     const files = [
         'src-tauri/src/bin/rav-mcp/tool_registry.rs',
         'src-tauri/src/bin/rav-mcp/vm_tool_registry.rs',
+        'mcp-server/tools/media-tools.json',
     ];
     return files.flatMap((file) => [
         ...readFileSync(resolve(file), 'utf8').matchAll(/"name":\s*"([^"]+)"/g),
@@ -25,14 +26,14 @@ function nativeToolNames() {
 }
 
 describe('legacy MCP server registry', () => {
-    it('matches all 49 unique native tools and advertises globals plus canvas capture', () => {
+    it('matches all 57 unique native tools and advertises globals plus canvas capture', () => {
         const names = TOOLS.map((tool) => tool.name);
         const nativeNames = nativeToolNames();
         const captureTools = TOOLS.filter((tool) => tool.name === 'rav_capture_canvas');
 
-        expect(names).toHaveLength(49);
-        expect(new Set(names).size).toBe(49);
-        expect(new Set(nativeNames).size).toBe(49);
+        expect(names).toHaveLength(57);
+        expect(new Set(names).size).toBe(57);
+        expect(new Set(nativeNames).size).toBe(57);
         expect([...names].sort()).toEqual([...nativeNames].sort());
         expect(names).toEqual(expect.arrayContaining(NEW_TOOL_NAMES));
         expect(captureTools).toHaveLength(1);

@@ -73,7 +73,8 @@ export function createRenderSurfaceActivationHandler({
                 const pendingPresentationState = eventRelay.getPresentationState();
                 const activePlayback = protocol.getState().canonicalState?.playback;
                 const playbackCommand = autoplayPolicy.resolveReplacementCommand(
-                    sessionId, activePlayback, replacingActiveSurface,
+                    sessionId, activePlayback, replacingActiveSurface
+                        && activationCoordinator.canReplaySource(previousActiveSessionId, sessionId),
                 );
                 const transaction = await prepareAndActivateRenderSurface({
                     // Bind the visibility decision to native activation. A settings
@@ -92,7 +93,8 @@ export function createRenderSurfaceActivationHandler({
                     flushPendingCommands: replacingActiveSurface
                         ? () => activationCoordinator.flushStage(sessionId)
                         : activationCoordinator.flushQueued,
-                    getControlSnapshot,
+                    getControlSnapshot: () => activationCoordinator.captureScopedSnapshot(getControlSnapshot),
+                    targetScope: activationCoordinator.getSourceScope(sessionId),
                     getPresentationState: () => pendingPresentationState,
                     isCurrentSession: () => sessionState.isCurrentSession(sessionId),
                     pendingCommandCount: replacingActiveSurface

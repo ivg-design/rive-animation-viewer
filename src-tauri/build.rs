@@ -6,6 +6,14 @@ fn main() {
     println!("cargo:rerun-if-env-changed=RAV_OFFICIAL_RELEASE");
     configure_telemetry_acceptance();
     const COMMANDS: &[&str] = &[
+        "media_export_capabilities",
+        "media_export_choose_path",
+        "media_export_begin",
+        "media_export_frame",
+        "media_export_finish",
+        "media_export_status",
+        "media_export_cancel",
+        "media_export_abort",
         "make_demo_bundle",
         "make_demo_bundle_to_path",
         "open_isolated_playback",

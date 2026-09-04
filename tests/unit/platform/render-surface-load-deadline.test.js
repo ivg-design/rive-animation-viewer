@@ -76,4 +76,25 @@ describe('render-surface load deadline', () => {
         expect(cleanup).toHaveBeenCalledWith('created');
         deadline.dispose();
     });
+
+    it('starts one longer activation window only between load phases', async () => {
+        let now = 1_000;
+        const deadline = createRenderSurfaceLoadDeadline({
+            now: () => now,
+            timeoutMs: 100,
+            windowRef: window,
+        });
+
+        now += 90;
+        expect(deadline.extendFromNow(250)).toBe(true);
+        now += 249;
+        const stalled = deadline.waitFor(new Promise(() => {}), 'first-frame confirmation')
+            .catch((error) => error);
+        await vi.advanceTimersByTimeAsync(1);
+        expect(await stalled).toMatchObject({
+            phase: 'first-frame confirmation',
+            timeoutMs: 250,
+        });
+        deadline.dispose();
+    });
 });

@@ -25,6 +25,8 @@ export function createVmControlsController({
     getRiveInstance = () => null,
     getRenderSurfaceAuthority = () => ({ canAcceptCommands: true }),
     getRenderSurfaceCanonicalState = () => null,
+    getCurrentSourceScope = null,
+    getControlSourceScope = null,
     isAuthoritativeChildMode = false,
     pickImageFile = null,
     clearIntervalFn = globalThis.clearInterval,
@@ -81,6 +83,8 @@ export function createVmControlsController({
         getRiveInstance,
         isAuthoritativeChildMode,
         remoteControls,
+        getCurrentSourceScope,
+        getControlSourceScope,
     });
     function syncVmControlBindings(force = false) {
         if (!vmControlBindings.length) {
@@ -166,6 +170,7 @@ export function createVmControlsController({
         buildStateMachineHierarchy: currentStateMachineHierarchy,
         getBindings: () => vmControlBindings,
         getRiveInstance,
+        getCurrentSourceScope,
         resolveControlAccessor,
         syncVmControlBindings,
     });
@@ -297,15 +302,21 @@ export function createVmControlsController({
             isRenderingVmControls = false;
         }
     }
+    function renderRemoteTopology() {
+        renderVmInputControls();
+        // Desktop's hidden parent can baseline before the authoritative child.
+        // Adopt controls when the child's complete hierarchy is first rendered.
+        snapshotController.reconcileVmControlBaselineSnapshot();
+    }
     const remoteInteractionGate = createRemoteInteractionGate({
         getBindings: () => vmControlBindings,
-        renderTopology: renderVmInputControls,
+        renderTopology: renderRemoteTopology,
     });
     function syncVmControlTopology(force = false) {
         if (isAuthoritativeChildMode) {
             const nextSignature = remoteTopologySignature();
             if (!force && nextSignature === vmListTopologySignature) return false;
-            renderVmInputControls();
+            renderRemoteTopology();
             return true;
         }
         const nextSignature = currentVmListTopologySignature();

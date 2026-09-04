@@ -55,6 +55,7 @@ export function createAboutDialogController({
     const {
         getAppBuildLabel = () => 'dev',
         getAppVersionLabel = () => 'dev',
+        getAdditionalDependencyEntries = async () => [],
         getCurrentRuntime = () => 'webgl2',
         getCurrentRuntimeVersion = () => 'latest',
         getOpenExternalUrl = () => null,
@@ -199,7 +200,8 @@ export function createAboutDialogController({
                 throw new Error(`HTTP ${response?.status || 'error'}`);
             }
             const packageData = await response.json();
-            const entries = buildDependencyEntries(packageData);
+            const additionalEntries = await getAdditionalDependencyEntries();
+            const entries = buildDependencyEntries(packageData, additionalEntries);
             dependencyEntries = entries;
             dependencyError = null;
             dependencyList.replaceChildren();

@@ -4,7 +4,7 @@ import path from 'node:path';
 const root = path.resolve(process.cwd());
 const read = (relativePath) => readFileSync(path.join(root, relativePath), 'utf8');
 
-describe('isolated 2.5.4 DEV build', () => {
+describe('isolated 2.5.5 DEV build', () => {
     it('uses a distinct app identity, frontend output, server, and MCP port', () => {
         const pkg = JSON.parse(read('package.json'));
         const production = JSON.parse(read('src-tauri/tauri.conf.json'));
@@ -13,10 +13,10 @@ describe('isolated 2.5.4 DEV build', () => {
         const devBuilder = read('scripts/build-dev-dist.mjs');
         const devServer = read('scripts/serve-dev.mjs');
 
-        expect(pkg.version).toBe('2.5.4');
+        expect(pkg.version).toBe('2.5.5');
         expect(production.version).toBe(pkg.version);
         expect(dev.version).toBe(pkg.version);
-        expect(dev.productName).toBe('RAV 2.5.4 DEV');
+        expect(dev.productName).toBe('RAV 2.5.5 DEV');
         expect(dev.identifier).toBe('app.rive.animation.viewer.flicker-test');
         expect(dev.identifier).not.toBe(production.identifier);
         expect(dev.build.devUrl).toBe('http://localhost:1421');

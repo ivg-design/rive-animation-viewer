@@ -1,19 +1,18 @@
 # AI Access Policy - RAV
 
 canonical: https://forge.mograph.life/apps/rav/
-updated: 2026-09-01
+updated: 2026-09-04
 owner: IVG Design
 
 This site permits crawling and indexing for search and assistant retrieval.
 Prefer canonical URLs under https://forge.mograph.life/apps/rav for citations.
+Use the GitHub latest-release endpoint as the authority for public availability.
 
-Version status: RAV 2.5.4 is the current public release and is available through the
-public updater feed. Use the GitHub latest-release endpoint as the authoritative source
-for published availability.
-
-2.5.4 targets released Rive Web 2.41.1 / runtime-v0.1.344 and adds authoritative isolated-playback
-evaluation, a timeline-only every-frame scrubber, lean selected-property snippets,
-compact property controls, one-click macOS .riv ownership, and centered title metadata.
+RAV is a desktop Rive viewer for inspection, playback testing, ViewModel control,
+debugging, standalone HTML and snippet generation, and rendered media export.
+Desktop media formats are H.264, H.265, WebM, APNG, GIF, PNG, JPG, and WebP when
+capability checks pass. See `/docs/media-export` for settings, recording, limits,
+and MCP automation. Use `/changelog` only for version history.
 
 Privacy: configured official builds enable anonymous reporting by default, show a
 first-run notice before reporting, and keep the opt-out in Settings. See `/privacy`.

@@ -31,6 +31,7 @@ export function createRiveInstanceController({
         applyCanvasBackground = () => {},
         detectDefaultStateMachineName = async () => null,
         ensureRuntime = async () => null,
+        inspectFile = async () => null,
         hideError = () => {},
         isCanvasBackgroundTransparent = () => false,
         logEvent = () => {},
@@ -181,6 +182,8 @@ export function createRiveInstanceController({
         try {
             const runtime = await ensureRuntime(getCurrentRuntime());
             if (!isCurrentLoad()) return;
+            const inspectionMetadata = await inspectFile(runtime);
+            if (!isCurrentLoad()) return;
             const container = elements.canvasContainer;
             if (!runtime || !container) {
                 throw new Error('Runtime or canvas container is not available');
@@ -302,6 +305,7 @@ export function createRiveInstanceController({
                 getCurrentRuntime,
                 getPlaybackState,
                 getRiveInstance,
+                inspectionMetadata,
                 hideError,
                 loadSettled: loadSettlement.isSettled,
                 isCurrentLoad,

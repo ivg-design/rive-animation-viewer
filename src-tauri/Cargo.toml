@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "2.5.4"
+version = "2.5.5"
 description = "A Tauri App"
 authors = ["IVG Design"]
 license = "MIT"
@@ -19,6 +19,7 @@ tauri-build = { version = "2.6.3", features = [] }
 [dependencies]
 anyhow = "1"
 base64 = "0.22"
+png = "0.17"
 futures-util = "0.3"
 rfd = { version = "0.17.2", default-features = false, features = ["xdg-portal"] }
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls-no-provider"] }

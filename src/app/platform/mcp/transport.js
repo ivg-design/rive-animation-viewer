@@ -198,8 +198,9 @@ export function createMcpBridgeTransport({
                     onCommandEnd(command);
                 } catch (error) {
                     const elapsed = Math.round(performance.now() - startedAt);
-                    mcpLog('error', `${command.replace(/^rav_/, '')} failed: ${error.message}  (${elapsed}ms)`, undefined, windowRef);
-                    nextSocket.send(JSON.stringify({ id, error: error.message }));
+                    const message = String(error?.message ?? error ?? 'Unknown command failure');
+                    mcpLog('error', `${command.replace(/^rav_/, '')} failed: ${message}  (${elapsed}ms)`, undefined, windowRef);
+                    nextSocket.send(JSON.stringify({ id, error: message }));
                     onCommandEnd(command);
                 }
             };

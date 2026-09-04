@@ -89,6 +89,7 @@ function createHarness({
 
     const eventHandlers = new Map();
     const latestStateBySession = new Map();
+    const logEvent = vi.fn();
     const showError = vi.fn();
     const updateInfo = vi.fn();
     const invoke = vi.fn(async (command, args) => {
@@ -148,7 +149,7 @@ function createHarness({
             },
             getTauriInvoker: () => invoke,
             isTauriEnvironment: () => true,
-            logEvent: vi.fn(),
+            logEvent,
             showError,
             updateInfo,
         },
@@ -171,6 +172,7 @@ function createHarness({
         controller,
         eventHandlers,
         invoke,
+        logEvent,
         showError,
         settingsPopover: document.getElementById('settings-popover'),
         updateInfo,
@@ -469,6 +471,59 @@ describe('platform/render-surface/controller', () => {
         harness.controller.dispose();
     });
 
+    it('ignores stale first-frame receipts after the native watchdog starts its one retry', async () => {
+        const harness = createHarness({ autoAcknowledge: true });
+        await harness.controller.setup();
+        const load = harness.controller.loadCurrentAnimation();
+        await vi.waitFor(() => expect(harness.invoke).toHaveBeenCalledWith('create_render_surface', expect.any(Object)));
+        const sessionId = harness.invoke.mock.calls.find(
+            ([command]) => command === 'create_render_surface',
+        )[1].request.sessionId;
+
+        harness.eventHandlers.get('render-surface:activation-watchdog')({ payload: {
+            activationAttempt: 1,
+            deadlineMs: 15_000,
+            phase: 'retry-started',
+            retry: 1,
+            retryLimit: 1,
+            sessionId,
+        } });
+        harness.showError.mockClear();
+        expect(await harness.eventHandlers.get('render-surface:error')({ payload: {
+            message: 'late failure from discarded child',
+            phase: 'load',
+            recoverable: false,
+            sessionId,
+        } })).toBe(false);
+        expect(harness.showError).not.toHaveBeenCalled();
+        expect(harness.invoke).not.toHaveBeenCalledWith('discard_render_surface', { sessionId });
+        expect(await harness.eventHandlers.get('render-surface:loaded')({ payload: {
+            firstFrame: true,
+            protocolVersion: 2,
+            sessionId,
+        } })).toBe(false);
+        expect(harness.invoke).not.toHaveBeenCalledWith('activate_render_surface', expect.any(Object));
+
+        await harness.eventHandlers.get('render-surface:loaded')({ payload: {
+            activationAttempt: 1,
+            firstFrame: true,
+            protocolVersion: 2,
+            sessionId,
+            transport: 'custom-protocol',
+        } });
+        await expect(load).resolves.toBe(true);
+        expect(harness.invoke.mock.calls.filter(
+            ([command, args]) => command === 'activate_render_surface' && args.sessionId === sessionId,
+        )).toHaveLength(1);
+        expect(harness.logEvent).toHaveBeenCalledWith(
+            'native',
+            'render-surface-activation-watchdog-retry',
+            expect.stringContaining('recreating it once'),
+            expect.objectContaining({ activationAttempt: 1, retryLimit: 1, sessionId }),
+        );
+        harness.controller.dispose();
+    });
+
     it('lets an explicit autoplay selection replace a paused child without inheriting its pause', async () => {
         let replacementSession = null;
         const harness = createHarness({
@@ -675,7 +730,6 @@ describe('platform/render-surface/controller', () => {
         await expect(loadPromise).resolves.toBe(true);
         const loadedRelays = harness.invoke.mock.calls.filter(([command]) => command === 'send_render_surface_message');
         expect(loadedRelays.map(([, args]) => args.payload.type)).toEqual([
-            'snapshot',
             'presentation',
             'vm-set',
             'pause',
@@ -683,7 +737,7 @@ describe('platform/render-surface/controller', () => {
             'prepare-frame',
             'prepare-frame',
         ]);
-        expect(loadedRelays[2][1].payload.payload.value).toBe(42);
+        expect(loadedRelays[1][1].payload.payload.value).toBe(42);
         expect(harness.controller.getState().pendingCommands).toBe(0);
 
         dispatchPresentationChanged(document, {
@@ -745,9 +799,17 @@ describe('platform/render-surface/controller', () => {
     });
 
     it('publishes only active canonical state while a replacement stages', async () => {
-        const harness = createHarness();
+        const harness = createHarness({ renderSurfaceContexts: ['a', 'b'].map((sourceIdentity) => ({
+            currentFileName: `${sourceIdentity}.riv`, payload: { file_name: `${sourceIdentity}.riv` },
+            runtimeName: 'webgl2', runtimeVersion: '2.42.0', sourceIdentity,
+        })) });
         const published = [];
-        const onState = (event) => published.push(event.detail?.artboard);
+        const publishedScopes = [];
+        const onState = (event) => {
+            published.push(event.detail?.artboard);
+            publishedScopes.push({ active: harness.controller.getSourceScope(),
+                canonical: harness.controller.getCanonicalSourceScope() });
+        };
         document.addEventListener('rav:render-surface-state', onState);
         await harness.controller.setup();
 
@@ -758,6 +820,8 @@ describe('platform/render-surface/controller', () => {
         await harness.eventHandlers.get('render-surface:loaded')({ payload: { firstFrame: true, sessionId: firstSession } });
         await expect(firstLoad).resolves.toBe(true);
         expect(published).toEqual(['A']);
+        expect(publishedScopes[0]).toMatchObject({ active: null,
+            canonical: { sourceIdentity: 'a', runtimeKey: 'webgl2@2.42.0', sessionId: firstSession } });
 
         harness.invoke.mockClear();
         const secondLoad = harness.controller.loadCurrentAnimation();
@@ -765,6 +829,7 @@ describe('platform/render-surface/controller', () => {
         const secondSession = harness.invoke.mock.calls.find(([name]) => name === 'create_render_surface')[1].request.sessionId;
         harness.eventHandlers.get('render-surface:state')({ payload: { artboard: 'B', revision: 1, sessionId: secondSession } });
         expect(harness.controller.getCanonicalState().artboard).toBe('A');
+        expect(harness.controller.getCanonicalSourceScope()).toMatchObject({ sourceIdentity: 'a', sessionId: firstSession });
         expect(published).toEqual(['A']);
 
         harness.eventHandlers.get('render-surface:state')({ payload: { artboard: 'A-live', revision: 2, sessionId: firstSession } });
@@ -772,6 +837,12 @@ describe('platform/render-surface/controller', () => {
         await harness.eventHandlers.get('render-surface:loaded')({ payload: { firstFrame: true, sessionId: secondSession } });
         await expect(secondLoad).resolves.toBe(true);
         expect(published).toEqual(['A', 'A-live', 'B']);
+        // Baseline publication precedes the outer active-session commit. Its
+        // scope must already identify B, so the host can accept B's selection.
+        expect(publishedScopes[2]).toMatchObject({
+            active: { sourceIdentity: 'a', sessionId: firstSession },
+            canonical: { sourceIdentity: 'b', runtimeKey: 'webgl2@2.42.0', sessionId: secondSession },
+        });
 
         harness.eventHandlers.get('render-surface:state')({ payload: { artboard: 'stale-A', revision: 99, sessionId: firstSession } });
         expect(harness.controller.getCanonicalState().artboard).toBe('B');
@@ -1265,7 +1336,7 @@ describe('platform/render-surface/controller', () => {
         const timedOutLoad = harness.controller.loadCurrentAnimation();
         await vi.waitFor(() => expect(harness.invoke).toHaveBeenCalledWith('create_render_surface', expect.any(Object)));
         const timedOutSession = harness.invoke.mock.calls.find(([name]) => name === 'create_render_surface')[1].request.sessionId;
-        await vi.advanceTimersByTimeAsync(15_000);
+        await vi.advanceTimersByTimeAsync(35_000);
         await expect(timedOutLoad).resolves.toBe(false);
         expect(harness.invoke).toHaveBeenCalledWith('discard_render_surface', { sessionId: timedOutSession });
         expect(harness.controller.getState()).toEqual(expect.objectContaining({

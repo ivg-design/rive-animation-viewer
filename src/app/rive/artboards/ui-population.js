@@ -1,4 +1,5 @@
 import { AUTO_BOUND_VM_INSTANCE_KEY } from '../view-model/instances.js';
+import { getInspectionMetadata } from '../runtime-compatibility.js';
 
 function reconcileSelectOptions(select, options, selectedValue, documentRef = globalThis.document) {
     if (!select) return;
@@ -38,7 +39,7 @@ export function populateArtboardSwitcherUi({
         return { defaultArtboardName, fileContentsCache };
     }
 
-    const contents = riveInstance.contents;
+    const contents = getInspectionMetadata(riveInstance);
     if (!contents?.artboards?.length) {
         switcher.hidden = true;
         return { defaultArtboardName, fileContentsCache: null };

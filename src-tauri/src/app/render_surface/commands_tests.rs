@@ -84,6 +84,7 @@ fn missing_native_active_surface_releases_authority_and_reports_one_fatal_event(
         session_id: "active".into(),
         label: "render-surface-active".into(),
         target_bounds: RenderSurfaceBounds::new(10.0, 20.0, 300.0, 200.0).unwrap(),
+        activation_attempt: 0,
     };
     manager
         .stage(

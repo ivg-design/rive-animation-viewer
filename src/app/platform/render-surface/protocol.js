@@ -23,7 +23,7 @@ const CAPTURE_COMMAND_ACK_TIMEOUT_MS = 60_000;
 const CANONICAL_BASELINE_TIMEOUT_MS = 10_000;
 
 export function renderSurfaceCommandTimeoutMs(type) {
-    if (type === 'capture-canvas') return CAPTURE_COMMAND_ACK_TIMEOUT_MS;
+    if (type === 'capture-canvas' || type.startsWith('media-')) return CAPTURE_COMMAND_ACK_TIMEOUT_MS;
     return type === 'reset' || type === 'vm-image-set'
         ? LONG_COMMAND_ACK_TIMEOUT_MS
         : COMMAND_ACK_TIMEOUT_MS;
@@ -77,6 +77,7 @@ export function createRenderSurfaceProtocol({
     }
 
     function publishCommandResult(result, type, payload) {
+        if (type.startsWith("media-")) { const { canonicalState: _state, ...receipt } = result; return receipt; }
         const detail = { ...result, commandType: type, commandPayload: payload };
         onCommandResult(detail);
         const CustomEventCtor = documentRef?.defaultView?.CustomEvent || globalThis.CustomEvent;
@@ -145,6 +146,14 @@ export function createRenderSurfaceProtocol({
         const result = event?.payload || {};
         const pending = pendingAcks.get(result.commandId);
         if (!pending || pending.sessionId !== result.sessionId) return;
+        if (result.status === 'progress') {
+            if (pending.type === 'media-record-stop' && Number.isSafeInteger(result.progress) && result.progress > pending.progress) {
+                pending.progress = result.progress;
+                windowRef.clearTimeout(pending.timeoutId);
+                pending.timeoutId = windowRef.setTimeout(pending.expire, pending.timeoutMs);
+            }
+            return;
+        }
         if (result.canonicalDelta && typeof result.canonicalDelta === 'object') {
             handleState({ payload: { ...result.canonicalDelta, sessionId: result.sessionId } });
         }
@@ -265,12 +274,13 @@ export function createRenderSurfaceProtocol({
         let ackPromise = null;
         if (commands.protocolVersion >= RENDER_SURFACE_PROTOCOL_VERSION) {
             ackPromise = new Promise((resolve) => {
-                const timeoutId = windowRef.setTimeout(() => {
+                const expire = () => {
                     if (!pendingAcks.has(commandId)) return;
                     pendingAcks.delete(commandId);
                     resolve({ applied: false, commandId, revision, status: 'timeout' });
-                }, timeoutMs);
-                pendingAcks.set(commandId, { resolve, sessionId: targetSessionId, timeoutId });
+                };
+                const timeoutId = windowRef.setTimeout(expire, timeoutMs);
+                pendingAcks.set(commandId, { resolve, sessionId: targetSessionId, timeoutId, timeoutMs, expire, type, progress: 0 });
             });
         }
         const sent = await invokeQuietly('send_render_surface_message', {

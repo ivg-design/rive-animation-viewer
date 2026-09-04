@@ -6,4 +6,6 @@ export const {
     normalizePlaybackConfig,
     getStateMachineInputMetadata,
     clearStateMachineInputMetadata,
+    setInspectionMetadata,
+    getInspectionMetadata,
 } = createRiveRuntimeCompatibility();

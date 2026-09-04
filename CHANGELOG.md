@@ -2,6 +2,51 @@
 
 All notable released changes to this project are documented in this file.
 
+## [2.5.5] - 2026-09-04
+
+This release adds complete desktop media export and interaction recording, with
+pinned bundled encoders and full UI/MCP parity. See the
+[release validation](reports/2026-09-04-v2.5.5-release-validation.md) for the
+decoded-artifact, timing, interaction, regression, and distribution evidence.
+
+### Added
+
+- **Desktop media implementation** — Whole-timeline and exclusive-end segment export, current/timed stills, and live state-machine recording with ViewModel/pointer interactions, optional cursor and Cmd/Ctrl+Shift+R. Formats are capability-gated H.264, H.265, WebM, APNG, GIF, PNG, JPG and WebP; no audio or RAV chrome is captured.
+- **Bounded export jobs** — Shared UI/MCP capture, status and cancellation, output quality/FPS/dimensions, GIF presets and target-size search capped at five attempts. Missing a size target reports `target_met: false` rather than guaranteeing the requested size. See [Media export and recording](Documentation/MEDIA_EXPORT.md) for examples, limits and packaging gates.
+
+### Changed
+
+- **Compact Export workspace** — The Export chooser now presents media modes as a concise three-card grid, and every media settings screen uses smaller controls, paired fields, a persistent format selector and a compact resolved-output footer. Save to uses a compact RAV-yellow folder button that opens a native picker for both path and filename, returns to the unchanged settings on cancellation, and displays the selected destination without exposing an editable path field. Recording actions are vertically centered in their footer row. Completed-job diagnostics stay collapsed under Technical details until requested.
+- **Streaming video recording** — Supported opaque H.264/HEVC/VP9 captures encode in the render WebView with hardware acceleration requested, stream binary batches to disk, and remux after stop. Alpha and image-animation paths retain lossless worker capture. Final output is still fully decoded and verified.
+- **Disk-based recording lifetime** — Removed fixed duration, frame-count, spool/output-size and total-job-time limits. Low-space captures finish the accepted portion with a warning; bounded memory, format constraints and stall detection remain.
+- **Export status bar** — RAV-colored capture/finalization/verification progress occupies the bottom status bar while a job runs; normal playback status returns afterward.
+- **Failure recovery and cancellation** — Renderer/transport errors retain the native acknowledged prefix and expose recovery details in MCP status. Cancel interrupts stalled preparation/draining immediately and cleans only its capture. Explicit frame stepping is rejected during recording. Recovery refuses to invent missing bytes in shortened files.
+- **Frame-complete recording clock** — Recording exclusively drives Rive at the requested FPS. It waits for bounded encoder capacity before advancement, catches up individual frames after delayed native wake-ups, and seals/drains the exact manual-stop interval. No synthetic video holds or end padding. Status exposes capture lag; device throughput remains a physical constraint.
+- **Timed MCP interactions** — Record requests accept scheduled typed VM changes, triggers, images and mouse events, with recording-clock receipts. All eight media tools reject unknown or mistyped arguments before starting native work.
+- **Live dependency inventory** — About, opened from Settings or the native Help menu, reports the active Rive Web runtime and the exact FFmpeg, ffprobe and optional gifski versions returned by the desktop capability service, including unavailable tools instead of implying support.
+- **Independent metadata inspection** — File information is collected from copied bytes in a separate runtime file, avoiding inspection side effects in live scripted ViewModels. Source, runtime and session checks prevent old selections or queued mutations from crossing into a replacement file.
+- **Background advancement** — Native wake-ups and explicit draw/flush keep hidden playback advancing; stale frame timestamps cannot send negative time.
+
+### Fixed
+
+- **Native overlay input isolation** — Opening any native RAV overlay makes the main interface inert and consumes its dismissal pointer. Media Export, snippet/HTML export, Settings, MCP Setup, About and future shared overlays can no longer activate the Properties drawer or another control through transparent or outlying regions.
+- **Consistent export chrome** — Media, snippet, and standalone export windows use the same compact ghost close control and shared overlay dismissal behavior.
+- **Media service recovery** — Concurrent/stale temporary-file cleanup tolerates already-removed entries and skips symlinks. Transient initialization errors can be retried without restarting the app.
+- **Reset and image acknowledgement** — Reset preserves current control values and waits for rendered frames. Image restoration waits until decoding and a subsequent rendered frame finish before acknowledging or releasing temporary image references.
+- **Timeline capture accuracy** — A sized hidden capture surface prevents zero-size suppression by ResizeObserver. Segment preroll preserves animation timing; decoded segment frames were verified against the corresponding full-timeline frames.
+- **Early MCP file opening** — Runtime loading shares startup version discovery, preventing `Latest` from changing cache keys during inspection.
+- **WebKit activation recovery** — A native activation watchdog retires and recreates a playback child once when WebKit stops responding during load, preventing an indefinitely blank or stale render surface.
+- **Export reliability** — Source changes cancel capture without publishing partial output; existing destinations are preserved by default. Native string errors remain errors in MCP replies. Linked dimension fields update correctly and default video sizes round to even pixels.
+- **Enum dropdown initialization** — Choices refresh when live accessors become available, even when the authored selection and hierarchy have not changed. Fresh TrackMap loads no longer require Reset to populate the dropdowns. Later choice changes also propagate through canonical deltas without changing VM values.
+- **Recording presentation and responsiveness** — Output-aspect previews remain centered and retain display/device-pixel backing density even when the requested export is much smaller, preventing a low-resolution capture from pixelating the live canvas. Capture composition still emits the exact requested dimensions and restores the normal backing store afterward. Three bounded capture slots move PNG compression to workers in supported desktop WebViews, avoiding synchronous compression on the animation thread. The recording clock renders each simulation frame before submission, including after delayed wake-ups. Video rejects missing frame indexes; receipts expose wall-clock capture lag separately.
+- **Export result UI** — EXPORT remains the sole entry to results; the redundant Media result button is removed. Active recording retains STOP, and overlapping frame-hold warnings become one amber capture-quality summary instead of duplicate error-like messages.
+
+### Distribution and validation
+
+- **Pinned production encoders** — macOS and Windows packages acquire and verify Jellyfin FFmpeg/ffprobe 7.1.4-3 from a reviewed per-target manifest, bundle the required GPL notices and exact corresponding-source archive, and refuse undeclared or hash-mismatched binaries. Production never falls back to tools on `PATH`.
+- **Atomic signed release** — The private draft workflow imports an exact Developer ID identity, signs the bundled encoder executables, notarizes and staples both macOS architectures, verifies Windows installers, binds every updater payload and source archive into a byte ledger, and publishes only the exact candidate that passed isolated updater acceptance.
+- **Desktop acceptance** — The final isolated candidate passed all eight output formats, exact timeline-segment matching, 300/300-frame timed interaction recording, manual stop, cancellation, GIF target search, cold enum population, compact snippets, invalid-playback rejection, overlay isolation, status progress, and About dependency reporting. Full JavaScript, Rust, architecture, workflow, and website gates passed before staging the release.
+
 ## [2.5.4] - 2026-09-01
 
 ### Added

@@ -65,6 +65,15 @@ export function selectionFromCanonical(state, currentSelection) {
     };
 }
 
+export function canonicalSelectionMatchesSource(state, currentScope, canonicalScope) {
+    // Selection is an output of the canonical state, so compare source/runtime
+    // here, not the artboard/VM keys that a legitimate same-file reset can change.
+    return Boolean(currentScope?.sourceIdentity && currentScope.runtimeKey
+        && canonicalScope?.sessionId && state?.sessionId === canonicalScope.sessionId
+        && currentScope.sourceIdentity === canonicalScope.sourceIdentity
+        && currentScope.runtimeKey === canonicalScope.runtimeKey);
+}
+
 export function resolveImplicitVmInstanceKey(targetArtboardName, currentSelection, confirmedSelection) {
     if (targetArtboardName === currentSelection?.artboardName) {
         return currentSelection.vmInstanceName;

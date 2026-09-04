@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Exact private draft tag (for example v2.4.3)"
+        description: "Exact private draft tag (for example v2.5.5)"
         required: true
         type: string
       expected_commit:
@@ -19,7 +19,7 @@ on:
         required: true
         type: string
       confirmation:
-        description: "Type PUBLISH followed by the tag, for example PUBLISH v2.4.3"
+        description: "Type PUBLISH followed by the tag, for example PUBLISH v2.5.5"
         required: true
         type: string
 

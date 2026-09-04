@@ -56,7 +56,8 @@ fn format_tool_result(name: &str, result: Value) -> Value {
     let text = result.as_str().map(str::to_owned).unwrap_or_else(|| {
         serde_json::to_string_pretty(&result).unwrap_or_else(|_| result.to_string())
     });
-    let mut payload = json!({"content":[{"type":"text","text":text}],"isError":false});
+    let rejected = result.get("applied").and_then(Value::as_bool) == Some(false);
+    let mut payload = json!({"content":[{"type":"text","text":text}],"isError":rejected});
     if !result.is_string() {
         payload["structuredContent"] = result;
     }

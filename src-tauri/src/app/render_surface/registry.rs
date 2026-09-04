@@ -2,12 +2,24 @@ use std::{collections::HashMap, sync::Mutex};
 
 use super::geometry::RenderSurfaceBounds;
 
-const REGISTRY_LOCK_ERROR: &str = "Render surface registry lock is poisoned";
+mod manager;
 
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct ActivationPlan {
     pub(super) next: SurfaceResource,
     pub(super) previous: Option<SurfaceResource>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ActivationWatchdogTicket {
+    pub(super) session_id: String,
+    pub(super) generation: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct ActivationWatchdogRetry {
+    pub(super) expired: SurfaceResource,
+    pub(super) replacement: SurfaceResource,
 }
 
 /// The native WebView label and the only cache filename it is ever allowed to
@@ -19,6 +31,7 @@ pub(super) struct SurfaceResource {
     pub(super) session_id: String,
     pub(super) label: String,
     pub(super) target_bounds: RenderSurfaceBounds,
+    pub(super) activation_attempt: u8,
 }
 
 // Geometry is mutable presentation state. Resource identity remains the stable
@@ -44,6 +57,8 @@ pub(super) struct RenderSurfaceRegistry {
     pending_by_session: HashMap<String, SurfaceResource>,
     retired: Vec<SurfaceResource>,
     cache_retry_sessions: Vec<String>,
+    activation_watchdogs: HashMap<String, u64>,
+    next_watchdog_generation: u64,
 }
 
 impl RenderSurfaceRegistry {
@@ -53,14 +68,71 @@ impl RenderSurfaceRegistry {
         label: String,
         target_bounds: RenderSurfaceBounds,
     ) {
+        self.activation_watchdogs.remove(&session_id);
         self.pending_by_session.insert(
             session_id.clone(),
             SurfaceResource {
                 session_id,
                 label,
                 target_bounds,
+                activation_attempt: 0,
             },
         );
+    }
+
+    fn arm_activation_watchdog(
+        &mut self,
+        session_id: &str,
+    ) -> Result<ActivationWatchdogTicket, String> {
+        if !self.pending_by_session.contains_key(session_id) {
+            return Err(format!(
+                "Cannot arm activation watchdog for unstaged session {session_id}"
+            ));
+        }
+        self.next_watchdog_generation = self.next_watchdog_generation.wrapping_add(1).max(1);
+        let generation = self.next_watchdog_generation;
+        self.activation_watchdogs
+            .insert(session_id.to_string(), generation);
+        Ok(ActivationWatchdogTicket {
+            session_id: session_id.to_string(),
+            generation,
+        })
+    }
+
+    fn begin_activation_watchdog_retry(
+        &mut self,
+        ticket: &ActivationWatchdogTicket,
+        replacement_label: String,
+    ) -> Option<ActivationWatchdogRetry> {
+        if self.activation_watchdogs.get(&ticket.session_id) != Some(&ticket.generation) {
+            return None;
+        }
+        self.activation_watchdogs.remove(&ticket.session_id);
+        let expired = self.pending_by_session.get(&ticket.session_id)?.clone();
+        // A watchdog is armed only for the initial native child. Keeping this
+        // guard in the registry makes a second native restart impossible even
+        // if a future caller accidentally reuses an old ticket.
+        if expired.activation_attempt != 0 {
+            return None;
+        }
+        let replacement = SurfaceResource {
+            session_id: expired.session_id.clone(),
+            label: replacement_label,
+            target_bounds: expired.target_bounds,
+            activation_attempt: 1,
+        };
+        self.pending_by_session
+            .insert(ticket.session_id.clone(), replacement.clone());
+        Some(ActivationWatchdogRetry {
+            expired,
+            replacement,
+        })
+    }
+
+    fn acknowledge_first_frame(&mut self, label: &str) -> Option<SurfaceResource> {
+        let resource = self.routable_surface_for_label(label)?;
+        self.activation_watchdogs.remove(&resource.session_id);
+        Some(resource)
     }
 
     pub(super) fn active_label(&self) -> Result<String, String> {
@@ -143,6 +215,7 @@ impl RenderSurfaceRegistry {
         }
         self.active = Some(activated.clone());
         self.pending_by_session.remove(&plan.next.session_id);
+        self.activation_watchdogs.remove(&plan.next.session_id);
         Ok(activated)
     }
 
@@ -158,6 +231,7 @@ impl RenderSurfaceRegistry {
             return false;
         }
         self.pending_by_session.remove(&surface.session_id);
+        self.activation_watchdogs.remove(&surface.session_id);
         true
     }
 
@@ -196,17 +270,24 @@ impl RenderSurfaceRegistry {
         // though only one native child exists. Closing that child must retire
         // every matching identity so shutdown cannot leave stale routing
         // state behind merely because managed_surfaces deduplicated the label.
-        if self
+        let released_active = self
             .active
             .as_ref()
-            .is_some_and(|active| active.label == surface.label)
-        {
+            .is_some_and(|active| active.label == surface.label);
+        let released_pending = self
+            .pending_by_session
+            .values()
+            .any(|pending| pending.label == surface.label);
+        if released_active {
             self.active = None;
         }
         self.pending_by_session
             .retain(|_, pending| pending.label != surface.label);
         self.retired
             .retain(|retired| retired.label != surface.label);
+        if released_active || released_pending {
+            self.activation_watchdogs.remove(&surface.session_id);
+        }
     }
 
     #[cfg(test)]
@@ -215,6 +296,7 @@ impl RenderSurfaceRegistry {
         self.pending_by_session.clear();
         self.retired.clear();
         self.cache_retry_sessions.clear();
+        self.activation_watchdogs.clear();
     }
 
     fn record_retired(&mut self, surface: SurfaceResource) {
@@ -255,6 +337,19 @@ impl RenderSurfaceRegistry {
         }
         self.active_label()
     }
+
+    fn routable_surface_for_label(&self, label: &str) -> Option<SurfaceResource> {
+        self.pending_by_session
+            .values()
+            .find(|surface| surface.label == label)
+            .cloned()
+            .or_else(|| {
+                self.active
+                    .as_ref()
+                    .filter(|surface| surface.label == label)
+                    .cloned()
+            })
+    }
 }
 
 /// Native playback surfaces are double-buffered during navigation. The active
@@ -262,94 +357,6 @@ impl RenderSurfaceRegistry {
 /// file/artboard/playback transition never exposes a blank native layer.
 #[derive(Default)]
 pub struct RenderSurfaceManager(Mutex<RenderSurfaceRegistry>);
-
-impl RenderSurfaceManager {
-    pub(super) fn stage(
-        &self,
-        session_id: String,
-        label: String,
-        target_bounds: RenderSurfaceBounds,
-    ) -> Result<(), String> {
-        self.lock()?.stage(session_id, label, target_bounds);
-        Ok(())
-    }
-
-    pub(super) fn active_label(&self) -> Result<String, String> {
-        self.lock()?.active_label()
-    }
-
-    pub(super) fn active_surface(&self) -> Result<Option<SurfaceResource>, String> {
-        Ok(self.lock()?.active_surface())
-    }
-
-    pub(super) fn managed_surfaces(&self) -> Result<Vec<SurfaceResource>, String> {
-        Ok(self.lock()?.managed_surfaces())
-    }
-
-    pub(super) fn activation_plan(&self, session_id: &str) -> Result<ActivationPlan, String> {
-        self.lock()?.activation_plan(session_id)
-    }
-
-    pub(super) fn commit_activation(
-        &self,
-        plan: &ActivationPlan,
-    ) -> Result<SurfaceResource, String> {
-        self.lock()?.commit_activation(plan)
-    }
-
-    pub(super) fn pending_surface(
-        &self,
-        session_id: &str,
-    ) -> Result<Option<SurfaceResource>, String> {
-        Ok(self.lock()?.pending_surface(session_id))
-    }
-
-    pub(super) fn rollback_pending_surface(
-        &self,
-        surface: &SurfaceResource,
-    ) -> Result<bool, String> {
-        Ok(self.lock()?.rollback_pending_surface(surface))
-    }
-
-    pub(super) fn apply_bounds(
-        &self,
-        target_bounds: RenderSurfaceBounds,
-    ) -> Result<Vec<SurfaceGeometry>, String> {
-        Ok(self.lock()?.apply_bounds(target_bounds))
-    }
-
-    pub(super) fn release_surface(&self, surface: &SurfaceResource) -> Result<(), String> {
-        self.lock()?.release_surface(surface);
-        Ok(())
-    }
-
-    pub(super) fn record_retired(&self, surface: SurfaceResource) -> Result<(), String> {
-        self.lock()?.record_retired(surface);
-        Ok(())
-    }
-
-    pub(super) fn record_cache_retry(&self, session_id: String) -> Result<(), String> {
-        self.lock()?.record_cache_retry(session_id);
-        Ok(())
-    }
-
-    pub(super) fn cache_retry_sessions(&self) -> Result<Vec<String>, String> {
-        Ok(self.lock()?.cache_retry_sessions())
-    }
-
-    pub(super) fn release_cache_retry(&self, session_id: &str) -> Result<(), String> {
-        self.lock()?.release_cache_retry(session_id);
-        Ok(())
-    }
-
-    pub(super) fn route_label(&self, requested_session: Option<&str>) -> Result<String, String> {
-        self.lock()?.route_label(requested_session)
-    }
-
-    fn lock(&self) -> Result<std::sync::MutexGuard<'_, RenderSurfaceRegistry>, String> {
-        self.0.lock().map_err(|_| REGISTRY_LOCK_ERROR.to_string())
-    }
-}
 
 #[cfg(test)]
 #[path = "registry_tests.rs"]

@@ -84,6 +84,7 @@ mod tests {
             canvas_sizing: None,
             canvas_transparent: false,
             control_selection_keys: None,
+            inspection_metadata: None,
             control_snapshot: None,
             default_instantiation_package_source: "cdn".into(),
             editor_code: String::new(),
