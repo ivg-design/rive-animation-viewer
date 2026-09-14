@@ -90,6 +90,9 @@ export default async function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
+      <head>
+        <script src="/shared/js/growth-events.js" defer />
+      </head>
       <body
         className={`${spaceGrotesk.variable} ${spaceMono.variable} h-full font-sans antialiased`}
         suppressHydrationWarning

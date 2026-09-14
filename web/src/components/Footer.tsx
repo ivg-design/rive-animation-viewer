@@ -8,6 +8,7 @@ type FooterLink = {
   label: string;
   href: string;
   external?: boolean;
+  action?: "repository" | "service_outbound";
 };
 
 export default function Footer() {
@@ -26,7 +27,7 @@ export default function Footer() {
     {
       title: "Resources",
       links: [
-        { label: "GitHub Repository", href: "https://github.com/ivg-design/rive-animation-viewer", external: true },
+        { label: "GitHub Repository", href: "https://github.com/ivg-design/rive-animation-viewer", external: true, action: "repository" },
         { label: "Report an Issue", href: "https://github.com/ivg-design/rive-animation-viewer/issues", external: true },
         { label: "Rive Community", href: "https://rive.app/community", external: true },
       ],
@@ -36,7 +37,8 @@ export default function Footer() {
       links: [
         { label: "Forge Hub", href: "https://forge.mograph.life", external: true },
         { label: "Learn Rive scripting with LERP", href: "https://forge.mograph.life/apps/lerp/", external: true },
-        { label: "Work with Ilya", href: "https://contra.com/ivg_design", external: true },
+        { label: "Services", href: "/services/", external: true },
+        { label: "Work with Ilya", href: "https://contra.com/ivg_design", external: true, action: "service_outbound" },
         { label: "RWPP", href: "https://forge.mograph.life/apps/rwpp/", external: true },
       ],
     },
@@ -77,6 +79,7 @@ export default function Footer() {
                   <a
                     key={link.label}
                     href={link.href}
+                    data-forge-action={link.action}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[13px] text-[var(--text-muted)] hover:text-[var(--text-white)] transition-colors"
