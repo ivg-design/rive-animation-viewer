@@ -1,4 +1,5 @@
-export const metadata = { title: "Keyboard Shortcuts" };
+import { documentationMetadata } from "@/lib/seo";
+export const metadata = documentationMetadata("shortcuts", "Keyboard Shortcuts", "Keyboard shortcuts for opening files, playback, timeline navigation, panels, and common actions in RAV on macOS and Windows.");
 
 export default function Shortcuts() {
   return (

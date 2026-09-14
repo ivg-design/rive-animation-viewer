@@ -42,16 +42,18 @@ export default async function HeroSection() {
         <div className="flex flex-col sm:flex-row items-center gap-3 mt-2">
           <a
             href={macSilicon?.url || "https://github.com/ivg-design/rive-animation-viewer/releases/latest"}
+            data-forge-action="download_intent"
             className="group flex items-center gap-2.5 px-5 py-2.5 rounded-lg btn-neon text-sm font-semibold hover:shadow-[0_0_32px_var(--neon-glow)] transition-shadow duration-300"
           >
             <Apple className="w-4 h-4" />
             <span>Download for Mac</span>
-            {macSilicon && <span className="text-[10px] opacity-50">{formatBytes(macSilicon.size)}</span>}
+            {macSilicon && <span className="text-[10px] opacity-80">{formatBytes(macSilicon.size)}</span>}
           </a>
 
           <div className="flex items-center gap-2">
             <a
               href={macIntel?.url || "https://github.com/ivg-design/rive-animation-viewer/releases/latest"}
+              data-forge-action="download_intent"
               className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--border-light)] text-sm text-[var(--text-dim)] hover:text-[var(--text-white)] hover:border-[var(--neon-glow)] transition-colors duration-300"
             >
               <Apple className="w-3.5 h-3.5" />
@@ -59,6 +61,7 @@ export default async function HeroSection() {
             </a>
             <a
               href={winDownload?.url || "https://github.com/ivg-design/rive-animation-viewer/releases/latest"}
+              data-forge-action="download_intent"
               className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--border-light)] text-sm text-[var(--text-dim)] hover:text-[var(--text-white)] hover:border-[var(--neon-glow)] transition-colors duration-300"
             >
               <Monitor className="w-3.5 h-3.5" />

@@ -1,4 +1,5 @@
-export const metadata = { title: "Troubleshooting" };
+import { documentationMetadata } from "@/lib/seo";
+export const metadata = documentationMetadata("troubleshooting", "Troubleshooting", "Resolve common RAV issues with loading .riv files, configuration, ViewModel controls, embedded images, desktop file icons, and MCP connections.");
 
 export default function Troubleshooting() {
   return (

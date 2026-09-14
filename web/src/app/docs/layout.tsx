@@ -63,7 +63,10 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
           </nav>
           <footer className="docs-footer">
             <Link href={asset("/")}>Back to RAV</Link>
-            <a href="https://github.com/ivg-design/rive-animation-viewer" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+            <a href="https://forge.mograph.life/apps/lerp/">Learn Rive scripting</a>
+            <a href="/services/">Creative services</a>
+            <a href="https://contra.com/ivg_design" data-forge-action="service_outbound">Work with Ilya</a>
+            <a href="https://github.com/ivg-design/rive-animation-viewer" target="_blank" rel="noopener noreferrer" data-forge-action="repository">View on GitHub</a>
           </footer>
         </main>
         <DocsTableOfContents key={pathname} />

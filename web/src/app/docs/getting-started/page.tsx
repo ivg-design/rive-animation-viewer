@@ -1,6 +1,7 @@
+import { documentationMetadata } from "@/lib/seo";
 import { asset } from "@/lib/config";
 
-export const metadata = { title: "Getting Started" };
+export const metadata = documentationMetadata("getting-started", "Getting Started", "Install RAV on macOS or Windows, open a Rive file, and learn the difference between the desktop viewer and local browser mode.");
 
 export default function GettingStarted() {
   return (

@@ -1,3 +1,4 @@
+import ProductStructuredData from "@/components/ProductStructuredData";
 import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
 import AnswerSection from "@/components/AnswerSection";
@@ -11,6 +12,7 @@ import Footer from "@/components/Footer";
 export default function Home() {
   return (
     <main className="flex flex-col items-center min-h-screen">
+      <ProductStructuredData />
       <Header />
       <HeroSection />
       <AnswerSection />

@@ -1,7 +1,8 @@
+import { documentationMetadata } from "@/lib/seo";
 import DocsFigure from "@/components/docs/DocsFigure";
 import { asset } from "@/lib/config";
 
-export const metadata = { title: "ViewModel Controls" };
+export const metadata = documentationMetadata("viewmodel-controls", "ViewModel Controls", "Inspect and edit Rive ViewModel inputs in RAV, including numbers, colors, triggers, nested ViewModels, lists, and embedded images.");
 
 export default function ViewModelControls() {
   return (

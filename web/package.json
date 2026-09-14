@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "images:build": "node scripts/generate-responsive-images.mjs",
+    "prebuild": "npm run images:build",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -12,7 +14,7 @@
   "dependencies": {
     "framer-motion": "^12.38.0",
     "lucide-react": "^0.563.0",
-    "next": "16.3.4",
+    "next": "16.3.5",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
@@ -22,12 +24,13 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.4",
+    "eslint-config-next": "16.3.5",
+    "sharp": "0.35.4",
     "tailwindcss": "^4",
     "typescript": "5.9.3"
   },
   "overrides": {
     "postcss": "8.5.23",
-    "sharp": "0.35.3"
+    "sharp": "0.35.4"
   }
 }

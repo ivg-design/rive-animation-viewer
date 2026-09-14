@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { asset } from "@/lib/config";
+import ResponsiveImage from "./ResponsiveImage";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import ScrollReveal from "./ScrollReveal";
 
@@ -12,6 +13,7 @@ type GalleryItem = {
   caption: string;
   width: number;
   height: number;
+  responsiveImage?: "mcpSetup";
 };
 
 const items: GalleryItem[] = [
@@ -41,9 +43,10 @@ const items: GalleryItem[] = [
   },
   {
     src: "/docs/mcp-setup.webp",
+    responsiveImage: "mcpSetup",
     alt: "MCP setup dialog with bundled sidecar controls and client detection",
     caption: "MCP setup — bridge health, Script Access, port, client detection, and install actions",
-    width: 500, height: 700,
+    width: 500, height: 1065,
   },
   {
     src: "/docs/about-window.webp",
@@ -55,6 +58,15 @@ const items: GalleryItem[] = [
 
 export default function GallerySection() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const launcherRef = useRef<HTMLButtonElement | null>(null);
+  const isLightboxOpen = lightboxIndex !== null;
+
+  const closeLightbox = useCallback(() => {
+    setLightboxIndex(null);
+    window.requestAnimationFrame(() => launcherRef.current?.focus());
+  }, []);
 
   const goNext = useCallback(() => {
     if (lightboxIndex !== null) setLightboxIndex((lightboxIndex + 1) % items.length);
@@ -64,15 +76,39 @@ export default function GallerySection() {
   }, [lightboxIndex]);
 
   useEffect(() => {
-    if (lightboxIndex === null) return;
+    if (!isLightboxOpen) return;
+    closeButtonRef.current?.focus();
+  }, [isLightboxOpen]);
+
+  useEffect(() => {
+    if (!isLightboxOpen) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setLightboxIndex(null);
+      if (e.key === "Escape") closeLightbox();
       if (e.key === "ArrowRight") goNext();
       if (e.key === "ArrowLeft") goPrev();
+      if (e.key === "Tab") {
+        const focusable = Array.from(
+          dialogRef.current?.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+          ) ?? [],
+        );
+        const first = focusable[0];
+        const last = focusable.at(-1);
+        if (!first || !last) return;
+
+        const activeElement = document.activeElement;
+        if (e.shiftKey && (activeElement === first || !dialogRef.current?.contains(activeElement))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (activeElement === last || !dialogRef.current?.contains(activeElement))) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [lightboxIndex, goNext, goPrev]);
+  }, [isLightboxOpen, closeLightbox, goNext, goPrev]);
 
   return (
     <section id="screenshots" className="flex flex-col items-center py-24 px-8 w-full">
@@ -89,17 +125,32 @@ export default function GallerySection() {
         {items.map((item, index) => (
           <ScrollReveal key={item.caption} delay={index * 0.05}>
             <button
-              onClick={() => setLightboxIndex(index)}
+              onClick={(event) => {
+                launcherRef.current = event.currentTarget;
+                setLightboxIndex(index);
+              }}
+              aria-label={`Open full-size screenshot: ${item.caption}`}
               className="group relative w-full rounded-xl overflow-hidden bg-[var(--bg-zinc)] border border-[var(--border-dark)] hover:border-[var(--neon-glow)] transition-colors duration-300 cursor-pointer text-left"
             >
-              <Image
-                src={asset(item.src)}
-                alt={item.alt}
-                width={item.width}
-                height={item.height}
-                className="w-full h-auto"
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              />
+              {item.responsiveImage ? (
+                <ResponsiveImage
+                  image={item.responsiveImage}
+                  alt={item.alt}
+                  width={item.width}
+                  height={item.height}
+                  className="w-full h-auto"
+                  sizes="(max-width: 639px) calc(100vw - 64px), (max-width: 1023px) calc(50vw - 40px), 356px"
+                />
+              ) : (
+                <Image
+                  src={asset(item.src)}
+                  alt={item.alt}
+                  width={item.width}
+                  height={item.height}
+                  className="w-full h-auto"
+                  sizes="(max-width: 639px) calc(100vw - 64px), (max-width: 1023px) calc(50vw - 40px), 356px"
+                />
+              )}
               <div className="p-3 border-t border-[var(--border-dark)]">
                 <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">{item.caption}</p>
               </div>
@@ -111,16 +162,20 @@ export default function GallerySection() {
       {/* Lightbox */}
       {lightboxIndex !== null && (
         <div
+          ref={dialogRef}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
-          onClick={() => setLightboxIndex(null)}
+          onClick={closeLightbox}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Screenshot viewer"
         >
-          <button onClick={() => setLightboxIndex(null)} className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10">
+          <button ref={closeButtonRef} aria-label="Close screenshot viewer" onClick={closeLightbox} className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10">
             <X className="w-5 h-5 text-white" />
           </button>
-          <button onClick={(e) => { e.stopPropagation(); goPrev(); }} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10">
+          <button aria-label="Previous screenshot" onClick={(e) => { e.stopPropagation(); goPrev(); }} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10">
             <ChevronLeft className="w-5 h-5 text-white" />
           </button>
-          <button onClick={(e) => { e.stopPropagation(); goNext(); }} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10">
+          <button aria-label="Next screenshot" onClick={(e) => { e.stopPropagation(); goNext(); }} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors z-10">
             <ChevronRight className="w-5 h-5 text-white" />
           </button>
           <div className="relative w-[90vw] h-[85vh] flex items-center justify-center" onClick={(e) => e.stopPropagation()}>

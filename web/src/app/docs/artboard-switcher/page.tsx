@@ -1,7 +1,8 @@
+import { documentationMetadata } from "@/lib/seo";
 import Image from "next/image";
 import { asset } from "@/lib/config";
 
-export const metadata = { title: "Artboard Switcher" };
+export const metadata = documentationMetadata("artboard-switcher", "Artboard Switcher", "Switch between artboards in a .riv file with RAV and understand how each artboard exposes its own animations, state machines, and inputs.");
 
 export default function ArtboardSwitcher() {
   return (

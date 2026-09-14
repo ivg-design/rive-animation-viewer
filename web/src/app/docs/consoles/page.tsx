@@ -1,7 +1,8 @@
+import { documentationMetadata } from "@/lib/seo";
 import DocsFigure from "@/components/docs/DocsFigure";
 import { asset } from "@/lib/config";
 
-export const metadata = { title: "Consoles" };
+export const metadata = documentationMetadata("consoles", "Consoles", "Use RAV’s event and JavaScript consoles to inspect runtime activity, filter messages, run commands, and debug interactive Rive animations.");
 
 export default function Consoles() {
   return (

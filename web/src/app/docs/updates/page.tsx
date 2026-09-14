@@ -1,7 +1,8 @@
+import { documentationMetadata } from "@/lib/seo";
 import Image from "next/image";
 import { asset } from "@/lib/config";
 
-export const metadata = { title: "Automatic Updates" };
+export const metadata = documentationMetadata("updates", "Automatic Updates", "Check for RAV desktop updates, understand update status, install a release, and troubleshoot download or installation failures.");
 
 export default function Updates() {
   return (
