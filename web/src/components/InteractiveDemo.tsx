@@ -108,7 +108,7 @@ export default function InteractiveDemo() {
         </div>
 
         {/* Hotspot layer — outside the clip, so highlights and tooltips can extend past the rounded corners if needed */}
-        <div className="absolute inset-0 z-10">
+        <div className="absolute inset-0 z-10 hidden min-[1120px]:block">
           {hotspots.map((spot) => (
             <button
               key={spot.id}
@@ -138,7 +138,7 @@ export default function InteractiveDemo() {
           const { style } = tooltipPosition(active);
           return (
             <div
-              className="absolute z-20 pointer-events-none animate-[fadeIn_150ms_ease-out]"
+              className="absolute z-20 pointer-events-none hidden min-[1120px]:block animate-[fadeIn_150ms_ease-out]"
               style={{ ...style, maxWidth: "320px" }}
             >
               <div className="p-3 rounded-lg bg-[var(--bg-zinc)]/95 backdrop-blur-sm border border-[var(--neon)]/30 shadow-xl shadow-black/50">
@@ -154,8 +154,24 @@ export default function InteractiveDemo() {
         })()}
       </div>
 
-      <p className="text-center text-[11px] text-[var(--text-ghost)] mt-3 font-mono">
-        Hover over any region to explore the interface
+      <div className="mt-4 flex flex-col gap-2 min-[1120px]:hidden" role="group" aria-label="Explore the RAV interface">
+        {hotspots.map((spot) => (
+          <details
+            key={spot.id}
+            className="group rounded-lg border border-[var(--border-dark)] bg-[var(--bg-zinc)] px-4"
+          >
+            <summary className="min-h-11 cursor-pointer py-3 font-mono text-sm font-semibold text-[var(--text-white)] marker:text-[var(--neon)]">
+              {spot.label}
+            </summary>
+            <p className="pb-4 text-sm leading-relaxed text-[var(--text-dim)]">
+              {spot.description}
+            </p>
+          </details>
+        ))}
+      </div>
+
+      <p className="mt-3 hidden text-center font-mono text-[11px] text-[var(--text-ghost)] min-[1120px]:block">
+        Hover over or focus any region to explore the interface
       </p>
     </div>
   );
