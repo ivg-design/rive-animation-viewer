@@ -1,8 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
-import { asset } from "@/lib/config";
+import ResponsiveImage from "./ResponsiveImage";
 
 // Coordinates measured against the 1690 × 1260 hero image. Window itself sits inside
 // 80pt margins; layout segments documented at the source measurement pass.
@@ -97,13 +96,12 @@ export default function InteractiveDemo() {
       <div className="relative aspect-[169/126]">
         {/* Image clip container — only the image is clipped, NOT the overlays */}
         <div className="absolute inset-0 rounded-xl overflow-hidden border border-[var(--border-light)] shadow-2xl shadow-black/60">
-          <Image
-            src={asset("/media/screenshots/hero-rav-window.webp")}
+          <ResponsiveImage
+            image="hero"
             alt="Rive Animation Viewer — script editor on the left, canvas centre, properties on the right, console panel along the bottom"
-            fill
             priority
-            sizes="(max-width: 1100px) 100vw, 1100px"
-            className="object-cover"
+            sizes="(max-width: 1195px) calc(100vw - 96px), 1100px"
+            className="absolute inset-0 h-full w-full object-cover"
           />
           {/* Bottom fade — clipped with the image */}
           <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[var(--bg-void)] to-transparent pointer-events-none" />
@@ -112,8 +110,10 @@ export default function InteractiveDemo() {
         {/* Hotspot layer — outside the clip, so highlights and tooltips can extend past the rounded corners if needed */}
         <div className="absolute inset-0 z-10">
           {hotspots.map((spot) => (
-            <div
+            <button
               key={spot.id}
+              type="button"
+              aria-label={`${spot.label}: ${spot.description}`}
               className={`absolute cursor-pointer transition-all duration-200 rounded-md ${
                 activeHotspot === spot.id
                   ? "bg-[var(--neon)]/10 ring-1 ring-[var(--neon)]/40"
@@ -127,6 +127,8 @@ export default function InteractiveDemo() {
               }}
               onMouseEnter={() => setActiveHotspot(spot.id)}
               onMouseLeave={() => setActiveHotspot(null)}
+              onFocus={() => setActiveHotspot(spot.id)}
+              onBlur={() => setActiveHotspot(null)}
             />
           ))}
         </div>

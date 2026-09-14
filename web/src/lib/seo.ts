@@ -25,13 +25,18 @@ export function documentationMetadata(slug: string, title: string, description: 
       url,
       type: "article",
       siteName: "RAV — Rive Animation Viewer",
-      images: [{ url: toCanonicalUrl("/images/app-icon.png"), width: 512, height: 512, alt: "RAV" }],
+      images: [{
+        url: toCanonicalUrl("/media/screenshots/hero-rav-window.webp"),
+        width: 2200,
+        height: 1639,
+        alt: "Rive Animation Viewer interface with script editor, animation canvas, properties, and console panels",
+      }],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title: pageTitle,
       description,
-      images: [toCanonicalUrl("/images/app-icon.png")],
+      images: [toCanonicalUrl("/media/screenshots/hero-rav-window.webp")],
     },
   };
 }

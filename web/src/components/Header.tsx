@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { asset } from "@/lib/config";
 import { Menu, X } from "lucide-react";
+import ResponsiveImage from "./ResponsiveImage";
 
 const navLinks = [
   { label: "Features", href: "#features" },
@@ -31,11 +31,12 @@ export default function Header() {
       <div className="max-w-[1200px] mx-auto px-6 py-3 flex items-center justify-between">
         {/* Logo */}
         <Link href={asset("/")} className="flex items-center gap-2.5">
-          <Image
-            src={asset("/images/app-icon.png")}
-            alt="RAV"
+          <ResponsiveImage
+            image="appIcon"
+            alt=""
             width={32}
             height={32}
+            sizes="32px"
             className="rounded-lg"
           />
           <span className="font-mono text-sm font-bold tracking-wider text-[var(--text-white)]">
@@ -59,14 +60,20 @@ export default function Header() {
         </nav>
 
         {/* Mobile toggle */}
-        <button onClick={() => setMobileOpen(!mobileOpen)} className="md:hidden p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-white)] hover:bg-[var(--bg-elevated)] transition-colors">
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="md:hidden p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-white)] hover:bg-[var(--bg-elevated)] transition-colors"
+          aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={mobileOpen}
+          aria-controls="mobile-navigation"
+        >
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
       </div>
 
       {/* Mobile nav drawer */}
       {mobileOpen && (
-        <nav className="md:hidden border-t border-[var(--border-dark)] bg-[var(--bg-void)] px-6 py-4 flex flex-col gap-3">
+        <nav id="mobile-navigation" className="md:hidden border-t border-[var(--border-dark)] bg-[var(--bg-void)] px-6 py-4 flex flex-col gap-3">
           {navLinks.map((link) =>
             link.internal ? (
               <Link key={link.label} href={asset(link.href)} onClick={() => setMobileOpen(false)} className="text-sm text-[var(--text-muted)] hover:text-[var(--text-white)] py-1.5 transition-colors">

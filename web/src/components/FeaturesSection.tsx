@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
-import { asset } from "@/lib/config";
 import ScrollReveal, { ScrollRevealGroup, ScrollRevealItem } from "./ScrollReveal";
+import ResponsiveImage from "./ResponsiveImage";
+import type { ResponsiveImageKey } from "@/lib/responsive-images";
 import {
   Gamepad2, Terminal, FileCode, Code2, MonitorCog, RotateCcw,
   Cable, Layers, Download, Maximize, MousePointerClick, Search,
@@ -15,33 +15,42 @@ const primaryFeatures = [
     label: "Controls",
     title: "Every property, live",
     description: "RAV reads the ViewModel hierarchy and state machine inputs from your .riv file. List rows resolve exact authored labels. Each image property gets one full-width select with every embedded raster, Open file…, and Clear; the external file input stays hidden.",
-    image: "/docs/vm-controls-panel.webp",
+    responsiveImage: "viewModelControls",
     imageAlt: "ViewModel controls panel showing enums, numbers, booleans, color picker, and nested instances",
     imageWidth: 400,
-    imageHeight: 900,
+    imageHeight: 784,
     reverse: false,
   },
   {
     label: "Export",
     title: "From animation to any output",
     description: "Export H.264, H.265, WebM, APNG, GIF, PNG, JPG, or WebP from timelines and live state-machine interaction. Or choose controls, CDN or local packages, then copy a focused snippet or export a self-contained HTML demo.",
-    image: "/docs/export-controls.webp",
+    responsiveImage: "exportControls",
     imageAlt: "Snippet & Export Controls dialog with tree checkboxes and live code preview",
     imageWidth: 800,
-    imageHeight: 500,
+    imageHeight: 555,
     reverse: true,
   },
   {
     label: "MCP",
     title: "AI agents as co-pilots",
     description: "A bundled native sidecar exposes 57 MCP tools. Claude, Codex, or any MCP client can inspect and drive playback, record timed interactions, export every media format, edit scripts, generate snippets, and control the console panel. One-click install from the app.",
-    image: "/docs/mcp-setup.webp",
+    responsiveImage: "mcpSetup",
     imageAlt: "MCP Setup dialog with client detection, one-click install, and snippet copy",
     imageWidth: 500,
-    imageHeight: 700,
+    imageHeight: 1065,
     reverse: false,
   },
-];
+] satisfies Array<{
+  label: string;
+  title: string;
+  description: string;
+  responsiveImage: ResponsiveImageKey;
+  imageAlt: string;
+  imageWidth: number;
+  imageHeight: number;
+  reverse: boolean;
+}>;
 
 /* ── Secondary features — compact grid ── */
 
@@ -77,13 +86,13 @@ export default function FeaturesSection() {
               {/* Image */}
               <div className="md:w-1/2 flex-shrink-0">
                 <div className="relative rounded-xl overflow-hidden border border-[var(--border-dark)] bg-[var(--bg-zinc)]">
-                  <Image
-                    src={asset(feature.image)}
+                  <ResponsiveImage
+                    image={feature.responsiveImage}
                     alt={feature.imageAlt}
                     width={feature.imageWidth}
                     height={feature.imageHeight}
                     className="w-full h-auto"
-                    sizes="(max-width: 768px) 100vw, 50vw"
+                    sizes="(max-width: 767px) calc(100vw - 64px), 526px"
                   />
                 </div>
               </div>

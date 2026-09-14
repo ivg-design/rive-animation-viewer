@@ -61,10 +61,10 @@ export const metadata: Metadata = {
     siteName: "Rive Animation Viewer (RAV) — Free .riv Player",
     images: [
       {
-        url: toCanonicalUrl("/images/app-icon.png"),
-        width: 512,
-        height: 512,
-        alt: "Rive Animation Viewer (RAV) — Free .riv Player icon",
+        url: toCanonicalUrl("/media/screenshots/hero-rav-window.webp"),
+        width: 2200,
+        height: 1639,
+        alt: "Rive Animation Viewer interface with script editor, animation canvas, properties, and console panels",
       },
     ],
   },
@@ -72,7 +72,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Rive Animation Viewer (RAV) — Free .riv Player",
     description: "Open and inspect .riv files on macOS and Windows. Test ViewModels, debug events, and export interactive HTML demos with free, open-source RAV.",
-    images: [toCanonicalUrl("/images/app-icon.png")],
+    images: [toCanonicalUrl("/media/screenshots/hero-rav-window.webp")],
   },
   robots: {
     index: true,

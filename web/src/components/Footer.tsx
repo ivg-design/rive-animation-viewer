@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { asset } from "@/lib/config";
+import ResponsiveImage from "./ResponsiveImage";
 
 type FooterLink = {
   label: string;
@@ -48,11 +48,12 @@ export default function Footer() {
         {/* Logo */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2.5">
-            <Image
-              src={asset("/images/app-icon.png")}
-              alt="RAV Logo"
+            <ResponsiveImage
+              image="appIcon"
+              alt=""
               width={28}
               height={28}
+              sizes="28px"
               className="rounded-lg"
             />
             <span className="font-mono text-base font-bold tracking-wider text-[var(--text-white)]">
