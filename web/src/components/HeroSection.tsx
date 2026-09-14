@@ -46,7 +46,7 @@ export default async function HeroSection() {
           >
             <Apple className="w-4 h-4" />
             <span>Download for Mac</span>
-            {macSilicon && <span className="text-[10px] opacity-50">{formatBytes(macSilicon.size)}</span>}
+            {macSilicon && <span className="text-[10px] opacity-80">{formatBytes(macSilicon.size)}</span>}
           </a>
 
           <div className="flex items-center gap-2">

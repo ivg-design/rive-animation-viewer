@@ -30,7 +30,7 @@ export default async function DownloadSection() {
           >
             <Apple className="w-4 h-4" />
             <span>Mac &middot; Apple Silicon</span>
-            {macSilicon && <span className="text-[10px] opacity-50">{formatBytes(macSilicon.size)}</span>}
+            {macSilicon && <span className="text-[10px] opacity-80">{formatBytes(macSilicon.size)}</span>}
           </a>
           <a
             href={macIntel?.url || "https://github.com/ivg-design/rive-animation-viewer/releases/latest"}
