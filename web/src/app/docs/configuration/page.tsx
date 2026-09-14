@@ -1,7 +1,8 @@
+import { documentationMetadata } from "@/lib/seo";
 import DocsFigure from "@/components/docs/DocsFigure";
 import { asset } from "@/lib/config";
 
-export const metadata = { title: "Configuration" };
+export const metadata = documentationMetadata("configuration", "Configuration", "Configure RAV’s renderer, runtime version, layout, controls, and canvas behavior using supported configuration options.");
 
 export default function Configuration() {
   return (

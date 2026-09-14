@@ -35,6 +35,8 @@ export default function Footer() {
       title: "IVG Design",
       links: [
         { label: "Forge Hub", href: "https://forge.mograph.life", external: true },
+        { label: "Learn Rive scripting with LERP", href: "https://forge.mograph.life/apps/lerp/", external: true },
+        { label: "Work with Ilya", href: "https://contra.com/ivg_design", external: true },
         { label: "RWPP", href: "https://forge.mograph.life/apps/rwpp/", external: true },
       ],
     },

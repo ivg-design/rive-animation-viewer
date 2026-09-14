@@ -1,8 +1,9 @@
+import { documentationMetadata } from "@/lib/seo";
 import Link from "next/link";
 import DocsFigure from "@/components/docs/DocsFigure";
 import { asset } from "@/lib/config";
 
-export const metadata = { title: "Export + Snippets" };
+export const metadata = documentationMetadata("export", "Export + Snippets", "Export an interactive Rive animation from desktop RAV as a self-contained HTML demo or a code snippet with selected controls and configuration.");
 
 export default function Export() {
   return (

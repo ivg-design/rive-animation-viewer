@@ -1,4 +1,5 @@
-export const metadata = { title: "Opening Files" };
+import { documentationMetadata } from "@/lib/seo";
+export const metadata = documentationMetadata("opening-files", "Opening Files", "Open .riv files in RAV using drag and drop, the file dialog, or desktop file associations. Learn supported formats and file-icon troubleshooting.");
 
 export default function OpeningFiles() {
   return (

@@ -34,7 +34,7 @@
 .docs-pagination small { display: block; margin-bottom: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
 .docs-pagination svg { flex: none; }
 .docs-next { justify-content: flex-end; text-align: right; }
-.docs-footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border-dark); font-size: 12px; color: var(--text-dim); }
+.docs-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border-dark); font-size: 12px; color: var(--text-dim); }
 
 @media (min-width: 540px) {
   .docs-brand-label { display: inline; }

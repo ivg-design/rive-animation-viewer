@@ -1,8 +1,9 @@
+import { documentationMetadata } from "@/lib/seo";
 import Link from "next/link";
 import DocsFigure from "@/components/docs/DocsFigure";
 import { asset } from "@/lib/config";
 
-export const metadata = { title: "Media Export & Recording" };
+export const metadata = documentationMetadata("media-export", "Media Export & Recording", "Export Rive animations from desktop RAV as video, animated images, or stills. Compare timeline export with live interaction recording.");
 
 export default function MediaExport() {
   return (

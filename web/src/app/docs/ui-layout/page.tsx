@@ -1,8 +1,9 @@
+import { documentationMetadata } from "@/lib/seo";
 import Image from "next/image";
 import DocsFigure from "@/components/docs/DocsFigure";
 import { asset } from "@/lib/config";
 
-export const metadata = { title: "UI Layout" };
+export const metadata = documentationMetadata("ui-layout", "UI Layout", "Find your way around RAV: canvas, toolbar, timeline scrubber, properties, script editor, consoles, runtime controls, and the About window.");
 
 export default function UiLayout() {
   return (

@@ -1,7 +1,8 @@
+import { documentationMetadata } from "@/lib/seo";
 import Image from "next/image";
 import { asset } from "@/lib/config";
 
-export const metadata = { title: "Script Editor" };
+export const metadata = documentationMetadata("script-editor", "Script Editor", "Configure RAV with its JavaScript editor, apply changes, inspect the live Rive instance, and preserve applied configuration in standalone exports.");
 
 export default function ScriptEditor() {
   return (

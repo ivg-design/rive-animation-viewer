@@ -1,7 +1,8 @@
+import { documentationMetadata } from "@/lib/seo";
 import Image from "next/image";
 import { asset } from "@/lib/config";
 
-export const metadata = { title: "MCP Integration" };
+export const metadata = documentationMetadata("mcp", "MCP Integration", "Connect an AI client to RAV’s bundled MCP server, configure the connection, and use its tools to inspect and control a running Rive animation.");
 
 export default function McpIntegration() {
   return (
