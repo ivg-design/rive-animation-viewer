@@ -22,12 +22,16 @@
         function rememberRenderSurfaceImageCommand(descriptor) {
             var key = renderSurfaceImageSnapshotKey(descriptor);
             if (!key) return;
+            var selection = normalizeRenderSurfaceImageSelection(descriptor.imageSelection);
+            var usesEmbeddedAsset = selection && selection.kind === 'embedded' && descriptor.value == null;
             renderSurfaceImageSnapshot.set(key, {
-                action: descriptor.action === 'clear-image' || descriptor.value == null ? 'clear-image' : 'set-image',
+                action: descriptor.action === 'clear-image' || (descriptor.value == null && !usesEmbeddedAsset)
+                    ? 'clear-image'
+                    : 'set-image',
                 descriptor: Object.assign({}, descriptor, {
                     value: Array.isArray(descriptor.value) ? descriptor.value.slice() : descriptor.value,
                 }),
-                selection: normalizeRenderSurfaceImageSelection(descriptor.imageSelection),
+                selection: selection,
             });
             if (typeof isRenderSurfaceMode !== 'undefined' && isRenderSurfaceMode) {
                 var canonicalDescriptor = normalizeControlDescriptor(descriptor);
@@ -89,7 +93,10 @@
             if (!imageAccessor || !('value' in imageAccessor)) {
                 return Promise.reject(new Error('Image control is unavailable.'));
             }
-            if (imageDescriptor.action === 'clear-image' || imageDescriptor.value == null) {
+            var embeddedSelection = normalizeRenderSurfaceImageSelection(imageDescriptor.imageSelection);
+            var usesEmbeddedAsset = embeddedSelection && embeddedSelection.kind === 'embedded'
+                && imageDescriptor.value == null;
+            if ((imageDescriptor.action === 'clear-image' || imageDescriptor.value == null) && !usesEmbeddedAsset) {
                 var clearAdvanceRevision = Number(renderSurfaceAdvanceRevision) || 0;
                 imageAccessor.value = null;
                 var clearRendering = restartRenderSurfaceAfterImageMutation();
@@ -111,7 +118,13 @@
             }
             var imageBytes;
             try {
-                imageBytes = validateRenderSurfaceImageBytes(imageDescriptor.value);
+                var embeddedAsset = usesEmbeddedAsset ? embeddedImageAssets.get(embeddedSelection.key) : null;
+                if (usesEmbeddedAsset && !embeddedAsset) {
+                    throw new Error('The selected embedded image is unavailable in this Rive file.');
+                }
+                imageBytes = validateRenderSurfaceImageBytes(
+                    usesEmbeddedAsset ? embeddedAsset.bytes : imageDescriptor.value
+                );
             } catch (error) {
                 return Promise.reject(error);
             }

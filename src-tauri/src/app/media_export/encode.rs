@@ -93,6 +93,31 @@ pub fn codec_args(format: Format, quality: u8, alpha: bool) -> Vec<String> {
             "webp".into(),
         ],
         Format::Gif => process::strings(&["-gifflags", "+transdiff", "-f", "gif"]),
+        // Always profile 4444; quality 100..=1 maps linearly onto qscale 0..=32 (lower is better).
+        Format::Prores => vec![
+            "-profile:v".into(),
+            "4".into(),
+            "-pix_fmt".into(),
+            if alpha { "yuva444p10le" } else { "yuv444p10le" }.into(),
+            "-vendor".into(),
+            "apl0".into(),
+            "-qscale:v".into(),
+            (((100 - quality as u32) * 32 + 49) / 99).to_string(),
+        ],
+        Format::PngSequence => process::strings(&[
+            "-pix_fmt",
+            if alpha { "rgba" } else { "rgb24" },
+            "-f",
+            "image2",
+        ]),
+        Format::JpgSequence => vec![
+            "-pix_fmt".into(),
+            "yuvj420p".into(),
+            "-q:v".into(),
+            (31 - quality as u32 * 29 / 100).to_string(),
+            "-f".into(),
+            "image2".into(),
+        ],
     };
     args.extend(extra);
     args
@@ -300,3 +325,6 @@ pub fn ordinary(
         "quality": request.quality, "webp_lossless": request.format == Format::Webp && request.quality == 100 }),
     ))
 }
+#[path = "encode/sequence.rs"]
+mod sequence_encode;
+pub use sequence_encode::{sequence, sequence_frame_name};

@@ -44,11 +44,25 @@ const INSERT_CURRENT_MONTHLY_EVENT_SQL = `
       AND preference_generation = ?
   )
 `;
+// Bounded so a single sweep can never blow the daily D1 write budget. D1 bills
+// rows_written per deleted row multiplied by the table's indexes
+// (anonymous_events carries two), and DELETE ... LIMIT is not reliably
+// available. anonymous_events is WITHOUT ROWID, so the bound goes through its
+// composite primary key; the inner SELECT rides anonymous_events_received_at.
 const DELETE_EXPIRED_DIGESTS_SQL = `
   DELETE FROM anonymous_events
-  WHERE received_at < ?
+  WHERE (event_type, period, token_digest) IN (
+    SELECT event_type, period, token_digest
+    FROM anonymous_events
+    WHERE received_at < ?
+    LIMIT ?
+  )
 `;
 const DIGEST_RETENTION_DAYS = 90;
+// Per-statement cap, and a ceiling on how many statements one sweep may run.
+// 20 x 500 x 3 writes/row leaves the daily budget almost untouched.
+const RETENTION_SWEEP_BATCH = 500;
+const RETENTION_SWEEP_MAX_BATCHES = 20;
 const HEALTH_SQL = `
   SELECT
     (SELECT COUNT(*) FROM anonymous_counts)
@@ -303,10 +317,36 @@ async function storeEvent(database, event, eventDigest, installDigest, receivedA
       event.event, event.period, eventDigest, event.release, receivedAt,
     ]);
   }
-  const retentionCutoff = new Date(
+}
+
+function retentionCutoff(receivedAt) {
+  return new Date(
     new Date(receivedAt).getTime() - DIGEST_RETENTION_DAYS * 24 * 60 * 60 * 1_000,
   ).toISOString();
-  await runStatement(database, DELETE_EXPIRED_DIGESTS_SQL, [retentionCutoff]);
+}
+
+// Retention is housekeeping, not per-event work. Running it inside storeEvent
+// multiplied rows_written by the request count and used ~90% of the daily D1
+// free tier; the cron trigger runs it once a day instead.
+async function sweepExpiredDigests(database, cutoff) {
+  if (!database?.prepare) {
+    throw new Error('counter storage is unavailable');
+  }
+  let deleted = 0;
+  for (let batch = 0; batch < RETENTION_SWEEP_MAX_BATCHES; batch++) {
+    const result = await database
+      .prepare(DELETE_EXPIRED_DIGESTS_SQL)
+      .bind(cutoff, RETENTION_SWEEP_BATCH)
+      .run();
+    if (result?.success === false) {
+      throw new Error('counter storage is unavailable');
+    }
+    const changes = result?.meta?.changes ?? 0;
+    deleted += changes;
+    // A short batch means nothing older than the cutoff is left.
+    if (changes < RETENTION_SWEEP_BATCH) break;
+  }
+  return deleted;
 }
 
 async function storageIsHealthy(env) {
@@ -407,5 +447,10 @@ export async function handleRequest(request, env, {
 export default {
   fetch(request, env) {
     return handleRequest(request, env);
+  },
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(
+      sweepExpiredDigests(env?.DB, retentionCutoff(new Date(event.scheduledTime).toISOString())),
+    );
   },
 };

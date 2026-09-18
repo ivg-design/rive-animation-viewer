@@ -14,6 +14,10 @@
       "invocation_logs": false
     }
   },
+  "triggers": {
+    // Daily retention sweep, moved off the request path.
+    "crons": ["17 4 * * *"]
+  },
   "ratelimits": [
     {
       "name": "WRITE_RATE_LIMITER",

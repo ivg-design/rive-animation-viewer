@@ -1,3 +1,5 @@
+mod bounds;
+
 use std::sync::Mutex;
 use tokio::{
     sync::{oneshot, watch},

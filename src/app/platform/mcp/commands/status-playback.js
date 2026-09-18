@@ -1,7 +1,6 @@
-import { dispatchVmControlMutation } from '../../../rive/control-events.js';
 import { buildPlaybackResetContract } from '../../../rive/reset-contract.js';
 import { parsePlaybackTarget } from '../../../rive/artboards/playback-target.js';
-import { getInspectionMetadata, getStateMachineInputMetadata } from '../../../rive/runtime-compatibility.js';
+import { getInspectionMetadata } from '../../../rive/runtime-compatibility.js';
 import { createMcpOpenFileCommand } from './open-file.js';
 import { assertKnownPlaybackTarget } from './playback-validation.js';
 import {
@@ -9,7 +8,6 @@ import {
     canonicalControlSnapshot,
     canonicalInputs,
     countCanonicalInputs,
-    findCanonicalInput,
     getAuthoritativeRenderSurface,
     requestAuthoritativeCommand,
 } from '../authoritative.js';
@@ -293,106 +291,5 @@ export function createStatusPlaybackCommands({
             return { stateMachines: [] };
         },
 
-        async rav_get_sm_inputs() {
-            const authoritative = getAuthoritative();
-            if (authoritative) {
-                return {
-                    inputs: canonicalInputs(authoritative.canonicalState)
-                        .filter((input) => input.source === 'state-machine')
-                        .map((input) => ({
-                            stateMachine: input.stateMachineName,
-                            name: input.name,
-                            type: input.kind,
-                            ...(input.value !== undefined ? { value: input.value } : {}),
-                        })),
-                };
-            }
-            const inst = windowRef.riveInst;
-            if (!inst) throw new Error('No animation loaded');
-            const inputs = [];
-            try {
-                const smNames = Array.isArray(inst.stateMachineNames) ? inst.stateMachineNames : [];
-                for (const smName of smNames) {
-                    if (typeof inst.stateMachineInputs !== 'function' || getStateMachineInputMetadata(inst, smName)?.length === 0) continue;
-                    const smInputs = inst.stateMachineInputs(smName);
-                    if (!Array.isArray(smInputs)) continue;
-                    for (const input of smInputs) {
-                        const entry = { stateMachine: smName, name: input.name, type: input.type };
-                        if ('value' in input) entry.value = input.value;
-                        inputs.push(entry);
-                    }
-                }
-            } catch (error) {
-                return { inputs: [], error: error.message };
-            }
-            return { inputs };
-        },
-
-        async rav_set_sm_input({ name, value }) {
-            if (!name) throw new Error('name is required');
-            const authoritative = getAuthoritative();
-            if (authoritative) {
-                const input = canonicalInputs(authoritative.canonicalState)
-                    .find((candidate) => candidate.source === 'state-machine' && candidate.name === name);
-                if (!input) throw new Error(`Input "${name}" not found in visible render surface`);
-                const isTrigger = value === 'fire' || input.kind === 'trigger';
-                const result = await requestAuthoritativeCommand(authoritative, isTrigger ? 'sm-fire' : 'sm-set', {
-                    descriptor: {
-                        kind: isTrigger ? 'trigger' : input.kind,
-                        name: input.name,
-                        path: input.path,
-                        source: 'state-machine',
-                        stateMachineName: input.stateMachineName,
-                    },
-                    value: isTrigger ? undefined : value,
-                });
-                return {
-                    ...result,
-                    name,
-                    value: isTrigger ? 'fire' : (findCanonicalInput(result.canonicalState, input.path)?.value ?? value),
-                };
-            }
-            const inst = windowRef.riveInst;
-            if (!inst) throw new Error('No animation loaded');
-            const smNames = Array.isArray(inst.stateMachineNames) ? inst.stateMachineNames : [];
-            for (const smName of smNames) {
-                if (typeof inst.stateMachineInputs !== 'function' || getStateMachineInputMetadata(inst, smName)?.length === 0) continue;
-                const smInputs = inst.stateMachineInputs(smName);
-                if (!Array.isArray(smInputs)) continue;
-                const input = smInputs.find((candidate) => candidate.name === name);
-                if (input) {
-                    if (value === 'fire' && typeof input.fire === 'function') {
-                        input.fire();
-                        dispatchVmControlMutation(documentRef, {
-                            action: 'fire',
-                            descriptor: {
-                                kind: 'trigger',
-                                name,
-                                path: `${smName}/${name}`,
-                                source: 'state-machine',
-                                stateMachineName: smName,
-                            },
-                            kind: 'trigger',
-                        });
-                    } else {
-                        input.value = value;
-                        const kind = typeof value === 'boolean' ? 'boolean' : 'number';
-                        dispatchVmControlMutation(documentRef, {
-                            descriptor: {
-                                kind,
-                                name,
-                                path: `${smName}/${name}`,
-                                source: 'state-machine',
-                                stateMachineName: smName,
-                            },
-                            kind,
-                            value,
-                        });
-                    }
-                    return { ok: true, name, value };
-                }
-            }
-            throw new Error(`Input "${name}" not found in any state machine`);
-        },
     };
 }

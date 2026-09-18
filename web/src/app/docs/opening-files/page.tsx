@@ -35,6 +35,11 @@ export default function OpeningFiles() {
         after the new surface is ready.
       </p>
       <p>
+        RAV listens for the operating system&apos;s native open-file event rather than polling
+        for queued files. If that listener cannot be registered, files queued by Finder or
+        another app are reconciled and loaded automatically the next time RAV starts.
+      </p>
+      <p>
         On the first launch after an app update, RAV refreshes the installed bundle&apos;s
         Launch Services registration once for the version and schema, without restarting Finder or
         changing the Viewer/Alternate rank. The declarations include the dedicated document icon

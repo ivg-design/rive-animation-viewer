@@ -40,6 +40,30 @@ describe('platform/render-surface/image-replay-cache', () => {
         ]);
     });
 
+    it('replays an embedded image by key without retaining duplicate image bytes', () => {
+        const cache = createRenderSurfaceImageReplayCache();
+        activateSource(cache);
+        const payload = {
+            action: 'set-embedded-image',
+            imageSelection: { kind: 'embedded', key: 'orb.png', label: 'Orb' },
+            kind: 'image',
+            path: 'avatar',
+            value: null,
+        };
+
+        cache.capture(payload);
+        cache.resolveCommand({ payload, result: { applied: true, status: 'applied' } });
+        cache.beginStage('replacement');
+        cache.setStagedSource('replacement', 'file-1');
+
+        expect(cache.replayForStage('replacement')).toEqual([expect.objectContaining({
+            action: 'set-image',
+            imageSelection: { kind: 'embedded', key: 'orb.png', label: 'Orb' },
+            path: 'avatar',
+            value: null,
+        })]);
+    });
+
     it('keeps the last acknowledged image when a clear is rejected or times out, then replays an applied clear', () => {
         const cache = createRenderSurfaceImageReplayCache();
         activateSource(cache);

@@ -194,22 +194,28 @@ fn smoke(binaries: &Binaries, format: Format, adapter: &str) -> Result<()> {
         let count = if format.animated() { 2 } else { 1 };
         let (output, _) = if format == Format::Gif {
             gif::encode(binaries, &request, &spool, &[0], count, adapter, &control)?
+        } else if format.is_directory() {
+            encode::sequence(binaries, &request, &spool, &[0], count, &control)?
         } else {
             encode::ordinary(binaries, &request, &spool, &[0], count, &control)?
         };
-        verify::inspect(
-            binaries,
-            &output,
-            verify::ExpectedOutput {
-                format,
-                width: 64,
-                height: 64,
-                frame_count: count,
-                duration: count as f64 / 10.0,
-                rate: 10.0,
-            },
-            &control,
-        )?;
+        if format.is_directory() {
+            verify::inspect_directory(binaries, &output, format, 64, 64, count, &control)?;
+        } else {
+            verify::inspect(
+                binaries,
+                &output,
+                verify::ExpectedOutput {
+                    format,
+                    width: 64,
+                    height: 64,
+                    frame_count: count,
+                    duration: count as f64 / 10.0,
+                    rate: 10.0,
+                },
+                &control,
+            )?;
+        }
         if format == Format::Webm {
             let raw = process::run(
                 &binaries.ffmpeg,
@@ -293,9 +299,12 @@ pub fn discover(config: Option<&EncoderConfig>) -> Discovery {
         Format::Webm,
         Format::Apng,
         Format::Gif,
+        Format::Prores,
         Format::Png,
         Format::Jpg,
         Format::Webp,
+        Format::PngSequence,
+        Format::JpgSequence,
     ] {
         let test = binaries
             .as_ref()

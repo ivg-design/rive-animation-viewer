@@ -58,16 +58,19 @@ async function updateTauriConfig(newVersion) {
     if (typeof config.version !== 'string') {
       throw new Error(`${relativePath} does not contain a string version`);
     }
-    config.version = newVersion;
+    const configVersion = relativePath === 'tauri.flicker-test.conf.json'
+      ? bumpVersion(newVersion, 'patch')
+      : newVersion;
+    config.version = configVersion;
     if (relativePath === 'tauri.flicker-test.conf.json') {
-      config.productName = `RAV ${newVersion} DEV`;
-      config.mainBinaryName = `rav-${newVersion}-dev`;
+      config.productName = `RAV ${configVersion} DEV`;
+      config.mainBinaryName = `rav-${configVersion}-dev`;
       (config.app?.windows || []).forEach((windowConfig) => {
-        if (windowConfig.label === 'main') windowConfig.title = `RAV ${newVersion} DEV`;
+        if (windowConfig.label === 'main') windowConfig.title = `RAV ${configVersion} DEV`;
       });
     }
     await fs.writeFile(configPath, JSON.stringify(config, null, 2) + '\n');
-    console.log(`✓ Updated ${relativePath}: ${newVersion}`);
+    console.log(`✓ Updated ${relativePath}: ${configVersion}`);
   }
 }
 
@@ -98,8 +101,8 @@ async function updateCargoToml(newVersion) {
 }
 
 async function verifyDynamicWebsiteMetadata() {
-  const layoutPath = path.join(root, 'web', 'src', 'app', 'layout.tsx');
-  const content = await fs.readFile(layoutPath, 'utf8');
+  const structuredDataPath = path.join(root, 'web', 'src', 'components', 'ProductStructuredData.tsx');
+  const content = await fs.readFile(structuredDataPath, 'utf8');
   const requiredFragments = [
     'const latestPublicRelease = await getLatestRelease();',
     'softwareVersion: latestPublicRelease.version',

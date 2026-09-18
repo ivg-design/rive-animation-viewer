@@ -77,9 +77,13 @@ function buildConfigPropertyLines(
     lines.push(`  alignment: ${buildRiveAlignmentExpression(runtimeNamespace, descriptor.layoutAlignment)},`);
     lines.push('}),');
 
+    if (descriptor.enableGPUCanvas !== undefined) {
+        lines.push(`enableGPUCanvas: ${descriptor.enableGPUCanvas},`);
+    }
+
     if (descriptor.useOffscreenRenderer !== undefined) {
         lines.push(
-            useUserConfig
+            useUserConfig && descriptor.enableGPUCanvas !== true
                 ? `useOffscreenRenderer: userConfig.useOffscreenRenderer ?? ${descriptor.useOffscreenRenderer},`
                 : `useOffscreenRenderer: ${descriptor.useOffscreenRenderer},`,
         );

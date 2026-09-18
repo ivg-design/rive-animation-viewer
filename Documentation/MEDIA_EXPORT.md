@@ -94,9 +94,30 @@ All entries below remain conditional on capabilities.
 | `webm` | `.webm` | Animated VP9, alpha when verified available |
 | `apng` | `.apng` or `.png` | Animated, full alpha |
 | `gif` | `.gif` | Animated, binary transparency only; timing is quantized |
+| `prores` | `.mov` | Animated Apple ProRes 4444 (`prores_ks`), full 10-bit alpha |
+| `png-sequence` | directory of `frame_NNNNNN.png` | Animated, one PNG per frame, full alpha |
+| `jpg-sequence` | directory of `frame_NNNNNN.jpg` | Animated, one JPG per frame, opaque matte |
 | `png` | `.png` | Lossless still, full alpha |
 | `jpg` | `.jpg` or `.jpeg` | Lossy still, opaque matte |
 | `webp` | `.webp` | Still with alpha; quality 100 selects lossless encoding |
+
+`prores` always encodes profile 4444 (`-profile:v 4`, `-vendor apl0`), 10-bit
+4:4:4 (`yuva444p10le` with alpha, `yuv444p10le` opaque). `quality` maps linearly
+onto ffmpeg's `-qscale:v` (0 best, 32 worst): 100 → 0, 1 → 32. ProRes 4444 is the
+recommended route for full-alpha hand-off to DCC/NLE tools — WebM alpha at large
+frame sizes can approach the native encoder's sampled memory ceiling, while
+ProRes has no such constraint.
+
+`png-sequence` and `jpg-sequence` publish a **directory**, not a single file:
+`output_path` names that directory. Frames are written zero-padded as
+`frame_000000.png`/`frame_000000.jpg`, one file per output frame. The
+destination directory must not exist, or must be empty; with `overwrite: true`
+only files matching this feature's own `frame_NNNNNN.(png|jpg)` naming pattern
+are removed first — any other file already in that directory, including a
+symlink that happens to match the pattern, is left untouched. Quality applies
+only to `jpg-sequence`; `png-sequence` is lossless like `png`/`apng` and hides
+the quality control in the UI. PNG sequences keep full alpha; `jpg-sequence`
+rejects alpha exactly like still `jpg`.
 
 - **Dimensions:** default to source artboard dimensions. A single explicit width
   or height preserves aspect ratio; setting both supplies exact dimensions.
@@ -110,21 +131,36 @@ All entries below remain conditional on capabilities.
   `{ "numerator": 30000, "denominator": 1001 }`. Presets may reduce FPS; inspect
   resolved settings. Use `fps: 1` for MCP still capture, which needs only one frame.
 - **Quality:** integer 1–100, default 80 except Small GIF (60). Its effect depends
-  on the encoder; it is not a file-size guarantee. PNG/APNG are lossless: the UI
+  on the encoder; it is not a file-size guarantee. PNG/APNG and PNG sequences are lossless: the UI
   hides/disables quality and omits it; MCP accepts it for compatibility with no
   encoding effect. For GIF, either `quality` or `gif.quality` alone overrides the
   preset default; equal duplicates are accepted and conflicting values rejected.
 - **Background:** `alpha` defaults to false and `background` to `#000000`.
-  Opaque formats reject alpha; GIF cannot preserve smooth translucent edges.
+  Formats without an alpha channel (H.264, H.265, JPG, JPG sequence) reject
+  `alpha` and composite over the background; GIF keeps binary transparency,
+  every other format keeps full alpha.
 - **Destination:** the desktop Export panel uses **Choose file…** to open the
   native Save dialog before capture. Choose both the folder and filename; RAV
   shows the resolved path in the panel and submits directly to it. Cancelling
   returns to the unchanged settings. Changing the format clears the chosen path
   so the next dialog applies the correct extension and file filter. MCP callers
   may supply an absolute `output_path` with the matching extension, or omit it to
-  open the same native dialog. UI exports do not overwrite. MCP defaults to
+  open the same native dialog. Single-file UI exports do not overwrite. MCP defaults to
   `overwrite: false`; explicit `true` permits atomic replacement after output
   validation. Cancellation preserves an existing destination.
+  For `png-sequence`/`jpg-sequence`, the native dialog picks a **folder** instead
+  of a file (no extension filter); the default suggested name is `<file>-frames`.
+  `output_path` for these two formats is that folder's absolute path.
+  A read-only native preflight checks sequence destinations before capture. A
+  non-empty directory opens **Overwrite**, **Choose folder…**, or **Cancel** in
+  the Export overlay. Consent is scoped to that request, never stored in the
+  draft; choosing a folder or cancelling preserves settings and does not start
+  capture. Begin-time non-empty-directory races reopen the same confirmation.
+  Unattended MCP calls remain unchanged and require explicit `overwrite: true`.
+  Only matching numbered frames are replaced; unrelated files are retained.
+  The native `media_export_output_state` command returns `{ exists, empty,
+  is_dir }` without creating a spool or starting an encoder and refuses a final
+  destination symlink just as begin does.
 
 ## GIF presets and target size
 
@@ -181,6 +217,11 @@ rav_export_media({"format":"gif","start_frame":30,"end_frame":60,
 
 // Still from current canvas, or add at_seconds on a timeline:
 rav_export_media({"format":"png","fps":1,"alpha":true})
+
+// Alpha hand-off to a DCC/NLE tool as ProRes 4444:
+rav_export_media({"format":"prores","width":1920,"height":1080,"fps":30,"alpha":true})
+// A PNG frame sequence: output_path names a directory, not a file.
+rav_export_media({"format":"png-sequence","output_path":"/tmp/shot-01-frames","alpha":true})
 
 // Select a state machine first; interact while capturing:
 rav_record_start({"format":"webm","width":1280,"height":720,

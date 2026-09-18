@@ -11,6 +11,8 @@ if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(outputDirectory)) {
 const distDir = path.join(root, outputDirectory);
 const buildCounterFile = path.join(root, '.cache', 'build-counter.txt');
 const pkg = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'));
+const appVersion = String(process.env.APP_VERSION || pkg.version).trim();
+if (!/^\d+\.\d+\.\d+$/.test(appVersion)) throw new Error(`Invalid APP_VERSION: ${appVersion}`);
 
 function isCiBuild() {
   return process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
@@ -239,7 +241,7 @@ async function build() {
 
   const mainEntryPath = path.join(distDir, 'src', 'app', 'main-entry.js');
   let mainEntryContent = await fs.readFile(mainEntryPath, 'utf8');
-  mainEntryContent = mainEntryContent.replace(/__APP_VERSION__/g, pkg.version);
+  mainEntryContent = mainEntryContent.replace(/__APP_VERSION__/g, appVersion);
   mainEntryContent = mainEntryContent.replace(/__APP_BUILD__/g, buildId);
   mainEntryContent = mainEntryContent.replace(/__APP_CHANNEL__/g, buildChannel);
   await fs.writeFile(mainEntryPath, mainEntryContent, 'utf8');

@@ -32,7 +32,7 @@ struct Inner {
     stream: Option<stream::Stream>,
     touched: Instant,
 }
-struct Entry {
+pub(super) struct Entry {
     id: String,
     request: BeginRequest,
     spool: Spool,
@@ -44,6 +44,24 @@ pub struct Backend {
     pub discovery: Discovery,
     entries: Mutex<VecDeque<Arc<Entry>>>,
 }
+pub(super) type StatusNotifier = Arc<dyn Fn(Job) + Send + Sync + 'static>;
+
+pub(super) fn notify_job(notifier: Option<&StatusNotifier>, job: Job) {
+    if let Some(notifier) = notifier {
+        notifier(job);
+    }
+}
+
+pub(super) fn notify_status(notifier: Option<&StatusNotifier>, entry: &Arc<Entry>) {
+    let Some(notifier) = notifier else {
+        return;
+    };
+    let Ok(inner) = entry.inner.lock() else {
+        return;
+    };
+    notify_job(Some(notifier), inner.job.clone());
+}
+
 fn terminal(state: &str) -> bool {
     ["completed", "cancelled", "failed"].contains(&state)
 }
@@ -191,7 +209,15 @@ impl Backend {
         }));
         Ok(job)
     }
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn finish(self: &Arc<Self>, request: FinishRequest) -> Result<Job> {
+        self.finish_with_notifier(request, None)
+    }
+    pub fn finish_with_notifier(
+        self: &Arc<Self>,
+        request: FinishRequest,
+        notifier: Option<StatusNotifier>,
+    ) -> Result<Job> {
         let entry = self.get(&request.job_id)?;
         let mut inner = entry.inner.lock().map_err(io)?;
         if inner.job.state != "capturing" {
@@ -199,7 +225,10 @@ impl Backend {
         }
         if inner.job.received_frames == 0 {
             fail(&entry, &mut inner, "Cannot finish a zero-frame job".into());
-            return Ok(inner.job.clone());
+            let response = inner.job.clone();
+            drop(inner);
+            notify_job(notifier.as_ref(), response.clone());
+            return Ok(response);
         }
         if inner.disk_stopped && request.frame_count != accepted_count(&entry, &inner) {
             return Err("Disk-stopped capture must finish at the accepted frame_count".into());
@@ -211,7 +240,10 @@ impl Backend {
                     &mut inner,
                     "Encoded frame count mismatch; fast capture never inserts holds".into(),
                 );
-                return Ok(inner.job.clone());
+                let response = inner.job.clone();
+                drop(inner);
+                notify_job(notifier.as_ref(), response.clone());
+                return Ok(response);
             }
         } else if request.frame_count <= inner.last_index.ok_or("Missing frame")? {
             return Err("frame_count must include every received index".into());
@@ -228,7 +260,10 @@ impl Backend {
                     &mut inner,
                     format!("Capture storage I/O failed: {error}"),
                 );
-                return Ok(inner.job.clone());
+                let response = inner.job.clone();
+                drop(inner);
+                notify_job(notifier.as_ref(), response.clone());
+                return Ok(response);
             }
         }
         inner.job.frame_count = Some(request.frame_count);
@@ -246,22 +281,30 @@ impl Backend {
         let response = inner.job.clone();
         let worker_entry = entry.clone();
         let backend = self.clone();
+        drop(inner);
+        notify_job(notifier.as_ref(), response.clone());
+        let worker_notifier = notifier.clone();
         if let Err(e) = thread::Builder::new()
             .name("media-export-encoder".into())
             .spawn(move || {
                 let result = catch_unwind(AssertUnwindSafe(|| {
-                    backend.encode(&worker_entry, request.frame_count)
+                    backend.encode(&worker_entry, request.frame_count, worker_notifier.as_ref())
                 }))
                 .unwrap_or_else(|_| Err("Media encoder worker panicked".into()));
                 if let Err(e) = result {
                     if let Ok(mut inner) = worker_entry.inner.lock() {
                         fail(&worker_entry, &mut inner, e);
                     }
+                    notify_status(worker_notifier.as_ref(), &worker_entry);
                 }
             })
         {
+            let mut inner = entry.inner.lock().map_err(io)?;
             fail(&entry, &mut inner, io(e));
-            return Ok(inner.job.clone());
+            let response = inner.job.clone();
+            drop(inner);
+            notify_job(notifier.as_ref(), response.clone());
+            return Ok(response);
         }
         Ok(response)
     }

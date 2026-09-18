@@ -10,8 +10,11 @@ export default function ViewModelControls() {
       <h1>ViewModel Controls</h1>
 
       <p>
-        RAV automatically discovers ViewModel inputs from loaded animations and renders them
-        as native controls in the right panel.
+        RAV discovers ViewModel controls from a parse-once inspection of the loaded animation
+        file &mdash; the ViewModel schema and embedded assets are read once from the file itself
+        rather than probed from the live runtime &mdash; and renders them as native controls in
+        the right panel. State machines remain selectable playback targets; state-machine inputs
+        are not shown as controls.
       </p>
 
       <DocsFigure
@@ -30,7 +33,7 @@ export default function ViewModelControls() {
         </thead>
         <tbody>
           <tr><td>Boolean</td><td>Checkbox</td><td>Immediately updates the runtime value</td></tr>
-          <tr><td>Number</td><td>Wide numeric input</td><td>Keeps digits visible beside native spinner controls; accepts decimal values and updates while editing</td></tr>
+          <tr><td>Number</td><td>Wide numeric input</td><td>Keeps digits visible beside native spinner controls; accepts decimal values, updates while editing, and displays without trailing zeros (2.50 &rarr; 2.5, 2.00 &rarr; 2)</td></tr>
           <tr><td>String</td><td>Text input</td><td>Updates on blur or Enter</td></tr>
           <tr><td>Trigger</td><td>Button</td><td>Fires the trigger once per click</td></tr>
           <tr><td>Enum</td><td>Dropdown</td><td>Lists all enum values, selects immediately</td></tr>
@@ -78,7 +81,8 @@ export default function ViewModelControls() {
         When you reset or restart an animation, RAV captures all ViewModel and state machine
         values and restores them after reload. If list items materialize a few frames later,
         pending values are retried until their live paths exist. Triggers are excluded since
-        they are one-shot actions.
+        they are one-shot actions. Embedded image selections restore by the catalog&apos;s asset
+        key rather than replaying raw image bytes.
       </p>
 
       <h2>ViewModel Labels</h2>

@@ -23,6 +23,14 @@
         function resetAnimation() {
             if (riveInstance) {
                 riveInstance.reset();
+                // `Rive.reset()` does not re-register the runtime's canvas
+                // mouse/touch listeners the way `play()` does (see bootstrap.js
+                // resetRenderSurfaceAndWait for the full explanation). Without
+                // this, pointer/hover input stops reaching the state machine
+                // after Reset until the next explicit Play.
+                if (typeof riveInstance.setupRiveListeners === 'function') {
+                    riveInstance.setupRiveListeners();
+                }
                 resetPlaybackChips();
                 updateInfo('Reset');
                 logEvent('ui', 'reset', 'Animation reset from UI.');
@@ -140,26 +148,51 @@
 
         /* ── FPS tracking ────────────────────────────────────── */
 
-        function updatePlaybackChips() {
-            frameCount += 1;
-            const now = performance.now();
-            if (now - lastFpsUpdate >= 1000) {
-                const fps = Math.round((frameCount * 1000) / (now - lastFpsUpdate));
-                if (els.fpsChip) {
-                    els.fpsChip.innerHTML = '<span class="dot"></span>' + fps + ' FPS';
-                }
-                if (isRenderSurfaceMode && typeof window.__ravRenderSurfaceEmit === 'function') {
-                    window.__ravRenderSurfaceEmit('render-surface:metrics', { fps: fps });
-                }
-                frameCount = 0;
-                lastFpsUpdate = now;
+        function updatePlaybackChips(fps) {
+            var value = Number(fps);
+            if (!Number.isFinite(value)) return;
+            if (els.fpsChip) {
+                els.fpsChip.innerHTML = '<span class="dot"></span>' + Math.round(value) + ' FPS';
+            }
+            if (isRenderSurfaceMode && typeof window.__ravRenderSurfaceEmit === 'function') {
+                window.__ravRenderSurfaceEmit('render-surface:metrics', { fps: value });
             }
         }
 
         function resetPlaybackChips() {
-            frameCount = 0;
-            lastFpsUpdate = performance.now();
             if (els.fpsChip) els.fpsChip.innerHTML = '<span class="dot"></span>-- FPS';
+        }
+
+        function enableNativeFpsCounter(instance) {
+            if (!instance || typeof instance.enableFPSCounter !== 'function') return false;
+            if (nativeFpsCounterInstance === instance) return true;
+            nativeFpsCounterInstance = instance;
+            var generation = ++nativeFpsCounterGeneration;
+            try {
+                instance.enableFPSCounter(function (fps) {
+                    if (generation !== nativeFpsCounterGeneration || riveInstance !== instance) return;
+                    updatePlaybackChips(fps);
+                });
+                return true;
+            } catch (e) {
+                nativeFpsCounterInstance = null;
+                return false;
+            }
+        }
+
+        function releaseNativeFpsCounter(instance) {
+            nativeFpsCounterGeneration += 1;
+            nativeFpsCounterInstance = null;
+            // WebGL2 releases advertise disableFPSCounter without providing
+            // its runtime delegate, so only call it when the delegate exists.
+            if (typeof instance?.disableFPSCounter !== 'function'
+                || typeof instance?.runtime?.disableFPSCounter !== 'function') return false;
+            try {
+                instance.disableFPSCounter();
+                return true;
+            } catch (e) {
+                return false;
+            }
         }
 
         function reportRiveLoadStatus(instance, riveConfig, userSpecifiedAnimations, configuredAnimations) {

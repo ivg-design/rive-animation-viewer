@@ -10,10 +10,10 @@
  *
  * Usage:
  *   node scripts/isolated-dev-mcp-acceptance-harness.mjs \
- *     --sidecar /absolute/path/to/RAV\ 2.5.5\ DEV.app/Contents/MacOS/rav-mcp \
+ *     --sidecar /absolute/path/to/RAV\ 2.5.6\ DEV.app/Contents/MacOS/rav-mcp \
  *     --port 9278 \
  *     --expected-build b0217-20260827-0000-abcdef0 \
- *     --expected-version 2.5.5 \
+ *     --expected-version 2.5.6 \
  *     --expected-channel dev \
  *     --expected-sidecar-sha256 <64 lowercase hex characters> \
  *     --expected-scenario-sha256 <64 lowercase hex characters> \
@@ -34,7 +34,7 @@ const ISOLATED_PORT = 9278;
 const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_POLL_MS = 100;
 const DEFAULT_POLL_TIMEOUT_MS = 3_000;
-const EXPECTED_TOOL_COUNT = 57;
+const EXPECTED_TOOL_COUNT = 55;
 const REQUIRED_RELEASE_TOOLS = [
     'rav_get_global_vm_tree', 'rav_global_vm_get', 'rav_global_vm_set',
     'rav_global_vm_fire', 'rav_global_vm_set_image', 'rav_global_vm_clear_image',
@@ -477,7 +477,7 @@ async function main() {
             'tools/list: required GVM, capture, and media tools are not all advertised.', {
                 missing: REQUIRED_RELEASE_TOOLS.filter((name) => !listedNames.includes(name)),
             });
-        addPass('tools/list: exact 57 unique tools including GVM/capture/media names', {
+        addPass('tools/list: exact 55 unique tools including GVM/capture/media names', {
             count: listedTools.length,
             required: REQUIRED_RELEASE_TOOLS,
             names: listedNames,
@@ -629,29 +629,6 @@ async function main() {
                     'state machine leaked timeline metrics.', { playback: machine.playback });
                 addPass('state machine hides timeline metrics', { playback: machine.playback });
             }
-        }
-
-        if (scenario.stateMachineInputs?.file) {
-            const config = scenario.stateMachineInputs;
-            await openFixtureForTest(config, 'state-machine inputs');
-            const before = await client.tool('rav_get_sm_inputs');
-            const results = [];
-            for (const [kind, target] of Object.entries(config)) {
-                if (kind === 'file' || !target?.name) continue;
-                const original = before.inputs?.find((input) => input.name === target.name);
-                assertion(original, `state-machine ${kind}: input not found.`, { before, target });
-                const written = await client.tool('rav_set_sm_input', { name: target.name, value: target.value });
-                const after = await client.tool('rav_get_sm_inputs');
-                const readBack = after.inputs?.find((input) => input.name === target.name);
-                assertion(written.applied !== false, `state-machine ${kind}: command rejected.`, { written });
-                if (kind !== 'trigger') {
-                    assertion(readBack?.value === target.value,
-                        `state-machine ${kind}: canonical read-back mismatch.`, { target, written, readBack });
-                    await client.tool('rav_set_sm_input', { name: target.name, value: original.value });
-                }
-                results.push({ kind, name: target.name, requested: target.value, readBack: readBack?.value });
-            }
-            addPass('state-machine inputs round-trip through child ACK and canonical state', { results });
         }
 
         if (scenario.images?.file) {

@@ -16,7 +16,7 @@ export default function AnswerSection() {
         </h2>
         <p className="text-base text-[var(--text-dim)] leading-relaxed max-w-[640px]">
           RAV connects directly to the Rive runtime, auto-discovers every ViewModel property
-          and state machine input, and gives you live controls without scaffolding.
+          and keeps state-machine playback available, and gives you live controls without scaffolding.
           When the animation is ready, export the exact instantiation code your app needs &mdash;
           or let an AI agent drive the whole workflow through MCP.
         </p>

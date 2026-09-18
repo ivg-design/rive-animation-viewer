@@ -80,6 +80,7 @@ mod tests {
             animations: vec![],
             artboard_name: Some("Main".into()),
             autoplay: true,
+            enable_gpu_canvas: false,
             canvas_color: Some("#0d1117".into()),
             canvas_sizing: None,
             canvas_transparent: false,

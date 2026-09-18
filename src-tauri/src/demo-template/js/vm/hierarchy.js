@@ -7,7 +7,6 @@
                 path: source.path || null,
                 source: source.source || 'view-model',
                 globalViewModelName: source.globalViewModelName || null,
-                stateMachineName: source.stateMachineName || null,
             };
         }
 
@@ -239,72 +238,6 @@
             var rootNode = walk(rootVm, globalViewModelName || 'Root VM', '', globalViewModelName ? 'global-view-model' : 'vm');
             rootNode.totalInputs = totalInputs;
             return rootNode;
-        }
-
-        function buildStateMachineHierarchy() {
-            if (!riveInstance) return null;
-
-            var stateMachineNames = Array.isArray(riveInstance.stateMachineNames) ? riveInstance.stateMachineNames : [];
-            if (!stateMachineNames.length) return null;
-
-            var rootNode = {
-                label: 'State Machines',
-                path: '__state_machines__',
-                kind: 'state-machines',
-                inputs: [],
-                children: [],
-                totalInputs: 0,
-            };
-
-            stateMachineNames.forEach(function (stateMachineName) {
-                var inputs = runtimeCompatibility.getStateMachineInputMetadata(riveInstance, stateMachineName);
-                // `contents` knows the selected artboard's authored inputs. An
-                // exact empty list is conclusive and avoids the deprecated
-                // runtime probe; unknown metadata retains legacy support.
-                if (!Array.isArray(inputs)) {
-                    inputs = [];
-                    try {
-                        var resolved = riveInstance.stateMachineInputs && riveInstance.stateMachineInputs(stateMachineName);
-                        if (Array.isArray(resolved)) inputs = resolved;
-                    } catch (e) { inputs = []; }
-                }
-
-                var childNode = {
-                    label: stateMachineName,
-                    path: 'stateMachine/' + stateMachineName,
-                    kind: 'state-machine',
-                    inputs: [],
-                    children: [],
-                };
-
-                inputs.forEach(function (input) {
-                    var inputKind = getStateMachineInputKind(input);
-                    var inputName = input && typeof input.name === 'string' && input.name ? input.name : null;
-                    if (!inputKind || !inputName) return;
-
-                    var descriptor = {
-                        kind: inputKind,
-                        name: inputName,
-                        path: 'stateMachine/' + stateMachineName + '/' + inputName,
-                        source: 'state-machine',
-                        stateMachineName: stateMachineName,
-                    };
-                    childNode.inputs.push({
-                        name: inputName,
-                        path: descriptor.path,
-                        kind: inputKind,
-                        source: 'state-machine',
-                        stateMachineName: stateMachineName,
-                    });
-                    rootNode.totalInputs += 1;
-                });
-
-                if (childNode.inputs.length) {
-                    rootNode.children.push(childNode);
-                }
-            });
-
-            return rootNode.totalInputs > 0 ? rootNode : null;
         }
 
         /* ── VM controls rendering ───────────────────────────── */

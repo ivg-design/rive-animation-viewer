@@ -8,9 +8,7 @@
             vmControlBindings.forEach(function (binding) {
                 if (!binding || binding.kind === 'trigger' || binding.kind === 'image') return;
                 var descriptor = binding.descriptor || {};
-                var key = (descriptor.source === 'state-machine'
-                    ? 'sm:' + (descriptor.stateMachineName || '') + ':' + (descriptor.name || '') + ':' + (binding.kind || '')
-                    : descriptor.source === 'global-view-model'
+                var key = (descriptor.source === 'global-view-model'
                         ? 'gvm:' + encodeURIComponent(descriptor.globalViewModelName || '') + ':' + (descriptor.path || '') + ':' + (binding.kind || '')
                     : 'vm:' + (descriptor.path || '') + ':' + (binding.kind || ''));
                 if (!key || seen.has(key)) return;
@@ -26,7 +24,6 @@
                         path: descriptor.path,
                         source: descriptor.source,
                         globalViewModelName: descriptor.globalViewModelName,
-                        stateMachineName: descriptor.stateMachineName,
                     },
                     kind: binding.kind,
                     value: accessor.value,
@@ -56,15 +53,6 @@
                     pendingControlSnapshot.delete(key);
                     return;
                 }
-                if (descriptor.source === 'state-machine') {
-                    var stateMachineInput = resolveStateMachineInputAccessor(descriptor.stateMachineName, descriptor.name, kind);
-                    if (stateMachineInput && 'value' in stateMachineInput) {
-                        stateMachineInput.value = entry.value;
-                        pendingControlSnapshot.delete(key);
-                        applied += 1;
-                    }
-                    return;
-                }
                 var accessor = descriptor.source === 'global-view-model'
                     ? resolveGlobalVmAccessor(descriptor.globalViewModelName, descriptor.path, kind)
                     : resolveLiveAccessor(descriptor.path, kind);
@@ -85,7 +73,6 @@
                     kind: descriptor.kind,
                     source: descriptor.source,
                     globalViewModelName: descriptor.globalViewModelName,
-                    stateMachineName: descriptor.stateMachineName,
                 },
                 kind: binding.kind,
                 input: binding.input || null,

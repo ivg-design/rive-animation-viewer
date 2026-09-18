@@ -18,12 +18,15 @@ function renderer() {
     }
     const root = vm({ 'number:x':rootValue, 'enum:choice':enumValue, 'image:photo':rootImage, 'trigger:go': { trigger:fire } },
         { child:vm({'string:text':nestedValue}) }, { rows:{instanceAt: i => i === 0 ? vm({'boolean:visible':listValue}) : null} });
-    const player = { viewModelInstance:root, globalViewModelInstance:name => name === 'Shared' ? vm({'color:tint':globalValue}) : null, isPlaying:true };
+    let rootAvailable = true;
+    const player = { get viewModelInstance() { return rootAvailable ? root : null; },
+        globalViewModelInstance:name => name === 'Shared' ? vm({'color:tint':globalValue}) : null, isPlaying:true };
     const make = new Function('riveInstance','loadedRiveRuntime','rememberRenderSurfaceImageCommand','dispatchRenderSurfacePointer','validateRenderSurfaceImageBytes','recordRenderSurfaceTriggerReceipt','readEnumValues','inspectRenderSurfaceImage',
         'var renderSurfaceSessionId="one";\n' + accessors + '\n' + bootstrap + '\n' + source + '\nreturn {prepare:prepareRenderSurfaceInteractionSchedule,replace:()=>{renderSurfaceSessionId="two"}};');
     const runtime = { decodeImage:vi.fn(async () => image) };
     const inspect = vi.fn(() => ({width:1,height:1}));
-    return { ...make(player,runtime,remember,pointer, x=>new Uint8Array(x),vi.fn(),accessor=>accessor?.values || [],inspect), inspect, enumValue, rootValue,nestedValue,listValue,globalValue,rootImage,fire,remember,pointer,image,runtime };
+    return { ...make(player,runtime,remember,pointer, x=>new Uint8Array(x),vi.fn(),accessor=>accessor?.values || [],inspect),
+        setRootAvailable: value => { rootAvailable = value; }, inspect, enumValue, rootValue,nestedValue,listValue,globalValue,rootImage,fire,remember,pointer,image,runtime };
 }
 
 describe('typed recording interaction contract', () => {
@@ -75,6 +78,12 @@ describe('typed recording interaction contract', () => {
         expect(h.fire).toHaveBeenCalledTimes(1);expect(h.pointer).toHaveBeenCalledWith({type:'down',x:.25,y:.5,id:0,buttons:1});
         h.replace();expect(()=>schedule.run(1,1)).toThrow('source');schedule.dispose();
     });
+    it('uses a prepared accessor when a same-session live lookup briefly misses', async () => {
+        const h=renderer();const schedule=await h.prepare([set(1,'x',4)]);
+        h.setRootAvailable(false);
+        expect(()=>schedule.run(1,60)).not.toThrow();
+        expect(h.rootValue.value).toBe(4);
+    });
     it('prepares image bytes, assigns synchronously, releases only after draw, then clears', async () => {
         const h=renderer();const descriptor={path:'photo',kind:'image'};
         const schedule=await h.prepare([{at_seconds:0,type:'vm-set',descriptor,bytes:[1,2,3],label:'test'},{at_seconds:1,type:'vm-set',descriptor,value:null}]);
@@ -83,10 +92,10 @@ describe('typed recording interaction contract', () => {
         schedule.afterFrame();expect(h.image.unref).toHaveBeenCalledOnce();expect(h.remember).toHaveBeenCalledOnce();
         schedule.run(1,1);expect(h.rootImage.value).toBeNull();schedule.afterFrame();schedule.dispose();expect(h.image.unref).toHaveBeenCalledOnce();
     });
-    it('rejects unavailable enum choices and out-of-range list targets at execution', async () => {
+    it('rejects unavailable enum choices and out-of-range list targets before recording', async () => {
         const h=renderer();const good=await h.prepare([set(0,'choice','Two','enum')]);good.run(0,0);expect(h.enumValue.value).toBe('Two');
-        const bad=await h.prepare([set(0,'choice','Missing','enum')]);expect(()=>bad.run(0,0)).toThrow('choice');
-        const list=await h.prepare([set(0,'rows/4/visible',true,'boolean')]);expect(()=>list.run(0,0)).toThrow('unavailable');
+        await expect(h.prepare([set(0,'choice','Missing','enum')])).rejects.toThrow('choice');
+        await expect(h.prepare([set(0,'rows/4/visible',true,'boolean')])).rejects.toThrow('rows/4/visible');
     });
     it('releases images if the source changes while decode is pending', async () => {
         const h=renderer();let resolveDecode;h.runtime.decodeImage.mockImplementation(()=>new Promise(resolve=>{resolveDecode=resolve}));
@@ -111,10 +120,11 @@ describe('typed recording interaction contract', () => {
     it('checks the aggregate encoded budget before any decode without large real allocations', async () => {
         // Isolate preparation from the already separately-tested byte-array validator.
         // Compact test doubles supply encoded lengths to exercise the aggregate pass.
-        const normalized=[{bytes:{length:16777216}},{bytes:{length:16777216}},{bytes:{length:1}}];
+        const imageOperation = {type:'vm-set',descriptor:{path:'photo',kind:'image'}};
+        const normalized=[{...imageOperation,bytes:{length:16777216}},{...imageOperation,bytes:{length:16777216}},{...imageOperation,bytes:{length:1}}];
         const decode=vi.fn();const inspect=vi.fn(()=>({width:1,height:1}));
         const prepare=new Function('riveInstance','renderSurfaceSessionId','loadedRiveRuntime','validateRenderSurfaceImageBytes','inspectRenderSurfaceImage',
-            source+'; RavMediaInteractions={validate:()=>arguments[5]}; return prepareRenderSurfaceInteractionSchedule;')({},'one',{decodeImage:decode},x=>x,inspect,normalized);
+            'function resolveControlAccessor(){return {value:null};}\n' + source+'; RavMediaInteractions={validate:()=>arguments[5]}; return prepareRenderSurfaceInteractionSchedule;')({},'one',{decodeImage:decode},x=>x,inspect,normalized);
         await expect(prepare([])).rejects.toThrow('32 MiB');expect(decode).not.toHaveBeenCalled();expect(inspect).toHaveBeenCalledTimes(2);
     });
     it('releases prepared images when cancelled before they are due', async () => {

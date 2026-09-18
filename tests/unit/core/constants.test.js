@@ -5,9 +5,9 @@ import {
     DEFAULT_RUNTIME_VERSION_TOKEN,
     FALLBACK_RUNTIME_VERSION_OPTIONS,
     LAYOUT_FITS,
-    OPEN_FILE_POLL_INTERVAL_MS,
     RUNTIME_PACKAGE_NAMES,
     VM_TOPOLOGY_SYNC_INTERVAL_MS,
+    VM_TOPOLOGY_PUBLISH_FLOOR_MS,
     VM_CONTROL_KINDS,
 } from '../../../src/app/core/constants.js';
 
@@ -16,7 +16,7 @@ describe('core/constants', () => {
         expect(DEFAULT_CANVAS_COLOR).toBe('#0d1117');
         expect(DEFAULT_LAYOUT_FIT).toBe('contain');
         expect(VM_TOPOLOGY_SYNC_INTERVAL_MS).toBe(1000);
-        expect(OPEN_FILE_POLL_INTERVAL_MS).toBe(900);
+        expect(VM_TOPOLOGY_PUBLISH_FLOOR_MS).toBe(120);
         expect(DEFAULT_RUNTIME_VERSION_TOKEN).toBe('latest');
         expect(FALLBACK_RUNTIME_VERSION_OPTIONS).toEqual(['2.39.2', '2.39.1', '2.39.0']);
     });

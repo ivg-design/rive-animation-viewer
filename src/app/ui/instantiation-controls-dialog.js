@@ -12,6 +12,8 @@ import {
     configureInstantiationControls,
     requestExportOverlayStateSync,
 } from './export/mcp-control-configuration.js';
+import { createExportGpuCanvasOption } from './export/gpu-canvas-option.js';
+import { createInstantiationPreviewState } from './export/preview-state.js';
 
 export function createInstantiationControlsDialogController({
     callbacks = {},
@@ -27,6 +29,8 @@ export function createInstantiationControlsDialogController({
         closeUiOverlay = async () => false,
         generateWebInstantiationCode = async () => ({ code: '' }),
         getCurrentFileName = () => null,
+        getCurrentRuntime = () => 'webgl2',
+        getGpuCanvasEnabled = () => false,
         getTauriInvoker = () => null,
         initLucideIcons = () => {},
         logEvent = () => {},
@@ -39,13 +43,26 @@ export function createInstantiationControlsDialogController({
     let currentHierarchy = null;
     let currentAvailableKeys = new Set();
     let selectedControlKeys = null;
-    let currentPreviewText = '';
     let expandedBranchKeys = new Set();
     let hierarchyRevision = 0;
     let hierarchySignature = '';
     let overlayHierarchyRevision = null;
     let overlayOpen = false;
     let overlayTreeScrollTop = 0;
+    const preview = createInstantiationPreviewState({ elements });
+    const clearPreview = preview.clear;
+    const renderPreview = preview.render;
+    const gpuCanvasOption = createExportGpuCanvasOption({
+        getCurrentRuntime,
+        getToolbarEnabled: getGpuCanvasEnabled,
+        onChange: () => { if (overlayOpen) requestExportOverlayStateSync(documentRef); },
+        onInvalidatePreview: clearPreview,
+        toggle: elements.instantiationGpuCanvasToggle,
+    });
+    const getExportGpuCanvasEnabled = gpuCanvasOption.getEnabled;
+    const initializeExportGpuCanvasFromToolbar = gpuCanvasOption.initializeFromToolbar;
+    const isGpuCanvasAvailable = gpuCanvasOption.isAvailable;
+    const setExportGpuCanvasEnabled = gpuCanvasOption.setEnabled;
     function getDialog() {
         return elements.instantiationControlsDialog;
     }
@@ -62,36 +79,9 @@ export function createInstantiationControlsDialogController({
         );
     }
 
-    function clearPreview() {
-        currentPreviewText = '';
-        if (elements.instantiationPreviewOutput) {
-            elements.instantiationPreviewOutput.textContent = '// Generate a snippet to preview it here.';
-        }
-        if (elements.instantiationPreviewStatus) {
-            elements.instantiationPreviewStatus.textContent = 'Snippet preview not generated yet.';
-        }
-        if (elements.copyInstantiationPreviewButton) {
-            elements.copyInstantiationPreviewButton.disabled = true;
-        }
-    }
-
     function getSnippetMode() {
         const value = elements.instantiationSnippetModeSelect?.value;
         return value === 'scaffold' ? 'scaffold' : 'compact';
-    }
-
-    function renderPreview() {
-        if (elements.instantiationPreviewOutput) {
-            elements.instantiationPreviewOutput.textContent = currentPreviewText || '// Generate a snippet to preview it here.';
-        }
-        if (elements.instantiationPreviewStatus) {
-            elements.instantiationPreviewStatus.textContent = currentPreviewText
-                ? 'Snippet preview is ready.'
-                : 'Snippet preview not generated yet.';
-        }
-        if (elements.copyInstantiationPreviewButton) {
-            elements.copyInstantiationPreviewButton.disabled = !currentPreviewText;
-        }
     }
 
     function updateSelectionSummary() {
@@ -130,7 +120,8 @@ export function createInstantiationControlsDialogController({
         return configureInstantiationControls(options, {
             clearPreview, currentAvailableKeys, documentRef, elements, ensureDialogState,
             getChangedControlKeySet, getSelectedControlKeys, getSnippetMode,
-            isOverlayOpen: () => overlayOpen, setSelection,
+            getExportGpuCanvasEnabled,
+            isOverlayOpen: () => overlayOpen, setExportGpuCanvasEnabled, setSelection,
         });
     }
 
@@ -161,7 +152,7 @@ export function createInstantiationControlsDialogController({
             selectedControlKeys = sanitizeSelection(selectedControlKeys, currentAvailableKeys);
         }
 
-        if (!currentPreviewText) {
+        if (!preview.getText()) {
             renderPreview();
         }
         updateSelectionSummary();
@@ -192,25 +183,25 @@ export function createInstantiationControlsDialogController({
         const packageSource = elements.instantiationPackageSourceSelect?.value || 'cdn';
         const snippetMode = getSnippetMode();
         const result = await generateWebInstantiationCode({
+            enableGPUCanvas: getExportGpuCanvasEnabled(),
             packageSource,
             snippetMode,
             selectedControlKeys: getSelectedControlKeys() || [],
         });
-        currentPreviewText = String(result?.code || '').trim();
-        renderPreview();
+        preview.setText(result?.code);
         updateInfo(`Generated ${packageSource.toUpperCase()} ${snippetMode.toUpperCase()} web instantiation snippet.`);
         logEvent('ui', 'snippet-preview', `Generated ${packageSource} ${snippetMode} instantiation snippet.`);
         return result;
     }
 
     async function copyPreviewToClipboard() {
-        if (!currentPreviewText) {
+        if (!preview.getText()) {
             await generateSnippetPreview();
         }
-        if (!currentPreviewText) {
+        if (!preview.getText()) {
             return false;
         }
-        await windowRef.navigator.clipboard.writeText(currentPreviewText);
+        await windowRef.navigator.clipboard.writeText(preview.getText());
         updateInfo('Instantiation snippet copied to clipboard.');
         return true;
     }
@@ -221,6 +212,7 @@ export function createInstantiationControlsDialogController({
         }
 
         const bundleOptions = {
+            enableGPUCanvas: getExportGpuCanvasEnabled(),
             packageSource: elements.instantiationPackageSourceSelect?.value === 'local' ? 'local' : 'cdn',
             snippetMode: getSnippetMode(),
             selectedControlKeys: getSelectedControlKeys() || [],
@@ -244,10 +236,12 @@ export function createInstantiationControlsDialogController({
         const state = {
             expandedBranchKeys: Array.from(expandedBranchKeys),
             exportEnabled: Boolean(getTauriInvoker()),
+            gpuCanvasAvailable: isGpuCanvasAvailable(),
+            gpuCanvasEnabled: getExportGpuCanvasEnabled(),
             hierarchyRevision,
             packageSource: elements.instantiationPackageSourceSelect?.value || 'cdn',
-            previewStatus: currentPreviewText ? 'Snippet preview is ready.' : 'Snippet preview not generated yet.',
-            previewText: currentPreviewText,
+            previewStatus: preview.getText() ? 'Snippet preview is ready.' : 'Snippet preview not generated yet.',
+            previewText: preview.getText(),
             selectedControlKeys: getSelectedControlKeys() || [],
             selectionSummary,
             snippetMode: getSnippetMode(),
@@ -297,6 +291,8 @@ export function createInstantiationControlsDialogController({
                 elements.instantiationSnippetModeSelect.value = value === 'scaffold' ? 'scaffold' : 'compact';
             }
             clearPreview();
+        } else if (action === 'gpu-canvas') {
+            setExportGpuCanvasEnabled(Boolean(value));
         } else if (action === 'generate-preview') {
             await generateSnippetPreview();
         } else if (action === 'copy-preview') {
@@ -311,6 +307,7 @@ export function createInstantiationControlsDialogController({
     }
 
     async function openDialog() {
+        initializeExportGpuCanvasFromToolbar();
         if (!ensureDialogState()) {
             return { open: false };
         }
@@ -404,6 +401,7 @@ export function createInstantiationControlsDialogController({
         elements.instantiationSnippetModeSelect?.addEventListener('change', () => {
             clearPreview();
         });
+        gpuCanvasOption.setup();
         elements.instantiationDialogSnippetButton?.addEventListener('click', () => {
             generateSnippetPreview().catch((error) => {
                 showError(`Failed to generate snippet: ${error.message}`);
@@ -425,6 +423,7 @@ export function createInstantiationControlsDialogController({
 
     return {
         configureForMcp,
+        getExportGpuCanvasEnabled,
         getSelectedControlKeys,
         openDialog,
         setup,

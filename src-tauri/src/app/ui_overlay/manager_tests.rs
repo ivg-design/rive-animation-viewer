@@ -53,6 +53,36 @@ fn replacement_commits_without_dropping_the_active_overlay_first() {
 }
 
 #[test]
+fn active_overlay_bounds_update_without_replacing_its_identity_or_state() {
+    let manager = UiOverlayManager::default();
+    let (resource, _ready) = manager.stage(request()).unwrap();
+    manager
+        .prepare_pending(&resource.label, resource.epoch, "settings")
+        .unwrap();
+    manager.acknowledge_adoption(&resource.label).unwrap();
+    manager
+        .update_active_state(resource.epoch, serde_json::json!({"value": 7}))
+        .unwrap();
+    let bounds = UiOverlayBounds {
+        x: 40.0,
+        y: 60.0,
+        width: 680.0,
+        height: 412.0,
+    };
+    let updated = manager
+        .update_active_bounds(resource.epoch, bounds)
+        .unwrap()
+        .unwrap();
+    assert_eq!(updated.label, resource.label);
+    assert_eq!(updated.request.bounds.height, 412.0);
+    assert_eq!(updated.request.state, serde_json::json!({"value": 7}));
+    assert!(manager
+        .update_active_bounds(resource.epoch + 1, bounds)
+        .unwrap()
+        .is_none());
+}
+
+#[test]
 fn duplicate_ready_cannot_reopen_the_pending_overlay() {
     let manager = UiOverlayManager::default();
     let (resource, _ready) = manager.stage(request()).unwrap();

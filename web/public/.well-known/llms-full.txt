@@ -2,7 +2,7 @@
 
 canonical_url: https://forge.mograph.life/apps/rav/
 owner: IVG Design
-last_updated: 2026-09-04
+last_updated: 2026-09-11
 language: en
 site_type: product-marketing + technical documentation
 
@@ -41,9 +41,11 @@ Documentation:
 - Standalone HTML and copy-paste snippets are separate outputs.
 - Standalone HTML includes the Rive runtime, embedded file, UI chrome, controls, and selected-value restoration.
 - CDN and local snippets include animation setup plus only the selected typed property accessors.
-- Desktop media formats are H.264, H.265, WebM, APNG, GIF, PNG, JPG, and WebP when the capability service approves the format.
+- Desktop media formats are H.264, H.265, WebM, ProRes 4444, APNG, GIF, PNG, JPG, WebP, PNG sequence, and JPG sequence when the capability service approves the format.
+- Alpha requests are refused for H.264, H.265, JPG, and JPG sequence only. Other formats expose alpha when their encoder passes capability checks; GIF has binary transparency. WebM alpha must pass a decoded-alpha probe.
+- PNG/JPG sequences use a directory as output_path. A non-empty folder in the Export overlay offers Overwrite, Choose folder…, or Cancel; folder changes and cancellation preserve the settings. Overwrite consent is per request and keeps unrelated files. MCP remains unattended: it refuses a non-empty destination unless overwrite: true is explicit.
 - Timeline export covers the authored duration or an exact exclusive-end segment.
-- State-machine recording captures live pointer and ViewModel interaction, can include a cursor, and supports manual or timed stop without a product duration ceiling.
+- State-machine recording captures live pointer and ViewModel interaction, can include a cursor, and supports manual or timed stop without a product duration ceiling. Recording accepts clock: "live" | "offline". Offline requires an explicit duration, renders every simulation frame exactly, and is the default when a duration and scheduled interactions are both supplied.
 - GIF controls provide source, balanced, small, custom, and best-effort target-size modes.
 - Capture, encoding, validation, and save progress appears in the bottom status bar.
 
@@ -52,8 +54,8 @@ Documentation:
 - https://forge.mograph.life/apps/rav/docs/media-export
 
 ## 6) MCP and Diagnostics
-- The bundled native MCP sidecar advertises 57 tools.
-- Tool groups cover file/session status, playback, root and global ViewModels, state-machine inputs, layout, console access, screenshots, standalone export, and media export/recording.
+- The bundled native MCP sidecar advertises 55 tools.
+- Tool groups cover file/session status, playback, root and global ViewModels, state-machine selection, layout, console access, screenshots, standalone export, and media export/recording.
 - Eight media operations provide capability discovery, export, record start/stop, job status/cancellation, exact frame stepping, and normalized pointer input.
 - Scheduled recordings can apply typed ViewModel values, triggers, images, and pointer events on the recording clock.
 - Event and JavaScript consoles remain separate diagnostic surfaces.
@@ -64,6 +66,7 @@ Documentation:
 - https://forge.mograph.life/apps/rav/docs/script-editor
 
 ## 7) Desktop Integration
+- Desktop Open With uses the native open-file event listener, not polling. If listener registration fails, queued files are reconciled on the next start and a warning is logged.
 - macOS Settings exposes deliberate Make Default and Repair Icon actions for `.riv` files. Quick Look remains separate.
 - Windows installers register a dedicated multi-resolution `.riv` document icon.
 - RAV checks for updates in the background and exposes install state in the runtime strip.

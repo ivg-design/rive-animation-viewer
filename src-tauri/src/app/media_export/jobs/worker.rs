@@ -1,7 +1,12 @@
 use super::*;
 
 impl Backend {
-    pub(super) fn encode(&self, entry: &Arc<Entry>, count: u32) -> Result<()> {
+    pub(super) fn encode(
+        &self,
+        entry: &Arc<Entry>,
+        count: u32,
+        notifier: Option<&StatusNotifier>,
+    ) -> Result<()> {
         let binaries = self
             .discovery
             .binaries
@@ -9,7 +14,11 @@ impl Backend {
             .ok_or("Encoder unavailable")?;
         let encode_started = Instant::now();
         entry.inner.lock().map_err(io)?.job.stage = "encoding".into();
+        notify_status(notifier, entry);
         let weak = Arc::downgrade(entry);
+        let progress_gate = Arc::new(Mutex::new(Instant::now() - Duration::from_secs(1)));
+        let progress_notifier = notifier.cloned();
+        let progress_gate_for_encode = progress_gate.clone();
         let control = Control {
             cancel: entry.control.cancel.clone(),
             born: entry.control.born,
@@ -20,6 +29,20 @@ impl Backend {
                             .job
                             .progress
                             .max((0.05 + 0.80 * frame / count as f64).min(0.85));
+                    }
+                    let should_notify = progress_gate_for_encode
+                        .lock()
+                        .map(|mut last| {
+                            if last.elapsed() < Duration::from_millis(100) {
+                                false
+                            } else {
+                                *last = Instant::now();
+                                true
+                            }
+                        })
+                        .unwrap_or(false);
+                    if should_notify {
+                        notify_status(progress_notifier.as_ref(), &entry);
                     }
                 }
             })),
@@ -46,6 +69,8 @@ impl Backend {
                 &adapter,
                 &control,
             )?
+        } else if entry.request.format.is_directory() {
+            encode::sequence(binaries, &entry.request, &entry.spool, &[], count, &control)?
         } else {
             encode::ordinary(binaries, &entry.request, &entry.spool, &[], count, &control)?
         };
@@ -59,8 +84,11 @@ impl Backend {
             inner.job.stage = "verifying".into();
             inner.job.progress = 0.90;
         }
+        notify_status(notifier, entry);
         let verify_started = Instant::now();
         let weak = Arc::downgrade(entry);
+        let progress_notifier = notifier.cloned();
+        let progress_gate_for_verify = progress_gate.clone();
         let verification = Control {
             cancel: entry.control.cancel.clone(),
             born: entry.control.born,
@@ -72,24 +100,52 @@ impl Backend {
                             .progress
                             .max((0.90 + 0.09 * frame / expected_count.max(1) as f64).min(0.99));
                     }
+                    let should_notify = progress_gate_for_verify
+                        .lock()
+                        .map(|mut last| {
+                            if last.elapsed() < Duration::from_millis(100) {
+                                false
+                            } else {
+                                *last = Instant::now();
+                                true
+                            }
+                        })
+                        .unwrap_or(false);
+                    if should_notify {
+                        notify_status(progress_notifier.as_ref(), &entry);
+                    }
                 }
             })),
         };
-        let receipt = verify::inspect(
-            binaries,
-            &candidate,
-            verify::ExpectedOutput {
-                format: entry.request.format,
-                width: settings["width"].as_u64().ok_or("Missing resolved width")? as u32,
-                height: settings["height"]
-                    .as_u64()
-                    .ok_or("Missing resolved height")? as u32,
-                frame_count: expected_count,
-                duration: count as f64 / entry.request.fps.value(),
-                rate: entry.request.fps.value(),
-            },
-            &verification,
-        )?;
+        let width = settings["width"].as_u64().ok_or("Missing resolved width")? as u32;
+        let height = settings["height"]
+            .as_u64()
+            .ok_or("Missing resolved height")? as u32;
+        let receipt = if entry.request.format.is_directory() {
+            verify::inspect_directory(
+                binaries,
+                &candidate,
+                entry.request.format,
+                width,
+                height,
+                expected_count,
+                &verification,
+            )?
+        } else {
+            verify::inspect(
+                binaries,
+                &candidate,
+                verify::ExpectedOutput {
+                    format: entry.request.format,
+                    width,
+                    height,
+                    frame_count: expected_count,
+                    duration: count as f64 / entry.request.fps.value(),
+                    rate: entry.request.fps.value(),
+                },
+                &verification,
+            )?
+        };
         {
             let mut inner = entry.inner.lock().map_err(io)?;
             inner.job.resolved_settings["verify_seconds"] =
@@ -97,13 +153,21 @@ impl Backend {
             inner.job.stage = "publishing".into();
             inner.job.progress = 0.99;
         }
+        notify_status(notifier, entry);
         // Cancellation and publication are serialized. If publish won, cancel returns completed.
         let mut inner = entry.inner.lock().map_err(io)?;
         control.check()?;
-        let size = entry
-            .spool
-            .publish(&candidate, entry.request.overwrite)
-            .map_err(|e| format!("Output publication failed: {e}"))?;
+        let size = if entry.request.format.is_directory() {
+            entry
+                .spool
+                .publish_directory(&candidate, entry.request.overwrite)
+                .map_err(|e| format!("Output publication failed: {e}"))?
+        } else {
+            entry
+                .spool
+                .publish(&candidate, entry.request.overwrite)
+                .map_err(|e| format!("Output publication failed: {e}"))?
+        };
         inner.job.actual_bytes = Some(size);
         inner.job.state = "completed".into();
         inner.job.stage = "completed".into();
@@ -128,6 +192,8 @@ impl Backend {
                 .warnings
                 .push(format!("Output complete; spool cleanup needs retry: {e}"));
         }
+        drop(inner);
+        notify_status(notifier, entry);
         Ok(())
     }
 }

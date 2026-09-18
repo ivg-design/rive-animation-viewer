@@ -206,6 +206,48 @@ describe('platform/render-surface/controller', () => {
         expect(measureRenderSurfaceBounds({ getBoundingClientRect: () => ({ left: 0, top: 0, width: 0, height: 10 }) })).toBeNull();
     });
 
+    it('reconciles native visibility and bounds when the main window regains focus', async () => {
+        const harness = createHarness({ autoAcknowledge: true });
+        await harness.controller.setup();
+        await activateInitialSurface(harness);
+        harness.invoke.mockClear();
+
+        window.dispatchEvent(new Event('focus'));
+        await vi.waitFor(() => {
+            expect(harness.invoke).toHaveBeenCalledWith('restore_render_surface', {});
+            expect(harness.invoke).toHaveBeenCalledWith('set_render_surface_bounds', {
+                height: 360, width: 640, x: 100, y: 80,
+            });
+        });
+        harness.controller.dispose();
+    });
+
+    it('starts recovery when an active playing child stops producing frame receipts', async () => {
+        const harness = createHarness({ autoAcknowledge: true });
+        await harness.controller.setup();
+        const sessionId = await activateInitialSurface(harness);
+        window.dispatchEvent(new Event('focus'));
+        harness.eventHandlers.get('render-surface:state')({ payload: {
+            controlChanges: [],
+            playback: { isPlaying: true, name: 'Machine', type: 'stateMachine' },
+            sessionId,
+            stateRevision: 2,
+            stateType: 'delta',
+            topologyRevision: 1,
+        } });
+
+        vi.advanceTimersByTime(3_500);
+        expect(harness.logEvent).toHaveBeenCalledWith(
+            'native',
+            'render-surface-frame-stalled',
+            'Playback surface stopped producing frame activity.',
+            { sessionId },
+        );
+        expect(harness.controller.getState().recoveryState).toBe('recovering');
+        expect(harness.invoke).toHaveBeenCalledWith('hide_render_surface', {});
+        harness.controller.dispose();
+    });
+
     it('swaps to the synchronized child and relays live control/playback commands', async () => {
         const harness = createHarness({
             presentationState: {
@@ -971,6 +1013,15 @@ describe('platform/render-surface/controller', () => {
         expect(harness.invoke).not.toHaveBeenCalledWith('activate_render_surface', { reveal: true, sessionId: secondSession });
         expect(harness.controller.getState().activeSessionId).toBe(firstSession);
         expect(harness.controller.getState().pendingCommands).toBe(0);
+        const retainedSessionCommands = harness.invoke.mock.calls
+            .filter(([name, args]) => name === 'send_render_surface_message'
+                && args.payload.sessionId === firstSession)
+            .map(([, args]) => args.payload.type);
+        expect(retainedSessionCommands).toContain('quiesce-rendering');
+        expect(retainedSessionCommands).toContain('resume-rendering');
+        expect(retainedSessionCommands.indexOf('quiesce-rendering')).toBeLessThan(
+            retainedSessionCommands.indexOf('resume-rendering'),
+        );
         expect(harness.invoke.mock.calls.filter(
             ([name, args]) => name === 'send_render_surface_message'
                 && args.payload.type === 'vm-set'
@@ -1509,9 +1560,10 @@ describe('platform/render-surface/controller', () => {
         await secondLoad;
         const sent = harness.invoke.mock.calls.filter(([name]) => name === 'send_render_surface_message');
         expect(sent.map(([, args]) => args.payload.type)).toEqual([
-            'vm-image-set', 'presentation', 'activate-callbacks', 'prepare-frame', 'prepare-frame',
+            'quiesce-rendering', 'vm-image-set', 'presentation', 'activate-callbacks', 'prepare-frame', 'prepare-frame',
         ]);
-        expect(sent[0][1].payload.payload).toEqual(expect.objectContaining({ path: 'avatar', value: [1, 2, 3] }));
+        const imageReplay = sent.find(([, args]) => args.payload.type === 'vm-image-set');
+        expect(imageReplay?.[1].payload.payload).toEqual(expect.objectContaining({ path: 'avatar', value: [1, 2, 3] }));
         harness.controller.dispose();
     });
 
@@ -1687,7 +1739,7 @@ describe('platform/render-surface/controller', () => {
         const types = harness.invoke.mock.calls
             .filter(([name]) => name === 'send_render_surface_message')
             .map(([, args]) => args.payload.type);
-        expect(types).toEqual(['presentation', 'activate-callbacks', 'prepare-frame', 'prepare-frame']);
+        expect(types).toEqual(['quiesce-rendering', 'presentation', 'activate-callbacks', 'prepare-frame', 'prepare-frame']);
 
         const thirdLoad = harness.controller.loadCurrentAnimation();
         await vi.waitFor(() => expect(harness.invoke.mock.calls.filter(

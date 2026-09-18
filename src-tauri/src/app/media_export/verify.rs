@@ -1,9 +1,11 @@
 use super::{
+    encode,
     process::{self, Control},
     types::*,
 };
 use serde_json::{json, Value};
 use std::{
+    fs,
     path::Path,
     sync::{Arc, Mutex},
 };
@@ -63,8 +65,9 @@ pub fn inspect(
         Format::Webm => "vp9",
         Format::Apng => "apng",
         Format::Gif => "gif",
-        Format::Png => "png",
-        Format::Jpg => "mjpeg",
+        Format::Prores => "prores",
+        Format::Png | Format::PngSequence => "png",
+        Format::Jpg | Format::JpgSequence => "mjpeg",
         Format::Webp => "webp",
     };
     if stream["codec_name"].as_str() != Some(codec)
@@ -202,4 +205,84 @@ fn apng_duration(binaries: &Binaries, path: &Path, control: &Control) -> Result<
         return Err("Invalid APNG packet durations".into());
     }
     Ok(duration)
+}
+
+// Sequence formats publish a directory of numbered frames instead of a single container.
+// Count the produced files against the expected frame count, sum their bytes, and fully
+// decode the first and last file to prove the directory holds real, matching-size images.
+pub fn inspect_directory(
+    binaries: &Binaries,
+    dir: &Path,
+    format: Format,
+    width: u32,
+    height: u32,
+    frame_count: u32,
+    control: &Control,
+) -> Result<Value> {
+    let codec_name = if format == Format::JpgSequence {
+        "mjpeg"
+    } else {
+        "png"
+    };
+    let suffix = format!(
+        ".{}",
+        if format == Format::JpgSequence {
+            "jpg"
+        } else {
+            "png"
+        }
+    );
+    let mut count = 0u64;
+    let mut total = 0u64;
+    for entry in fs::read_dir(dir).map_err(io)? {
+        let entry = entry.map_err(io)?;
+        let meta = fs::symlink_metadata(entry.path()).map_err(io)?;
+        if !meta.is_file() || meta.file_type().is_symlink() {
+            continue;
+        }
+        if !entry.file_name().to_string_lossy().ends_with(&suffix) {
+            continue;
+        }
+        count += 1;
+        total += meta.len();
+    }
+    if count != frame_count as u64 {
+        return Err(format!(
+            "Sequence produced {count} frame files, expected {frame_count}"
+        ));
+    }
+    for index in [0, frame_count.saturating_sub(1)] {
+        control.check()?;
+        let path = dir.join(encode::sequence_frame_name(format, index));
+        let mut args = process::strings(&[
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "stream=codec_name,width,height",
+            "-of",
+            "json",
+        ]);
+        args.push(path.to_str().ok_or("Non UTF-8 candidate path")?.into());
+        let raw = process::run(&binaries.ffprobe, &args, None, control, 60, &[])?;
+        let probe: Value = serde_json::from_slice(&raw).map_err(io)?;
+        let stream = probe["streams"]
+            .get(0)
+            .ok_or("Encoded frame has no video stream")?;
+        if stream["codec_name"].as_str() != Some(codec_name) {
+            return Err("Encoded frame codec differs from requested format".into());
+        }
+        if stream["width"].as_u64() != Some(width as u64)
+            || stream["height"].as_u64() != Some(height as u64)
+        {
+            return Err("Encoded frame dimensions differ from resolved settings".into());
+        }
+        // Full decode: a header probe alone does not establish valid image data.
+        let mut decode = process::strings(&["-v", "error", "-xerror", "-nostdin", "-i"]);
+        decode.push(path.to_string_lossy().into_owned());
+        decode.extend(process::strings(&["-map", "0:v:0", "-f", "null", "-"]));
+        process::run(&binaries.ffmpeg, &decode, None, control, 60, &[])?;
+    }
+    Ok(json!({ "decoded_frames": count, "actual_bytes": total, "codec": codec_name }))
 }

@@ -1,4 +1,5 @@
 import { normalizeCanvasSizingState } from '../core/canvas-sizing.js';
+import { resolveGpuCanvasConfig } from '../core/gpu-canvas.js';
 import { resolveRiveAlignment, resolveRiveFit } from '../core/rive-layout.js';
 import { composeEmbeddedImageAssetLoader } from './assets/embedded-image-assets.js';
 import { createRiveEventBridge } from './instance/event-bridge.js';
@@ -9,8 +10,9 @@ import { getStateMachineNames, normalizePlaybackConfig } from './runtime-compati
 import {
     configureRiveLoadLifecycle,
 } from './instances/load-lifecycle.js';
-import { createHiddenPlumbingTransactionController } from './instances/hidden-plumbing-transaction.js';
 import { createLoadSettlement } from './instances/load-settlement.js';
+import { loadAuthoritativeRiveSurface } from './instances/authoritative-load.js';
+import { disableNativeFpsCounter } from './instances/native-fps.js';
 export { safelyInvokeUserCallback } from './instances/load-lifecycle.js';
 export function createRiveInstanceController({
     callbacks = {},
@@ -21,6 +23,7 @@ export function createRiveInstanceController({
     getCurrentFileBuffer = () => null,
     getCurrentLayoutFit = () => 'contain',
     getCurrentRuntime = () => 'webgl2',
+    getGpuCanvasEnabled = () => false,
     getCurrentRuntimeVersion = () => null,
     getEditorConfig = () => ({}),
     isAuthoritativeChildMode = () => false,
@@ -73,7 +76,9 @@ export function createRiveInstanceController({
     });
 
     function cleanupRiveInstance(instance) {
-        if (!instance?.cleanup) return;
+        if (!instance) return;
+        disableNativeFpsCounter(instance);
+        if (!instance.cleanup) return;
         try {
             instance.cleanup();
         } catch (error) {
@@ -81,25 +86,12 @@ export function createRiveInstanceController({
         }
     }
 
-    const hiddenPlumbingTransaction = createHiddenPlumbingTransactionController({
-        cleanupRiveInstance,
-        elements,
-        getRiveInstance,
-        populateArtboardSwitcher,
-        refreshInfoStrip,
-        renderVmInputControls,
-        riveEventBridge,
-        setRiveInstance,
-        windowRef,
-    });
-
     function cleanupInstance({ preservePendingLoad = false } = {}) {
         if (!preservePendingLoad) {
             loadGeneration += 1;
             cancelPendingLoad?.(new Error('Animation load cancelled.'));
             cancelPendingLoad = null;
         }
-        hiddenPlumbingTransaction.disposeRetained();
         pendingInPlaceReset = null;
         riveEventBridge.clear();
         resetPlaybackChips();
@@ -129,6 +121,14 @@ export function createRiveInstanceController({
             riveInstance.reset(normalizePlaybackConfig(isAuthoritativeChildMode()
                 ? { ...params, autoplay: false }
                 : params, getCurrentRuntimeVersion()));
+            // `Rive.reset()` tears down the runtime's own canvas mouse/touch
+            // listeners (inside `cleanupInstances()`) but, unlike `play()`,
+            // never re-registers them. Without this call pointer/hover input
+            // silently stops reaching the state machine after an in-place
+            // reset until the next explicit `play()`.
+            if (typeof riveInstance.setupRiveListeners === 'function') {
+                riveInstance.setupRiveListeners();
+            }
             return true;
         } catch (error) {
             pendingInPlaceReset = null;
@@ -149,11 +149,8 @@ export function createRiveInstanceController({
         const generation = ++loadGeneration;
         previousPendingLoad?.(new Error('Animation load superseded.'));
         const isCurrentLoad = () => generation === loadGeneration;
-        let loadTransaction = null;
         const loadSettlement = createLoadSettlement({
-            onCommit: () => hiddenPlumbingTransaction.commit(loadTransaction),
             onFailure: onLoadError,
-            onRollback: () => hiddenPlumbingTransaction.rollback(loadTransaction),
             onSuccess: onLoaded,
             waitForActivation,
         });
@@ -191,36 +188,55 @@ export function createRiveInstanceController({
 
             const authoritativeChildMode = Boolean(isAuthoritativeChildMode());
             if (authoritativeChildMode) {
-                loadTransaction = hiddenPlumbingTransaction.begin(runtime);
-            } else {
-                cleanupInstance({ preservePendingLoad: true });
+                // Desktop has one Rive owner: the isolated visible child.
+                // Retire any legacy parent player/canvas left by an older load,
+                // then seed selection from the parse-once metadata before the
+                // child export context is constructed.
+                riveEventBridge.clear();
+                cleanupRiveInstance(riveInstance);
+                setRiveInstance(null);
                 container.innerHTML = '';
+                embeddedImageAssetCatalog?.reset?.();
+                resetPlaybackChips();
+                await loadAuthoritativeRiveSurface({
+                    activateAuthoritativeSurface,
+                    configOverrides,
+                    detectDefaultStateMachineName,
+                    fileBuffer: getCurrentFileBuffer(),
+                    fileName,
+                    fileUrl,
+                    forceAutoplay,
+                    getEditorConfig,
+                    inspectionMetadata,
+                    isCurrentLoad,
+                    populateArtboardSwitcher,
+                    runtimeAsset: runtime,
+                    runtimeVersion: getCurrentRuntimeVersion(),
+                    syncArtboardStateAfterLoad,
+                    syncArtboardStateFromConfig,
+                });
+                if (!isCurrentLoad()) return;
+                hideError();
+                logEvent('native', 'load', `Loaded ${fileName} using isolated ${getCurrentRuntime()} playback.`);
+                refreshInfoStrip();
+                notifyLoadSuccess();
+                if (loadSettlement.promise) return await loadSettlement.promise;
+                return;
             }
+            cleanupInstance({ preservePendingLoad: true });
+            container.innerHTML = '';
 
             const canvas = windowRef.document.createElement('canvas');
             canvas.id = 'rive-canvas';
             container.appendChild(canvas);
-            hiddenPlumbingTransaction.setCandidateCanvas(loadTransaction, canvas);
             applyCanvasBackground(canvas);
             const userConfig = getEditorConfig();
             resizeCanvas(canvas, userConfig);
 
             const { canvasSize: _ignoredCanvasSize, ...sanitizedUserConfig } = userConfig || {};
-            // The hidden plumbing instance is intentionally paused, but that
-            // must not erase the requested playback policy for the child that
-            // will become authoritative. Selection and DEFAULT loads force
-            // autoplay even when the retiring child was paused; refreshes can
-            // explicitly request false to preserve a paused session.
-            let authoritativeAutoplay = forceAutoplay
-                ? true
-                : sanitizedUserConfig.autoplay !== false;
-            if (configOverrides && typeof configOverrides === 'object'
-                && Object.prototype.hasOwnProperty.call(configOverrides, 'autoplay')) {
-                authoritativeAutoplay = configOverrides.autoplay !== false;
-            }
-            const effectiveUserConfig = authoritativeChildMode
-                ? { ...sanitizedUserConfig, autoplay: false }
-                : (forceAutoplay ? { ...sanitizedUserConfig, autoplay: true } : { ...sanitizedUserConfig });
+            const effectiveUserConfig = forceAutoplay
+                ? { ...sanitizedUserConfig, autoplay: true }
+                : { ...sanitizedUserConfig };
             if (configOverrides && typeof configOverrides === 'object') {
                 if (['stateMachine', 'stateMachines', 'animations'].some((key) => Object.hasOwn(configOverrides, key))) {
                     delete effectiveUserConfig.stateMachine;
@@ -228,9 +244,6 @@ export function createRiveInstanceController({
                     delete effectiveUserConfig.animations;
                 }
                 Object.assign(effectiveUserConfig, configOverrides);
-            }
-            if (authoritativeChildMode) {
-                effectiveUserConfig.autoplay = false;
             }
             const config = normalizePlaybackConfig(effectiveUserConfig, getCurrentRuntimeVersion());
             embeddedImageAssetCatalog?.reset?.();
@@ -260,7 +273,7 @@ export function createRiveInstanceController({
             config.canvas = canvas;
             config.assetLoader = composeEmbeddedImageAssetLoader(
                 embeddedImageAssetCatalog,
-                authoritativeChildMode ? null : userAssetLoader,
+                userAssetLoader,
             );
             if (typeof config.autoBind === 'undefined') {
                 config.autoBind = true;
@@ -272,7 +285,10 @@ export function createRiveInstanceController({
                 alignment: resolveRiveAlignment(runtime, getCurrentLayoutAlignment()),
                 ...otherLayoutProps,
             });
-            if (isCanvasBackgroundTransparent() && getCurrentRuntime() !== 'canvas' && typeof config.useOffscreenRenderer === 'undefined') {
+            config.enableGPUCanvas = resolveGpuCanvasConfig(getCurrentRuntime(), getGpuCanvasEnabled());
+            if (config.enableGPUCanvas) {
+                config.useOffscreenRenderer = false;
+            } else if (isCanvasBackgroundTransparent() && getCurrentRuntime() !== 'canvas' && typeof config.useOffscreenRenderer === 'undefined') {
                 config.useOffscreenRenderer = true;
             }
 
@@ -296,7 +312,7 @@ export function createRiveInstanceController({
 
             configureRiveLoadLifecycle({
                 activateAuthoritativeSurface,
-                authoritativeAutoplay,
+                authoritativeAutoplay: true,
                 authoritativeChildMode,
                 beforeUserOnLoad,
                 config,

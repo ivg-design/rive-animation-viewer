@@ -227,7 +227,9 @@ impl UiOverlayActionRequest {
             ("export", "selection-preset") => is_one_of(&self.value, &["changed", "all", "none"]),
             ("export", "package-source") => is_one_of(&self.value, &["cdn", "local"]),
             ("export", "snippet-mode") => is_one_of(&self.value, &["compact", "scaffold"]),
+            ("export", "gpu-canvas") => self.value.is_boolean(),
             ("export", "tree-scroll") => is_nonnegative_integer(&self.value, 10_000_000),
+            ("export", "media-resize") => is_nonnegative_integer(&self.value, 2_000),
             ("export", "media-select") => is_one_of(&self.value, &["still", "timeline", "record"]),
             (
                 "export",
@@ -237,6 +239,7 @@ impl UiOverlayActionRequest {
                 | "media-stop"
                 | "media-cancel"
                 | "media-choose-path"
+                | "media-dismiss-job"
                 | "media-toggle-recording",
             ) => self.value.is_null(),
             ("export", "media-change") => is_media_field_change(&self.value),

@@ -63,9 +63,8 @@ describe('child-authoritative ViewModel controls', () => {
             isAuthoritativeChildMode: true,
         });
 
-        // Desktop's hidden candidate loads first, before the visible child has
-        // published any controls. This used to leave every later control marked
-        // as changed and generated a 481-property "compact" snippet.
+        // Asset preparation can finish before the authoritative child has
+        // published controls. The cold baseline must wait for that hierarchy.
         controller.renderVmInputControls();
         controller.setVmControlBaselineSnapshot();
         expect(controller.captureVmControlSnapshot()).toEqual([]);
@@ -354,7 +353,7 @@ describe('child-authoritative ViewModel controls', () => {
         expect(selects.map((select) => [...select.options].map((option) => option.value))).toEqual([
             ['CloseUp', 'FullMap'], ['Top Left', 'Bottom Left', 'Bottom Right'],
         ]);
-        expect(elements.vmControlsTree.querySelector('input[type="number"]').value).toBe('1.00');
+        expect(elements.vmControlsTree.querySelector('input[type="number"]').value).toBe('1');
         controller.stopVmControlSync();
     });
 
@@ -644,6 +643,66 @@ describe('child-authoritative ViewModel controls', () => {
         controller.stopVmControlSync();
     });
 
+    it('updates only changed rows and applies the latest focused value on blur without a timer', async () => {
+        const elements = createElements();
+        const input = (name, value) => ({
+            descriptor: { kind: 'number', name, path: name, source: 'view-model' },
+            kind: 'number',
+            value,
+        });
+        let state = {
+            revision: 1,
+            stateRevision: 1,
+            topologyRevision: 1,
+            controlsHierarchy: {
+                children: [{
+                    children: [],
+                    inputs: [input('speed', 12), input('count', 3)],
+                    kind: 'vm',
+                    label: 'MainVM',
+                    path: '<root>',
+                }],
+                inputs: [],
+                kind: 'controls',
+                label: 'Controls',
+                path: '<controls>',
+            },
+        };
+        const controller = createVmControlsController({
+            documentRef: document,
+            elements,
+            getRenderSurfaceCanonicalState: () => state,
+            isAuthoritativeChildMode: true,
+        });
+        controller.renderVmInputControls();
+        const row = (path) => elements.vmControlsTree.querySelector(`[title="${path}"]`)?.closest('.vm-control-row');
+        const speedInput = row('speed').querySelector('input');
+        const countInput = row('count').querySelector('input');
+        countInput.value = '999';
+        speedInput.focus();
+
+        state = {
+            ...state,
+            revision: 2,
+            stateRevision: 2,
+            controlChanges: [{ key: 'vm:speed:number', kind: 'number', value: 24 }],
+        };
+        document.dispatchEvent(new CustomEvent('rav:render-surface-state', { detail: state }));
+
+        expect(speedInput.value).toBe('12');
+        expect(countInput.value).toBe('999');
+        expect(controller.getVmSyncDiagnostics()).toEqual(expect.objectContaining({
+            timerActive: false,
+            valueStrategy: 'event',
+        }));
+
+        speedInput.blur();
+        await Promise.resolve();
+        expect(speedInput.value).toBe('24');
+        expect(countInput.value).toBe('999');
+        controller.stopVmControlSync();
+    });
+
     it('reconciles mixed values across topology grow/shrink and ignores stale revisions without mutations', () => {
         const elements = createElements();
         const mutations = [];
@@ -687,7 +746,7 @@ describe('child-authoritative ViewModel controls', () => {
         expect(elements.vmControlsCount.textContent).toBe('5');
         const row = (path) => elements.vmControlsTree.querySelector(`[title="${path}"]`)?.closest('.vm-control-row');
         expect(row('enabled').querySelector('input').checked).toBe(false);
-        expect(row('speed').querySelector('input').value).toBe('12.00');
+        expect(row('speed').querySelector('input').value).toBe('12');
         expect(row('title').querySelector('textarea').value).toBe('before');
         expect(row('accent').querySelector('input[type="color"]').value).toBe('#336699');
         expect(row('mode').querySelector('select').value).toBe('line');
@@ -707,7 +766,7 @@ describe('child-authoritative ViewModel controls', () => {
         document.dispatchEvent(new CustomEvent('rav:render-surface-state', { detail: state }));
         expect(elements.vmControlsCount.textContent).toBe('5');
         expect(row('enabled').querySelector('input').checked).toBe(true);
-        expect(row('speed').querySelector('input').value).toBe('24.00');
+        expect(row('speed').querySelector('input').value).toBe('24');
         expect(row('title').querySelector('textarea').value).toBe('after');
         expect(row('accent').querySelector('input[type="color"]').value).toBe('#cc8844');
         expect(row('mode').querySelector('select').value).toBe('area');
@@ -716,7 +775,7 @@ describe('child-authoritative ViewModel controls', () => {
         state = stale;
         document.dispatchEvent(new CustomEvent('rav:render-surface-state', { detail: stale }));
         expect(elements.vmControlsCount.textContent).toBe('5');
-        expect(row('speed').querySelector('input').value).toBe('24.00');
+        expect(row('speed').querySelector('input').value).toBe('24');
         expect(mutations).toEqual([]);
 
         controller.stopVmControlSync();

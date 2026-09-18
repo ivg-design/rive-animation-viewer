@@ -9,8 +9,11 @@ const resetContractSource = readTemplateSource('vm/reset-contract.js');
 const imageValidationSource = readTemplateSource('vm/image/validation.js');
 const imageResetSource = readTemplateSource('vm/image-reset.js');
 const canonicalStateSource = readTemplateSource('vm/canonical-state.js');
+const hotSetSource = readTemplateSource('vm/observer/hot-set.js');
+const watchSetSource = readTemplateSource('vm/observer/watch-set.js');
 const canonicalPublicationSource = readTemplateSource('vm/canonical-publication.js');
 const hierarchySource = readTemplateSource('vm/hierarchy.js');
+const inspectionMapSource = readTemplateSource('vm/hierarchy/inspection-map.js');
 const topologyWatchSource = readTemplateSource('vm/topology-watch.js');
 const runtimeCompatibilitySource = readFileSync(
     path.resolve(process.cwd(), 'src/app/snippets/source/rive-runtime-compatibility.js'),
@@ -34,6 +37,7 @@ const bootstrapSource = readTemplateSource('core/bootstrap.js');
 const renderSurfaceBridgeSource = readTemplateSource('core/render-surface-bridge.js');
 const renderSurfaceEvalSource = readTemplateSource('core/bridge/eval.js');
 const renderSurfaceLoadDiagnosticsSource = readTemplateSource('vm/image/load-diagnostics.js');
+const renderSurfaceLifecycleSource = readTemplateSource('core/bridge/render-surface-lifecycle.js');
 const overlayStyles = readFileSync(path.resolve(process.cwd(), 'src-tauri/src/demo-template/css/overlays.css'), 'utf8');
 
 describe('render surface pointer relay', () => {
@@ -49,8 +53,52 @@ describe('render surface pointer relay', () => {
     });
 });
 
+describe('render surface retirement', () => {
+    it('cleans the runtime and observers exactly once on explicit disposal or page teardown', () => {
+        const listeners = new Map();
+        const windowRef = {
+            __ravDisposeRenderSurfaceBridge: vi.fn(),
+            addEventListener: vi.fn((event, handler) => listeners.set(event, handler)),
+            removeEventListener: vi.fn(),
+        };
+        const cleanupInstance = vi.fn();
+        const disconnect = vi.fn();
+        const helpers = new Function(
+            'window', 'isRenderSurfaceMode', 'handleResize', 'getRenderSurfaceMediaState',
+            'abortRenderSurfaceRecording', 'cleanupInstance', 'canvasResizeObserver',
+            `${renderSurfaceLifecycleSource}; return { disposeRenderSurface, observer: () => canvasResizeObserver };`,
+        )(
+            windowRef,
+            true,
+            () => {},
+            () => ({ recording: null, preparing: null }),
+            vi.fn(),
+            cleanupInstance,
+            { disconnect },
+        );
+
+        expect(windowRef.__ravDisposeRenderSurface).toBe(helpers.disposeRenderSurface);
+        expect(listeners.has('pagehide')).toBe(true);
+        expect(listeners.has('beforeunload')).toBe(true);
+        expect(helpers.disposeRenderSurface()).toBe(true);
+        expect(helpers.disposeRenderSurface()).toBe(false);
+        expect(disconnect).toHaveBeenCalledOnce();
+        expect(cleanupInstance).toHaveBeenCalledOnce();
+        expect(windowRef.__ravDisposeRenderSurfaceBridge).toHaveBeenCalledOnce();
+        expect(helpers.observer()).toBeNull();
+    });
+
+    it('bundles retirement inside the shared template scope before its closing loader fragment', () => {
+        const loaderInclude = 'include_str!("../demo-template/js/core/rive-loader.js")';
+        const lifecycleInclude = 'include_str!("../demo-template/js/core/bridge/render-surface-lifecycle.js")';
+        expect(demoBundleSource).toContain(lifecycleInclude);
+        expect(demoBundleSource.indexOf(lifecycleInclude)).toBeLessThan(demoBundleSource.indexOf(loaderInclude));
+        expect(riveLoaderSource).toContain('URL.revokeObjectURL(loadedAnimationUrl)');
+    });
+});
+
 describe('render surface VM numeric presentation', () => {
-    it('keeps template controls at two decimals while runtime values remain numeric', () => {
+    it('keeps template controls at no more than two decimals while runtime values remain numeric', () => {
         expect(controlsRenderSource).toContain('function formatVmNumber(value)');
         expect(controlsRenderSource).toContain('numberInput.value = formatVmNumber(accessor && accessor.value)');
         expect(controlsRenderSource).toContain('alphaInput.value = formatVmNumber(colorMeta.alphaPercent)');
@@ -99,7 +147,7 @@ describe('render surface VM numeric presentation', () => {
         expect(accessors.speed.value).toBe(12.5);
         expect(numberInput.value).toBe('12.5');
         numberInput.dispatchEvent(new Event('change'));
-        expect(numberInput.value).toBe('12.50');
+        expect(numberInput.value).toBe('12.5');
 
         const colorRow = helpers.createVmControlRow({ kind: 'color', name: 'accent', path: 'accent' });
         const alphaInput = colorRow.querySelector('input[type="number"]');
@@ -108,7 +156,7 @@ describe('render surface VM numeric presentation', () => {
         expect((accessors.accent.value >>> 24) & 255).toBe(128);
         expect(alphaInput.value).toBe('50');
         alphaInput.dispatchEvent(new Event('change'));
-        expect(alphaInput.value).toBe('50.00');
+        expect(alphaInput.value).toBe('50');
         expect(logged.map((entry) => entry[1])).toEqual(['vm-number', 'vm-color']);
     });
 });
@@ -220,14 +268,15 @@ describe('standalone runtime deprecation compatibility', () => {
         }, { stateMachine: 'OldSM' }).config).toEqual({ stateMachine: 'NewSM' });
     });
 
-    it('does not probe deprecated stateMachineInputs when exact active-artboard metadata says a machine is empty', () => {
-        const stateMachineInputs = vi.fn(() => []);
+    it('never probes deprecated stateMachineInputs while publishing controls', () => {
+        const stateMachineInputs = vi.fn(() => { throw new Error('legacy input API must not be called'); });
         const contents = vi.fn(() => { throw new Error('Live contents must never be inspected'); });
         const riveInstance = {
             activeArtboard: 'Main',
             get contents() { return contents(); },
             stateMachineInputs,
             stateMachineNames: ['Machine'],
+            viewModelInstance: { properties: [] },
         };
         const harness = createDemoVmHarness(riveInstance, {
             renderSurfaceMode: true,
@@ -235,8 +284,6 @@ describe('standalone runtime deprecation compatibility', () => {
         });
 
         expect(harness.captureRenderSurfaceControlsHierarchy().children).toEqual([]);
-        expect(harness.resolveStateMachineInputAccessor('Machine', 'missing', 'trigger')).toBeNull();
-        expect(harness.fireStateMachineTriggerByName('missing')).toBe(0);
         harness.publishRenderSurfaceCanonicalState(true, 'initial');
         expect(stateMachineInputs).not.toHaveBeenCalled();
         expect(contents).not.toHaveBeenCalled();
@@ -294,6 +341,7 @@ function createDemoVmHarness(riveInstance, {
     controlSelectionKeys = null,
     controlSnapshot = [],
     deferCanonicalUntilActivation = false,
+    embeddedAssets = [],
     imageRuntime = null,
     inspectionMetadata = null,
     renderSurfaceMode = false,
@@ -305,14 +353,20 @@ function createDemoVmHarness(riveInstance, {
     else delete window.__ravRenderSurfaceDefersCanonical;
     const emitted = [];
     window.__ravRenderSurfaceEmit = (event, payload) => emitted.push({ event, payload });
-    const build = new Function('riveInstance', 'CONTROL_SELECTION_KEYS', 'CONTROL_SNAPSHOT', 'VM_HIERARCHY', 'IS_RENDER_SURFACE_MODE', 'IMAGE_RUNTIME', 'INSPECTION_METADATA', `
-        const CONFIG = { artboardName: null, viewModelInstanceName: null, runtimeVersion: '2.41.1' };
+    const build = new Function('riveInstance', 'CONTROL_SELECTION_KEYS', 'CONTROL_SNAPSHOT', 'VM_HIERARCHY', 'IS_RENDER_SURFACE_MODE', 'IMAGE_RUNTIME', 'INSPECTION_METADATA', 'EMBEDDED_ASSETS', `
+        const CONFIG = {
+            artboardName: null,
+            inspectionMetadata: INSPECTION_METADATA,
+            viewModelInstanceName: null,
+            runtimeVersion: '2.41.1',
+        };
         ${runtimeCompatibilitySource}
         const runtimeCompatibility = createRiveRuntimeCompatibility();
         runtimeCompatibility.setInspectionMetadata(riveInstance, INSPECTION_METADATA);
         const isRenderSurfaceMode = IS_RENDER_SURFACE_MODE;
         const VM_CONTROL_SYNC_INTERVAL_MS = 120;
         const VM_TOPOLOGY_SYNC_INTERVAL_MS = 1000;
+        const VM_TOPOLOGY_PUBLISH_FLOOR_MS = 120;
         const VM_CONTROL_KINDS = new Set(['number', 'boolean', 'string', 'enum', 'color', 'image', 'trigger']);
         let vmControlBindings = [];
         let vmControlSyncTimer = null;
@@ -323,13 +377,12 @@ function createDemoVmHarness(riveInstance, {
         let renderSurfaceImageSnapshot = new Map();
         let renderSurfaceAdvanceRevision = 0;
         let loadedRiveRuntime = IMAGE_RUNTIME;
+        let embeddedImageAssets = new Map(EMBEDDED_ASSETS.map((entry) => [entry.key, entry]));
         let topologyRenderCount = 0;
         let renderedHierarchy = null;
         function controlSnapshotKeyForDescriptor(descriptor) {
             if (!descriptor) return null;
-            if (descriptor.source === 'state-machine') {
-                return 'sm:' + (descriptor.stateMachineName || '') + ':' + (descriptor.name || '') + ':' + (descriptor.kind || '');
-            }
+            if (descriptor.source === 'state-machine') return null;
             if (descriptor.source === 'global-view-model') {
                 return 'gvm:' + encodeURIComponent(descriptor.globalViewModelName || '') + ':'
                     + (descriptor.path || '') + ':' + (descriptor.kind || '');
@@ -338,7 +391,6 @@ function createDemoVmHarness(riveInstance, {
         }
         function controlSelectionKeyForDescriptor(descriptor) {
             if (!descriptor) return null;
-            if (descriptor.source === 'state-machine') return controlSnapshotKeyForDescriptor(descriptor);
             return normalizeControlSelectionKey(controlSnapshotKeyForDescriptor(descriptor));
         }
         function normalizeControlSelectionKey(key) {
@@ -354,7 +406,7 @@ function createDemoVmHarness(riveInstance, {
                     .join('/');
                 return trimmed.slice(0, firstSeparator + 1) + path + ':' + trimmed.slice(kindSeparator + 1);
             }
-            if (!trimmed.startsWith('vm:')) return trimmed || null;
+            if (!trimmed.startsWith('vm:')) return null;
             const kindSeparator = trimmed.lastIndexOf(':');
             if (kindSeparator <= 3) return trimmed || null;
             const path = trimmed.slice(3, kindSeparator)
@@ -386,15 +438,20 @@ function createDemoVmHarness(riveInstance, {
         ${imageValidationSource}
         ${imageResetSource}
         ${hierarchySource}
+        ${inspectionMapSource}
         ${topologyWatchSource}
         ${timelineStateSource}
         ${canonicalStateSource}
+        ${hotSetSource}
+        ${watchSetSource}
         ${canonicalPublicationSource}
         function renderVmControls() {
             topologyRenderCount += 1;
             const rootVm = resolveVmRootInstance();
             vmListTopologySignature = buildAllVmTopologySignature();
-            renderedHierarchy = filterHierarchyNode(buildVmHierarchy(rootVm));
+            renderedHierarchy = filterHierarchyNode(
+                buildVmHierarchyFromInspection(rootVm) || buildVmHierarchy(rootVm)
+            );
         }
         ${syncSource}
         return {
@@ -402,11 +459,11 @@ function createDemoVmHarness(riveInstance, {
             applyRenderSurfaceImageCommand,
             bindViewModelInstanceByKey,
             buildVmHierarchy,
+            buildVmHierarchyFromInspection,
             captureRenderSurfacePlayback,
             captureRenderSurfaceCommandCanonicalDelta,
             captureChangedRenderSurfaceControls,
             captureRenderSurfaceControlsHierarchy: () => captureRenderSurfaceControlsHierarchy(getRenderSurfaceBridgeState()),
-            fireStateMachineTriggerByName,
             filterHierarchyNode,
             formatVmListItemLabel,
             getRenderSurfaceObserverDiagnostics,
@@ -420,6 +477,7 @@ function createDemoVmHarness(riveInstance, {
             pendingCount: () => pendingControlSnapshot.size,
             observeRenderSurfaceControlBudget: (budget) => observeRenderSurfaceControlBudget(getRenderSurfaceBridgeState(), budget),
             publishRenderSurfaceCanonicalState,
+            setRenderSurfaceWatchedControls: (keys) => setRenderSurfaceWatchedControls(getRenderSurfaceBridgeState(), keys),
             recordRenderSurfaceTimelinePlay,
             recordRenderSurfaceTimelineAdvance,
             recordRenderSurfaceTimelineStop,
@@ -430,8 +488,8 @@ function createDemoVmHarness(riveInstance, {
             setPendingReset: (pending) => { pendingRenderSurfaceReset = pending; },
             settleRenderSurfaceResetAfterPresentation,
             waitForRenderSurfaceImagePresentation,
+            getRenderSurfaceBridgeState,
             restoreRenderSurfaceImageSnapshot,
-            resolveStateMachineInputAccessor,
             scheduleRenderSurfaceCanonicalRefresh,
             scheduleRenderSurfaceInitialCanonicalState,
             scrubRenderSurfaceTimeline,
@@ -440,7 +498,7 @@ function createDemoVmHarness(riveInstance, {
             topologyRenderCount: () => topologyRenderCount,
         };
     `);
-    return { ...build(installFrameRuntime(riveInstance), controlSelectionKeys, controlSnapshot, vmHierarchy, renderSurfaceMode, imageRuntime, inspectionMetadata), emitted };
+    return { ...build(installFrameRuntime(riveInstance), controlSelectionKeys, controlSnapshot, vmHierarchy, renderSurfaceMode, imageRuntime, inspectionMetadata, embeddedAssets), emitted };
 }
 
 const resetContractRuntimePreamble = `
@@ -551,6 +609,7 @@ function createEmbeddedImageAssetHarness() {
     const source = preambleSource.slice(start, end);
     return new Function(`${source}; return {
         composeEmbeddedImageAssetLoader,
+        getEmbeddedImageAssetCatalog,
         getEmbeddedImageAssets,
         resetEmbeddedImageAssets,
     };`)();
@@ -594,6 +653,44 @@ function createExportHierarchy(rowCount) {
     };
 }
 
+function createInspectionVmMap() {
+    return {
+        artboards: [{ name: 'Main', stateMachines: [] }],
+        viewModelMap: {
+            propertyCount: 1,
+            prototypes: [{
+                id: 'vm-root',
+                name: 'Root Model',
+                properties: [{ kind: 'viewmodel', name: 'Child', viewModelRef: 'vm-child' }],
+            }, {
+                id: 'vm-child',
+                name: 'Child Model',
+                properties: [{ kind: 'number', name: 'Amount' }],
+            }],
+            roots: [{
+                key: 'Root Instance',
+                instance: {
+                    id: 'vm-root-i0',
+                    name: 'Root Instance',
+                    nestedInstances: [{
+                        instance: {
+                            id: 'vm-child-i0',
+                            name: 'Child Instance',
+                            nestedInstances: [],
+                            prototypeId: 'vm-child',
+                            prototypeName: 'Child Model',
+                        },
+                        propertyName: 'Child',
+                    }],
+                    prototypeId: 'vm-root',
+                    prototypeName: 'Root Model',
+                },
+            }],
+            schemaVersion: 1,
+        },
+    };
+}
+
 function stripHierarchyDescriptors(node) {
     return {
         ...node,
@@ -603,6 +700,54 @@ function stripHierarchyDescriptors(node) {
 }
 
 describe('exported demo ViewModel snapshot runtime', () => {
+    it('builds controls from the one-time inspection map without enumerating runtime properties', () => {
+        const propertiesRead = vi.fn(() => { throw new Error('runtime property walk forbidden'); });
+        const amount = { value: 42 };
+        const child = {
+            number: (name) => name === 'Amount' ? amount : null,
+            viewModelName: 'Child Model',
+        };
+        Object.defineProperty(child, 'properties', { get: propertiesRead });
+        const root = {
+            viewModel: (name) => name === 'Child' ? child : null,
+            viewModelName: 'Root Model',
+        };
+        Object.defineProperty(root, 'properties', { get: propertiesRead });
+        const harness = createDemoVmHarness({ viewModelInstance: root }, {
+            inspectionMetadata: createInspectionVmMap(),
+            renderSurfaceMode: true,
+        });
+
+        const hierarchy = harness.captureRenderSurfaceControlsHierarchy();
+        expect(hierarchy.children[0].children[0].inputs[0]).toMatchObject({
+            kind: 'number',
+            path: 'Child/Amount',
+            value: 42,
+        });
+        harness.publishRenderSurfaceCanonicalState(true, 'initial');
+        expect(harness.getRenderSurfaceObserverDiagnostics().topologyDiscovery).toBe('inspection-map');
+        expect(propertiesRead).not.toHaveBeenCalled();
+    });
+
+    it('rebases the same inspection map when the direct child artboard owns the root VM', () => {
+        const amount = { value: 7 };
+        const child = {
+            number: (name) => name === 'Amount' ? amount : null,
+            viewModelName: 'Child Model',
+        };
+        const harness = createDemoVmHarness({ viewModelInstance: child }, {
+            inspectionMetadata: createInspectionVmMap(),
+            renderSurfaceMode: true,
+        });
+
+        const hierarchy = harness.captureRenderSurfaceControlsHierarchy();
+        expect(hierarchy.children[0].inputs[0]).toMatchObject({
+            kind: 'number',
+            path: 'Amount',
+            value: 7,
+        });
+    });
+
     it.each([
         ['named', 'Board', 'Board', false],
         ['runtime list index', 0, 0, false],
@@ -984,6 +1129,79 @@ describe('exported demo ViewModel snapshot runtime', () => {
         await expect(reset).resolves.toEqual({ reset: true });
     });
 
+    it('re-registers the runtime pointer/touch listeners immediately after an in-place render-surface reset', async () => {
+        // Regression test: RAV 2.5.6 toolbar Reset ("restart") stopped
+        // forwarding mouse/pointer input to the state machine after reset,
+        // while playback and VM inputs kept working, until Play was clicked.
+        // `Rive.reset()` tears down its own canvas mouse/touch listeners
+        // inside `cleanupInstances()` but, unlike `play()`, never re-runs
+        // `setupRiveListeners()` to re-attach them.
+        const resetStart = bootstrapSource.indexOf('        function resetRenderSurfaceAndWait');
+        const resetEnd = bootstrapSource.indexOf('        function handleRenderSurfaceCommand', resetStart);
+        const settle = vi.fn();
+        const bindViewModelInstanceByKey = vi.fn(() => true);
+        const order = [];
+        const resetPlaybackChips = vi.fn();
+        const timeouts = [];
+        const runtime = {
+            reset: vi.fn(() => order.push('runtime-reset')),
+            setupRiveListeners: vi.fn(() => order.push('setup-listeners')),
+        };
+        const helpers = new Function('riveInstance', 'window', 'settleRenderSurfaceResetAfterPresentation', 'bindViewModelInstanceByKey', 'resetPlaybackChips', `
+            let pendingRenderSurfaceReset = null;
+            let currentControlSnapshot = [];
+            ${bootstrapSource.slice(resetStart, resetEnd)}
+            return {
+                pending: () => pendingRenderSurfaceReset,
+                resetRenderSurfaceAndWait,
+            };
+        `)(
+            runtime,
+            {
+                clearTimeout: vi.fn(),
+                setTimeout: (callback, delay) => {
+                    timeouts.push({ callback, delay });
+                    return timeouts.length;
+                },
+            },
+            settle,
+            bindViewModelInstanceByKey,
+            resetPlaybackChips,
+        );
+        const params = { artboard: 'Main', autoplay: true };
+
+        helpers.resetRenderSurfaceAndWait(params, []);
+
+        expect(runtime.setupRiveListeners).toHaveBeenCalledOnce();
+        expect(runtime.setupRiveListeners).toHaveBeenCalledWith();
+        expect(order).toEqual(['runtime-reset', 'setup-listeners']);
+    });
+
+    it('re-registers the runtime pointer/touch listeners after the standalone demo Reset button', () => {
+        // Same runtime asymmetry, exercised through the exported standalone
+        // demo's own local Reset button (non-render-surface build).
+        const resetStart = playbackLayoutSource.indexOf('        function resetAnimation');
+        const resetEnd = playbackLayoutSource.indexOf('        function setupPanelResizers', resetStart);
+        const order = [];
+        const riveInstance = {
+            reset: vi.fn(() => order.push('runtime-reset')),
+            setupRiveListeners: vi.fn(() => order.push('setup-listeners')),
+        };
+        const resetPlaybackChips = vi.fn();
+        const updateInfo = vi.fn();
+        const logEvent = vi.fn();
+        const helpers = new Function('riveInstance', 'resetPlaybackChips', 'updateInfo', 'logEvent', `
+            ${playbackLayoutSource.slice(resetStart, resetEnd)}
+            return { resetAnimation };
+        `)(riveInstance, resetPlaybackChips, updateInfo, logEvent);
+
+        helpers.resetAnimation();
+
+        expect(riveInstance.setupRiveListeners).toHaveBeenCalledOnce();
+        expect(order).toEqual(['runtime-reset', 'setup-listeners']);
+        expect(resetPlaybackChips).toHaveBeenCalledOnce();
+    });
+
     it('keeps the render-surface bridge dormant for normal exports and uses existing control resolvers', () => {
         expect(preambleSource).toContain("get('renderSurface') === '1'");
         expect(renderSurfaceBridgeSource).toContain("events.listen('render-surface:command'");
@@ -991,10 +1209,14 @@ describe('exported demo ViewModel snapshot runtime', () => {
         expect(renderSurfaceBridgeSource).toContain('events.emit(eventName, eventPayload)');
         expect(renderSurfaceBridgeSource).toContain('if (parentReadyAcknowledged) return;');
         expect(bootstrapSource).toContain('resolveLiveAccessor(vmDescriptor.path, vmKind)');
-        expect(bootstrapSource).toContain('resolveStateMachineInputAccessor(smDescriptor.stateMachineName, smDescriptor.name, smKind)');
+        expect(bootstrapSource).not.toContain('stateMachineInputs');
         expect(bootstrapSource).toContain("type === 'snapshot'");
         expect(overlayStyles).toContain('body.render-surface-mode #canvas-container');
         expect(riveLoaderSource).toContain('if (!isRenderSurfaceMode) renderVmControls();');
+        expect(bootstrapSource).toContain("type === 'quiesce-rendering'");
+        expect(bootstrapSource).toContain("type === 'resume-rendering'");
+        expect(bootstrapSource).toContain("type === 'watch-controls'");
+        expect(bootstrapSource).toContain('setRenderSurfaceWatchedControls(getRenderSurfaceBridgeState(), watchKeys)');
     });
 
     it('applies scalar values from both nested MCP and flat UI command payloads', () => {
@@ -1032,9 +1254,7 @@ describe('exported demo ViewModel snapshot runtime', () => {
         expect(bootstrapSource).toContain(
             'setRenderSurfaceAccessorValue(vmAccessor, vmKind, renderSurfaceCommandValue(payload, vmDescriptor));',
         );
-        expect(bootstrapSource).toContain(
-            'setRenderSurfaceAccessorValue(smAccessor, smKind, renderSurfaceCommandValue(payload, smDescriptor));',
-        );
+        expect(bootstrapSource).not.toContain('smAccessor');
     });
 
     it('acknowledges a matching ready handshake once without an ACK feedback loop', async () => {
@@ -1413,6 +1633,11 @@ describe('exported demo ViewModel snapshot runtime', () => {
         expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'callback failed' }));
         expect(riveLoaderSource).toContain('reportAppliedEditorCallbackError');
         expect(riveLoaderSource).toContain('invokeRenderSurfaceAwareEditorCallback(appliedEditorConfig.onAdvance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError)');
+        expect(riveLoaderSource).toContain('enableNativeFpsCounter(riveInstance)');
+        expect(riveLoaderSource).not.toContain('updatePlaybackChips();');
+        expect(playbackLayoutSource).toContain('instance.enableFPSCounter(function (fps)');
+        expect(playbackLayoutSource).toContain("window.__ravRenderSurfaceEmit('render-surface:metrics', { fps: value })");
+        expect(preambleSource).not.toContain('let frameCount = 0;');
     });
 
     it('defers all applied editor callbacks in staged children until the parent activates callback ownership', () => {
@@ -1755,6 +1980,15 @@ describe('exported demo ViewModel snapshot runtime', () => {
             name: 'sample-raster',
             uniqueFilename: 'sample-raster-1001.png',
         })]);
+        expect(harness.getEmbeddedImageAssetCatalog()).toEqual([{
+            extension: 'png',
+            key: 'sample-raster-1001.png',
+            label: 'sample-raster',
+            mimeType: 'application/octet-stream',
+            name: 'sample-raster',
+            uniqueFilename: 'sample-raster-1001.png',
+        }]);
+        expect(harness.getEmbeddedImageAssetCatalog()[0]).not.toHaveProperty('bytes');
         expect(userLoader).toHaveBeenCalledOnce();
 
         harness.resetEmbeddedImageAssets();
@@ -2536,7 +2770,6 @@ describe('exported demo ViewModel snapshot runtime', () => {
             mode: { value: 'line', values: ['bar', 'line'] },
         };
         const kinds = { enabled: 'boolean', speed: 'number', title: 'string', accent: 'color', mode: 'enum' };
-        const stateMachineInputs = [{ name: 'armed', value: false }, { name: 'gain', value: 2 }];
         const root = { properties: Object.keys(accessors).map((name) => ({ name })) };
         Object.entries(kinds).forEach(([name, kind]) => {
             root[kind] = (propertyName) => (propertyName === name ? accessors[name] : null);
@@ -2544,7 +2777,6 @@ describe('exported demo ViewModel snapshot runtime', () => {
         const riveInstance = {
             isPlaying: true,
             playingStateMachineNames: ['Machine'],
-            stateMachineInputs: () => stateMachineInputs,
             stateMachineNames: ['Machine'],
             viewModelInstance: root,
         };
@@ -2563,9 +2795,7 @@ describe('exported demo ViewModel snapshot runtime', () => {
         accessors.title.value = 'after';
         accessors.accent.value = 0xffabcdef;
         accessors.mode.value = 'bar';
-        stateMachineInputs[0].value = true;
-        stateMachineInputs[1].value = 4;
-        expect(harness.observeRenderSurfaceControlBudget()).toBe(7);
+        expect(harness.observeRenderSurfaceControlBudget()).toBe(5);
         const delta = harness.publishRenderSurfaceCanonicalState(true, 'advance');
 
         expect(delta).toEqual(expect.objectContaining({
@@ -2575,16 +2805,103 @@ describe('exported demo ViewModel snapshot runtime', () => {
             playback: expect.objectContaining({ type: 'stateMachine' }),
         }));
         expect(delta).not.toHaveProperty('controlsHierarchy');
-        expect(delta.controlChanges).toHaveLength(7);
+        expect(delta.controlChanges).toHaveLength(5);
         expect(delta.controlChanges).toEqual(expect.arrayContaining([
             expect.objectContaining({ key: 'vm:enabled:boolean', value: true }),
             expect.objectContaining({ key: 'vm:speed:number', value: 9 }),
             expect.objectContaining({ key: 'vm:title:string', value: 'after' }),
             expect.objectContaining({ key: 'vm:accent:color', value: 0xffabcdef }),
             expect.objectContaining({ key: 'vm:mode:enum', value: 'bar' }),
-            expect.objectContaining({ key: 'sm:Machine:armed:boolean', value: true }),
-            expect.objectContaining({ key: 'sm:Machine:gain:number', value: 4 }),
         ]));
+    });
+
+    it('suppresses empty steady-state advance messages without consuming a revision', () => {
+        let now = 1_000;
+        const nowSpy = vi.spyOn(performance, 'now').mockImplementation(() => now);
+        try {
+            const speed = { value: 1 };
+            let playbackReads = 0;
+            const harness = createDemoVmHarness({
+                isPlaying: true,
+                get playingAnimationNames() { playbackReads += 1; return []; },
+                get playingStateMachineNames() { playbackReads += 1; return []; },
+                stateMachineNames: [],
+                viewModelInstance: {
+                    properties: [{ name: 'speed' }],
+                    number: (name) => name === 'speed' ? speed : null,
+                },
+            }, { renderSurfaceMode: true });
+            const initial = harness.publishRenderSurfaceCanonicalState(true, 'initial');
+            expect(initial.stateRevision).toBe(1);
+            const initialPlaybackReads = playbackReads;
+
+            now = 1_121;
+            expect(harness.publishRenderSurfaceCanonicalState(false, 'advance')).toBeNull();
+            expect(harness.emitted).toHaveLength(1);
+            expect(playbackReads).toBe(initialPlaybackReads);
+
+            speed.value = 2;
+            harness.observeRenderSurfaceControlBudget();
+            now = 1_242;
+            const changed = harness.publishRenderSurfaceCanonicalState(false, 'advance');
+            expect(changed).toEqual(expect.objectContaining({
+                controlChanges: [{ key: 'vm:speed:number', kind: 'number', value: 2 }],
+                stateRevision: 2,
+            }));
+            expect(harness.emitted).toHaveLength(2);
+        } finally {
+            nowSpy.mockRestore();
+        }
+    });
+
+    it('never floors a value-only delta but still floors a publish while a topology walk is pending', () => {
+        let now = 1_000;
+        const nowSpy = vi.spyOn(performance, 'now').mockImplementation(() => now);
+        try {
+            const speed = { value: 1 };
+            const harness = createDemoVmHarness({
+                isPlaying: true,
+                playingAnimationNames: [],
+                playingStateMachineNames: [],
+                stateMachineNames: [],
+                viewModelInstance: {
+                    properties: [{ name: 'speed' }],
+                    number: (name) => (name === 'speed' ? speed : null),
+                },
+            }, { renderSurfaceMode: true });
+            harness.publishRenderSurfaceCanonicalState(true, 'initial');
+
+            // A value-only delta publishes immediately, only 10ms after the
+            // initial snapshot -- well inside the old 120ms floor.
+            speed.value = 2;
+            harness.observeRenderSurfaceControlBudget();
+            now = 1_010;
+            expect(harness.publishRenderSurfaceCanonicalState(false, 'advance')).toEqual(
+                expect.objectContaining({ stateType: 'delta', controlChanges: [{ key: 'vm:speed:number', kind: 'number', value: 2 }] }),
+            );
+
+            // A list invalidation marks the tracker dirty while another value
+            // change is pending. The same non-forced call is now floored,
+            // even though it has a real pending change to publish.
+            speed.value = 3;
+            harness.observeRenderSurfaceControlBudget();
+            const bridgeState = harness.getRenderSurfaceBridgeState();
+            bridgeState.topologyDirty = true;
+            now = 1_050;
+            expect(harness.publishRenderSurfaceCanonicalState(false, 'advance')).toBeNull();
+
+            // Past the 120ms floor from the last publish (1010), the pending
+            // change publishes.
+            now = 1_131;
+            expect(harness.publishRenderSurfaceCanonicalState(false, 'advance')).toEqual(
+                expect.objectContaining({
+                    stateType: 'delta',
+                    controlChanges: [{ key: 'vm:speed:number', kind: 'number', value: 3 }],
+                }),
+            );
+        } finally {
+            nowSpy.mockRestore();
+        }
     });
 
     it('publishes late enum choices without changing the authored value or rebuilding topology', () => {
@@ -3083,6 +3400,39 @@ describe('exported demo ViewModel snapshot runtime', () => {
         expect(startRendering).toHaveBeenCalledTimes(2);
     });
 
+    it('resolves embedded image bytes inside the authoritative child from a key-only command', async () => {
+        const accessor = { value: null };
+        const image = { unref: vi.fn() };
+        const decodeImage = vi.fn().mockResolvedValue(image);
+        const bytes = validPngBytes(7);
+        const harness = createDemoVmHarness({
+            stateMachineNames: [],
+            viewModelInstance: {
+                image: (name) => (name === 'avatar' ? accessor : null),
+                properties: [{ name: 'avatar' }],
+            },
+        }, {
+            embeddedAssets: [{ bytes: new Uint8Array(bytes), key: 'orb.png', name: 'Orb' }],
+            imageRuntime: { decodeImage },
+            renderSurfaceMode: true,
+        });
+
+        const result = await withRendererAdvance(harness, () => harness.applyRenderSurfaceImageCommand({
+            action: 'set-embedded-image',
+            imageSelection: { kind: 'embedded', key: 'orb.png', label: 'Orb' },
+            kind: 'image',
+            path: 'avatar',
+            source: 'view-model',
+            value: null,
+        }, true));
+
+        expect(decodeImage).toHaveBeenCalledWith(expect.any(Uint8Array));
+        expect([...decodeImage.mock.calls[0][0]]).toEqual(bytes);
+        expect(accessor.value).toBe(image);
+        expect(result).toEqual(expect.objectContaining({ imageApplied: true }));
+        expect(image.unref).toHaveBeenCalledTimes(1);
+    });
+
     it('keeps two image slots independent through set-set-clear canonical publication', async () => {
         const slots = { image1: { value: null }, image2: { value: null } };
         const decoded = [];
@@ -3399,7 +3749,6 @@ describe('exported demo ViewModel snapshot runtime', () => {
             playingAnimationNames: [],
             playingStateMachineNames: ['Machine'],
             stateMachineNames: ['Machine'],
-            stateMachineInputs: () => [],
             viewModelInstance: root,
         }, { renderSurfaceMode: true });
         harness.publishRenderSurfaceCanonicalState(true, 'initial');
@@ -3414,6 +3763,94 @@ describe('exported demo ViewModel snapshot runtime', () => {
         expect(riveLoaderSource).toContain('observeRenderSurfaceControlBudget(getRenderSurfaceBridgeState())');
         expect(harness.observeRenderSurfaceControlBudget()).toBe(16);
         expect(reads).toBe(16);
+    });
+
+    it('reads a hot control every advance once discovered, and a 1000-control list never exceeds the per-advance read cap', () => {
+        const total = 1000;
+        let hotValue = 0;
+        const accessors = Array.from({ length: total }, (_unused, index) => (
+            index === 0 ? { get value() { return hotValue; } } : { get value() { return index; } }
+        ));
+        const root = {
+            number: (name) => accessors[Number(name.slice(1))] || null,
+            properties: accessors.map((_accessor, index) => ({ name: `p${index}` })),
+        };
+        const harness = createDemoVmHarness({ stateMachineNames: [], viewModelInstance: root }, { renderSurfaceMode: true });
+        harness.publishRenderSurfaceCanonicalState(true, 'initial');
+
+        // p0 is bindings[0]; the cursor starts at 0, so the first cold pass
+        // discovers it as changed and promotes it into the hot set.
+        hotValue = 1;
+        const discoverReads = harness.observeRenderSurfaceControlBudget();
+        expect(discoverReads).toBeLessThanOrEqual(32);
+        expect(harness.getRenderSurfaceObserverDiagnostics().hot.count).toBe(1);
+
+        // Once hot, p0 is read (and its new value queued) on every single
+        // advance -- not once every ceil(1000/16) advances -- while the
+        // per-advance cap (16 hot + 16 cold = 32) is never exceeded.
+        for (let advance = 0; advance < 5; advance += 1) {
+            hotValue = 100 + advance;
+            const reads = harness.observeRenderSurfaceControlBudget();
+            expect(reads).toBeLessThanOrEqual(32);
+            const state = harness.publishRenderSurfaceCanonicalState(true, 'advance');
+            expect(state.controlChanges).toEqual([{ key: 'vm:p0:number', kind: 'number', value: 100 + advance }]);
+        }
+    });
+
+    it('evicts a hot control from the always-read tier after K unchanged advances', () => {
+        let value = 0;
+        const root = {
+            number: (name) => (name === 'p0' ? { get value() { return value; } } : { value: 0 }),
+            properties: [{ name: 'p0' }, { name: 'p1' }],
+        };
+        const harness = createDemoVmHarness({ stateMachineNames: [], viewModelInstance: root }, { renderSurfaceMode: true });
+        harness.publishRenderSurfaceCanonicalState(true, 'initial');
+
+        value = 1;
+        harness.observeRenderSurfaceControlBudget();
+        expect(harness.getRenderSurfaceObserverDiagnostics().hot).toEqual(
+            expect.objectContaining({ cap: 16, count: 1, unchangedEvictAdvances: 30 }),
+        );
+
+        // 29 further unchanged advances: still hot.
+        for (let advance = 0; advance < 29; advance += 1) {
+            harness.observeRenderSurfaceControlBudget();
+            expect(harness.getRenderSurfaceObserverDiagnostics().hot.count).toBe(1);
+        }
+        // The 30th consecutive unchanged advance evicts it.
+        harness.observeRenderSurfaceControlBudget();
+        expect(harness.getRenderSurfaceObserverDiagnostics().hot.count).toBe(0);
+    });
+
+    it('reads a watch-controls-selected control on every advance, independent of hot discovery or cold cursor position', () => {
+        const values = { p0: 1, p1: 2, p2: 3 };
+        const root = {
+            number: (name) => ({ get value() { return values[name]; } }),
+            properties: [{ name: 'p0' }, { name: 'p1' }, { name: 'p2' }],
+        };
+        const harness = createDemoVmHarness({ stateMachineNames: [], viewModelInstance: root }, { renderSurfaceMode: true });
+        harness.publishRenderSurfaceCanonicalState(true, 'initial');
+
+        const watchResult = harness.setRenderSurfaceWatchedControls(['vm:p2:number']);
+        expect(watchResult).toEqual({ capped: false, count: 1 });
+        expect(harness.getRenderSurfaceObserverDiagnostics().watch).toEqual({ cap: 64, count: 1 });
+
+        // p2 is last in cold round-robin order; it is nonetheless read on
+        // this very advance because it is watched.
+        values.p2 = 99;
+        harness.observeRenderSurfaceControlBudget();
+        const state = harness.publishRenderSurfaceCanonicalState(true, 'advance');
+        expect(state.controlChanges).toEqual(expect.arrayContaining([
+            expect.objectContaining({ key: 'vm:p2:number', value: 99 }),
+        ]));
+    });
+
+    it('caps the watch set at 64 keys', () => {
+        const harness = createDemoVmHarness({ stateMachineNames: [], viewModelInstance: { properties: [] } }, { renderSurfaceMode: true });
+        harness.publishRenderSurfaceCanonicalState(true, 'initial');
+        const keys = Array.from({ length: 80 }, (_unused, index) => `vm:p${index}:number`);
+        expect(harness.setRenderSurfaceWatchedControls(keys)).toEqual({ capped: true, count: 64 });
+        expect(harness.getRenderSurfaceObserverDiagnostics().watch).toEqual({ cap: 64, count: 64 });
     });
 
     it('binds a configured ViewModel instance by name and falls back to index', () => {
@@ -3726,4 +4163,23 @@ describe('exported demo ViewModel snapshot runtime', () => {
 
         expect(harness.filterHierarchyNode(stripHierarchyDescriptors(exportedHierarchy))).toBeNull();
     });
+});
+
+it('ignores a rendering-control command older than the newest one applied, so a late quiesce cannot undo a resume', () => {
+    const start = bootstrapSource.indexOf('            // Rendering control carries a host sequence number.');
+    const end = bootstrapSource.indexOf("            if (type === 'scrub')", start);
+    expect(start).toBeGreaterThan(0);
+    const body = bootstrapSource.slice(start, end);
+    const riveInstance = { isPlaying: true, stopRendering: vi.fn(), startRendering: vi.fn() };
+    const run = new Function('riveInstance', `let renderSurfaceQuiesced = false, renderSurfaceRenderingControlSeq = 0;
+        return function (type, payload) { ${body} return { quiesced: renderSurfaceQuiesced }; };`)(riveInstance);
+    expect(run('quiesce-rendering', { seq: 1 })).toMatchObject({ quiesced: true, seq: 1 });
+    expect(run('resume-rendering', { seq: 2 })).toMatchObject({ resumed: true, seq: 2 });
+    expect(riveInstance.startRendering).toHaveBeenCalledOnce();
+    // The delayed quiesce with the older sequence is reported stale and changes nothing.
+    expect(run('quiesce-rendering', { seq: 1 })).toEqual({ stale: true, quiesced: false, seq: 2 });
+    expect(riveInstance.stopRendering).toHaveBeenCalledOnce();
+    // Commands without a sequence keep the legacy behaviour.
+    expect(run('quiesce-rendering', {})).toMatchObject({ quiesced: true });
+    expect(run('resume-rendering', {})).toMatchObject({ resumed: true });
 });

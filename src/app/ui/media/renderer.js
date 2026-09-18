@@ -1,5 +1,5 @@
-import { ANIMATED_FORMATS, FORMATS, STILL_FORMATS, describeLimits, formatCapability,
-    gifControl, isBusyJob, isRecording, sourceReason, supportsAlpha } from './model.js';
+import { ANIMATED_FORMATS, FORMATS, STILL_FORMATS, formatCapability,
+    gifControl, isBusyJob, isRecording, isSequenceFormat, sourceReason, supportsAlpha } from './model.js';
 import { describeJob } from './status.js';
 import { mediaTemplate } from './template.js';
 import { bindRecordingShortcut } from './shortcuts.js';
@@ -7,7 +7,10 @@ import { bindRecordingShortcut } from './shortcuts.js';
 // This renderer runs in the existing native EXPORT overlay, above the Rive child.
 // The host owns jobs, options validation, and all service calls.
 export function createMediaRenderer({ documentRef = document, emitAction, container } = {}) {
-    let root = null, unbindShortcut = null;
+    let focusedConflict = null;
+    let root = null, unbindShortcut = null, resizeTimer = null, pendingHeight = null;
+    let confirmedHeight = null, resizeRetries = 0, resizeActionsInFlight = 0;
+    const windowRef = documentRef.defaultView || globalThis.window;
     const query = (selector) => root?.querySelector(selector);
     const field = (name) => query(`[name="${name}"]`);
     const show = (selector, visible) => { const node = query(selector); if (node) node.hidden = !visible; };
@@ -34,6 +37,40 @@ export function createMediaRenderer({ documentRef = document, emitAction, contai
         unbindShortcut = bindRecordingShortcut(documentRef, () => {
             if (!root.hidden) return emitAction('media-toggle-recording');
         });
+        query('[data-media-job-disclosure]').addEventListener('toggle', () => scheduleResize());
+    }
+    function measuredHeight() {
+        if (!root || root.hidden) return 0;
+        const previousHeight = root.style.height;
+        root.style.height = 'auto';
+        const height = Math.max(240, Math.ceil(root.scrollHeight));
+        root.style.height = previousHeight;
+        return height;
+    }
+    function scheduleResize(delay = 0) {
+        windowRef.clearTimeout(resizeTimer);
+        root?.classList.add('is-resizing');
+        resizeTimer = windowRef.setTimeout(async () => {
+            resizeTimer = null;
+            const height = measuredHeight();
+            if (!height || Math.abs(height - confirmedHeight) <= 1 || pendingHeight === height) {
+                if (!resizeActionsInFlight) root?.classList.remove('is-resizing');
+                return;
+            }
+            pendingHeight = height;
+            resizeActionsInFlight += 1;
+            const applied = await emitAction('media-resize', height);
+            resizeActionsInFlight -= 1;
+            if (pendingHeight === height) {
+                pendingHeight = null;
+                if (applied) { confirmedHeight = height; resizeRetries = 0; }
+                else if (resizeRetries++ < 2) {
+                    scheduleResize(50);
+                    return;
+                }
+            }
+            if (!resizeTimer && !resizeActionsInFlight) root?.classList.remove('is-resizing');
+        }, delay);
     }
     function renderMenu(state) {
         const choices = query('[data-media-choices]');
@@ -110,7 +147,7 @@ export function createMediaRenderer({ documentRef = document, emitAction, contai
         [...field('at_mode').options].forEach((option) => { option.disabled = option.value !== 'current' && state.info?.playback?.type !== 'animation'; });
         show('[data-media-duration]', d.stop_mode === 'duration');
         show('[data-media-fps]', d.mode !== 'still');
-        const lossless = ['png', 'apng'].includes(d.format);
+        const lossless = ['png', 'apng', 'png-sequence'].includes(d.format);
         show('[data-media-quality]', !lossless);
         field('quality').disabled = lossless;
         const maxFps = gif ? caps.gif?.fps_max || 50 : caps.limits?.max_fps || 60;
@@ -130,11 +167,12 @@ export function createMediaRenderer({ documentRef = document, emitAction, contai
         if (gif) renderGif(d, caps);
         const chosenPath = String(d.output_path || '');
         const pathValue = query('[data-media-path-value]');
-        pathValue.textContent = chosenPath || 'Choose a folder and file name';
+        const sequence = isSequenceFormat(d.format);
+        pathValue.textContent = chosenPath || (sequence ? 'Choose a destination folder' : 'Choose a folder and file name');
         pathValue.title = chosenPath;
         pathValue.classList.toggle('is-empty', !chosenPath);
         const pathButton = query('[data-media-action="media-choose-path"]');
-        const pathAction = chosenPath ? 'Change output file' : 'Choose output file';
+        const pathAction = `${chosenPath ? 'Change' : 'Choose'} output ${sequence ? 'folder' : 'file'}`;
         pathButton.setAttribute('aria-label', pathAction);
         pathButton.title = pathAction;
         pathButton.disabled = state.pending || isBusyJob(state.job);
@@ -161,7 +199,8 @@ export function createMediaRenderer({ documentRef = document, emitAction, contai
     }
     function renderJob(state) {
         const job = state.job, display = describeJob(job);
-        show('[data-media-job]', !!display.text);
+        const visible = !!display.text && (state.view === 'menu' || isBusyJob(job));
+        show('[data-media-job]', visible);
         text('[data-media-job-text]', display.text); text('[data-media-job-details]', display.details);
         text('[data-media-job-error]', display.error); show('[data-media-job-error]', !!display.error);
         show('[data-media-job-disclosure]', !!display.details);
@@ -170,6 +209,7 @@ export function createMediaRenderer({ documentRef = document, emitAction, contai
         if (display.progress == null) progress.removeAttribute('value'); else progress.value = display.progress;
         show('[data-media-action="media-stop"]', isRecording(job));
         show('[data-media-action="media-cancel"]', isBusyJob(job));
+        show('[data-media-action="media-dismiss-job"]', visible && ['completed', 'failed', 'cancelled'].includes(job?.state));
         query('[data-media-action="media-stop"]').disabled = state.pending;
         query('[data-media-action="media-cancel"]').disabled = state.pending;
         query('[data-media-warnings]').replaceChildren(...display.warnings.map((warning) => {
@@ -178,16 +218,31 @@ export function createMediaRenderer({ documentRef = document, emitAction, contai
         show('[data-media-warnings]', display.warnings.length > 0);
     }
     function render(state) {
-        if (!state) { if (root) root.hidden = true; return; }
+        if (!state) { if (root) root.hidden = true; focusedConflict = null; return; }
         install(); root.hidden = false;
-        show('[data-media-menu]', state.view === 'menu'); show('[data-media-form]', state.view !== 'menu');
+        const conflict = state.outputConflict;
+        show('[data-media-menu]', !conflict && state.view === 'menu');
+        show('[data-media-form]', !conflict && state.view !== 'menu');
+        show('[data-media-output-conflict]', !!conflict);
+        // Paths are text, never HTML: destination names can contain markup.
+        text('[data-media-conflict-path]', conflict?.output_path);
+        query('[data-media-output-conflict]').querySelectorAll('button').forEach((button) => {
+            button.disabled = state.pending || isBusyJob(state.job);
+        });
         text('[data-media-source]', state.info?.label || 'Animation only · no application chrome');
         renderMenu(state);
         if (state.draft) renderFields(state);
         renderJob(state);
-        const error = (state.error !== state.job?.error ? state.error : '') || (state.view !== 'menu' ? state.validationError : '');
+        if (conflict) show('[data-media-job]', false);
+        const error = conflict ? '' : (state.error !== state.job?.error ? state.error : '') || (state.view !== 'menu' ? state.validationError : '');
         text('[data-media-error]', error); show('[data-media-error]', !!error);
-        text('[data-media-limits]', describeLimits(state.caps));
+        if (!conflict) focusedConflict = null;
+        else if (!state.pending && !isBusyJob(state.job) && focusedConflict !== conflict.output_path) {
+            // Default keyboard focus to the non-destructive choice, once per prompt.
+            query('[data-media-action="media-output-cancel"]').focus();
+            focusedConflict = conflict.output_path;
+        }
+        scheduleResize();
     }
-    return { render, dispose() { unbindShortcut?.(); root?.remove(); root = null; } };
+    return { render, dispose() { windowRef.clearTimeout(resizeTimer); unbindShortcut?.(); root?.remove(); root = null; } };
 }

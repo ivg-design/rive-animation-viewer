@@ -100,7 +100,7 @@ function createInputRow({ depth, documentRef, input, onSelectionChange, onSelect
     title.textContent = `${input.name} (${input.kind})`;
     const meta = documentRef.createElement('span');
     meta.className = 'instantiation-input-meta';
-    meta.textContent = input.source === 'state-machine' ? `${input.stateMachineName} / ${input.name}` : input.path;
+    meta.textContent = input.path;
     text.append(title, meta);
     row.append(checkbox, text);
     return row;

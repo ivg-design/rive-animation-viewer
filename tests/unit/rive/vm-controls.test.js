@@ -9,7 +9,6 @@ import {
     getVmListItemAt,
     getVmListItemName,
     getVmListLength,
-    getStateMachineInputKind,
     hexToRgb,
     navigateToVmInstance,
     normalizeControlSelectionKey,
@@ -59,8 +58,6 @@ function createVmHarness() {
     const childBoolean = { value: false };
     const listNumber = { value: 12 };
     const vmTrigger = { trigger: vi.fn() };
-    const smBoolean = { name: 'armed', type: 1, value: true };
-    const smTrigger = { name: 'Launch', type: 3, fire: vi.fn() };
 
     const createListItem = (numberAccessor, name = null) => ({
         ...(name ? { name } : {}),
@@ -121,14 +118,6 @@ function createVmHarness() {
         },
     };
 
-    const runtime = {
-        StateMachineInputType: {
-            Boolean: 1,
-            Number: 2,
-            Trigger: 3,
-        },
-    };
-
     const riveInstance = {
         isPlaying: false,
         isStopped: true,
@@ -136,10 +125,6 @@ function createVmHarness() {
             riveInstance.isPlaying = true;
             riveInstance.isStopped = false;
         }),
-        stateMachineInputs(name) {
-            return name === 'Machine' ? [smBoolean, smTrigger] : [];
-        },
-        stateMachineNames: ['Machine'],
         viewModelInstance: rootVm,
     };
 
@@ -153,7 +138,7 @@ function createVmHarness() {
         clearIntervalFn,
         elements,
         getCurrentRuntime: () => 'webgl2',
-        getLoadedRuntime: () => runtime,
+        getLoadedRuntime: () => ({}),
         getRiveInstance: () => riveInstance,
         setIntervalFn: vi.fn((callback, delay) => {
             intervals.push({ callback, delay });
@@ -169,7 +154,6 @@ function createVmHarness() {
             rootEnum,
             rootNumber,
             rootString,
-            smBoolean,
         },
         callbacks,
         clearIntervalFn,
@@ -184,7 +168,6 @@ function createVmHarness() {
         },
         riveInstance,
         triggers: {
-            smTrigger,
             vmTrigger,
         },
     };
@@ -197,7 +180,7 @@ describe('rive/vm-controls', () => {
             path: 'rows/149/introY',
         })).toBe('vm:rows/*/introY:number');
         expect(normalizeControlSelectionKey('vm:rows/0/introY:number')).toBe('vm:rows/*/introY:number');
-        expect(normalizeControlSelectionKey('sm:Main:armed:boolean')).toBe('sm:Main:armed:boolean');
+        expect(normalizeControlSelectionKey('sm:Main:armed:boolean')).toBeNull();
         expect(formatVmListItemLabel('rows', 0)).toBe('Row 1');
         expect(formatVmListItemLabel('playerEntries', 149)).toBe('Row 150');
         expect(formatVmListItemLabel('rows', 0, { name: 'Authored Row' })).toBe('Authored Row');
@@ -280,19 +263,7 @@ describe('rive/vm-controls', () => {
         expect(navigateToVmInstance(rootVm, 'items/9/value')).toBeNull();
     });
 
-    it('detects state machine input kinds and converts ARGB colors', () => {
-        const runtime = {
-            StateMachineInputType: {
-                Boolean: 11,
-                Number: 12,
-                Trigger: 13,
-            },
-        };
-
-        expect(getStateMachineInputKind({ type: 11 }, runtime)).toBe('boolean');
-        expect(getStateMachineInputKind({ type: 12 }, runtime)).toBe('number');
-        expect(getStateMachineInputKind({ fire() {} }, runtime)).toBe('trigger');
-
+    it('converts ARGB colors', () => {
         expect(hexToRgb('#336699')).toEqual({ r: 51, g: 102, b: 153 });
         expect(rgbAlphaToArgb(51, 102, 153, 255)).toBe(0xff336699);
         expect(argbToColorMeta(0x80336699)).toEqual({
@@ -401,7 +372,7 @@ describe('rive/vm-controls', () => {
         ));
     });
 
-    it('sends image bytes and clear actions to the authoritative child without decoding in the parent', async () => {
+    it('sends embedded image keys and clear actions without decoding or copying bytes in the parent', async () => {
         const container = document.createElement('div');
         const mutations = [];
         const listener = (event) => mutations.push(event.detail);
@@ -423,10 +394,10 @@ describe('rive/vm-controls', () => {
         select.dispatchEvent(new Event('change'));
         await vi.waitFor(() => expect(mutations).toHaveLength(1));
         expect(mutations[0]).toEqual(expect.objectContaining({
-            action: 'set-image',
+            action: 'set-embedded-image',
             imageSelection: { kind: 'embedded', key: 'asset-a', label: 'A' },
             kind: 'image',
-            value: [1, 2, 3],
+            value: null,
         }));
 
         select.value = '__clear__';
@@ -762,8 +733,9 @@ describe('rive/vm-controls', () => {
         await vi.waitFor(() => expect(mutations).toHaveLength(1));
         expect(select.value).toBe('');
         expect(mutations[0]).toEqual(expect.objectContaining({
+            action: 'set-embedded-image',
             imageSelection: { kind: 'embedded', key: 'asset-b', label: 'B' },
-            value: [2],
+            value: null,
         }));
         bindings[0].syncImageSelection({ kind: 'embedded', key: 'asset-b', label: 'B' });
         expect(select.value).toBe('embedded:1');
@@ -970,30 +942,18 @@ describe('rive/vm-controls', () => {
             kind: 'color',
         });
 
-        expect(getStateMachineInputKind({ type: 1 }, {
-            SMIInput: {
-                bool: 1,
-                number: 2,
-                trigger: 3,
-            },
-        })).toBe('boolean');
-        expect(getStateMachineInputKind({ constructor: { name: 'NumberInput' } }, {})).toBe('number');
-        expect(getStateMachineInputKind({ constructor: { name: 'TriggerInput' } }, {})).toBe('trigger');
-        expect(getStateMachineInputKind({ value: false }, {})).toBe('boolean');
-        expect(getStateMachineInputKind({ value: 4 }, {})).toBe('number');
-        expect(getStateMachineInputKind({ value: false, fire() {} }, {})).toBe('boolean');
         expect(hexToRgb('bad')).toEqual({ r: 0, g: 0, b: 0 });
     });
 
-    it('renders VM and state machine controls, syncs values, and captures snapshots', () => {
+    it('renders ViewModel controls, syncs values, and captures snapshots', () => {
         const harness = createVmHarness();
 
         harness.controller.renderVmInputControls();
 
-        expect(harness.elements.vmControlsCount.textContent).toBe('9');
+        expect(harness.elements.vmControlsCount.textContent).toBe('7');
         expect(harness.elements.vmControlsEmpty.hidden).toBe(true);
         expect(harness.elements.vmControlsTree.textContent).toContain('Root VM');
-        expect(harness.elements.vmControlsTree.textContent).toContain('Machine');
+        expect(harness.elements.vmControlsTree.textContent).not.toContain('Machine');
         expect(harness.intervals).toHaveLength(1);
         expect(harness.callbacks.initLucideIcons).toHaveBeenCalled();
 
@@ -1010,7 +970,7 @@ describe('rive/vm-controls', () => {
         expect(select).toBeTruthy();
         expect(numberInput).toBeTruthy();
         expect(colorInput).toBeTruthy();
-        expect(triggerButtons).toHaveLength(2);
+        expect(triggerButtons).toHaveLength(1);
 
         textarea.value = 'updated';
         textarea.dispatchEvent(new Event('change'));
@@ -1023,7 +983,6 @@ describe('rive/vm-controls', () => {
         colorInput.value = '#112233';
         colorInput.dispatchEvent(new Event('input'));
         triggerButtons[0].click();
-        triggerButtons[1].click();
 
         expect(harness.accessors.rootString.value).toBe('updated');
         expect(harness.accessors.childBoolean.value).toBe(true);
@@ -1032,7 +991,6 @@ describe('rive/vm-controls', () => {
         expect(harness.accessors.rootColor.value >>> 0).toBe(0xff112233);
         expect(harness.riveInstance.play).toHaveBeenCalledTimes(1);
         expect(harness.triggers.vmTrigger.trigger).toHaveBeenCalledTimes(1);
-        expect(harness.triggers.smTrigger.fire).toHaveBeenCalledTimes(1);
 
         const snapshot = harness.controller.captureVmControlSnapshot();
         expect(snapshot).toEqual(expect.arrayContaining([
@@ -1080,7 +1038,7 @@ describe('rive/vm-controls', () => {
         harness.accessors.rootString.value = 'server value';
         harness.controller.syncVmControlBindings(true);
 
-        expect(numberInput.value).toBe('99.00');
+        expect(numberInput.value).toBe('99');
         expect(textarea.value).toBe('server value');
 
         harness.accessors.rootNumber.value = 0;
@@ -1106,12 +1064,7 @@ describe('rive/vm-controls', () => {
             }),
         ]));
         const controlHierarchy = harness.controller.serializeControlHierarchy();
-        expect(controlHierarchy.children).toHaveLength(2);
-        expect(controlHierarchy.children[1].inputs[0]).toMatchObject({
-            name: 'armed',
-            source: 'state-machine',
-            stateMachineName: 'Machine',
-        });
+        expect(controlHierarchy.children).toHaveLength(1);
 
         harness.controller.resetVmInputControls('No animation loaded.');
         expect(harness.elements.vmControlsCount.textContent).toBe('0');
@@ -1125,7 +1078,7 @@ describe('rive/vm-controls', () => {
 
         const numberInput = Array.from(harness.elements.vmControlsTree.querySelectorAll('input[type="number"]'))
             .find((input) => input.step === 'any');
-        expect(numberInput.value).toBe('3.00');
+        expect(numberInput.value).toBe('3');
 
         harness.accessors.rootNumber.value = 1.239;
         harness.controller.syncVmControlBindings(true);
@@ -1182,34 +1135,34 @@ describe('rive/vm-controls', () => {
         harness.intervals[0].callback();
 
         expect(findNumberInput('count')).toBe(originalCountInput);
-        expect(originalCountInput.value).toBe('42.00');
+        expect(originalCountInput.value).toBe('42');
         expect(harness.callbacks.initLucideIcons).toHaveBeenCalledTimes(1);
         expect(harness.controller.syncVmControlTopology()).toBe(false);
 
         harness.list.items.push(harness.list.createItem(24));
         expect(harness.controller.syncVmControlTopology()).toBe(true);
 
-        expect(harness.elements.vmControlsCount.textContent).toBe('10');
+        expect(harness.elements.vmControlsCount.textContent).toBe('8');
         expect(harness.elements.vmControlsTree.textContent).toContain('items [2]');
         expect(harness.elements.vmControlsTree.textContent).toContain('Row 1');
         expect(harness.elements.vmControlsTree.textContent).toContain('Row 2');
-        expect(findNumberInput('items/1/speed').value).toBe('24.00');
+        expect(findNumberInput('items/1/speed').value).toBe('24');
         expect(harness.callbacks.initLucideIcons).toHaveBeenCalledTimes(2);
         expect(harness.intervals).toHaveLength(1);
 
         harness.list.items.splice(0, harness.list.items.length);
         runVmSyncTicks(harness.intervals);
 
-        expect(harness.elements.vmControlsCount.textContent).toBe('8');
+        expect(harness.elements.vmControlsCount.textContent).toBe('6');
         expect(harness.elements.vmControlsTree.textContent).not.toContain('items [');
         expect(harness.intervals).toHaveLength(1);
 
         harness.list.items.push(harness.list.createItem(7));
         runVmSyncTicks(harness.intervals);
 
-        expect(harness.elements.vmControlsCount.textContent).toBe('9');
+        expect(harness.elements.vmControlsCount.textContent).toBe('7');
         expect(harness.elements.vmControlsTree.textContent).toContain('items [1]');
-        expect(findNumberInput('items/0/speed').value).toBe('7.00');
+        expect(findNumberInput('items/0/speed').value).toBe('7');
     });
 
     it('pauses polling with the properties panel hidden and skips collapsed sections', () => {
@@ -1227,11 +1180,11 @@ describe('rive/vm-controls', () => {
         harness.elements.mainGrid.classList.add('right-hidden');
         harness.accessors.rootNumber.value = 41;
         harness.intervals[0].callback();
-        expect(countInput.value).toBe('3.00');
+        expect(countInput.value).toBe('3');
 
         harness.elements.mainGrid.classList.remove('right-hidden');
         harness.intervals[0].callback();
-        expect(countInput.value).toBe('41.00');
+        expect(countInput.value).toBe('41');
 
         harness.accessors.childBoolean.value = true;
         harness.intervals[0].callback();
@@ -1393,10 +1346,6 @@ describe('rive/vm-controls', () => {
             elements,
             getLoadedRuntime: () => null,
             getRiveInstance: () => ({
-                stateMachineInputs() {
-                    return [];
-                },
-                stateMachineNames: [],
                 viewModelInstance: {
                     properties: [],
                 },
@@ -1408,7 +1357,7 @@ describe('rive/vm-controls', () => {
 
         expect(elements.vmControlsCount.textContent).toBe('0');
         expect(elements.vmControlsEmpty.hidden).toBe(false);
-        expect(elements.vmControlsEmpty.textContent).toBe('No writable ViewModel or state machine inputs were found.');
+        expect(elements.vmControlsEmpty.textContent).toBe('No writable ViewModel properties were found.');
     });
 
     it('handles fallback default instances plus trigger, enum, and color control edge cases', () => {
@@ -1424,10 +1373,6 @@ describe('rive/vm-controls', () => {
                         },
                     };
                 },
-                stateMachineInputs() {
-                    throw new Error('unavailable');
-                },
-                stateMachineNames: ['Broken'],
             }),
         });
 
@@ -1452,21 +1397,11 @@ describe('rive/vm-controls', () => {
             callbacks,
             elements,
             getCurrentRuntime: () => 'webgl2',
-            getLoadedRuntime: () => ({
-                StateMachineInputType: {
-                    Boolean: 1,
-                    Number: 2,
-                    Trigger: 3,
-                },
-            }),
+            getLoadedRuntime: () => ({}),
             getRiveInstance: () => ({
                 isPlaying: true,
                 isStopped: false,
                 play: vi.fn(),
-                stateMachineInputs() {
-                    return [{ name: 'BrokenTrigger', type: 3 }];
-                },
-                stateMachineNames: ['Machine'],
                 viewModelInstance: {
                     color(name) {
                         return name === 'tint' ? colorAccessor : null;
@@ -1488,24 +1423,14 @@ describe('rive/vm-controls', () => {
         const colorInput = elements.vmControlsTree.querySelector('input[type="color"]');
         const alphaInput = Array.from(elements.vmControlsTree.querySelectorAll('input[type="number"]'))
             .find((input) => input.step === '1');
-        const triggerButton = Array.from(elements.vmControlsTree.querySelectorAll('button'))
-            .find((button) => button.textContent === 'Fire');
-
         expect(enumSelect.textContent).toContain('(no enum values)');
-        expect(alphaInput.value).toBe('50.00');
+        expect(alphaInput.value).toBe('50');
         colorInput.value = '#445566';
         colorInput.dispatchEvent(new Event('input'));
         alphaInput.value = '25';
         alphaInput.dispatchEvent(new Event('change'));
-        expect(alphaInput.value).toBe('25.00');
+        expect(alphaInput.value).toBe('25');
         expect(colorAccessor.argb).toHaveBeenCalled();
-
-        triggerButton.click();
-        expect(callbacks.logEvent).toHaveBeenCalledWith(
-            'ui',
-            'sm-trigger-miss',
-            'No trigger accessor or state machine trigger matched stateMachine/Machine/BrokenTrigger',
-        );
 
         const serializeController = createVmControlsController({
             elements: createVmElements(),

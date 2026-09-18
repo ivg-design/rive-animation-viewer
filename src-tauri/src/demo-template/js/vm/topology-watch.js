@@ -95,10 +95,25 @@
                 requiresFallbackScan: false,
                 root: rootVm,
                 roots: currentRenderSurfaceTopologyRoots(rootVm),
-                stateMachines: [],
             };
             var active = new WeakSet();
-            function walk(instance) {
+
+            function trackList(instance, name, list) {
+                var length = getCanonicalListLength(list);
+                var items = getCanonicalListItems(list, length);
+                var reactive = subscribeRenderSurfaceListTopology(list, bridgeState, tracker);
+                tracker.lists.push({
+                    accessor: list,
+                    items: items,
+                    length: length,
+                    name: name,
+                    owner: instance,
+                    reactive: reactive,
+                });
+                return items;
+            }
+
+            function walkRuntime(instance) {
                 if (!instance || typeof instance !== 'object' || active.has(instance)) return;
                 active.add(instance);
                 var properties = Array.isArray(instance.properties) ? instance.properties : [];
@@ -109,41 +124,78 @@
                         || safeVmCall(instance, 'viewModel', name);
                     if (nested && nested !== instance) {
                         tracker.nested.push({ instance: nested, name: name, owner: instance });
-                        walk(nested);
+                        walkRuntime(nested);
                     }
                     var list = safeVmCall(instance, 'list', name);
                     if (!list) return;
-                    var length = getCanonicalListLength(list);
-                    var items = getCanonicalListItems(list, length);
-                    var reactive = subscribeRenderSurfaceListTopology(list, bridgeState, tracker);
-                    tracker.lists.push({
-                        accessor: list,
-                        items: items,
-                        length: length,
-                        name: name,
-                        owner: instance,
-                        reactive: reactive,
-                    });
-                    items.forEach(walk);
+                    trackList(instance, name, list).forEach(walkRuntime);
                 });
                 active.delete(instance);
             }
-            tracker.roots.forEach(function (entry) { walk(entry.instance); });
-            var names = Array.isArray(riveInstance && riveInstance.stateMachineNames)
-                ? riveInstance.stateMachineNames.filter(Boolean)
-                : [];
-            tracker.stateMachines = names.map(function (name) {
-                var inputs = runtimeCompatibility.getStateMachineInputMetadata(riveInstance, name);
-                if (!Array.isArray(inputs)) {
-                    try { inputs = riveInstance.stateMachineInputs && riveInstance.stateMachineInputs(name); } catch (e) { inputs = []; }
+
+            function walkMapped(instance, mappedInstance, index) {
+                if (!instance || typeof instance !== 'object' || active.has(instance)) return;
+                var prototype = index.prototypesById.get(mappedInstance && mappedInstance.prototypeId)
+                    || index.prototypesByName.get(mappedInstance && mappedInstance.prototypeName);
+                if (!prototype || !Array.isArray(prototype.properties)) {
+                    walkRuntime(instance);
+                    return;
                 }
-                return {
-                    name: name,
-                    inputs: Array.isArray(inputs) ? inputs.map(function (input) {
-                        return String((input && input.name) || '') + ':' + String(getStateMachineInputKind(input) || '');
-                    }) : [],
-                };
+                active.add(instance);
+                prototype.properties.forEach(function (property) {
+                    if (!property || typeof property.name !== 'string' || !property.name) return;
+                    if (property.kind === 'viewmodel') {
+                        var nested = safeVmCall(instance, 'viewModelInstance', property.name)
+                            || safeVmCall(instance, 'viewModel', property.name);
+                        if (!nested || nested === instance) return;
+                        tracker.nested.push({ instance: nested, name: property.name, owner: instance });
+                        var mappedChild = (mappedInstance.nestedInstances || []).find(function (relation) {
+                            return relation && relation.propertyName === property.name;
+                        });
+                        mappedChild = mappedChild && mappedChild.instance;
+                        if (!mappedChild && property.viewModelRef) {
+                            var childPrototype = index.prototypesById.get(property.viewModelRef);
+                            if (childPrototype) {
+                                mappedChild = {
+                                    prototypeId: childPrototype.id,
+                                    prototypeName: childPrototype.name,
+                                    nestedInstances: [],
+                                };
+                            }
+                        }
+                        if (mappedChild) walkMapped(nested, mappedChild, index);
+                        else walkRuntime(nested);
+                        return;
+                    }
+                    if (property.kind !== 'list') return;
+                    var list = safeVmCall(instance, 'list', property.name);
+                    if (!list) return;
+                    trackList(instance, property.name, list).forEach(function (item) {
+                        var mappedItem = mappedInstanceForLiveVm(index, item, null);
+                        if (mappedItem) walkMapped(item, mappedItem, index);
+                        else walkRuntime(item);
+                    });
+                });
+                active.delete(instance);
+            }
+
+            var inspectionIndex = getInspectionVmIndex();
+            var mappedRoots = inspectionIndex && tracker.roots.map(function (entry) {
+                return mappedInstanceForLiveVm(
+                    inspectionIndex,
+                    entry.instance,
+                    entry.name.indexOf('gvm:') === 0 ? entry.name.slice(4) : null
+                );
             });
+            if (inspectionIndex && mappedRoots.every(Boolean)) {
+                tracker.discovery = 'inspection-map';
+                tracker.roots.forEach(function (entry, index) {
+                    walkMapped(entry.instance, mappedRoots[index], inspectionIndex);
+                });
+            } else {
+                tracker.discovery = 'runtime-fallback';
+                tracker.roots.forEach(function (entry) { walkRuntime(entry.instance); });
+            }
             return tracker;
         }
 

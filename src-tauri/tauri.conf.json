@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Rive Animation Viewer",
-  "version": "2.5.5",
+  "version": "2.5.6",
   "identifier": "app.rive.animation.viewer",
   "build": {
     "beforeBuildCommand": "node scripts/encoder-distribution/encoders.mjs verify --directory src-tauri/encoder-resources/encoders && npm run build",

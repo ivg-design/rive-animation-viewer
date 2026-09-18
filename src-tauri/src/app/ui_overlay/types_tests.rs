@@ -20,6 +20,7 @@ fn media_export_intents_are_allowlisted_and_keep_typed_bounded_fields() {
         "media-stop",
         "media-cancel",
         "media-choose-path",
+        "media-dismiss-job",
         "media-toggle-recording",
     ] {
         action.action = name.into();
@@ -35,6 +36,12 @@ fn media_export_intents_are_allowlisted_and_keep_typed_bounded_fields() {
         action.value = value;
         assert!(action.validate().is_ok());
     }
+    action.action = "media-resize".into();
+    action.value = serde_json::json!(412);
+    assert!(action.validate().is_ok());
+    action.value = serde_json::json!(2001);
+    assert!(action.validate().is_err());
+    action.action = "media-change".into();
     for value in [
         serde_json::json!({"name":"arbitrary_command","value":"x"}),
         serde_json::json!({"name":"alpha","value":"true"}),
@@ -156,6 +163,30 @@ fn validates_numeric_and_enum_action_values() {
     }
     .validate()
     .is_ok());
+}
+
+#[test]
+fn validates_export_gpu_canvas_as_an_explicit_boolean() {
+    let action = UiOverlayActionRequest {
+        epoch: 4,
+        action_id: "export-gpu-canvas-1".into(),
+        purpose: "export".into(),
+        action: "gpu-canvas".into(),
+        value: serde_json::json!(false),
+    };
+    assert!(action.validate().is_ok());
+    assert!(UiOverlayActionRequest {
+        value: serde_json::json!(true),
+        ..action.clone()
+    }
+    .validate()
+    .is_ok());
+    assert!(UiOverlayActionRequest {
+        value: serde_json::json!("false"),
+        ..action
+    }
+    .validate()
+    .is_err());
 }
 
 #[test]

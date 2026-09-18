@@ -7,6 +7,7 @@ import { setupCenterPanelResizer, setupShellPanelResizers } from './layout/resiz
 import { createCanvasSizingControlsController } from './settings/canvas-sizing-controls.js';
 import { createSettingsOverlayAdapter } from './overlay/shell-adapter.js';
 import { createRuntimeSelectionController } from './runtime-selection.js';
+import { createGpuCanvasToggleController } from './gpu-canvas-toggle.js';
 
 export function clamp(value, min, max) {
     return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
@@ -19,11 +20,9 @@ export function parseCssPixels(value, fallback) {
 
 export function createShellController({
     callbacks = {},
-    clearIntervalFn = globalThis.clearInterval,
     clearTimeoutFn = globalThis.clearTimeout,
     documentRef = globalThis.document,
     elements,
-    setIntervalFn = globalThis.setInterval,
     setTimeoutFn = globalThis.setTimeout,
     windowRef = globalThis.window,
 } = {}) {
@@ -34,6 +33,7 @@ export function createShellController({
         getCurrentLayoutAlignment = () => 'center',
         getCurrentLayoutFit = () => 'contain',
         getCurrentRuntime = () => 'webgl2',
+        getGpuCanvasEnabled = () => false,
         getEventLogFilterState = () => ({}),
         getRiveInstance = () => null,
         getTauriEventListener = async () => null,
@@ -49,6 +49,7 @@ export function createShellController({
         setCurrentLayoutAlignment = () => {},
         setCurrentLayoutFit = () => {},
         setCurrentRuntime = () => {},
+        setGpuCanvasEnabled = () => {},
         setInstallCounterEnabled = async () => false,
         makeRavDefaultForRiv = async () => false,
         refreshDefaultRivAppStatus = null,
@@ -155,10 +156,8 @@ export function createShellController({
         callbacks: {
             getTauriInvoker,
         },
-        clearIntervalFn,
         documentRef,
         elements,
-        setIntervalFn,
         windowRef,
     });
 
@@ -168,11 +167,16 @@ export function createShellController({
     function openUiOverlay(request) {
         return uiOverlayController.openPurpose(request);
     }
+    const gpuCanvasToggleController = createGpuCanvasToggleController({
+        callbacks: { getCurrentRuntime, getGpuCanvasEnabled, logEvent, reloadActiveAnimation, setGpuCanvasEnabled, showError, updateInfo },
+        elements,
+    });
     const runtimeSelectionController = createRuntimeSelectionController({
         callbacks: {
             ensureRuntime,
             getCurrentRuntime,
             logEvent,
+            onRuntimeChanged: gpuCanvasToggleController.sync,
             refreshInfoStrip,
             reloadActiveAnimation,
             setCurrentRuntime,
@@ -362,6 +366,7 @@ export function createShellController({
 
     function setup() {
         setupRuntimeSelect();
+        gpuCanvasToggleController.setup();
         setupLayoutSelect();
         setupAlignmentSelect();
         setupCanvasSizingControls();
@@ -372,7 +377,6 @@ export function createShellController({
         setupPanelVisibilityToggles();
         setupSettingsPopover();
     }
-
     return {
         applyPanelVisibilityState,
         applyCanvasSizingState,

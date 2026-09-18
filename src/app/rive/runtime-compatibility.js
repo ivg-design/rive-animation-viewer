@@ -4,8 +4,7 @@ export const {
     isModernRuntime,
     getStateMachineNames,
     normalizePlaybackConfig,
-    getStateMachineInputMetadata,
-    clearStateMachineInputMetadata,
+    clearInspectionMetadata,
     setInspectionMetadata,
     getInspectionMetadata,
 } = createRiveRuntimeCompatibility();

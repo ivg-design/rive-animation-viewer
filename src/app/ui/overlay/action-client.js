@@ -1,3 +1,8 @@
+export function isOverlayLifecycleFailure(error) {
+    const message = String(error?.message || error || '');
+    return /UI overlay action was submitted by a stale or unauthorized overlay|UI overlay (?:epoch )?is stale|UI overlay was closed/i.test(message);
+}
+
 export function createOverlayActionClient({
     epoch,
     exclusiveActions = [],

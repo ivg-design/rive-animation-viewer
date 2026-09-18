@@ -182,5 +182,6 @@ export function createRuntimeAssetLoader({
 
     return {
         loadRuntime,
+        prepareRuntimeAsset,
     };
 }

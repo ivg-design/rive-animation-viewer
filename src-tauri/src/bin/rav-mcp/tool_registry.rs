@@ -257,24 +257,6 @@ pub fn tools_list() -> Value {
             }
         },
         {
-            "name": "rav_get_sm_inputs",
-            "description": "Get all state machine inputs for the current animation, with their names, types, and current values.",
-            "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
-        },
-        {
-            "name": "rav_set_sm_input",
-            "description": "Set a state machine input value by name.",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "name": { "type": "string", "description": "State machine input name" },
-                    "value": { "description": "New value (number, boolean, or \"fire\" for triggers)" }
-                },
-                "required": ["name", "value"],
-                "additionalProperties": false
-            }
-        },
-        {
             "name": "rav_eval",
             "description": "Evaluate arbitrary JavaScript with explicit surface authority. target auto (default) uses the active authoritative playback child when present and otherwise the host WebView; playback requires that child, while host explicitly evaluates the UI WebView. The response identifies the resolved target, surface, and child session. Script Access is required.",
             "inputSchema": {

@@ -102,7 +102,7 @@ describe('media native overlay renderer', () => {
         expect(height.value).toBe('360'); expect(document.activeElement).toBe(height);
     });
     it('renders output bytes, path, warnings and failure details safely', () => {
-        mount({ job: { state: 'completed', actual_bytes: 12345, output_path: '/tmp/<img>.gif', warnings: ['Target size unmet <script>'] } });
+        mount({ view: 'menu', job: { state: 'completed', actual_bytes: 12345, output_path: '/tmp/<img>.gif', warnings: ['Target size unmet <script>'] } });
         expect(get('[data-media-job-details]').textContent).toContain('12,345 bytes');
         expect(get('[data-media-job-details]').textContent).toContain('/tmp/<img>.gif');
         expect(get('[data-media-warnings]').textContent).toContain('Target size unmet <script>');
@@ -148,6 +148,8 @@ describe('media native overlay renderer', () => {
         const { state } = mount({ error: 'Destination <script> is read-only', job: {
             state: 'failed', error: 'Destination <script> is read-only', warnings: ['GIF has binary transparency.'],
         } });
+        expect(get('[data-media-job]').hidden).toBe(true);
+        renderer.render({ ...state, view: 'menu' });
         expect(get('[data-media-job-error]').hidden).toBe(false);
         expect(get('[data-media-job-error]').getAttribute('role')).toBe('alert');
         expect(get('[data-media-job-error]').textContent).toContain('Destination <script>');
@@ -158,9 +160,37 @@ describe('media native overlay renderer', () => {
         expect(get('[data-media-job-error]').hidden).toBe(true);
         expect(get('[data-media-warnings]').hidden).toBe(true);
     });
+    it('keeps terminal results on the main export page and exposes dismissal there only', () => {
+        const { state, emitAction } = mount({ view: 'menu', job: { state: 'failed', error: 'Control is unavailable.' } });
+        const dismiss = get('[data-media-action="media-dismiss-job"]');
+        expect(get('[data-media-job]').hidden).toBe(false);
+        expect(dismiss.hidden).toBe(false);
+        dismiss.click();
+        expect(emitAction).toHaveBeenCalledWith('media-dismiss-job', undefined);
+        renderer.render({ ...state, view: 'settings' });
+        expect(get('[data-media-job]').hidden).toBe(true);
+        expect(dismiss.hidden).toBe(true);
+    });
+    it('requests the natural panel height when technical details expand', async () => {
+        const { emitAction } = mount({ view: 'menu', job: { state: 'completed', output_path: '/tmp/movie.mp4' } });
+        await vi.runAllTimersAsync();
+        const panel = get('.media-export-panel');
+        Object.defineProperty(panel, 'scrollHeight', { configurable: true, get: () => 438 });
+        emitAction.mockClear();
+        emitAction.mockImplementationOnce(async () => {
+            expect(panel.classList.contains('is-resizing')).toBe(true);
+            return true;
+        });
+        get('[data-media-job-disclosure]').open = true;
+        get('[data-media-job-disclosure]').dispatchEvent(new Event('toggle'));
+        expect(panel.classList.contains('is-resizing')).toBe(true);
+        await vi.runAllTimersAsync();
+        expect(emitAction).toHaveBeenCalledWith('media-resize', 438);
+        expect(panel.classList.contains('is-resizing')).toBe(false);
+    });
     it('caps native windows without misrepresenting capture progress', () => {
         mount();
-        expect(get('[data-media-limits]').textContent).toContain('36,000 frames');
+        expect(get('[data-media-limits]')).toBeNull();
         expect(describeJob({ state: 'capturing', captured_frames: 50, frame_count: 100, progress: 0 }).progress).toBe(.5);
         expect(describeJob({ state: 'encoding', progress: .75 }).progress).toBe(.75);
         expect(describeJob({ state: 'encoding', stage: 'verifying', progress: .93 }).text).toBe('Verifying export…');
@@ -188,7 +218,7 @@ describe('recording shortcut typing guards', () => {
     });
 });
 
-it.each(['png', 'apng'])('%s hides/disables irrelevant quality and restores it when switching formats', (format) => {
+it.each(['png', 'apng', 'png-sequence'])('%s hides/disables irrelevant quality and restores it when switching formats', (format) => {
     const mode = format === 'png' ? 'still' : 'timeline';
     const draft = createDraft(mode, timeline, caps, format);
     const { state } = mount({ draft });
@@ -199,4 +229,62 @@ it.each(['png', 'apng'])('%s hides/disables irrelevant quality and restores it w
     renderer.render({ ...state, draft: { ...draft, format: next } });
     expect(get('[data-media-quality]').hidden).toBe(false);
     expect(get('[name="quality"]').disabled).toBe(false);
+});
+
+it('shows ProRes quality controls and PNG sequence directory-friendly alpha support', () => {
+    const draft = createDraft('timeline', timeline, caps, 'prores');
+    const { state } = mount({ draft });
+    expect(get('[data-media-quality]').hidden).toBe(false);
+    expect(get('[name="alpha"]').disabled).toBe(false);
+    const jpgSequence = createDraft('timeline', timeline, caps, 'jpg-sequence');
+    renderer.render({ ...state, draft: jpgSequence });
+    expect(get('[name="alpha"]').disabled).toBe(true);
+    expect(get('[data-media-alpha-note]').textContent).toContain('Opaque');
+});
+
+
+describe('sequence destination confirmation renderer', () => {
+    it('renders all three choices and a markup-containing path as text, not a raw error', () => {
+        const { state, emitAction } = mount({
+            draft: createDraft('timeline', timeline, caps, 'png-sequence'),
+            outputConflict: { output_path: '/tmp/<img src=x onerror=alert(1)>/frames' },
+            error: 'Output directory exists and is not empty',
+        });
+        const prompt = get('[data-media-output-conflict]');
+        expect(prompt.hidden).toBe(false);
+        expect(document.activeElement).toBe(get('[data-media-action="media-output-cancel"]'));
+        expect(prompt.textContent).toContain('already contains files.');
+        expect(get('[data-media-conflict-path]').textContent).toBe(state.outputConflict.output_path);
+        expect(prompt.querySelector('img')).toBeNull();
+        expect(get('[data-media-form]').hidden).toBe(true);
+        expect(get('[data-media-menu]').hidden).toBe(true);
+        expect(get('[data-media-job]').hidden).toBe(true);
+        expect(get('[data-media-error]').hidden).toBe(true);
+        for (const [action, label] of [
+            ['media-output-overwrite', 'Overwrite'],
+            ['media-output-choose', 'Choose folder…'],
+            ['media-output-cancel', 'Cancel'],
+        ]) {
+            const button = get(`[data-media-action="${action}"]`);
+            expect(button.textContent).toBe(label);
+            button.click();
+            expect(emitAction).toHaveBeenCalledWith(action, undefined);
+        }
+    });
+    it('disables confirmation during pending work and restores directory-aware settings', () => {
+        const { state, emitAction } = mount({
+            draft: { ...createDraft('timeline', timeline, caps, 'jpg-sequence'), output_path: '/tmp/frames' },
+            outputConflict: { output_path: '/tmp/frames' }, pending: true,
+        });
+        for (const button of get('[data-media-output-conflict]').querySelectorAll('button')) {
+            expect(button.disabled).toBe(true);
+            button.click();
+        }
+        expect(emitAction).not.toHaveBeenCalled();
+        renderer.render({ ...state, outputConflict: null, pending: false });
+        expect(get('[data-media-output-conflict]').hidden).toBe(true);
+        expect(get('[data-media-form]').hidden).toBe(false);
+        expect(get('[data-media-path-value]').textContent).toBe('/tmp/frames');
+        expect(get('[data-media-action="media-choose-path"]').getAttribute('aria-label')).toBe('Change output folder');
+    });
 });

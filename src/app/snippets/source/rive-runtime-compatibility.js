@@ -1,6 +1,6 @@
 // Shared by RAV and its standalone demo. Keep this factory dependency-free.
 function createRiveRuntimeCompatibility() {
-    const inputMetadata = new WeakMap();
+    const inspectionMetadata = new WeakMap();
     function names(value) {
         return (Array.isArray(value) ? value : [value])
             .filter((name) => typeof name === 'string' && name.trim().length > 0);
@@ -37,34 +37,19 @@ function createRiveRuntimeCompatibility() {
         return result;
     }
 
-    function getStateMachineInputMetadata(instance, stateMachineName) {
-        try {
-            const activeArtboard = instance?.activeArtboard;
-            if (typeof activeArtboard !== 'string' || !activeArtboard) return null;
-            const artboards = getInspectionMetadata(instance)?.artboards;
-            if (!Array.isArray(artboards)) return null;
-            const artboard = artboards.find((entry) => entry?.name === activeArtboard);
-            if (!Array.isArray(artboard?.stateMachines)) return null;
-            const machine = artboard.stateMachines.find((entry) => entry?.name === stateMachineName);
-            return Array.isArray(machine?.inputs) ? machine.inputs : null;
-        } catch {
-            return null;
-        }
-    }
-
     function setInspectionMetadata(instance, metadata) {
         if (!instance) return;
-        if (Array.isArray(metadata?.artboards)) inputMetadata.set(instance, metadata);
-        else inputMetadata.delete(instance);
+        if (Array.isArray(metadata?.artboards)) inspectionMetadata.set(instance, metadata);
+        else inspectionMetadata.delete(instance);
     }
 
-    function getInspectionMetadata(instance) { return instance ? inputMetadata.get(instance) || null : null; }
+    function getInspectionMetadata(instance) { return instance ? inspectionMetadata.get(instance) || null : null; }
 
     // Inspected metadata is immutable, but Rive.load() can reuse a wrapper. Call at
     // the start of onLoad before rebuilding controls or invoking user code.
-    function clearStateMachineInputMetadata(instance) {
-        if (instance) inputMetadata.delete(instance);
+    function clearInspectionMetadata(instance) {
+        if (instance) inspectionMetadata.delete(instance);
     }
 
-    return { isModernRuntime, getStateMachineNames, normalizePlaybackConfig, getStateMachineInputMetadata, clearStateMachineInputMetadata, setInspectionMetadata, getInspectionMetadata };
+    return { isModernRuntime, getStateMachineNames, normalizePlaybackConfig, clearInspectionMetadata, setInspectionMetadata, getInspectionMetadata };
 }

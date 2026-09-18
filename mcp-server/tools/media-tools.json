@@ -23,6 +23,9 @@
             "webm",
             "apng",
             "gif",
+            "prores",
+            "png-sequence",
+            "jpg-sequence",
             "png",
             "jpg",
             "webp"
@@ -30,7 +33,7 @@
         },
         "output_path": {
           "type": "string",
-          "description": "Absolute local destination with matching format extension. Supply it for unattended MCP; omission opens an interactive desktop Save dialog."
+          "description": "Absolute local destination with matching format extension. Supply it for unattended MCP; omission opens an interactive desktop Save dialog. For png-sequence/jpg-sequence this is a directory path: it must not exist or be empty, unless overwrite is true."
         },
         "overwrite": {
           "type": "boolean",
@@ -78,7 +81,8 @@
           "description": "Requested output FPS. Rational values must meet current native bounds; consult rav_media_capabilities. GIF presets may lower FPS."
         },
         "alpha": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Transparent output. Rejected for h264, h265, jpg and jpg-sequence (no alpha channel). ProRes 4444, WebM, APNG, PNG sequence, PNG and WebP keep full alpha; GIF keeps binary transparency."
         },
         "background": {
           "type": "string",
@@ -197,12 +201,15 @@
             "h265",
             "webm",
             "apng",
-            "gif"
+            "gif",
+            "prores",
+            "png-sequence",
+            "jpg-sequence"
           ]
         },
         "output_path": {
           "type": "string",
-          "description": "Absolute local destination with matching format extension. Supply it for unattended MCP; omission opens an interactive desktop Save dialog."
+          "description": "Absolute local destination with matching format extension. Supply it for unattended MCP; omission opens an interactive desktop Save dialog. For png-sequence/jpg-sequence this is a directory path: it must not exist or be empty, unless overwrite is true."
         },
         "overwrite": {
           "type": "boolean",
@@ -250,7 +257,8 @@
           "description": "Requested output FPS. Rational values must meet current native bounds; consult rav_media_capabilities. GIF presets may lower FPS."
         },
         "alpha": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Transparent output. Rejected for h264, h265, jpg and jpg-sequence (no alpha channel). ProRes 4444, WebM, APNG, PNG sequence, PNG and WebP keep full alpha; GIF keeps binary transparency."
         },
         "background": {
           "type": "string",
@@ -273,6 +281,14 @@
           "exclusiveMinimum": 0,
           "default": null,
           "description": "Automatic stop at this recording-clock duration. Omit or null for manual stop; no fixed 300-second API ceiling."
+        },
+        "clock": {
+          "type": "string",
+          "enum": [
+            "live",
+            "offline"
+          ],
+          "description": "Recording clock. offline renders every simulation frame exactly, as fast as capture allows, and never consults wall time (requires duration_seconds); live tracks wall time and reports lag. Default: offline when interactions and duration_seconds are both supplied, otherwise live."
         },
         "gif_preset": {
           "type": "string",

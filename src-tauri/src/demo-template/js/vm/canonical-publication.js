@@ -19,6 +19,9 @@
                     ? riveInstance.animationNames.filter(Boolean) : [],
                 artboards: CONFIG.inspectionMetadata && Array.isArray(CONFIG.inspectionMetadata.artboards)
                     ? CONFIG.inspectionMetadata.artboards.map(function (artboard) { return artboard && artboard.name; }).filter(Boolean) : [],
+                embeddedImageAssets: typeof getEmbeddedImageAssetCatalog === 'function'
+                    ? getEmbeddedImageAssetCatalog()
+                    : [],
                 stateMachines: Array.isArray(riveInstance && riveInstance.stateMachineNames)
                     ? riveInstance.stateMachineNames.filter(Boolean) : [],
             };
@@ -33,6 +36,8 @@
                 controlObserverCursor: 0,
                 controlObserverPasses: 0,
                 controlObserverReads: 0,
+                hotControlKeys: new Map(),
+                watchControlKeys: [],
                 initialSnapshotPublished: false,
                 initialSnapshotScheduled: false,
                 lastPublishedAt: 0,
@@ -55,13 +60,20 @@
                 || (window.__ravRenderSurfaceCanonical = createRenderSurfaceBridgeState());
         }
 
-	        // Rive Web exposes change subscriptions for ViewModel values, but its
-	        // runtime invokes every subscribed callback from handleCallbacks() on
-	        // each rendered frame. Subscribing all controls would therefore move,
-	        // not remove, the O(file-size) work. This observer instead performs at
-	        // most 16 cached controls per advance (enum value plus choices).
-	        // At 60fps, a 999-control
-	        // surface is fully revisited in ceil(999 / 16) / 60 = 1.05 seconds.
+	        // Rive Web's change subscriptions invoke every subscribed callback
+	        // from handleCallbacks() on each rendered frame, so subscribing all
+	        // controls would move, not remove, the O(file-size) work. This
+	        // observer instead does a bounded number of cached-accessor reads
+	        // per advance, split across two "always read" tiers (see
+	        // observer/hot-set.js, observer/watch-set.js) -- up to HOT_SET_CAP
+	        // recently-changed and WATCH_SET_CAP host-watched controls, so a
+	        // value that changes every frame is still sampled every frame -- plus
+	        // a cold round-robin of RENDER_SURFACE_CONTROL_READ_BUDGET (16)
+	        // controls/advance for everything else, unchanged from before this
+	        // tiering: a 999-control surface with nothing hot/watched is fully
+	        // revisited in ceil(999/16)/60 = 1.05s at 60fps. Total reads/advance
+	        // is therefore bounded at HOT_SET_CAP + WATCH_SET_CAP +
+	        // RENDER_SURFACE_CONTROL_READ_BUDGET regardless of file size.
 	        var RENDER_SURFACE_CONTROL_READ_BUDGET = 16;
 	        var RENDER_SURFACE_CHANGE_DRAIN_BUDGET = 128;
 	        var RENDER_SURFACE_FRAME_FALLBACK_MS = 250;
@@ -125,6 +137,29 @@
 	            return queueRenderSurfaceControlChange(bridgeState, binding, { value: binding.value });
 	        }
 
+	        // Reads every currently-hot or currently-watched binding once. Both
+	        // tiers share one pass so a key present in both (a watched control
+	        // that also happens to be changing) is never read twice in the same
+	        // advance. Returns the set of keys it covered, so the cold
+	        // round-robin below can skip them for this advance.
+	        function observeRenderSurfaceAlwaysReadTier(bridgeState) {
+	            var index = bridgeState.controlBindingIndex;
+	            var covered = new Set();
+	            var reads = 0;
+	            function readOnce(key) {
+	                if (covered.has(key)) return;
+	                var binding = index.get(key);
+	                if (!binding || binding.kind === 'trigger') return;
+	                covered.add(key);
+	                var changed = observeRenderSurfaceBinding(bridgeState, binding);
+	                noteRenderSurfaceControlObservation(bridgeState, key, changed);
+	                reads += 1;
+	            }
+	            (bridgeState.watchControlKeys || []).forEach(readOnce);
+	            Array.from(bridgeState.hotControlKeys.keys()).forEach(readOnce);
+	            return { covered: covered, reads: reads };
+	        }
+
 	        function observeRenderSurfaceControlBudget(bridgeState, budget) {
 	            if (!bridgeState || !bridgeState.canonicalPublishingEnabled || !bridgeState.initialSnapshotPublished) return 0;
 	            if (bridgeState.topologyTracker
@@ -136,18 +171,22 @@
 	            probeRenderSurfaceFallbackTopology(bridgeState, 1);
 	            var bindings = bridgeState.controlBindings || [];
 	            if (!bindings.length) return 0;
+	            var alwaysRead = observeRenderSurfaceAlwaysReadTier(bridgeState);
 	            var readBudget = Math.max(1, Math.floor(Number(budget) || RENDER_SURFACE_CONTROL_READ_BUDGET));
-	            var reads = 0;
+	            var reads = alwaysRead.reads;
+	            var coldReads = 0;
 	            var inspected = 0;
-	            while (inspected < bindings.length && inspected < readBudget) {
+	            while (inspected < bindings.length && coldReads < readBudget) {
 	                var index = bridgeState.controlObserverCursor % bindings.length;
 	                bridgeState.controlObserverCursor = (index + 1) % bindings.length;
 	                inspected += 1;
 	                var binding = bindings[index];
-	                if (!binding || binding.kind === 'trigger') continue;
-	                observeRenderSurfaceBinding(bridgeState, binding);
-	                reads += 1;
+	                if (!binding || binding.kind === 'trigger' || alwaysRead.covered.has(binding.key)) continue;
+	                var changed = observeRenderSurfaceBinding(bridgeState, binding);
+	                noteRenderSurfaceControlObservation(bridgeState, binding.key, changed);
+	                coldReads += 1;
 	            }
+	            reads += coldReads;
 	            bridgeState.controlObserverReads += reads;
 	            bridgeState.controlObserverPasses += 1;
 	            return reads;
@@ -180,6 +219,11 @@
             bridgeState.bindingsInvalidatedForReset = true;
             cleanupRenderSurfaceTopologySubscriptions(bridgeState);
             resetRenderSurfaceControlObserver(bridgeState);
+            // A reset can jump every value; a pre-reset "recently changed"
+            // streak says nothing about the post-reset file. The watch set is
+            // independent host/UI state (which drawer rows are open) and
+            // stays intact across reset.
+            resetRenderSurfaceHotSet(bridgeState);
             bridgeState.controlBindings = [];
             bridgeState.controlBindingIndex = new Map();
             bridgeState.topologyTracker = null;
@@ -194,10 +238,13 @@
 	                changeDrainBudget: RENDER_SURFACE_CHANGE_DRAIN_BUDGET,
 	                controlCount: (state.controlBindings || []).length,
 	                cursor: state.controlObserverCursor,
+	                hot: getRenderSurfaceHotSetDiagnostics(state),
 	                passes: state.controlObserverPasses,
 	                pendingChanges: state.pendingControlChanges.size,
 	                readBudget: RENDER_SURFACE_CONTROL_READ_BUDGET,
 	                reads: state.controlObserverReads,
+	                topologyDiscovery: state.topologyTracker && state.topologyTracker.discovery || null,
+	                watch: getRenderSurfaceWatchSetDiagnostics(state),
 	            };
 	        }
 
@@ -206,12 +253,27 @@
             var bridgeState = getRenderSurfaceBridgeState();
             if (!bridgeState.canonicalPublishingEnabled && reason !== 'load') return null;
             var now = performance.now();
-            if (!force && now - bridgeState.lastPublishedAt < VM_CONTROL_SYNC_INTERVAL_MS) return null;
+            // A value-only delta is cheap (one Map drain) and publishes on
+            // every advance so drawer readouts track the render rate. The
+            // floor exists to bound the cost of an expensive full topology
+            // walk (or the very first snapshot), so it applies only while
+            // one of those is actually pending -- exactly when there is no
+            // topology tracker yet, or the tracker has been marked dirty by
+            // a list invalidation / fallback probe.
+            var publishNeedsTopologyWalk = !force && (!bridgeState.topologyTracker || bridgeState.topologyDirty);
+            if (publishNeedsTopologyWalk && now - bridgeState.lastPublishedAt < VM_TOPOLOGY_PUBLISH_FLOOR_MS) return null;
+            // Timeline progress has its own renderer-advance event. If the
+            // bounded observer found no VM changes, there is no canonical
+            // payload to capture or publish on this frame.
+            if (!force && bridgeState.pendingControlChanges.size === 0) return null;
             // Publishing a command acknowledgement immediately must not imply a
             // deep topology walk. List invalidation events mark topology dirty;
             // runtimes without those events use the bounded fallback cadence.
             var state = captureRenderSurfaceCanonicalState(reason, forceTopologyScan === true);
             bridgeState.lastPublishedAt = now;
+            if (!force && state.stateType === 'delta' && state.controlChanges.length === 0) {
+                return null;
+            }
             bridgeState.stateRevision = state.stateRevision;
             if (state.controlsHierarchy) bridgeState.initialSnapshotPublished = true;
             window.__ravRenderSurfaceEmit('render-surface:state', state);

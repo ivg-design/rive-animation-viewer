@@ -26,16 +26,17 @@ function nativeToolNames() {
 }
 
 describe('legacy MCP server registry', () => {
-    it('matches all 57 unique native tools and advertises globals plus canvas capture', () => {
+    it('matches all 55 unique native tools and advertises globals plus canvas capture', () => {
         const names = TOOLS.map((tool) => tool.name);
         const nativeNames = nativeToolNames();
         const captureTools = TOOLS.filter((tool) => tool.name === 'rav_capture_canvas');
 
-        expect(names).toHaveLength(57);
-        expect(new Set(names).size).toBe(57);
-        expect(new Set(nativeNames).size).toBe(57);
+        expect(names).toHaveLength(55);
+        expect(new Set(names).size).toBe(55);
+        expect(new Set(nativeNames).size).toBe(55);
         expect([...names].sort()).toEqual([...nativeNames].sort());
         expect(names).toEqual(expect.arrayContaining(NEW_TOOL_NAMES));
+        expect(names).not.toEqual(expect.arrayContaining(['rav_get_sm_inputs', 'rav_set_sm_input']));
         expect(captureTools).toHaveLength(1);
         expect(captureTools[0].inputSchema).toEqual({
             additionalProperties: false,

@@ -223,6 +223,11 @@ describe('bounded UI overlay', () => {
         expect(invoke).toHaveBeenCalledWith('show_ui_overlay', expect.objectContaining({
             request: expect.objectContaining({ purpose: 'settings' }),
         }));
+        await expect(controller.resize({ height: 412, width: 680, x: 160, y: 120 })).resolves.toBe(true);
+        expect(invoke).toHaveBeenCalledWith('set_ui_overlay_bounds', {
+            epoch: 7,
+            bounds: { height: 412, width: 680, x: 160, y: 120 },
+        });
         const closeCallsBeforeStaleAction = invoke.mock.calls
             .filter(([command]) => command === 'close_ui_overlay').length;
         await listeners.get('ui-overlay:action')({

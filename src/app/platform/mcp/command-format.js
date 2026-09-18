@@ -80,9 +80,6 @@ export function formatResultSummary(command, result) {
     if (command === 'rav_get_event_log') {
         return `${result.returned}/${result.total} events`;
     }
-    if (command === 'rav_get_sm_inputs') {
-        return `${result.inputs?.length || 0} inputs`;
-    }
     if (result.artboards) {
         return result.artboards.join(', ') || 'none';
     }

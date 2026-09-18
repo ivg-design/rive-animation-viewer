@@ -1,4 +1,4 @@
-import { inspectNativeFile } from './native-metadata.js';
+import { createParserClient as createBundledParserClient } from './parser-client.js';
 
 function freezePlain(value) {
     if (value && typeof value === 'object') {
@@ -14,72 +14,106 @@ function abortError() {
     return error;
 }
 
-async function resolveRuntime(runtime) {
-    if (typeof runtime?.RuntimeLoader?.awaitInstance === 'function') return runtime.RuntimeLoader.awaitInstance();
-    if (typeof runtime?.RuntimeLoader?.getInstance === 'function') {
-        return new Promise((resolve) => runtime.RuntimeLoader.getInstance(resolve));
-    }
-    // Also accepts the low-level runtime, never a live Rive/RiveFile wrapper.
-    if (typeof runtime?.load === 'function' && typeof runtime?.StateMachineInstance === 'function') return runtime;
-    throw new Error('Independent Rive inspection is unavailable for this runtime.');
-}
-
-export function createInspectionService({ maxEntries = 8 } = {}) {
+export function createInspectionService({
+    createParserClient = createBundledParserClient,
+    maxEntries = 8,
+} = {}) {
     const cache = new Map();
+    const views = new Map();
     const pending = new Map();
+    const parserClient = createParserClient();
     const limit = Number.isInteger(maxEntries) && maxEntries > 0 ? maxEntries : 8;
     let generation = 0;
     let disposed = false;
-    const keyFor = (sourceIdentity, runtimeKey) => JSON.stringify([sourceIdentity, runtimeKey]);
+    const viewKeyFor = (sourceIdentity, runtimeKey) => JSON.stringify([sourceIdentity, runtimeKey]);
 
-    function inspect({ buffer, sourceIdentity, runtimeKey, runtime, signal } = {}) {
+    function viewFor(sourceIdentity, runtimeKey, base) {
+        const key = viewKeyFor(sourceIdentity, runtimeKey);
+        if (!views.has(key)) {
+            views.set(key, freezePlain({ sourceIdentity, runtimeKey, ...base }));
+        }
+        return views.get(key);
+    }
+
+    function trimCache() {
+        while (cache.size > limit) {
+            const expiredSource = cache.keys().next().value;
+            cache.delete(expiredSource);
+            [...views.keys()].forEach((key) => {
+                if (JSON.parse(key)[0] === expiredSource) views.delete(key);
+            });
+        }
+    }
+
+    function inspect({ buffer, filename = '', sourceIdentity, runtimeKey, signal } = {}) {
         if (disposed || signal?.aborted) return Promise.reject(abortError());
         if (!(buffer instanceof ArrayBuffer) || !buffer.byteLength || !sourceIdentity || !runtimeKey) {
             return Promise.reject(new Error('Inspection requires bytes, source identity, and a pinned runtime key.'));
         }
-        const key = keyFor(sourceIdentity, runtimeKey);
-        if (cache.has(key)) return Promise.resolve(cache.get(key));
+        if (cache.has(sourceIdentity)) {
+            return Promise.resolve(viewFor(sourceIdentity, runtimeKey, cache.get(sourceIdentity)));
+        }
         // Signal-bearing requests own cancellation independently of other callers.
-        if (!signal && pending.has(key)) return pending.get(key);
-        const copiedBytes = new Uint8Array(buffer.slice(0));
+        if (!signal && pending.has(sourceIdentity)) {
+            return pending.get(sourceIdentity).then((base) => viewFor(sourceIdentity, runtimeKey, base));
+        }
+        const copiedBuffer = buffer.slice(0);
         const epoch = generation;
         const assertCurrent = () => {
             if (disposed || signal?.aborted || epoch !== generation) throw abortError();
         };
         const operation = (async () => {
-            let file = null;
-            try {
-                const nativeRuntime = await resolveRuntime(runtime);
-                assertCurrent();
-                // A fresh parse is the isolation boundary. Do not use a player's
-                // file, RiveFile reference, or contents getter, even on failure.
-                file = await nativeRuntime.load(copiedBytes, undefined, false);
-                assertCurrent();
-                if (!file) throw new Error('Independent Rive inspection failed to parse the file.');
-                const result = freezePlain({ sourceIdentity, runtimeKey,
-                    artboards: inspectNativeFile(file, nativeRuntime, assertCurrent) });
-                assertCurrent();
-                return result;
-            } finally { file?.delete(); }
-        })().then((result) => {
+            const result = await parserClient.parse(copiedBuffer, { filename, signal });
             assertCurrent();
-            cache.set(key, result);
-            while (cache.size > limit) cache.delete(cache.keys().next().value);
-            return result;
+            return freezePlain(result);
+        })().then((base) => {
+            assertCurrent();
+            cache.set(sourceIdentity, base);
+            trimCache();
+            return base;
         });
         if (!signal) {
-            pending.set(key, operation);
-            const remove = () => { if (pending.get(key) === operation) pending.delete(key); };
+            pending.set(sourceIdentity, operation);
+            const remove = () => {
+                if (pending.get(sourceIdentity) === operation) pending.delete(sourceIdentity);
+            };
             operation.then(remove, remove);
         }
-        return operation;
+        return operation.then((base) => viewFor(sourceIdentity, runtimeKey, base));
     }
 
-    function clear() { generation += 1; cache.clear(); pending.clear(); }
+    // Complete parser output for an entitled caller. Never cached or frozen:
+    // it is large, per-request, and must not feed the normalized views.
+    function inspectFull({ buffer, filename = '', signal } = {}) {
+        if (disposed || signal?.aborted) return Promise.reject(abortError());
+        if (!(buffer instanceof ArrayBuffer) || !buffer.byteLength) {
+            return Promise.reject(new Error('Inspection requires file bytes.'));
+        }
+        return parserClient.parse(buffer.slice(0), { filename, raw: true, signal });
+    }
+
+    function clear() {
+        generation += 1;
+        cache.clear();
+        views.clear();
+        pending.clear();
+        parserClient.reset?.();
+    }
     return {
         inspect,
-        peek: (sourceIdentity, runtimeKey) => cache.get(keyFor(sourceIdentity, runtimeKey)) || null,
+        inspectFull,
+        peek: (sourceIdentity, runtimeKey) => {
+            const base = cache.get(sourceIdentity);
+            return base ? viewFor(sourceIdentity, runtimeKey, base) : null;
+        },
         clear,
-        dispose() { disposed = true; clear(); },
+        dispose() {
+            disposed = true;
+            generation += 1;
+            cache.clear();
+            views.clear();
+            pending.clear();
+            parserClient.dispose?.();
+        },
     };
 }

@@ -15,14 +15,25 @@ lag is separately reported by `resolved_settings.capture_clock.max_lag_ms`.
 
 Omitted or explicit-null `duration_seconds` means manual stop. A supplied duration
 must be finite and positive. Scheduled times must be strictly before it. There
-is no product duration ceiling. Disk space and actual device throughput remain
+is no product duration ceiling.
+
+`clock` selects how simulation frames become due. `live` tracks wall time:
+missing frames are rendered one by one to catch up and `capture_clock.max_lag_ms`
+reports how far behind the render fell. `offline` never consults wall time:
+every frame is due immediately, the recording renders as fast as capture allows
+(faster than real time on light files, slower on heavy ones), the timeline is
+exact, lag is always 0, and the canvas renders at exactly the output size so the
+file does not depend on the preview window. `offline` requires
+`duration_seconds`. Default: `offline` when `interactions` and `duration_seconds`
+are both supplied, otherwise `live`. Manual pointer or control input during an
+offline recording has no meaningful wall-time relationship to the output. Disk space and actual device throughput remain
 physical constraints; finite queues avoid memory growing with recording length.
 Hardware capture selection is internal, with no `capture_mode` MCP option.
 
 ```json
 {
   "format": "apng",
-  "duration_seconds": null,
+  "duration_seconds": 3,
   "interactions": [
     {"at_seconds":0,"type":"vm-set","descriptor":{"path":"enabled","kind":"boolean"},"value":true},
     {"at_seconds":0.5,"type":"vm-set","descriptor":{"path":"rows/0/label","kind":"string"},"value":"Leader"},
@@ -33,6 +44,9 @@ Hardware capture selection is internal, with no `capture_mode` MCP option.
   ]
 }
 ```
+
+The example above therefore records offline. Add `"clock": "live"` to keep
+wall-clock behaviour.
 
 The paths above are examples; obtain real paths and kinds from the selected
 fixture's VM tree. `descriptor.source` defaults to `view-model`. Nested and
@@ -59,6 +73,20 @@ must not exceed 32 MiB, and total estimated RGBA bytes (width × height × 4) mu
 not exceed 256 MiB. Unknown, nonpositive, fractional or unsafe dimensions fail
 preflight. Equality at either budget is allowed. These are image-preparation
 budgets, not duration limits or a guarantee of measured process/GPU memory.
+
+## Capture pipeline
+
+The renderer draws each simulation frame, takes a GPU `ImageBitmap` snapshot of
+the canvas, and hands it to a capture worker. Composition (background, cursor),
+`VideoFrame` construction, hardware video encoding and PNG compression run in
+workers; video uses one worker (a single encoder keeps timestamps ordered),
+lossless capture uses three with in-order delivery. The recording loop
+schedules itself: it renders a bounded batch, yields to the compositor, and
+repeats, so the visible canvas presents while capture runs and external
+wake-ups only end a wait early. Back-pressure is explicit: bounded in-flight
+frames, the encoder queue reported by the worker, and the native transport's
+byte budget. Native capture receipts are pushed to the host (`media-export:capture`,
+rate limited) so `captured_frames` is the live accepted count.
 
 ## Runtime and cleanup contract
 

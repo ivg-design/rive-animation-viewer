@@ -791,7 +791,8 @@ describe('platform/render-surface/protocol', () => {
         expect(relay.size()).toBe(1);
     });
 
-    it.each(['vm-fire', 'sm-fire'])('never retries an ambiguously timed-out %s command', async (type) => {
+    it('never retries an ambiguously timed-out vm-fire command', async () => {
+        const type = 'vm-fire';
         const send = vi.fn(async () => ({ applied: false, status: 'timeout' }));
         const results = [];
         const relay = createRenderSurfaceCommandRelay({

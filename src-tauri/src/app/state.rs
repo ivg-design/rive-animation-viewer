@@ -15,6 +15,8 @@ pub struct DemoBundlePayload {
     pub runtime_version: Option<String>,
     pub runtime_script: String,
     pub autoplay: bool,
+    #[serde(default)]
+    pub enable_gpu_canvas: bool,
     pub layout_alignment: String,
     pub layout_fit: String,
     pub state_machines: Vec<String>,

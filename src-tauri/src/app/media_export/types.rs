@@ -21,9 +21,14 @@ pub enum Format {
     Webm,
     Apng,
     Gif,
+    Prores,
     Png,
     Jpg,
     Webp,
+    #[serde(rename = "png-sequence")]
+    PngSequence,
+    #[serde(rename = "jpg-sequence")]
+    JpgSequence,
 }
 impl Format {
     pub fn extension(self) -> &'static str {
@@ -32,8 +37,9 @@ impl Format {
             Self::Webm => "webm",
             Self::Apng => "apng",
             Self::Gif => "gif",
-            Self::Png => "png",
-            Self::Jpg => "jpg",
+            Self::Prores => "mov",
+            Self::Png | Self::PngSequence => "png",
+            Self::Jpg | Self::JpgSequence => "jpg",
             Self::Webp => "webp",
         }
     }
@@ -44,16 +50,26 @@ impl Format {
             Self::Webm => "libvpx-vp9",
             Self::Apng => "apng",
             Self::Gif => "gif",
-            Self::Png => "png",
-            Self::Jpg => "mjpeg",
+            Self::Prores => "prores_ks",
+            Self::Png | Self::PngSequence => "png",
+            Self::Jpg | Self::JpgSequence => "mjpeg",
             Self::Webp => "libwebp",
         }
     }
     pub fn animated(self) -> bool {
         !matches!(self, Self::Png | Self::Jpg | Self::Webp)
     }
+    /// Only formats without an alpha channel are opaque; everything else keeps
+    /// transparency (GIF as binary transparency).
     pub fn alpha(self) -> bool {
-        !matches!(self, Self::H264 | Self::H265 | Self::Jpg)
+        !matches!(
+            self,
+            Self::H264 | Self::H265 | Self::Jpg | Self::JpgSequence
+        )
+    }
+    /// Sequence formats publish a directory of numbered frames, not a single file.
+    pub fn is_directory(self) -> bool {
+        matches!(self, Self::PngSequence | Self::JpgSequence)
     }
 }
 
@@ -94,7 +110,12 @@ pub fn suggested_output_file_name(format: Format, suggested_name: Option<&str>) 
     if safe.is_empty() {
         safe = "animation".into();
     }
-    format!("{safe}.{}", format.extension())
+    // Sequence formats publish a directory of frames, not a single extensioned file.
+    if format.is_directory() {
+        format!("{safe}-frames")
+    } else {
+        format!("{safe}.{}", format.extension())
+    }
 }
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]

@@ -4,11 +4,10 @@ function coalesceKey(type, payload = {}) {
     if (type === 'play' || type === 'pause') return 'playback';
     if (type === 'presentation') return 'presentation';
     if (type === 'reset') return 'reset';
+    if (type === 'watch-controls') return 'watch-controls';
     if (type === 'vm-image-set') return `${type}:${payload.source || 'view-model'}:${payload.globalViewModelName || ''}:${payload.path || ''}`;
-    if (type !== 'vm-set' && type !== 'sm-set') return null;
-    return type === 'sm-set'
-        ? `${type}:${payload.stateMachineName || ''}:${payload.name || ''}:${payload.kind || ''}`
-        : `${type}:${payload.source || 'view-model'}:${payload.globalViewModelName || ''}:${payload.path || ''}:${payload.kind || ''}`;
+    if (type !== 'vm-set') return null;
+    return `${type}:${payload.source || 'view-model'}:${payload.globalViewModelName || ''}:${payload.path || ''}:${payload.kind || ''}`;
 }
 
 export function createRenderSurfaceCommandBuffer({ onSupersede = () => {} } = {}) {
@@ -105,7 +104,7 @@ export function createRenderSurfaceCommandRelay({
             // delayed or lost. Buffered triggers are still delivered once the
             // child becomes available; only an already-attempted ambiguous
             // trigger is terminal.
-            const ambiguousTrigger = (type === 'vm-fire' || type === 'sm-fire')
+            const ambiguousTrigger = type === 'vm-fire'
                 && (status === 'timeout' || status === 'transport-error');
             const retryable = !delivered
                 && !ambiguousTrigger

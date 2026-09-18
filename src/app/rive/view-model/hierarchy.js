@@ -1,12 +1,10 @@
 import {
-    getStateMachineInputKind,
     getVmAccessor,
     getVmListItemAt,
     getVmListItemName,
     getVmListLength,
     safeVmMethodCall,
 } from './accessors.js';
-import { getStateMachineInputMetadata } from '../runtime-compatibility.js';
 
 export function countAllInputs(node) {
     let total = node.inputs ? node.inputs.length : 0;
@@ -185,70 +183,6 @@ export function buildVmHierarchy(rootVm, riveInstance = null, {
     const rootNode = walk(rootVm, vmName, '', 'vm');
     rootNode.totalInputs = totalInputs;
     return rootNode;
-}
-
-export function buildStateMachineHierarchy(riveInstance, runtime) {
-    if (!riveInstance || typeof riveInstance.stateMachineInputs !== 'function') {
-        return null;
-    }
-
-    const stateMachineNames = Array.isArray(riveInstance.stateMachineNames) ? riveInstance.stateMachineNames : [];
-    if (!stateMachineNames.length) {
-        return null;
-    }
-
-    const rootNode = {
-        children: [],
-        inputs: [],
-        kind: 'state-machines',
-        label: 'State Machines',
-        path: '__state_machines__',
-        totalInputs: 0,
-    };
-
-    stateMachineNames.forEach((stateMachineName) => {
-        if (getStateMachineInputMetadata(riveInstance, stateMachineName)?.length === 0) return;
-        let inputs = [];
-        try {
-            const resolved = riveInstance.stateMachineInputs(stateMachineName);
-            if (Array.isArray(resolved)) {
-                inputs = resolved;
-            }
-        } catch {
-            inputs = [];
-        }
-
-        const childNode = {
-            children: [],
-            inputs: [],
-            kind: 'state-machine',
-            label: stateMachineName,
-            path: `stateMachine/${stateMachineName}`,
-        };
-
-        inputs.forEach((input) => {
-            const inputKind = getStateMachineInputKind(input, runtime);
-            const inputName = typeof input?.name === 'string' && input.name ? input.name : null;
-            if (!inputKind || !inputName) {
-                return;
-            }
-
-            childNode.inputs.push({
-                kind: inputKind,
-                name: inputName,
-                path: `stateMachine/${stateMachineName}/${inputName}`,
-                source: 'state-machine',
-                stateMachineName,
-            });
-            rootNode.totalInputs += 1;
-        });
-
-        if (childNode.inputs.length) {
-            rootNode.children.push(childNode);
-        }
-    });
-
-    return rootNode.totalInputs > 0 ? rootNode : null;
 }
 
 export function stripNestedRootVmInputs(hierarchy) {

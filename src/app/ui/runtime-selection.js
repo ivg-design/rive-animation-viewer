@@ -5,6 +5,7 @@ export function createRuntimeSelectionController({ callbacks = {}, elements = {}
         ensureRuntime = async () => {},
         getCurrentRuntime = () => 'webgl2',
         logEvent = () => {},
+        onRuntimeChanged = () => {},
         refreshInfoStrip = () => {},
         reloadActiveAnimation = async () => {},
         setCurrentRuntime = () => {},
@@ -16,9 +17,13 @@ export function createRuntimeSelectionController({ callbacks = {}, elements = {}
     async function select(selected) {
         if (!selected) throw new Error('Runtime is required.');
         if (elements.runtimeSelect) elements.runtimeSelect.value = selected;
-        if (selected === getCurrentRuntime()) return { changed: false, runtime: selected };
+        if (selected === getCurrentRuntime()) {
+            onRuntimeChanged(selected);
+            return { changed: false, runtime: selected };
+        }
 
         setCurrentRuntime(selected);
+        onRuntimeChanged(selected);
         updateInfo(`Runtime changed to: ${getRuntimeDisplayName(selected)}`);
         refreshInfoStrip();
         updateVersionInfo('Loading runtime...');
@@ -30,6 +35,7 @@ export function createRuntimeSelectionController({ callbacks = {}, elements = {}
     }
 
     function setup() {
+        onRuntimeChanged(getCurrentRuntime());
         elements.runtimeSelect?.addEventListener('change', async (event) => {
             const selected = event.target.value;
             try {

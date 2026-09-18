@@ -1,4 +1,4 @@
-//! Native media boundary. Register these eight commands.
+//! Native media boundary. Register these nine commands.
 mod discovery;
 mod encode;
 mod gif;
@@ -12,9 +12,10 @@ mod verify;
 pub use discovery::{DistributionComponent, DistributionMetadata, EncoderConfig, TrustedBinary};
 use jobs::Backend;
 use rfd::AsyncFileDialog;
+pub use spool::output_state::{OutputState, OutputStateRequest};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
-use tauri::{State, Window};
+use tauri::{Emitter, State, Window};
 
 use crate::app::state::NativeDialogState;
 pub use types::{
@@ -25,6 +26,7 @@ static CONFIG: Mutex<Option<EncoderConfig>> = Mutex::new(None);
 static BACKEND: OnceLock<Arc<Backend>> = OnceLock::new();
 static BACKEND_INIT: Mutex<()> = Mutex::new(());
 static FRAME_SLOT: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(1);
+pub const MEDIA_EXPORT_STATUS_EVENT: &str = "media-export:status";
 
 /// Call once before any command, with release-managed absolute paths and approved SHA-256s.
 /// This verifies file identity; it does not establish redistribution/license compliance.
@@ -53,6 +55,12 @@ pub async fn media_export_capabilities() -> types::Result<serde_json::Value> {
     blocking(|| Ok(backend()?.capabilities())).await
 }
 
+/// UI-only, read-only preflight; unattended begin semantics remain unchanged.
+#[tauri::command]
+pub async fn media_export_output_state(request: OutputStateRequest) -> types::Result<OutputState> {
+    blocking(move || spool::output_state::inspect(request)).await
+}
+
 fn output_path(path: &Path, format: types::Format) -> PathBuf {
     let accepted = path
         .extension()
@@ -77,6 +85,25 @@ async fn choose_output_path(
     let _lease = dialog_state.try_acquire()?;
     let suggested =
         types::suggested_output_file_name(request.format, request.suggested_name.as_deref());
+    // Sequence formats publish a directory of frames; the destination is a folder,
+    // not a single extensioned file, so the picker chooses a folder to create/select.
+    if request.format.is_directory() {
+        let selected = AsyncFileDialog::new()
+            .set_title("Choose a destination folder")
+            .set_file_name(&suggested)
+            .set_parent(window)
+            .pick_folder()
+            .await;
+        return selected
+            .map(|handle| {
+                handle
+                    .path()
+                    .to_str()
+                    .map(str::to_string)
+                    .ok_or_else(|| "Output path must be UTF-8".to_string())
+            })
+            .transpose();
+    }
     let selected = AsyncFileDialog::new()
         .set_title("Save media")
         .set_file_name(&suggested)
@@ -139,8 +166,11 @@ pub async fn media_export_frame(request: FrameRequest) -> types::Result<Job> {
     result
 }
 #[tauri::command]
-pub async fn media_export_finish(request: FinishRequest) -> types::Result<Job> {
-    blocking(move || backend()?.finish(request)).await
+pub async fn media_export_finish(window: Window, request: FinishRequest) -> types::Result<Job> {
+    let notifier = Arc::new(move |job: Job| {
+        let _ = window.emit(MEDIA_EXPORT_STATUS_EVENT, job);
+    });
+    blocking(move || backend()?.finish_with_notifier(request, Some(notifier))).await
 }
 #[tauri::command]
 pub async fn media_export_cancel(request: JobRequest) -> types::Result<Job> {

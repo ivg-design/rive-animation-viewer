@@ -4,14 +4,11 @@ import {
 } from '../../core/constants.js';
 import { createReactiveVmSubscriptionSession } from './reactive-subscriptions.js';
 import { syncVmBindings } from './ui/binding-sync.js';
-
 const REACTIVE_VALUE_KINDS = new Set(['boolean', 'color', 'enum', 'number', 'string']);
-
 function scheduleVmUiFlush(callback) {
     const timeoutId = globalThis.setTimeout(callback, VM_CONTROL_SYNC_INTERVAL_MS);
     return () => globalThis.clearTimeout(timeoutId);
 }
-
 function bindingElement(binding) {
     return binding.input
         || binding.colorInput
@@ -20,7 +17,6 @@ function bindingElement(binding) {
         || binding.clearButton
         || binding.browseButton;
 }
-
 export function createVmSyncCoordinator({
     clearIntervalFn = globalThis.clearInterval,
     documentRef = globalThis.document,
@@ -56,7 +52,6 @@ export function createVmSyncCoordinator({
         }
         return !elements.mainGrid?.classList.contains('right-hidden');
     }
-
     function filterVisibleBindings(bindings = getBindings()) {
         if (!areControlsVisible()) {
             return [];
@@ -65,7 +60,6 @@ export function createVmSyncCoordinator({
             !bindingElement(binding)?.closest?.('details.vm-section:not([open])')
         ));
     }
-
     function stopPolling() {
         if (pollingTimer) {
             clearIntervalFn(pollingTimer);
@@ -73,7 +67,6 @@ export function createVmSyncCoordinator({
         }
         topologyElapsedMs = 0;
     }
-
     function stopReactive() {
         if (reactiveSession) {
             reactiveSession.cleanup();
@@ -97,7 +90,7 @@ export function createVmSyncCoordinator({
 
     function isBindingEditing(binding) {
         const activeElement = documentRef?.activeElement;
-        if (binding.kind === 'number' || binding.kind === 'string') {
+        if (binding.kind === 'enum' || binding.kind === 'number' || binding.kind === 'string') {
             return activeElement === binding.input;
         }
         if (binding.kind === 'color') {
@@ -141,6 +134,33 @@ export function createVmSyncCoordinator({
         });
         if (readyBindings.length) {
             syncBindingsWithEventValues(readyBindings, valueOverrides);
+        }
+    }
+
+    function syncChangedBindings(bindings) {
+        if (!Array.isArray(bindings) || !bindings.length) {
+            return;
+        }
+        if (!areControlsVisible()) {
+            valuesDirty = true;
+            return;
+        }
+        valuesDirty = false;
+        const currentBindings = new Set(getBindings());
+        const readyBindings = filterVisibleBindings(bindings).filter((binding) => {
+            if (!currentBindings.has(binding)) {
+                deferredBindings.delete(binding);
+                return false;
+            }
+            if (isBindingEditing(binding)) {
+                deferredBindings.add(binding);
+                return false;
+            }
+            deferredBindings.delete(binding);
+            return true;
+        });
+        if (readyBindings.length) {
+            syncBindings(readyBindings);
         }
     }
 
@@ -216,6 +236,10 @@ export function createVmSyncCoordinator({
                 deferredBindings.delete(binding);
             }
         });
+        if (syncMode === 'event') {
+            stopPolling();
+            return;
+        }
         const visibleBindings = filterVisibleBindings(bindings)
             .filter((binding) => REACTIVE_VALUE_KINDS.has(binding.kind));
         const visibleBindingSet = new Set(visibleBindings);
@@ -346,6 +370,8 @@ export function createVmSyncCoordinator({
             valueStrategy = 'hybrid';
         } else if (hasReactiveValues || syncMode === 'reactive') {
             valueStrategy = 'reactive';
+        } else if (syncMode === 'event') {
+            valueStrategy = 'event';
         }
         return {
             fallbackBindingCount: fallbackBindings.length,
@@ -366,6 +392,7 @@ export function createVmSyncCoordinator({
         getDiagnostics,
         refresh,
         reset,
+        syncChangedBindings,
         stopPolling,
         stopReactive,
     };

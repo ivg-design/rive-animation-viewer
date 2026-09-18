@@ -45,14 +45,12 @@ export function createRenderSurfaceEventRelay({
         const detail = event?.detail;
         const descriptor = detail?.descriptor;
         if (!descriptor || !detail?.kind) return;
-        const isStateMachine = descriptor.source === 'state-machine';
+        if (descriptor.source === 'state-machine') return;
         const isTrigger = detail.action === 'fire' || detail.kind === 'trigger';
         const isImage = detail.kind === 'image';
         const command = isImage
             ? 'vm-image-set'
-            : (isStateMachine
-                ? (isTrigger ? 'sm-fire' : 'sm-set')
-                : (isTrigger ? 'vm-fire' : 'vm-set'));
+            : (isTrigger ? 'vm-fire' : 'vm-set');
         const payload = {
             ...descriptor,
             ...(isImage ? { action: detail.action } : {}),

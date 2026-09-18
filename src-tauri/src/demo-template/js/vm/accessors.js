@@ -154,95 +154,11 @@
             return resolveVmAccessorFromRoot(resolveGlobalVmRootInstance(globalViewModelName), path, expectedKind);
         }
 
-        function getStateMachineInputKind(input) {
-            if (!input || typeof input !== 'object') return null;
-            var runtimeInputTypes = typeof rive !== 'undefined' ? rive && rive.StateMachineInputType : null;
-            var inputType = typeof input.type === 'number' ? input.type : null;
-            if (runtimeInputTypes && inputType !== null) {
-                if (inputType === runtimeInputTypes.Boolean) return 'boolean';
-                if (inputType === runtimeInputTypes.Number) return 'number';
-                if (inputType === runtimeInputTypes.Trigger) return 'trigger';
-            }
-
-            var rawInputTypes = typeof rive !== 'undefined' ? rive && rive.SMIInput : null;
-            if (rawInputTypes && inputType !== null) {
-                if (inputType === rawInputTypes.bool) return 'boolean';
-                if (inputType === rawInputTypes.number) return 'number';
-                if (inputType === rawInputTypes.trigger) return 'trigger';
-            }
-
-            var constructorName = typeof input.constructor && typeof input.constructor.name === 'string'
-                ? input.constructor.name.toLowerCase()
-                : '';
-            if (constructorName.includes('bool')) return 'boolean';
-            if (constructorName.includes('number')) return 'number';
-            if (constructorName.includes('trigger')) return 'trigger';
-            if (typeof input.value === 'boolean') return 'boolean';
-            if (typeof input.value === 'number') return 'number';
-            if (typeof input.fire === 'function' && !('value' in input)) return 'trigger';
-            return null;
-        }
-
-        function resolveStateMachineInputAccessor(stateMachineName, inputName, expectedKind) {
-            if (!riveInstance || typeof riveInstance.stateMachineInputs !== 'function' || !stateMachineName || !inputName) {
-                return null;
-            }
-            var metadata = runtimeCompatibility.getStateMachineInputMetadata(riveInstance, stateMachineName);
-            if (Array.isArray(metadata) && !metadata.some(function (input) { return input && input.name === inputName; })) {
-                return null;
-            }
-            try {
-                var inputs = riveInstance.stateMachineInputs(stateMachineName);
-                if (!Array.isArray(inputs)) return null;
-                var input = inputs.find(function (candidate) { return candidate && candidate.name === inputName; });
-                if (!input) return null;
-                var detectedKind = getStateMachineInputKind(input);
-                if (expectedKind && detectedKind !== expectedKind) return null;
-                return input;
-            } catch (e) {
-                return null;
-            }
-        }
-
         function resolveControlAccessor(descriptor) {
-            if (descriptor && descriptor.source === 'state-machine') {
-                return resolveStateMachineInputAccessor(descriptor.stateMachineName, descriptor.name, descriptor.kind);
-            }
             if (descriptor && descriptor.source === 'global-view-model') {
                 return resolveGlobalVmAccessor(descriptor.globalViewModelName, descriptor.path, descriptor.kind);
             }
             return resolveLiveAccessor(descriptor.path, descriptor.kind);
-        }
-
-        function fireStateMachineTriggerByName(triggerName) {
-            if (!riveInstance || typeof riveInstance.stateMachineInputs !== 'function' || !triggerName) return 0;
-
-            var stateMachineNames = Array.isArray(riveInstance.stateMachineNames) ? riveInstance.stateMachineNames : [];
-            var firedCount = 0;
-
-            stateMachineNames.forEach(function (smName) {
-                var metadata = runtimeCompatibility.getStateMachineInputMetadata(riveInstance, smName);
-                if (Array.isArray(metadata) && !metadata.some(function (input) {
-                    return input && input.name === triggerName;
-                })) {
-                    return;
-                }
-                var inputs = [];
-                try {
-                    var resolved = riveInstance.stateMachineInputs(smName);
-                    if (Array.isArray(resolved)) inputs = resolved;
-                } catch (e) { inputs = []; }
-
-                inputs.forEach(function (input) {
-                    if (!input || input.name !== triggerName || getStateMachineInputKind(input) !== 'trigger' || typeof input.fire !== 'function') return;
-                    try {
-                        input.fire();
-                        firedCount++;
-                    } catch (e) { /* noop */ }
-                });
-            });
-
-            return firedCount;
         }
 
         /* ── Dynamic VM hierarchy discovery (fallback) ───────── */

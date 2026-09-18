@@ -11,10 +11,8 @@ export {
 
 export function createFileSessionController({
     callbacks = {},
-    clearTimeoutFn = globalThis.clearTimeout,
     documentRef = globalThis.document,
     elements,
-    setTimeoutFn = globalThis.setTimeout,
     urlApi = globalThis.URL,
     windowRef = globalThis.window,
 } = {}) {
@@ -239,13 +237,11 @@ export function createFileSessionController({
     });
 
     const openedFileQueue = createOpenedFileQueue({
-        clearTimeoutFn,
         ensureTauriBridge,
         getTauriEventListener,
         getTauriInvoker,
         isTauriEnvironment,
         loadRivFromPath,
-        setTimeoutFn,
     });
 
     function dispose() {
@@ -326,7 +322,6 @@ export function createFileSessionController({
         setupDragAndDrop,
         setupFileInput,
         setupTauriOpenFileListener: openedFileQueue.setupListener,
-        startOpenedFilePolling: openedFileQueue.startPolling,
         updateFileTriggerButton,
     };
 }

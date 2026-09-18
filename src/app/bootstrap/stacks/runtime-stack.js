@@ -34,6 +34,7 @@ export function createRuntimeStack({
             logEvent,
             reloadCurrentAnimation: callbacks.refreshCurrentState,
             refreshInfoStrip,
+            shouldEvaluateRuntime: () => !callbacks.isTauriEnvironment?.(),
             showError,
             updateVersionInfo,
         },
@@ -48,7 +49,7 @@ export function createRuntimeStack({
 
     const inspectionController = createRuntimeInspectionController({
         getCurrentFileBuffer: callbacks.getCurrentFileBuffer,
-        getCurrentFilePreferenceId, getCurrentRuntime,
+        getCurrentFileName, getCurrentFilePreferenceId, getCurrentRuntime,
         getCurrentRuntimeVersion: runtimeLoaderController.getCurrentRuntimeVersion,
     });
     return {

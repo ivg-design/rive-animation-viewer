@@ -1,9 +1,17 @@
 export const FORMATS = {
     png: 'PNG', jpg: 'JPG', webp: 'WebP', h264: 'H.264 / MP4',
     h265: 'H.265 / MP4', webm: 'WebM / VP9', apng: 'APNG', gif: 'GIF',
+    prores: 'ProRes 4444 (.mov)', 'png-sequence': 'PNG sequence', 'jpg-sequence': 'JPG sequence',
 };
 export const STILL_FORMATS = ['png', 'jpg', 'webp'];
-export const ANIMATED_FORMATS = ['h264', 'h265', 'webm', 'apng', 'gif'];
+export const ANIMATED_FORMATS = ['h264', 'h265', 'webm', 'apng', 'gif', 'prores', 'png-sequence', 'jpg-sequence'];
+export const isSequenceFormat = (format) => ['png-sequence', 'jpg-sequence'].includes(format);
+export const needsOutputConfirmation = (options, state) => isSequenceFormat(options?.format)
+    && !!options.output_path && options.overwrite !== true
+    && state?.exists === true && state?.is_dir === true && state?.empty === false;
+export const isOutputDirectoryConflict = (failure, options) => isSequenceFormat(options?.format)
+    && options.overwrite !== true
+    && String(failure?.message || failure).includes('Output directory exists and is not empty');
 export const isBusyJob = (job) => ['preparing', 'capturing', 'encoding'].includes(job?.state);
 export const isRecording = (job) => job?.recording && ['preparing', 'capturing'].includes(job.state);
 export const formatCapability = (caps, format) => caps?.formats?.find((item) => item.id === format);
@@ -83,8 +91,8 @@ export function mediaOptions(draft, info, caps) {
     const options = { format: draft.format, mode: still ? 'still' : 'timeline',
         alpha: draft.alpha === true, background: draft.background,
         cursor: draft.cursor === true };
-    // PNG/APNG are lossless; do not forward a hidden, inapplicable quality value.
-    if (!['png', 'apng'].includes(draft.format)) options.quality = Number(draft.quality);
+    // PNG/APNG/PNG-sequence are lossless; do not forward a hidden, inapplicable quality value.
+    if (!['png', 'apng', 'png-sequence'].includes(draft.format)) options.quality = Number(draft.quality);
     if (options.alpha && !supportsAlpha(caps, draft.format)) throw new Error('This encoder does not support transparency.');
     for (const key of ['width', 'height']) {
         if (draft[key] !== '') options[key] = Number(draft[key]);
@@ -125,17 +133,4 @@ export function mediaOptions(draft, info, caps) {
         }
     }
     return options;
-}
-
-export function describeLimits(caps = {}) {
-    const limits = caps.limits || {};
-    return [
-        limits.disk_reserve_bytes && 'No time limit · limited by available disk space',
-        limits.max_edge && `${limits.max_edge}px maximum edge`,
-        limits.max_pixels && `${limits.max_pixels.toLocaleString()} pixels`,
-        limits.max_fps && `${limits.max_fps} FPS`,
-        limits.max_frames && `${limits.max_frames.toLocaleString()} frames`,
-        limits.max_duration_seconds && `${limits.max_duration_seconds}s per capture`,
-        limits.max_output_bytes && `${Math.round(limits.max_output_bytes / 1048576)} MiB output`,
-    ].filter(Boolean).join(' · ');
 }

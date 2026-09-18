@@ -86,7 +86,6 @@ describe('generated snippet runtime compatibility', () => {
     it('exposes only selected typed accessors without replaying captured values', () => {
         const score = { value: 7 };
         const headline = { value: 'Live' };
-        const progress = { name: 'progress', value: 0.25 };
         const ignored = { value: true };
         const descriptor = buildEffectiveInstantiationDescriptor({
             runtimeVersion: '2.41.1',
@@ -105,13 +104,6 @@ describe('generated snippet runtime compatibility', () => {
                 kind: 'string', value: 'Captured',
             },
             {
-                descriptor: {
-                    source: 'state-machine', stateMachineName: 'main-sm',
-                    kind: 'number', name: 'progress', path: 'progress',
-                },
-                kind: 'number', value: 1,
-            },
-            {
                 descriptor: { source: 'view-model', kind: 'boolean', name: 'ignored', path: 'ignored' },
                 kind: 'boolean', value: false,
             },
@@ -121,7 +113,6 @@ describe('generated snippet runtime compatibility', () => {
             selectedControlKeys: [
                 'vm:score:number',
                 'gvm:Labels:headline:string',
-                'sm:main-sm:progress:number',
             ],
         }, {
             resizeDrawingSurfaceToCanvas() {},
@@ -132,21 +123,19 @@ describe('generated snippet runtime compatibility', () => {
             globalViewModelInstance: (name) => (name === 'Labels'
                 ? { string: (path) => (path === 'headline' ? headline : null) }
                 : null),
-            stateMachineInputs: (name) => (name === 'main-sm' ? [progress] : []),
         });
 
         config.onLoad();
 
         expect(windowRef.riveProperties).toEqual({
             'globalViewModel/Labels/headline': headline,
-            'stateMachine/main-sm/progress': progress,
             'viewModel/score': score,
         });
         expect(score.value).toBe(7);
         expect(headline.value).toBe('Live');
-        expect(progress.value).toBe(0.25);
         expect(ignored.value).toBe(true);
         expect(code).not.toContain('viewModel/ignored');
+        expect(code).not.toContain('stateMachineInputs');
         expect(code).not.toContain('createRavWebController');
         expect(code).not.toContain('999');
         expect(new TextEncoder().encode(code).byteLength).toBeLessThan(4000);

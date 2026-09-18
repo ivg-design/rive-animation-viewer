@@ -304,6 +304,22 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Stage the file-inspection module
+        shell: bash
+        env:
+          RAV_PRIVATE_MODULES_URL: ${{ vars.RAV_PRIVATE_MODULES_URL }}
+          RAV_PRIVATE_MODULES_SHA256: ${{ vars.RAV_PRIVATE_MODULES_SHA256 }}
+          RAV_PRIVATE_MODULES_TOKEN: ${{ secrets.RAV_PRIVATE_MODULES_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$RAV_PRIVATE_MODULES_URL" || { echo "RAV_PRIVATE_MODULES_URL is not configured"; exit 1; }
+          test -n "$RAV_PRIVATE_MODULES_SHA256" || { echo "RAV_PRIVATE_MODULES_SHA256 is not configured"; exit 1; }
+          node scripts/private-modules.mjs acquire \
+            --url "$RAV_PRIVATE_MODULES_URL" \
+            --sha256 "$RAV_PRIVATE_MODULES_SHA256" \
+            --cache-dir "$RUNNER_TEMP/rav-private-modules"
+          node scripts/private-modules.mjs verify
+
       - name: Import the release signing identity and materialize the API key
         id: apple
         shell: bash
@@ -537,6 +553,22 @@ jobs:
 
       - name: Install npm dependencies
         run: npm ci
+
+      - name: Stage the file-inspection module
+        shell: bash
+        env:
+          RAV_PRIVATE_MODULES_URL: ${{ vars.RAV_PRIVATE_MODULES_URL }}
+          RAV_PRIVATE_MODULES_SHA256: ${{ vars.RAV_PRIVATE_MODULES_SHA256 }}
+          RAV_PRIVATE_MODULES_TOKEN: ${{ secrets.RAV_PRIVATE_MODULES_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$RAV_PRIVATE_MODULES_URL" || { echo "RAV_PRIVATE_MODULES_URL is not configured"; exit 1; }
+          test -n "$RAV_PRIVATE_MODULES_SHA256" || { echo "RAV_PRIVATE_MODULES_SHA256 is not configured"; exit 1; }
+          node scripts/private-modules.mjs acquire \
+            --url "$RAV_PRIVATE_MODULES_URL" \
+            --sha256 "$RAV_PRIVATE_MODULES_SHA256" \
+            --cache-dir "$RUNNER_TEMP/rav-private-modules"
+          node scripts/private-modules.mjs verify
 
       - name: Acquire and verify production encoders
         shell: pwsh

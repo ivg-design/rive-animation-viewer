@@ -4,7 +4,6 @@ import {
     DEFAULT_RUNTIME_VERSION_TOKEN,
     LATEST_RUNTIME_VERSION_TOKEN,
     FALLBACK_RUNTIME_VERSION_OPTIONS,
-    MIN_SCRIPTING_RUNTIME_VERSION,
     RUNTIME_CACHE_NAME,
     RUNTIME_FILE_VERSION_PREFS_STORAGE_KEY,
     RUNTIME_META_STORAGE_KEY,
@@ -23,10 +22,10 @@ import {
     getEffectiveRuntimeVersionToken as resolveEffectiveRuntimeVersionToken,
     getRuntimeCacheKey as buildRuntimeCacheKey,
     getRuntimeSourceUrl as buildRuntimeSourceUrl,
-    isSemverAtLeast,
     normalizeFileRuntimePreferenceId,
     normalizeRuntimeVersionToken,
 } from './runtime-utils.js';
+import { createRuntimeWarningReporter } from './warnings.js';
 
 export { fetchRuntimeVersionOptions, resolveRuntimeSource, responseToRuntimeAsset } from './assets.js';
 
@@ -67,6 +66,7 @@ export function createRuntimeLoaderController({
         logEvent = () => {},
         reloadCurrentAnimation = null,
         refreshInfoStrip = () => {},
+        shouldEvaluateRuntime = () => true,
         showError = () => {},
         updateVersionInfo = () => {},
     } = callbacks;
@@ -260,7 +260,9 @@ export function createRuntimeLoaderController({
         );
 
         try {
-            await ensureRuntime(getCurrentRuntime());
+            await (shouldEvaluateRuntime()
+                ? ensureRuntime(getCurrentRuntime())
+                : ensureRuntimeAsset(getCurrentRuntime()));
             if (mutationId !== runtimeVersionMutationId) {
                 return;
             }
@@ -319,35 +321,12 @@ export function createRuntimeLoaderController({
         windowRef,
     });
 
-    function warnIfRuntimeLacksScripting(runtimeName) {
-        const cacheKey = getRuntimeCacheKey(runtimeName);
-        const version = runtimeVersions[cacheKey] || runtimeRegistry[cacheKey]?.version;
-        if (!version || isSemverAtLeast(version, MIN_SCRIPTING_RUNTIME_VERSION)) {
-            return;
-        }
-        const warningKey = `${runtimeName}@${version}`;
-        if (runtimeWarningsShown.has(warningKey)) {
-            return;
-        }
-        runtimeWarningsShown.add(warningKey);
-        showError(`Runtime ${runtimeName}@${version} is below ${MIN_SCRIPTING_RUNTIME_VERSION}; VM scripting may be unavailable.`);
-    }
-
-    function warnIfRuntimeHasAuthoredLayoutRisk(runtimeName) {
-        const cacheKey = getRuntimeCacheKey(runtimeName);
-        const version = runtimeVersions[cacheKey] || runtimeRegistry[cacheKey]?.version;
-        if (version !== '2.40.0') {
-            return;
-        }
-        const warningKey = `authored-layout:${runtimeName}@${version}`;
-        if (runtimeWarningsShown.has(warningKey)) {
-            return;
-        }
-        runtimeWarningsShown.add(warningKey);
-        const message = `Runtime ${runtimeName}@${version} has a known authored-layout regression that can displace nested images. Use 2.39.2 unless you are explicitly testing this runtime.`;
-        showError(message);
-        logEvent('native', 'runtime-layout-risk', message);
-    }
+    const { warnIfRuntimeHasAuthoredLayoutRisk, warnIfRuntimeLacksScripting } = createRuntimeWarningReporter({
+        getRuntimeVersion,
+        logEvent,
+        runtimeWarningsShown,
+        showError,
+    });
 
     async function ensureRuntime(runtimeName) {
         // Resolve "latest" before choosing a cache key. MCP can open a file
@@ -361,6 +340,18 @@ export function createRuntimeLoaderController({
             updateVersionInfo();
         }
         return runtime;
+    }
+
+    async function ensureRuntimeAsset(runtimeName) {
+        // Desktop playback evaluates this source only inside the isolated
+        // renderer. Keeping asset preparation separate prevents the main UI
+        // WebView from loading a second WASM runtime that never draws.
+        await setupRuntimeVersionPicker();
+        const asset = await runtimeAssetLoader.prepareRuntimeAsset(runtimeName);
+        warnIfRuntimeLacksScripting(runtimeName);
+        warnIfRuntimeHasAuthoredLayoutRisk(runtimeName);
+        if (runtimeName === getCurrentRuntime()) updateVersionInfo();
+        return asset;
     }
 
     const setupRuntimeVersionPicker = createRuntimeVersionPickerController({
@@ -380,6 +371,7 @@ export function createRuntimeLoaderController({
         applyRuntimeVersionToken,
         applyStoredRuntimeVersionForCurrentFile,
         ensureRuntime,
+        ensureRuntimeAsset,
         getCurrentRuntimeSource,
         getCurrentRuntimeVersion,
         getEffectiveRuntimeVersionToken,

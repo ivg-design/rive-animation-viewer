@@ -10,7 +10,7 @@ use crate::app::mcp::bridge::{
     initialize_mcp_bridge, kill_spawned_mcp_bridge, refresh_mcp_client_launcher_if_present,
 };
 use crate::app::operational_trace::{file_basename, record, OperationalTrace};
-use crate::app::render_surface::RenderSurfaceManager;
+use crate::app::render_surface::{NativeFrameClock, RenderSurfaceManager};
 use crate::app::state::{McpBridgeManager, NativeDialogState, OpenedFiles, PendingAppUpdate};
 use crate::app::support::{
     extract_opened_riv_file_args, extract_opened_riv_file_args_from_iter, looks_like_riv_file,
@@ -75,6 +75,7 @@ fn main() {
         .manage(PendingAppUpdate::default())
         .manage(NativeDialogState::default())
         .manage(RenderSurfaceManager::default())
+        .manage(NativeFrameClock::default())
         .manage(UiOverlayManager::default())
         .manage(updater_acceptance)
         .manage(telemetry_acceptance)
@@ -134,7 +135,7 @@ fn main() {
             } else if isolated_dev_instance {
                 main_window_builder = main_window_builder
                     .incognito(true)
-                    .initialization_script("window.__RAV_ISOLATED_DEV__ = true;");
+                    .initialization_script(app::constants::isolated_dev_initialization_script());
             }
             let main_window = main_window_builder.build()?;
             record(app.handle(), "main_window.created", serde_json::json!({ "label": "main" }));
@@ -239,6 +240,7 @@ fn main() {
             app::node_runtime::detect_node_runtime,
             app::media_export::media_export_capabilities,
             app::media_export::media_export_choose_path,
+            app::media_export::media_export_output_state,
             app::media_export::media_export_begin,
             app::media_export::media_export_frame,
             app::media_export::media_export_finish,
@@ -255,9 +257,13 @@ fn main() {
             app::render_surface::activate_render_surface,
             app::render_surface::discard_render_surface,
             app::render_surface::send_render_surface_message,
+            app::render_surface::set_render_surface_frame_clock,
+            app::entitlement::entitlement_machine_id,
+            app::entitlement::entitlement_verify,
             app::ui_overlay::show_ui_overlay,
             app::ui_overlay::restack_ui_overlay,
             app::ui_overlay::update_ui_overlay_state,
+            app::ui_overlay::set_ui_overlay_bounds,
             app::ui_overlay::close_ui_overlay,
             app::ui_overlay::acknowledge_ui_overlay_adopted,
             app::ui_overlay::ui_overlay_ready,

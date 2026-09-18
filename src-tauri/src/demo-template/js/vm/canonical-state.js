@@ -65,7 +65,6 @@
                     path: descriptor.path,
                     source: descriptor.source,
                     globalViewModelName: descriptor.globalViewModelName,
-                    stateMachineName: descriptor.stateMachineName,
                     values: descriptor.kind === 'enum' ? readEnumValues(accessor) : [],
                 };
                 var binding = { accessor: accessor, descriptor: descriptor, key: key, kind: descriptor.kind };
@@ -106,10 +105,14 @@
             bridgeState.controlBindingIndex = new Map();
             resetRenderSurfaceControlObserver(bridgeState);
             var rootVm = resolveVmRootInstance();
-            var vmHierarchy = rootVm ? filterHierarchyNode(buildVmHierarchy(rootVm)) : null;
+            var vmHierarchy = rootVm ? filterHierarchyNode(
+                buildVmHierarchyFromInspection(rootVm) || buildVmHierarchy(rootVm)
+            ) : null;
             var globalVmHierarchies = getGlobalViewModelNames().map(function (name) {
                 var instance = resolveGlobalVmRootInstance(name);
-                return instance ? filterHierarchyNode(buildVmHierarchy(instance, name)) : null;
+                return instance ? filterHierarchyNode(
+                    buildVmHierarchyFromInspection(instance, name) || buildVmHierarchy(instance, name)
+                ) : null;
             }).filter(Boolean);
             var globalVmGroup = globalVmHierarchies.length ? {
                 label: 'Global VM',
@@ -118,13 +121,12 @@
                 inputs: [],
                 children: globalVmHierarchies,
             } : null;
-            var smHierarchy = filterHierarchyNode(buildStateMachineHierarchy());
             return {
                 label: 'Controls',
                 path: '<controls>',
                 kind: 'controls',
                 inputs: [],
-                children: [globalVmGroup, vmHierarchy, smHierarchy]
+                children: [globalVmGroup, vmHierarchy]
                     .filter(Boolean)
                     .map(function (node) { return canonicalizeControlHierarchyNode(node, bridgeState); }),
             };
@@ -255,9 +257,7 @@
         // remains responsible for unrelated runtime changes.
         function captureRenderSurfaceCommandCanonicalDelta(command, result) {
             var type = String(command && (command.type || command.command) || '').toLowerCase();
-            var targetedControl = type === 'vm-set' || type === 'vm-fire'
-                || type === 'sm-set' || type === 'sm-fire'
-                || type === 'vm-image-set';
+            var targetedControl = type === 'vm-set' || type === 'vm-fire' || type === 'vm-image-set';
             var lightweightState = type === 'snapshot' || type === 'presentation'
                 || type === 'activate-callbacks' || type === 'prepare-frame'
                 || type === 'reset' || type === 'play' || type === 'pause' || type === 'scrub';
@@ -289,7 +289,7 @@
             }
             var descriptor = normalizeControlDescriptor(result.descriptor || payload.descriptor || payload);
             if (!descriptor) return null;
-            if (type === 'vm-fire' || type === 'sm-fire') descriptor.kind = 'trigger';
+            if (type === 'vm-fire') descriptor.kind = 'trigger';
             if (type === 'vm-image-set') descriptor.kind = 'image';
             var key = controlSnapshotKeyForDescriptor(descriptor);
             if (!key) return null;

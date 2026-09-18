@@ -7,6 +7,7 @@ import { createRenderSurfaceAutoplayPolicy } from './controller/autoplay-policy.
 import { createRenderSurfaceBoundsSync } from './controller/bounds-sync.js';
 import { createRenderSurfaceLoadOperation } from './controller/load-operation.js';
 import { createRenderSurfaceLoadTracker } from './controller/load-tracker.js';
+import { createRenderSurfaceLivenessGuard } from './controller/liveness.js';
 import { createRenderSurfaceActivationLifecycle, registerRenderSurfaceControllerListeners } from './controller/listeners.js';
 import { buildRenderSurfaceState, createRenderSurfaceControllerState, createRenderSurfaceDisposer } from './controller/state.js';
 import { setRenderSurfaceFpsState } from './fps-indicator.js';
@@ -14,13 +15,10 @@ import { createRenderSurfaceImageReplayCache } from './image-replay-cache.js';
 import { createRenderSurfaceEventRelay, dispatchCanonicalTimelineProgress, dispatchTimelineProgressMetrics } from './event-relay.js';
 import { createRenderSurfaceFatalRecovery } from './fatal-recovery.js';
 import { createRenderSurfaceProtocol, RENDER_SURFACE_PROTOCOL_VERSION } from './protocol.js';
-import { createRenderSurfaceVisibilityController, observeBlockingMainUi } from './visibility.js';
+import { createRenderSurfaceVisibilityController, hasBlockingMainUi, observeBlockingMainUi } from './visibility.js';
 import { createRenderSurfaceCaptureSession } from './capture-router.js';
 export { measureRenderSurfaceBounds } from './bounds.js';
 const LOAD_TIMEOUT_MS = 15_000;
-// The native host retries one activation after 15 seconds. Once native child
-// creation succeeds, allow both bounded attempts plus teardown margin while
-// keeping preflight/context creation on the existing 15-second contract.
 const ACTIVATION_TIMEOUT_MS = 35_000;
 export const RENDER_SURFACE_AUTHORITY_EVENT = 'rav:render-surface-authority-change';
 export function createRenderSurfaceController({
@@ -38,19 +36,14 @@ export function createRenderSurfaceController({
         onCommandResult = () => {}, showError = () => {}, updateInfo = () => {} } = callbacks;
     let activeSessionId = null, activatingSessionId = null;
     let mutationObserver = null, resizeObserver = null, surfaceSessionId = null;
-    let disposed = false, isLoaded = false, isSetup = false, stagedReady = false, surfaceCreated = false;
-    let lastActivationFailure = null;
-    let fatalRecovery = null;
+    let disposed = false, isLoaded = false, isSetup = false, stagedReady = false, surfaceCreated = false, lastActivationFailure = null;
+    let fatalRecovery = null, renderSurfaceLiveness = null;
     const autoplayPolicy = createRenderSurfaceAutoplayPolicy();
     const imageReplayCache = createRenderSurfaceImageReplayCache({
         onOutcome: (outcome) => {
             if (!outcome?.status || ['cleared', 'replaced', 'replay-retained', 'stored'].includes(outcome.status)) return;
-            logEvent(
-                'native',
-                'render-surface-image-replay-cache',
-                `Image replay cache ${outcome.status}${outcome.path ? ` for ${outcome.path}` : ''}.`,
-                outcome,
-            );
+            logEvent('native', 'render-surface-image-replay-cache',
+                `Image replay cache ${outcome.status}${outcome.path ? ` for ${outcome.path}` : ''}.`, outcome);
         },
     });
     const unlistenCallbacks = [];
@@ -67,15 +60,24 @@ export function createRenderSurfaceController({
     const { handleCommandOverflow, publishAuthorityState } = controllerState;
     const invokeQuietly = (command, args = {}) => controllerState.invokeQuietly(command, args, getTauriInvoker);
     const boundsSync = createRenderSurfaceBoundsSync({
+        canFocusSync: () => !disposed && Boolean(activeSessionId) && isLoaded
+            && fatalRecovery.canAcceptCommands(),
         elements,
         hasSurface: () => surfaceCreated,
         invokeQuietly,
         isDisposed: () => disposed,
+        onResult: ({ applied, bounds }) => {
+            if (!applied) {
+                logEvent('native', 'render-surface-bounds-rejected', 'Unable to apply playback surface bounds.', bounds);
+            }
+        },
+        prepareFocusSync: () => syncNativeVisibility(),
         windowRef,
     });
     function handleCanonicalState(state) {
         onCanonicalState(state);
         dispatchCanonicalTimelineProgress(documentRef, state);
+        renderSurfaceLiveness?.reconcile();
     }
     const protocol = createRenderSurfaceProtocol({
         canSend: (targetSessionId) => !disposed && (targetSessionId === activeSessionId
@@ -115,12 +117,22 @@ export function createRenderSurfaceController({
             publishAuthorityState();
         },
         onRecovering: () => {
+            renderSurfaceLiveness?.clear();
             isLoaded = false;
             setRenderSurfaceFpsState(documentRef, false);
             updateInfo('Playback surface interrupted; recovering.');
             void invokeQuietly('hide_render_surface');
             publishAuthorityState();
         },
+    });
+    renderSurfaceLiveness = createRenderSurfaceLivenessGuard({ documentRef, fatalRecovery,
+        getActiveSessionId: () => activeSessionId,
+        isDisposed: () => disposed,
+        isLoaded: () => isLoaded,
+        isSurfacePresented: () => !hasBlockingMainUi(documentRef, elements),
+        logEvent,
+        protocol,
+        windowRef,
     });
     const visibilityController = createRenderSurfaceVisibilityController({
         canShowMainCanvas: () => fatalRecovery.canShowNativeSurface(),
@@ -231,6 +243,7 @@ export function createRenderSurfaceController({
     const activateChildLoaded = createRenderSurfaceActivationHandler({
         activationCoordinator, autoplayPolicy, boundsSync, canReveal, documentRef, eventRelay,
         fatalRecovery, getControlSnapshot, imageReplayCache, invokeQuietly, loadTracker, logEvent,
+        onActivated: () => renderSurfaceLiveness.reconcile(),
         protocol, publishAuthorityState, rejectStagedSession,
         sessionState: {
             getActiveSessionId: () => activeSessionId,
@@ -291,6 +304,7 @@ export function createRenderSurfaceController({
             documentRef.dispatchEvent(new CustomEventCtor('rav:render-surface-pointerdown', { detail }));
         },
         onChildCapture: captureSession.handleResponse,
+        onChildMetrics: renderSurfaceLiveness.acceptMetrics,
         onChildTimeline: (metrics) => dispatchTimelineProgressMetrics(documentRef, metrics),
         protocol,
         rejectStagedSession,
@@ -322,6 +336,7 @@ export function createRenderSurfaceController({
         publishAuthorityState();
         documentRef?.addEventListener?.(RAV_ANIMATION_LOADED_EVENT, loadCurrentAnimation);
         eventRelay.setup();
+        boundsSync.setupFocusSync();
         windowRef?.addEventListener?.('resize', boundsSync.schedule);
         if (typeof ResizeObserverCtor === 'function' && elements.canvasContainer) {
             resizeObserver = new ResizeObserverCtor(boundsSync.schedule);
@@ -331,7 +346,7 @@ export function createRenderSurfaceController({
             documentRef,
             elements,
             MutationObserverCtor,
-            onChange: syncNativeVisibility,
+            onChange: () => void syncNativeVisibility().finally(() => renderSurfaceLiveness.reconcile()),
         });
         return true;
     }
@@ -342,6 +357,7 @@ export function createRenderSurfaceController({
         setFpsState: setRenderSurfaceFpsState, setLoaded: (value) => { isLoaded = value; },
         setMainCanvasVisible, unlistenCallbacks, windowRef });
     function dispose() {
+        renderSurfaceLiveness.dispose();
         captureSession.dispose();
         loadOperation.cancel();
         activationLifecycle.dispose();
@@ -367,8 +383,7 @@ export function createRenderSurfaceController({
         dispose,
         getCanonicalState: () => protocol.getState().canonicalState,
         getSourceScope: activationCoordinator.getActiveSourceScope,
-        // activateSession publishes its canonical baseline before the outer
-        // controller commits activeSessionId. Identify that publisher directly.
+        // Identify the canonical publisher before activeSessionId commits.
         getCanonicalSourceScope: () => activationCoordinator.getSourceScope(protocol.getState().canonicalState?.sessionId),
         getState,
         loadCurrentAnimation,
@@ -377,6 +392,7 @@ export function createRenderSurfaceController({
         requestActiveCommand,
         requestCommand: sendCommand,
         sendCommand,
+        setMediaCaptureActive: (active) => renderSurfaceLiveness.setSuspended(active),
         setup,
         syncBounds: boundsSync.sync,
     };

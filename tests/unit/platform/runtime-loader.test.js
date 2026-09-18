@@ -234,6 +234,36 @@ describe('platform/runtime-loader', () => {
         );
     });
 
+    it('prepares a desktop runtime asset without evaluating it in the main WebView', async () => {
+        const fetchImpl = vi.fn((url, options) => {
+            if (options?.method === 'HEAD') {
+                return Promise.resolve({
+                    ok: true,
+                    url: 'https://cdn.jsdelivr.net/npm/@rive-app/webgl2@2.35.0',
+                    headers: { get: () => '2.35.0' },
+                });
+            }
+            return Promise.resolve(new Response('window.rive = { version: "2.35.0" };', { status: 200 }));
+        });
+        const appendChildSpy = vi.spyOn(document.head, 'appendChild');
+        const harness = createHarness({
+            callbacks: { shouldEvaluateRuntime: () => false },
+            fetchImpl,
+        });
+        harness.setCurrentFile('blob:demo-riv', 'demo.riv', 'path:/tmp/demo.riv');
+
+        await harness.controller.applyRuntimeVersionToken('2.35.0', { source: 'preset' });
+
+        expect(appendChildSpy).not.toHaveBeenCalled();
+        expect(harness.controller.getLoadedRuntime('webgl2')).toBeNull();
+        expect(harness.controller.getRuntimeAsset('webgl2')).toEqual(expect.objectContaining({
+            resolvedUrl: 'https://cdn.jsdelivr.net/npm/@rive-app/webgl2@2.35.0',
+            version: '2.35.0',
+        }));
+        expect(harness.controller.getRuntimeSourceText('webgl2')).toContain('window.rive');
+        expect(harness.callbacks.loadRiveAnimation).toHaveBeenCalledWith('blob:demo-riv', 'demo.riv');
+    });
+
     it('reapplies stored file-scoped runtime versions without reloading the current file', async () => {
         const runtimeApi = { Rive: vi.fn(), version: '2.35.0' };
         const fetchImpl = vi.fn((url, options) => {

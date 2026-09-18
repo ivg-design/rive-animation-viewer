@@ -4,7 +4,7 @@ import path from 'node:path';
 const root = path.resolve(process.cwd());
 const read = (relativePath) => readFileSync(path.join(root, relativePath), 'utf8');
 
-describe('isolated 2.5.5 DEV build', () => {
+describe('isolated next-version DEV build', () => {
     it('uses a distinct app identity, frontend output, server, and MCP port', () => {
         const pkg = JSON.parse(read('package.json'));
         const production = JSON.parse(read('src-tauri/tauri.conf.json'));
@@ -12,11 +12,19 @@ describe('isolated 2.5.5 DEV build', () => {
         const nativeConstants = read('src-tauri/src/app/constants.rs');
         const devBuilder = read('scripts/build-dev-dist.mjs');
         const devServer = read('scripts/serve-dev.mjs');
+        const versionBump = read('scripts/bump-version.mjs');
+        const versionCheck = read('scripts/check-release-version.mjs');
 
-        expect(pkg.version).toBe('2.5.5');
+        expect(pkg.version).toBe('2.5.6');
         expect(production.version).toBe(pkg.version);
-        expect(dev.version).toBe(pkg.version);
-        expect(dev.productName).toBe('RAV 2.5.5 DEV');
+        const productionParts = pkg.version.split('.').map(Number);
+        const devParts = dev.version.split('.').map(Number);
+        expect(devParts.join('.')).toBe('2.5.7');
+        expect(devParts.some((part, index) => part !== productionParts[index])).toBe(true);
+        expect(dev.productName).toBe('RAV 2.5.7 DEV');
+        expect(dev.mainBinaryName).toBe('rav-2.5.7-dev');
+        expect(versionBump).toContain("bumpVersion(newVersion, 'patch')");
+        expect(versionCheck).toContain('must be newer than production');
         expect(dev.identifier).toBe('app.rive.animation.viewer.flicker-test');
         expect(dev.identifier).not.toBe(production.identifier);
         expect(dev.build.devUrl).toBe('http://localhost:1421');
@@ -41,6 +49,7 @@ describe('isolated 2.5.5 DEV build', () => {
         expect(read('scripts/build-dist.mjs')).toContain("'overlay.html'");
         expect(devBuilder).toContain("APP_BUILD_CHANNEL: 'dev'");
         expect(devBuilder).toContain("APP_DIST_DIR: 'dist-dev'");
+        expect(devBuilder).toContain('APP_VERSION: devVersion');
         expect(pkg.scripts.start).toContain('serve-dev.mjs --port 1420 --open');
         expect(pkg.scripts.serve).toContain('serve-dev.mjs --port 1420');
         expect(pkg.scripts['serve:dev']).toContain('serve-dev.mjs --port 1421');

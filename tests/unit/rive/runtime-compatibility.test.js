@@ -1,7 +1,7 @@
 import {
     setInspectionMetadata,
-    clearStateMachineInputMetadata,
-    getStateMachineInputMetadata,
+    clearInspectionMetadata,
+    getInspectionMetadata,
     getStateMachineNames,
     isModernRuntime,
     normalizePlaybackConfig,
@@ -41,23 +41,18 @@ describe('Rive runtime compatibility', () => {
             .toEqual({});
     });
 
-    it('uses only bound inspection metadata and never reads the live getter', () => {
+    it('stores inspection metadata without reading the live getter', () => {
         const contents = vi.fn(() => { throw new Error('live getter forbidden'); });
         const instance = { activeArtboard: 'Main', get contents() { return contents(); } };
         const metadata = { artboards: [
             { name: 'Main', stateMachines: [{ name: 'sm', inputs: [] }] },
             { name: 'Other', stateMachines: [{ name: 'sm', inputs: [{ name: 'legacy' }] }] },
         ] };
-        expect(getStateMachineInputMetadata(instance, 'sm')).toBeNull();
+        expect(getInspectionMetadata(instance)).toBeNull();
         setInspectionMetadata(instance, metadata);
-        for (let i = 0; i < 20; i++) expect(getStateMachineInputMetadata(instance, 'sm')).toEqual([]);
-        instance.activeArtboard = 'Other';
-        expect(getStateMachineInputMetadata(instance, 'sm')).toEqual([{ name: 'legacy' }]);
-        instance.activeArtboard = 'Absent';
-        expect(getStateMachineInputMetadata(instance, 'sm')).toBeNull();
-        clearStateMachineInputMetadata(instance);
-        instance.activeArtboard = 'Main';
-        expect(getStateMachineInputMetadata(instance, 'sm')).toBeNull();
+        for (let i = 0; i < 20; i++) expect(getInspectionMetadata(instance)).toBe(metadata);
+        clearInspectionMetadata(instance);
+        expect(getInspectionMetadata(instance)).toBeNull();
         expect(contents).not.toHaveBeenCalled();
     });
 });

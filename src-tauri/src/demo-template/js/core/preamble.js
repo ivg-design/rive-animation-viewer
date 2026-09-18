@@ -38,6 +38,10 @@
         const EVENT_LOG_LIMIT = 500;
         const VM_CONTROL_SYNC_INTERVAL_MS = 120;
         const VM_TOPOLOGY_SYNC_INTERVAL_MS = 1000;
+        // Floor for a render-surface canonical publish that requires a full
+        // topology walk (or the very first snapshot). Value-only deltas are
+        // no longer floored -- see canonical-publication.js.
+        const VM_TOPOLOGY_PUBLISH_FLOOR_MS = 120;
         const VM_DEPTH_COLORS = ['#C4F82A', '#38BDF8', '#A78BFA', '#FB923C', '#F472B6', '#34D399'];
         const ALLOWED_CONTROL_KEYS = new Set(
             (CONTROL_SELECTION_KEYS || CONTROL_SNAPSHOT.map(function (entry) {
@@ -77,22 +81,23 @@
         let pendingRenderSurfaceReset = null;
         let renderSurfaceUserCallbacksActive = !isRenderSurfaceMode;
         let pendingRenderSurfaceOnLoad = null;
+        let renderSurfaceQuiesced = false;
+        let renderSurfaceRenderingControlSeq = 0;
         // The visible renderer alone owns live image bytes.  Retain a copied
         // command per image path so an in-place reset never asks the hidden
         // parent to decode or recreate those images.
         let renderSurfaceImageSnapshot = new Map();
         let renderSurfaceAdvanceRevision = 0;
-        let lastFpsUpdate = 0;
-        let frameCount = 0;
+        let nativeFpsCounterGeneration = 0;
+        let nativeFpsCounterInstance = null;
         let isFallbackFullscreenMode = false;
         let loadedRiveRuntime = null;
+        let loadedAnimationUrl = null;
         const embeddedImageAssets = new Map();
 
         function controlSnapshotKeyForDescriptor(descriptor) {
             if (!descriptor) return null;
-            if (descriptor.source === 'state-machine') {
-                return 'sm:' + (descriptor.stateMachineName || '') + ':' + (descriptor.name || '') + ':' + (descriptor.kind || '');
-            }
+            if (descriptor.source === 'state-machine') return null;
             if (descriptor.source === 'global-view-model') {
                 return 'gvm:' + encodeURIComponent(descriptor.globalViewModelName || '') + ':' + (descriptor.path || '') + ':' + (descriptor.kind || '');
             }
@@ -101,17 +106,16 @@
 
         function controlSelectionKeyForDescriptor(descriptor) {
             if (!descriptor) return null;
-            if (descriptor.source === 'state-machine') return controlSnapshotKeyForDescriptor(descriptor);
             return normalizeControlSelectionKey(controlSnapshotKeyForDescriptor(descriptor));
         }
 
         function normalizeControlSelectionKey(key) {
             if (typeof key !== 'string') return null;
             var trimmed = key.trim();
-            if (trimmed.indexOf('vm:') !== 0 && trimmed.indexOf('gvm:') !== 0) return trimmed || null;
+            if (trimmed.indexOf('vm:') !== 0 && trimmed.indexOf('gvm:') !== 0) return null;
             var kindSeparator = trimmed.lastIndexOf(':');
             var pathStart = trimmed.indexOf('gvm:') === 0 ? trimmed.indexOf(':', 4) + 1 : 3;
-            if (kindSeparator <= pathStart) return trimmed || null;
+            if (kindSeparator <= pathStart) return null;
             var path = trimmed.slice(pathStart, kindSeparator)
                 .split('/')
                 .map(function (segment) { return /^(0|[1-9]\d*)$/.test(segment) ? '*' : segment; })
@@ -225,6 +229,19 @@
                 return Object.assign({}, entry, {
                     label: occurrence === 1 ? entry.name : entry.name + ' (' + occurrence + ')',
                 });
+            });
+        }
+
+        function getEmbeddedImageAssetCatalog() {
+            return getEmbeddedImageAssets().map(function (entry) {
+                return {
+                    extension: entry.extension,
+                    key: entry.key,
+                    label: entry.label,
+                    mimeType: entry.mimeType,
+                    name: entry.name,
+                    uniqueFilename: entry.uniqueFilename,
+                };
             });
         }
 

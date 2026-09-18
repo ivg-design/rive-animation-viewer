@@ -8,7 +8,7 @@ const number = (minimum, maximum) => ({ type: 'number', minimum, ...(maximum == 
 const string = () => ({ type: 'string' });
 const choice = (values) => ({ type: 'string', enum: values });
 const bool = () => ({ type: 'boolean' });
-const animated = ['h264', 'h265', 'webm', 'apng', 'gif'];
+const animated = ['h264', 'h265', 'webm', 'apng', 'gif', 'prores', 'png-sequence', 'jpg-sequence'];
 const formats = [...animated, 'png', 'jpg', 'webp'];
 const gif = object({ encoder: choice(['auto', 'gifski', 'ffmpeg']), quality: integer(1, 100),
     motion_quality: integer(1, 100), lossy_quality: integer(1, 100), repeat: integer(-1, 32767),
@@ -47,6 +47,7 @@ export const MEDIA_REQUEST_SCHEMAS = {
         start_frame: integer(0), end_frame: integer(1), at_seconds: number(0) }, ['format']),
     rav_record_start: object({ ...common, format: choice(animated),
         duration_seconds: { type: ['number', 'null'], exclusiveMinimum: 0 },
+        clock: choice(['live', 'offline']),
         interactions: { type: 'array', items: interaction } }, ['format']),
     rav_record_stop: object(), rav_media_status: object({ job_id: string() }), rav_media_cancel: object({ job_id: string() }),
     rav_step_frames: object({ frames: integer(1, 600), fps: number(1, 240) }),

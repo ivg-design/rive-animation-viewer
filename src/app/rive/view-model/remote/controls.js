@@ -5,14 +5,13 @@ function normalizeRemoteInput(input) {
         ? input.descriptor
         : input;
     const kind = input?.kind || descriptor?.kind;
-    if (!descriptor || !kind) return null;
+    if (!descriptor || !kind || descriptor.source === 'state-machine' || input?.source === 'state-machine') return null;
     return {
         kind,
         name: descriptor.name || input?.name || '',
         path: descriptor.path || input?.path || '',
         source: descriptor.source || input?.source,
         globalViewModelName: descriptor.globalViewModelName || input?.globalViewModelName,
-        stateMachineName: descriptor.stateMachineName || input?.stateMachineName,
         value: input?.value,
         present: Boolean(input?.present),
         receipt: Number(input?.receipt) || 0,

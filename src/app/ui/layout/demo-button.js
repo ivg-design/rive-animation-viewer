@@ -1,16 +1,12 @@
 export function createDemoButtonController({
     callbacks = {},
-    clearIntervalFn = globalThis.clearInterval,
     documentRef = globalThis.document,
     elements,
-    setIntervalFn = globalThis.setInterval,
     windowRef = globalThis.window,
 } = {}) {
     const {
         getTauriInvoker = () => null,
     } = callbacks;
-
-    let intervalId = null;
 
     function setup() {
         const button = elements.demoBundleButton || documentRef.getElementById('demo-bundle-btn');
@@ -29,27 +25,6 @@ export function createDemoButtonController({
         };
 
         refreshState();
-        if (intervalId) {
-            clearIntervalFn(intervalId);
-            intervalId = null;
-        }
-
-        let attempts = 0;
-        const maxAttempts = 20;
-        intervalId = setIntervalFn(() => {
-            refreshState();
-            if (getTauriInvoker()) {
-                clearIntervalFn(intervalId);
-                intervalId = null;
-                return;
-            }
-            attempts += 1;
-            if (attempts >= maxAttempts) {
-                clearIntervalFn(intervalId);
-                intervalId = null;
-            }
-        }, 300);
-
         windowRef.addEventListener(
             'tauri://ready',
             () => {
@@ -59,13 +34,7 @@ export function createDemoButtonController({
         );
     }
 
-    function dispose() {
-        if (!intervalId) {
-            return;
-        }
-        clearIntervalFn(intervalId);
-        intervalId = null;
-    }
+    function dispose() {}
 
     return {
         dispose,

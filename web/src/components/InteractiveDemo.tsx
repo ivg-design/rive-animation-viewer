@@ -57,7 +57,7 @@ const hotspots = [
   {
     id: "properties",
     label: "Properties",
-    description: "Auto-discovered ViewModel controls and state machine inputs. List rows resolve authored labels; each image property uses one full-width select with embedded rasters, Open file…, and Clear.",
+    description: "Auto-discovered ViewModel controls with state-machine playback targets. List rows resolve authored labels; each image property uses one full-width select with embedded rasters, Open file…, and Clear.",
     top: "15.079%", left: "75.976%", width: "18.935%", height: "77.619%",
   },
 ];

@@ -2,6 +2,10 @@ import { prepareAndActivateRenderSurface } from '../activation/transaction.js';
 import { setRenderSurfaceFpsState } from '../fps-indicator.js';
 import { RENDER_SURFACE_PROTOCOL_VERSION } from '../protocol.js';
 
+const RENDER_QUIESCE_ACK_TIMEOUT_MS = 500;
+let renderingControlSeq = 0;
+const nextRenderingControlSeq = () => ++renderingControlSeq;
+
 export function createRenderSurfaceActivationHandler({
     activationCoordinator,
     autoplayPolicy,
@@ -15,6 +19,7 @@ export function createRenderSurfaceActivationHandler({
     invokeQuietly,
     loadTracker,
     logEvent,
+    onActivated = () => {},
     protocol,
     publishAuthorityState,
     rejectStagedSession,
@@ -76,43 +81,69 @@ export function createRenderSurfaceActivationHandler({
                     sessionId, activePlayback, replacingActiveSurface
                         && activationCoordinator.canReplaySource(previousActiveSessionId, sessionId),
                 );
-                const transaction = await prepareAndActivateRenderSurface({
-                    // Bind the visibility decision to native activation. A settings
-                    // popover/dialog already open at this point must not be covered
-                    // by the candidate for even one native compositor frame.
-                    activate: async () => {
-                        if (!sessionState.isCurrentSession(sessionId)) return false;
-                        // A staged render child is newer than an already-open
-                        // bounded UI child. Recreate and await the overlay above
-                        // that candidate before the candidate can be revealed.
-                        // If no overlay is open this is an immediate no-op.
-                        if (!await invokeQuietly('restack_ui_overlay')) return false;
-                        if (!sessionState.isCurrentSession(sessionId)) return false;
-                        return invokeQuietly('activate_render_surface', { reveal: canReveal(), sessionId });
-                    },
-                    flushPendingCommands: replacingActiveSurface
-                        ? () => activationCoordinator.flushStage(sessionId)
-                        : activationCoordinator.flushQueued,
-                    getControlSnapshot: () => activationCoordinator.captureScopedSnapshot(getControlSnapshot),
-                    targetScope: activationCoordinator.getSourceScope(sessionId),
-                    getPresentationState: () => pendingPresentationState,
-                    isCurrentSession: () => sessionState.isCurrentSession(sessionId),
-                    pendingCommandCount: replacingActiveSurface
-                        ? activationCoordinator.pendingStage
-                        : activationCoordinator.pendingQueued,
-                    playbackCommand,
-                    recordImageReplayOutcome: (entry, result) => imageReplayCache.recordReplayOutcome(
-                        sessionId, entry, result,
-                    ),
-                    replayImageCommands: imageReplayCache.planReplayForStage(sessionId),
-                    sealActivationBarrier: replacingActiveSurface
-                        ? () => activationCoordinator.sealBarrier(sessionId)
-                        : async () => true,
-                    sendCommand: (type, payload) => activationCoordinator.sendToSession(sessionId, type, payload),
-                    validateImageReplayEntry: (entry) => imageReplayCache.validateReplayEntry(sessionId, entry),
-                    waitForCanonicalBaseline: () => protocol.waitForCanonicalBaseline(sessionId),
+                let previousQuiesced = false;
+                // Every rendering-control command carries a strictly increasing
+                // sequence. The child ignores any command older than the newest
+                // it has applied, so a quiesce delayed behind one pathological
+                // frame cannot suspend a predecessor the host already resumed.
+                const renderingControl = (type) => protocol.requestCommand(type, { seq: nextRenderingControlSeq() }, {
+                    targetSessionId: previousActiveSessionId,
+                    timeoutMs: RENDER_QUIESCE_ACK_TIMEOUT_MS,
                 });
+                const resumePrevious = async () => {
+                    if (!previousQuiesced || !previousActiveSessionId) return;
+                    previousQuiesced = false;
+                    await renderingControl('resume-rendering');
+                };
+                if (replacingActiveSurface) {
+                    const quiesce = await renderingControl('quiesce-rendering');
+                    previousQuiesced = quiesce?.applied === true;
+                    if (!previousQuiesced) void renderingControl('resume-rendering');
+                }
+                let transaction;
+                try {
+                    transaction = await prepareAndActivateRenderSurface({
+                        // Bind the visibility decision to native activation. A settings
+                        // popover/dialog already open at this point must not be covered
+                        // by the candidate for even one native compositor frame.
+                        activate: async () => {
+                            if (!sessionState.isCurrentSession(sessionId)) return false;
+                            // A staged render child is newer than an already-open
+                            // bounded UI child. Recreate and await the overlay above
+                            // that candidate before the candidate can be revealed.
+                            // If no overlay is open this is an immediate no-op.
+                            if (!await invokeQuietly('restack_ui_overlay')) return false;
+                            if (!sessionState.isCurrentSession(sessionId)) return false;
+                            return invokeQuietly('activate_render_surface', { reveal: canReveal(), sessionId });
+                        },
+                        flushPendingCommands: replacingActiveSurface
+                            ? () => activationCoordinator.flushStage(sessionId)
+                            : activationCoordinator.flushQueued,
+                        getControlSnapshot: () => activationCoordinator.captureScopedSnapshot(getControlSnapshot),
+                        targetScope: activationCoordinator.getSourceScope(sessionId),
+                        getPresentationState: () => pendingPresentationState,
+                        isCurrentSession: () => sessionState.isCurrentSession(sessionId),
+                        pendingCommandCount: replacingActiveSurface
+                            ? activationCoordinator.pendingStage
+                            : activationCoordinator.pendingQueued,
+                        playbackCommand,
+                        recordImageReplayOutcome: (entry, result) => imageReplayCache.recordReplayOutcome(
+                            sessionId, entry, result,
+                        ),
+                        replayImageCommands: imageReplayCache.planReplayForStage(sessionId),
+                        sealActivationBarrier: replacingActiveSurface
+                            ? () => activationCoordinator.sealBarrier(sessionId)
+                            : async () => true,
+                        sendCommand: (type, payload) => activationCoordinator.sendToSession(sessionId, type, payload),
+                        validateImageReplayEntry: (entry) => imageReplayCache.validateReplayEntry(sessionId, entry),
+                        waitForCanonicalBaseline: () => protocol.waitForCanonicalBaseline(sessionId),
+                    });
+                } catch (error) {
+                    await resumePrevious();
+                    throw error;
+                }
                 if (!transaction.activated) {
+                    await resumePrevious();
                     await rejectStagedSession(sessionId, { error: transaction.message });
                     return true;
                 }
@@ -153,6 +184,7 @@ export function createRenderSurfaceActivationHandler({
                 activationCoordinator.endStage(sessionId, true);
                 fatalRecovery.confirmReplacement(sessionId);
                 sessionState.setLoaded(true);
+                onActivated(sessionId);
                 publishAuthorityState();
                 setRenderSurfaceFpsState(documentRef, true);
                 await boundsSync.sync({ force: true });

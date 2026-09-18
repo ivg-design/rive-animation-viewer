@@ -1,11 +1,35 @@
 //! Binary capture goes straight from the owning render WebView to bounded native
 //! disk IO. No base64, host event relay or frame ACK command behind UI work.
 use crate::app::render_surface::registry::RenderSurfaceManager;
+use crate::app::render_surface::MAIN_WINDOW_LABEL;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use tauri::{
     http::{header, Method, Request, Response, StatusCode},
-    Manager, Runtime,
+    Emitter, Manager, Runtime,
 };
+
+/// Capture receipts reach the host as events so the live frame count is the
+/// native accepted count, not a stale poll. Emission is rate limited per job;
+/// the final receipt of a job always arrives through the finish path.
+pub const MEDIA_CAPTURE_PROGRESS_EVENT: &str = "media-export:capture";
+const CAPTURE_PROGRESS_INTERVAL: Duration = Duration::from_millis(150);
+static LAST_PROGRESS: Mutex<Option<(String, Instant)>> = Mutex::new(None);
+
+fn should_emit_progress(job: &str) -> bool {
+    let Ok(mut last) = LAST_PROGRESS.lock() else {
+        return false;
+    };
+    let due = match last.as_ref() {
+        Some((previous, at)) => previous != job || at.elapsed() >= CAPTURE_PROGRESS_INTERVAL,
+        None => true,
+    };
+    if due {
+        *last = Some((job.to_owned(), Instant::now()));
+    }
+    due
+}
 
 static WRITING: AtomicBool = AtomicBool::new(false);
 struct WritePermit;
@@ -76,6 +100,17 @@ pub(in crate::app::render_surface) fn serve<R: Runtime>(
         } else {
             Err("The capture source is no longer active".into())
         };
+        if let Ok(receipt) = result.as_ref() {
+            if should_emit_progress(&job) {
+                // The main window hosts child webviews, so it is not a single
+                // WebviewWindow; address the host webview directly.
+                if let Some(webview) = app.get_webview(MAIN_WINDOW_LABEL) {
+                    // Best-effort progress must not fail an acknowledged write.
+                    // The final count is also available from finish/status.
+                    let _ = webview.emit(MEDIA_CAPTURE_PROGRESS_EVENT, receipt.clone());
+                }
+            }
+        }
         responder.respond(match result {
             Ok(value) => response(StatusCode::OK, value.to_string().into_bytes()),
             Err(error) => response(StatusCode::BAD_REQUEST, error.into_bytes()),

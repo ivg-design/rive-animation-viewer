@@ -2,6 +2,68 @@
 
 All notable released changes to this project are documented in this file.
 
+## [2.5.6] - 2026-09-14
+
+This release moves desktop playback to a single Rive owner (the isolated
+playback child), replaces runtime-based file inspection with a parse-once
+inspection pass, removes legacy state-machine input controls, rebuilds the
+recording capture pipeline, and adds ProRes 4444 and image-sequence outputs. See the
+[2.5.6 audit](reports/2026-09-11-v2.5.6-audit.md) for the review of the
+staged work and the recording frame-rate investigation.
+
+### Removed
+
+**Breaking change for MCP clients in this patch release:** migrate legacy state-machine input calls to ViewModel controls before upgrading.
+
+- **State-machine input controls and MCP tools** — `rav_get_sm_inputs` and `rav_set_sm_input` are removed (55 tools). The Properties drawer, export control tree, generated snippets, control snapshots, and canonical state no longer carry `state-machine` descriptors. State machines remain selectable playback targets; ViewModel properties are the supported control surface.
+
+### Added
+
+- **GPU Canvas toggle** — A WebGL 2-only toolbar button enables Rive GPU Canvas (`enableGPUCanvas`) for desktop playback, standalone HTML, and generated snippets. The Snippet & Export dialog carries a matching `GPU CANVAS` option; the preference persists across launches. Enabling it disables the offscreen renderer for that instance.
+- **Parse-once file inspection** — Artboards, animations (with fps/duration/work area), state machines, ViewModel prototypes, instances, nested relations, lists, and embedded image assets are read once from a private copy of the file bytes in a worker, without instantiating a Rive runtime. Inspection is cached per source identity; the ViewModel hierarchy and topology tracker map live accessors onto that schema and only fall back to runtime discovery when the map cannot be matched.
+- **Off-thread capture pipeline** — Recording snapshots each rendered frame as a GPU bitmap and hands it to capture workers that compose, build `VideoFrame`s, run the hardware encoder, and compress PNG (three parallel workers for lossless/alpha capture, delivered in order). The recording loop schedules itself and yields to the compositor between bounded batches, so the visible canvas keeps presenting while heavy files record. Measured on a heavy file: main-thread stalls went from 6–8 per second (~200 ms each) to zero, and the preview went from 4–9 fps to the capture rate.
+- **Offline recording clock** — `rav_record_start` accepts `clock: "live" | "offline"`. Offline renders every simulation frame exactly, as fast as capture allows, never consults wall time, and draws at exactly the output size; it is the default when `interactions` and `duration_seconds` are both supplied. `clock.mode` in receipts reports `offline`, `fixed-step` or `presentation`.
+- **Live capture counts** — The native spool pushes accepted-frame receipts (`media-export:capture`, rate limited) while recording, so the status bar's frame count is the accepted count and updates every ~150 ms for every format, including alpha/PNG captures.
+- **ProRes 4444 and image sequences** — `prores` (Apple ProRes 4444 in `.mov`, with or without alpha; the recommended alpha hand-off for DCCs) and `png-sequence` / `jpg-sequence` (one file per frame into a directory) for export and recording, in the UI and MCP.
+- **Push-based media job status** — The native encoder emits `media-export:status` events during encoding, verification, and publishing (throttled to 10 Hz); the Export overlay no longer polls. Completed job cards can be dismissed, and the overlay resizes to its content.
+- **Confirmed playback-child retirement** — Retiring a playback child first runs its in-page disposal (media abort, resize observers, bridge listeners, object URLs) and waits up to 500 ms for confirmation before the native close. A replacement activation quiesces the previous child's rendering and resumes it if activation fails.
+- **Frame-receipt liveness** — A stalled visible playback child (no frame metrics for 3.5 s while playing, focused, and unobstructed) is quarantined and recovered instead of polled.
+
+### Changed
+
+- **Single Rive owner on desktop** — The main window no longer instantiates a hidden Rive player or evaluates the Rive runtime; it only prepares the runtime asset for the child. Selection seeding, artboard switching, VM instance lists, and embedded image catalogs come from inspection metadata and the child's canonical state. Host VM controls update from canonical deltas (event mode) instead of polling.
+- **Background playback** — The native 60 Hz wake lane is enabled only while a native-owned recording is active. Ordinary playback stays on the child's own animation frames; there is no native polling fallback for hidden or occluded playback. Recording start/stop are the only wake events, so idle desktop playback costs zero WebView IPC.
+- **Recording** — Scheduled interactions are validated against live accessors before the clock starts and retain a prepared accessor as a fallback; frame-clock errors are terminal; the stop drain is event-driven with a 15 s inactivity deadline; the recording cursor overlay is installed only when `cursor` is requested; standalone captures use `enableGPUCanvas` when selected. Native wake ticks during recording are now kicks that end a wait early and never run capture work.
+- **Child replacement** — Rendering-control commands carry a sequence number; a `quiesce` delayed behind a long frame can no longer suspend a predecessor the host already resumed.
+- **FPS chip** — Reports the Rive runtime's own FPS counter (`enableFPSCounter`) instead of a per-advance frame count, in both the host and the playback child.
+- **Canonical state publication** — Frames with no ViewModel changes publish nothing; `embeddedImageAssets` and `topologyDiscovery` are included in the canonical payload.
+- **ViewModel readouts refresh at the render rate** — The playback child's per-advance observer now reads two bounded "always read" tiers every advance, in addition to its existing 16-control cold round-robin: up to 16 controls that changed within the last 30 advances (evicted from the tier after 30 unchanged advances, LRU-capped), and up to 64 controls the Properties drawer reports as visible/expanded (the new `watch-controls` render-surface command, debounced on drawer render/expand/scroll/instance change). A pointer-coordinate readout or other per-frame script write is now sampled and republished every advance instead of once every ⌈bindings/16⌉ advances (≈1 fps on a ~1000-control file). Canonical publication floors only a pending topology walk, list invalidation, or the initial snapshot at 120 ms (`VM_TOPOLOGY_PUBLISH_FLOOR_MS`); a value-only delta now publishes on every advance. Diagnostics (`hot`/`watch` counts, reads/passes) are included in the observer stats surfaced through the canonical payload.
+- **Embedded image selections** — Replay by asset key (`set-embedded-image`) instead of re-sending image bytes through the bridge.
+- **Number formatting** — VM number controls trim trailing zeros (`2.50` → `2.5`, `2.00` → `2`).
+- **Open-file handling** — RAV relies on the native open-file event listener; the 900 ms polling loop is removed. If the listener cannot be registered, queued files are reconciled on the next start and a warning is logged.
+- **Export overlay resizing** — Native overlay bounds follow the export panel's measured height with a 200 ms eased transition (`set_ui_overlay_bounds`), and the bounds resync on window focus.
+- **Isolated DEV build** — `bump-version` keeps the DEV configuration one patch ahead of production, and the release check enforces it. The isolated instance (never the official identifier) honours `RAV_DEV_SCRIPT_ACCESS=1` at launch so acceptance harnesses can use `rav_eval` without the MCP Setup dialog.
+- **Runtime target verified: Web 2.42.1 (`runtime-v0.1.384`)** — Live-validated the published `@rive-app/webgl2` and `@rive-app/canvas` 2.42.1 packages against the current RF Parser regression fixture set, in both renderers, with the runtime version explicitly pinned (not `Latest (auto)`). Fitted-text-size layout reporting, the manifest watermark pre-roll, ViewModel list-item value binding, and the interrupted-layout-transition fix all play correctly with no RAV source change required; `enableGPUCanvas` continues to match the published runtime parameter surface unchanged since 2.41.1.
+
+### Fixed
+
+- **Sequence destination confirmation** — Exporting or recording a PNG/JPG sequence to a non-empty folder offers **Overwrite**, **Choose folder…**, or **Cancel** instead of a raw error. Settings survive cancellation and folder changes; overwrite consent applies only to that request, and begin-time conflicts reopen the same prompt. MCP callers must still explicitly pass `overwrite: true`.
+
+- **Enum dropdown focus** — A focused enum dropdown is treated as editing, so remote value syncs defer instead of rebuilding an open popup.
+- **Fast encoder completion** — A terminal encoder event arriving before the finish command's response no longer gets overwritten by the command's initial snapshot.
+- **Recording cleanup** — The native wake lane and liveness suspension are released on every recording exit path (finish, cancel, failure, source change); failures to stop the clock surface as job warnings.
+- **Stale overlay actions** — Actions from a closed or superseded overlay are ignored instead of reported as errors.
+- **Selection UI without a host player** — Artboard, playback, and VM instance selectors populate from inspection metadata and canonical state, so the desktop selection summary and instance list no longer depend on a host Rive instance.
+- **Reset stopped forwarding pointer/mouse input** — Clicking toolbar Reset (also Properties `DEFAULT`, and the `rav_reset`/`rav_reset_artboard` MCP tools) restarted playback and ViewModel inputs correctly, but the artboard silently stopped responding to mouse movement and clicks until Play was pressed again. The runtime's `Rive.reset()` tears down its own canvas pointer/touch listeners as part of its in-place cleanup but, unlike `play()`, never re-registers them; RAV now calls `riveInstance.setupRiveListeners()` immediately after every in-place reset (the desktop render surface, the host fallback path, and the standalone exported demo template) so pointer tracking resumes without recreating the render-surface session.
+- **Bundled file-inspection module rebuilt on RF Parser 2.5.14** — The private-staged inspection module (`vendor/inspection/parser.wasm`) that every file open reads once, before the Rive runtime is ever reached, was rebuilt against RF Parser `2.5.14` (`runtime-v0.1.384`, Rive file format `7.4`), replacing the prior `2.5.6` build. Files exercising very recent runtime features — ViewModel list-item value binding, the Semantics accessibility subsystem — now open correctly; two confirmed regression cases (`instance_value_binds.riv`, `semantic/zero_area_semantics.riv`) previously failed with `"Error initializing runtime instance"` (a WASM `call_indirect` fault) because RAV's own older bundled module's core-object type registry could not deserialize them, before the actual `@rive-app` runtime was ever reached — the published `@rive-app/webgl2`/`@rive-app/canvas` 2.42.1 packages were never the cause. Confirmed by re-running the full 7-fixture live validation matrix with the rebuilt module: all 7 fixtures now load and play cleanly on both renderers.
+- **Nested ViewModel image properties dropped by the RF Parser 2.5.14 re-vendor** — The RF Parser `2.5.14` file-inspection module reports image/asset ViewModel properties with the raw kind string `asset_image` (RF Parser `2.5.6` used `asset`); the private inspection normalizer's kind-alias table only recognized `asset`/`assetimage`, so every `asset_image` property was silently dropped from the normalized ViewModel map, and any nested ViewModel instance whose *only* properties were images was then pruned from the hierarchy entirely (its node carried zero surviving inputs). Caught by the isolated-DEV MCP acceptance harness (`rav_vm_set_image: Image property "sub_1_im" not found or not writable` on `data_binding_images_test.riv`). Fixed by adding the `asset_image` alias; the parser module itself is unchanged and stays pinned to `2.5.14`.
+
+### Known limits
+
+- Native encoding of alpha WebM (VP9 with an alpha plane) at large sizes (≈2560×1440) can exceed the encoder's 768 MB memory ceiling and fail after capture; use ProRes 4444 or a PNG sequence for large alpha output.
+- Lossless capture (ProRes, WebM alpha, APNG, GIF, image sequences) moves 5–8 MB per full-size frame out of the render WebView; on a 2560×1440 capture that tops out near 20 frames/s in live mode (the receipt reports the lag) while offline mode simply takes longer than real time and stays exact. Hardware-encoded H.264/HEVC/VP9 are unaffected.
+- APNG encoding of long, large captures is slow (minutes) and produces very large files; it is unchanged in this release.
+
 ## [2.5.5] - 2026-09-04
 
 ### Added

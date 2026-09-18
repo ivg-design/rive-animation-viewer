@@ -9,6 +9,10 @@ use std::{
 pub(crate) mod disk;
 #[path = "spool/index.rs"]
 mod index;
+#[path = "spool/output_state.rs"]
+pub(crate) mod output_state;
+#[path = "spool/sequence.rs"]
+mod sequence;
 pub use index::{capture_sequence, record as record_index};
 
 #[derive(Clone)]
@@ -117,11 +121,13 @@ impl Spool {
             return Err("Output path must be absolute".into());
         }
         let name = requested.file_name().ok_or("Output filename missing")?;
-        if !requested.extension().is_some_and(|e| {
-            e.eq_ignore_ascii_case(format.extension())
-                || (format == Format::Apng && e.eq_ignore_ascii_case("png"))
-                || (format == Format::Jpg && e.eq_ignore_ascii_case("jpeg"))
-        }) {
+        if !format.is_directory()
+            && !requested.extension().is_some_and(|e| {
+                e.eq_ignore_ascii_case(format.extension())
+                    || (format == Format::Apng && e.eq_ignore_ascii_case("png"))
+                    || (format == Format::Jpg && e.eq_ignore_ascii_case("jpeg"))
+            })
+        {
             return Err(format!("Output extension must be .{}", format.extension()));
         }
         let parent = requested
@@ -131,7 +137,18 @@ impl Spool {
             .map_err(io)?;
         disk::ensure(&parent, 0)?;
         let output = parent.join(name);
-        if let Ok(meta) = fs::symlink_metadata(&output) {
+        if format.is_directory() {
+            // Refuse a non-empty destination up front so a capture never runs
+            // only to fail at publish; publish re-checks once content is ready.
+            if let Ok(meta) = fs::symlink_metadata(&output) {
+                if !meta.is_dir() || meta.file_type().is_symlink() {
+                    return Err("Output exists and is not a plain directory".into());
+                }
+                if !overwrite && fs::read_dir(&output).map_err(io)?.next().is_some() {
+                    return Err("Output directory exists and is not empty".into());
+                }
+            }
+        } else if let Ok(meta) = fs::symlink_metadata(&output) {
             if !overwrite || !meta.is_file() || meta.file_type().is_symlink() {
                 return Err("Output exists, is a symlink, or is not a regular file".into());
             }
@@ -202,7 +219,69 @@ impl Spool {
         }
         Ok(size)
     }
+    /// Publish a candidate directory of `frame_NNNNNN.(png|jpg)` files. The destination
+    /// must not exist, or must be empty, or `overwrite` must be true — in which case only
+    /// files matching our own naming pattern are removed before the candidate moves in.
+    /// Never deletes anything else and never follows a symlink.
+    pub fn publish_directory(&self, candidate: &Path, overwrite: bool) -> Result<u64> {
+        disk::ensure_finalization(&self.dir, 0)?;
+        // actual_bytes reflects only the frames we publish, never a preserved unrelated file.
+        let mut total = 0u64;
+        match fs::symlink_metadata(&self.output) {
+            // Same-volume rename: candidate and destination share the destination's parent.
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                for entry in fs::read_dir(candidate).map_err(io)? {
+                    total += entry.map_err(io)?.metadata().map_err(io)?.len();
+                }
+                fs::rename(candidate, &self.output).map_err(io)?;
+            }
+            Err(e) => return Err(io(e)),
+            Ok(meta) => {
+                if !meta.is_dir() || meta.file_type().is_symlink() {
+                    return Err("Output exists and is not a plain directory".into());
+                }
+                let entries = fs::read_dir(&self.output)
+                    .map_err(io)?
+                    .collect::<std::io::Result<Vec<_>>>()
+                    .map_err(io)?;
+                if !entries.is_empty() {
+                    if !overwrite {
+                        return Err("Output directory exists and is not empty".into());
+                    }
+                    for entry in &entries {
+                        let Some(name) = entry.file_name().to_str().map(str::to_owned) else {
+                            continue;
+                        };
+                        if !matches_sequence_name(&name) {
+                            continue;
+                        }
+                        let meta = fs::symlink_metadata(entry.path()).map_err(io)?;
+                        if meta.is_file() && !meta.file_type().is_symlink() {
+                            fs::remove_file(entry.path()).map_err(io)?;
+                        }
+                    }
+                }
+                // The destination directory may still hold an untouched unrelated file
+                // (never deleted), so move the candidate's frames in individually rather
+                // than replacing the directory itself.
+                for entry in fs::read_dir(candidate).map_err(io)? {
+                    let entry = entry.map_err(io)?;
+                    total += entry.metadata().map_err(io)?.len();
+                    fs::rename(entry.path(), self.output.join(entry.file_name())).map_err(io)?;
+                }
+                fs::remove_dir(candidate).map_err(io)?;
+            }
+        }
+        #[cfg(unix)]
+        {
+            if let Some(parent) = self.output.parent() {
+                let _ = File::open(parent).and_then(|f| f.sync_all());
+            }
+        }
+        Ok(total)
+    }
 }
+pub(crate) use sequence::matches_sequence_name;
 pub fn sanitize_png(bytes: &[u8], width: u32, height: u32) -> Result<Vec<u8>> {
     if bytes.len() as u64 > MAX_PNG || bytes.len() < 33 || bytes[..8] != *b"\x89PNG\r\n\x1a\n" {
         return Err("Invalid PNG signature/size".into());

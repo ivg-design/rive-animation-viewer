@@ -94,13 +94,8 @@ describe('platform/file-session', () => {
         expect(elements.canvasContainer.textContent).toContain('DROP FILE OR CLICK OPEN');
     });
 
-    it('starts open-file polling and disposes timers and listeners', async () => {
+    it('disposes the native open-file listener without scheduling a poll timer', async () => {
         const elements = createElements();
-        const setTimeoutFn = vi.fn((callback) => {
-            setTimeoutFn.lastCallback = callback;
-            return 'timer-1';
-        });
-        const clearTimeoutFn = vi.fn();
         const unlisten = vi.fn();
         const controller = createFileSessionController({
             callbacks: {
@@ -110,9 +105,7 @@ describe('platform/file-session', () => {
                 getTauriInvoker: () => vi.fn(async () => null),
                 isTauriEnvironment: () => true,
             },
-            clearTimeoutFn,
             elements,
-            setTimeoutFn,
             windowRef: {
                 addEventListener: vi.fn(),
                 atob: globalThis.atob,
@@ -120,13 +113,9 @@ describe('platform/file-session', () => {
         });
 
         await controller.setupTauriOpenFileListener();
-        controller.startOpenedFilePolling(500);
-
-        expect(setTimeoutFn).toHaveBeenCalled();
 
         controller.dispose();
 
-        expect(clearTimeoutFn).toHaveBeenCalledWith('timer-1');
         expect(unlisten).toHaveBeenCalled();
     });
 
@@ -415,7 +404,7 @@ describe('platform/file-session', () => {
         expect(controller.getCurrentFileName()).toBe('double-click-open.riv');
     });
 
-    it('covers bridge edge cases for open-file polling and listener registration', async () => {
+    it('covers bridge edge cases for queue draining and listener registration', async () => {
         const elements = createElements();
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const showError = vi.fn();
@@ -541,14 +530,9 @@ describe('platform/file-session', () => {
         expect(logEvent).toHaveBeenCalledWith('native', 'load-failed', 'Failed to load broken.riv.');
     });
 
-    it('covers polling guards, queue wakeups, and drag state edge cases', async () => {
+    it('covers queue wakeups and drag state edge cases', async () => {
         const elements = createElements();
         const listeners = {};
-        const setTimeoutFn = vi.fn((callback) => {
-            setTimeoutFn.lastCallback = callback;
-            return `timer-${setTimeoutFn.mock.calls.length}`;
-        });
-        const clearTimeoutFn = vi.fn();
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const listen = vi.fn(async (_eventName, handler) => {
             listen.handler = handler;
@@ -571,7 +555,7 @@ describe('platform/file-session', () => {
         const controller = createFileSessionController({
             callbacks: {
                 applyStoredRuntimeVersionForCurrentFile: vi.fn().mockResolvedValue(undefined),
-                buildFileRuntimePreferenceId: vi.fn(() => 'pref-poll'),
+                buildFileRuntimePreferenceId: vi.fn(() => 'pref-event'),
                 ensureTauriBridge: vi.fn().mockResolvedValue(undefined),
                 getTauriEventListener: async () => listen,
                 getTauriInvoker: () => (tauri && invokeAvailable ? invoke : null),
@@ -583,9 +567,7 @@ describe('platform/file-session', () => {
                 resetVmInputControls: vi.fn(),
                 showError: vi.fn(),
             },
-            clearTimeoutFn,
             elements,
-            setTimeoutFn,
             urlApi: {
                 createObjectURL: vi.fn(() => 'blob:listener'),
                 revokeObjectURL: vi.fn(),
@@ -598,9 +580,6 @@ describe('platform/file-session', () => {
             },
         });
 
-        controller.startOpenedFilePolling(500);
-        expect(setTimeoutFn).not.toHaveBeenCalled();
-
         tauri = true;
         await expect(controller.checkOpenedFile()).resolves.toBe(false);
         expect(warnSpy).toHaveBeenCalledWith(
@@ -608,10 +587,6 @@ describe('platform/file-session', () => {
         );
 
         invokeAvailable = true;
-        controller.startOpenedFilePolling(500);
-        controller.startOpenedFilePolling(750);
-        expect(clearTimeoutFn).toHaveBeenCalledWith('timer-1');
-
         await controller.setupTauriOpenFileListener();
         await listen.handler({ payload: null });
         openedPaths.push('/tmp/from-listener.riv');
@@ -625,7 +600,6 @@ describe('platform/file-session', () => {
         expect(elements.canvasContainer.classList.contains('drag-active')).toBe(false);
 
         controller.dispose();
-        expect(clearTimeoutFn).toHaveBeenCalledWith('timer-2');
         warnSpy.mockRestore();
     });
 

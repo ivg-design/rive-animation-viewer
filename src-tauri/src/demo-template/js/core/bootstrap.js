@@ -102,6 +102,24 @@
                     }
                     resetPlaybackChips();
                     riveInstance.reset(resetParams);
+                    // `Rive.reset()` cleans up and reinitializes the artboard/
+                    // state-machine instances but, unlike `play()`, never
+                    // re-registers the runtime's own canvas mouse/touch
+                    // listeners (`setupRiveListeners()`); they were torn down
+                    // by `cleanupInstances()` inside `reset()`. Without this
+                    // call pointer/hover input silently stops reaching the
+                    // state machine until the next explicit `play()` -- even
+                    // though playback keeps advancing (autoplay already set
+                    // `sm.playing`; `restartRenderSurfacePlaybackAfterReset`
+                    // in vm/reset-contract.js separately resumes the RAF loop
+                    // that `cleanupInstances()` stopped) and VM inputs look
+                    // unaffected. This call only restores listener wiring; it
+                    // has no effect on play/pause state, so a future caller
+                    // requesting `autoplay: false` still stays paused with no
+                    // listeners, matching `pause()`'s own behavior.
+                    if (typeof riveInstance.setupRiveListeners === 'function') {
+                        riveInstance.setupRiveListeners();
+                    }
                     // `Rive.reset()` is in-place and is not required to call
                     // onLoad. Rebind an explicit VM here, after reset and
                     // before the scalar/list/image snapshots resolve. Zero is
@@ -149,6 +167,14 @@
                 var applied = applyControlSnapshot(snapshot);
                 return { applied: applied, pending: pendingControlSnapshot.size };
             }
+            // Properties-drawer visibility hint from the host, debounced on
+            // render/expand/scroll/instance-change. No canonical delta or
+            // topology implication -- it only changes which bindings the
+            // per-advance observer always reads.
+            if (type === 'watch-controls') {
+                var watchKeys = Array.isArray(payload.keys) ? payload.keys : [];
+                return setRenderSurfaceWatchedControls(getRenderSurfaceBridgeState(), watchKeys);
+            }
             if (type === 'vm-set' || type === 'vm-fire') {
                 var vmDescriptor = payload.descriptor && typeof payload.descriptor === 'object' ? payload.descriptor : payload;
                 var vmKind = type === 'vm-fire' ? 'trigger' : vmDescriptor.kind;
@@ -167,18 +193,6 @@
                 var imageDescriptor = renderSurfaceImageCommand(payload);
                 return applyRenderSurfaceImageCommand(imageDescriptor, true);
             }
-            if (type === 'sm-set' || type === 'sm-fire') {
-                var smDescriptor = payload.descriptor && typeof payload.descriptor === 'object' ? payload.descriptor : payload;
-                var smKind = type === 'sm-fire' ? 'trigger' : smDescriptor.kind;
-                var smAccessor = resolveStateMachineInputAccessor(smDescriptor.stateMachineName, smDescriptor.name, smKind);
-                if (smKind === 'trigger' && riveInstance && riveInstance.isPlaying === false) riveInstance.play();
-                setRenderSurfaceAccessorValue(smAccessor, smKind, renderSurfaceCommandValue(payload, smDescriptor));
-                if (smKind === 'trigger') recordRenderSurfaceTriggerReceipt(Object.assign({}, smDescriptor, { kind: 'trigger', source: 'state-machine' }));
-                return {
-                    descriptor: smDescriptor,
-                    value: smKind === 'trigger' ? null : smAccessor.value,
-                };
-            }
             if (type === 'play') {
                 if (!riveInstance || typeof riveInstance.play !== 'function') throw new Error('Playback is unavailable.');
                 var playTarget = payload.name || payload.animation || payload.playbackName;
@@ -192,6 +206,26 @@
                 if (!riveInstance || typeof riveInstance.pause !== 'function') throw new Error('Playback pause is unavailable.');
                 riveInstance.pause();
                 return { paused: true };
+            }
+            // Rendering control carries a host sequence number. A quiesce that
+            // was delayed behind a long frame and arrives after the host has
+            // already resumed is stale and must not suspend the child again.
+            if (type === 'quiesce-rendering' || type === 'resume-rendering') {
+                var controlSeq = payload && Number.isFinite(Number(payload.seq)) ? Number(payload.seq) : null;
+                if (controlSeq !== null && controlSeq < renderSurfaceRenderingControlSeq) {
+                    return { stale: true, quiesced: renderSurfaceQuiesced, seq: renderSurfaceRenderingControlSeq };
+                }
+                if (controlSeq !== null) renderSurfaceRenderingControlSeq = controlSeq;
+                if (type === 'quiesce-rendering') {
+                    if (!riveInstance || typeof riveInstance.stopRendering !== 'function') throw new Error('Playback rendering is unavailable.');
+                    renderSurfaceQuiesced = true;
+                    riveInstance.stopRendering();
+                    return { quiesced: true, seq: renderSurfaceRenderingControlSeq };
+                }
+                if (!riveInstance || typeof riveInstance.startRendering !== 'function') throw new Error('Playback rendering is unavailable.');
+                renderSurfaceQuiesced = false;
+                if (riveInstance.isPlaying) riveInstance.startRendering();
+                return { resumed: true, seq: renderSurfaceRenderingControlSeq };
             }
             if (type === 'scrub') return scrubRenderSurfaceTimeline(payload);
             if (type === 'reset') {

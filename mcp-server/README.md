@@ -77,7 +77,7 @@ Once connected, Claude has access to all RAV tools. Try:
 - "Pause the animation"
 - "Generate the live web instantiation snippet for CDN usage"
 
-## Available Tools (57 in 2.5.5)
+## Available Tools (55)
 
 Media tools require the desktop app and verified encoders. See [media export](../Documentation/MEDIA_EXPORT.md) for formats, GIF controls, limits, and asynchronous examples. Production packages include pinned, hash-verified FFmpeg and ffprobe resources; capability discovery still fails closed whenever an encoder or required format probe is unavailable.
 
@@ -121,8 +121,6 @@ Media tools require the desktop app and verified encoders. See [media export](..
 | `generate_web_instantiation_code` | Generate the canonical live web snippet for `local` or `cdn` usage, exposing only selected typed accessors on `window.riveProperties`. Preferred over hand-writing snippets from scratch. |
 | `rav_toggle_instantiation_controls_dialog` | Open/close the in-app Snippet & Export Controls dialog so a human can curate which controls are serialized |
 | `rav_configure_workspace` | Set left/right sidebar visibility, live source mode, and VM Explorer snippet presence in one idempotent call |
-| `rav_get_sm_inputs` | List state machine inputs with values |
-| `rav_set_sm_input` | Set state machine input value |
 | `rav_eval` | Evaluate JS with `target: auto|host|playback`, returning the resolved surface/session (`Script Access` required) |
 | `rav_console_open` / `rav_console_close` | Toggle the JS console panel |
 | `rav_console_set_mode` / `rav_console_set_filter` / `rav_console_clear` | Switch console mode, mirror visible filters, and clear the active transcript |

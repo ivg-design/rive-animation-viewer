@@ -10,6 +10,7 @@ export const DEFAULT_RUNTIME_VERSION_TOKEN = LATEST_RUNTIME_VERSION_TOKEN;
 export const RUNTIME_VERSION_PREF_STORAGE_KEY = 'riveRuntimeVersionPreference';
 export const RUNTIME_FILE_VERSION_PREFS_STORAGE_KEY = 'riveRuntimeVersionPreferencesByFile';
 export const CANVAS_SIZING_PREF_STORAGE_KEY = 'ravCanvasSizingPreference';
+export const GPU_CANVAS_PREF_STORAGE_KEY = 'ravGpuCanvasEnabled';
 export const RUNTIME_PACKAGE_NAMES = {
     canvas: '@rive-app/canvas',
     webgl2: '@rive-app/webgl2',
@@ -79,5 +80,9 @@ export const RUNTIME_META_STORAGE_KEY = 'riveRuntimeMeta';
 export const VM_CONTROL_KINDS = new Set(['number', 'boolean', 'string', 'enum', 'color', 'image', 'trigger']);
 export const VM_CONTROL_SYNC_INTERVAL_MS = 120;
 export const VM_TOPOLOGY_SYNC_INTERVAL_MS = 1000;
-export const OPEN_FILE_POLL_INTERVAL_MS = 900;
+// Render-surface child only (src-tauri/src/demo-template/js/vm/canonical-publication.js,
+// mirrored in core/preamble.js): floor for a canonical publish that requires
+// a full topology walk or the very first snapshot. Value-only deltas publish
+// every advance and are not floored by this constant.
+export const VM_TOPOLOGY_PUBLISH_FLOOR_MS = 120;
 export const MCP_SCRIPT_ACCESS_STORAGE_KEY = 'rav-mcp-script-access-enabled';

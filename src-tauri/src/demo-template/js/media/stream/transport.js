@@ -1,7 +1,8 @@
-        function createMediaBinaryTransport(jobId) {
+        function createMediaBinaryTransport(jobId, onProgress, baseUrl) {
             var acknowledged = 0, pendingBytes = 0, tail = Promise.resolve(), error = null, controller = new AbortController();
             return {
                 progress: function () { return acknowledged; },
+                pendingBytes: function () { return pendingBytes; },
                 // Leave room for in-flight encoder callbacks and their packets.
                 canAccept: function () { return !error && pendingBytes < 8 * 1024 * 1024; },
                 send: function (index, bytes) {
@@ -16,7 +17,7 @@
                         if (error) throw error;
                         var timer = setTimeout(function () { controller.abort(); }, 15000);
                         var response;
-                        try { response = await fetch('/__rav-media/' + encodeURIComponent(jobId) + '/' + index,
+                        try { response = await fetch((baseUrl || '') + '/__rav-media/' + encodeURIComponent(jobId) + '/' + index,
                             { method: 'POST', body: bytes, signal: controller.signal, cache: 'no-store',
                                 headers: { 'Content-Type': 'application/octet-stream' } }); }
                         finally { clearTimeout(timer); }
@@ -27,6 +28,7 @@
                             stop.code = 'disk_space'; stop.receipt = receipt; throw stop;
                         }
                         acknowledged++;
+                        if (onProgress) onProgress();
                         return receipt;
                     }).finally(function () { pendingBytes -= bytes.length; });
                     tail = request.catch(function (failure) { error = failure; });

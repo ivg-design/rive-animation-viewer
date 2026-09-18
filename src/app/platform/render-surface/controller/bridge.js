@@ -14,6 +14,7 @@ export function createRenderSurfaceBridgeHandlers({
     setStagedReady,
     onChildPointerDown = () => {},
     onChildCapture = () => false,
+    onChildMetrics = () => {},
     onChildTimeline = () => {},
 }) {
     let timelineSessionId = null;
@@ -55,6 +56,7 @@ export function createRenderSurfaceBridgeHandlers({
     function handleChildMetrics(event) {
         if (isDisposed() || !fatalRecovery.canAcceptCommands() || !protocol.matchesActive(event)) return;
         setRenderSurfaceFpsState(documentRef, true, event?.payload?.fps);
+        onChildMetrics(event?.payload || {});
     }
 
     function handleChildTimeline(event) {

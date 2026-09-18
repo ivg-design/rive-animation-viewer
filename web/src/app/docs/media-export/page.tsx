@@ -67,11 +67,24 @@ export default function MediaExport() {
         starting. The shortcut is ignored while typing in an input or editor.
       </p>
       <ul>
-        <li><strong>Cursor</strong> adds RAV&apos;s tracked canvas pointer to the output.</li>
+        <li><strong>Cursor</strong> overlays RAV&apos;s tracked canvas pointer onto the output only when the cursor option is enabled; leaving it off omits the cursor entirely.</li>
         <li><strong>ViewModel controls</strong> remain live while the export panel is closed.</li>
         <li><strong>No product time ceiling</strong> applies to manual recording; available disk space is the practical duration limit.</li>
-        <li><strong>Frame-complete clock</strong> advances Rive once for every requested output frame. Status reports lag if the device falls behind real time.</li>
+        <li><strong>Live frame count</strong> &mdash; the status bar reports the natively accepted frame count and updates live for every format, including alpha and image-sequence captures.</li>
       </ul>
+
+      <h3>Recording clock: live vs. offline</h3>
+      <p>
+        <strong>Live</strong> tracks wall time: if the device falls behind, RAV renders the missing
+        frames individually to catch up, and status reports how far behind as lag.{" "}
+        <strong>Offline</strong> never consults wall time &mdash; every simulation frame renders
+        exactly once, as fast as capture allows, and the canvas draws at exactly the output size
+        so the file does not depend on the preview window. Offline recording requires an explicit
+        duration. MCP&apos;s <code>rav_record_start</code> accepts{" "}
+        <code>clock: &quot;live&quot; | &quot;offline&quot;</code>; the default is{" "}
+        <code>offline</code> when a duration and scheduled interactions are both supplied,
+        otherwise <code>live</code>.
+      </p>
 
       <DocsFigure
         src={asset("/docs/2.5.5/interaction-recording-settings.webp?v=curated-1")}
@@ -100,8 +113,9 @@ export default function MediaExport() {
       <table>
         <thead><tr><th>Output</th><th>Formats</th><th>Transparency</th></tr></thead>
         <tbody>
-          <tr><td>Video</td><td>H.264 / MP4, H.265 / MP4, VP9 / WebM</td><td>WebM alpha is available only when the installed encoder passes RAV&apos;s decoded-alpha probe</td></tr>
+          <tr><td>Video</td><td>H.264 / MP4, H.265 / MP4, VP9 / WebM, ProRes 4444 / MOV</td><td>H.264 and H.265 are opaque; WebM alpha requires a successful decoded-alpha capability probe; ProRes 4444 can be exported with or without alpha</td></tr>
           <tr><td>Animated image</td><td>APNG, GIF</td><td>APNG preserves full alpha; GIF uses binary transparency</td></tr>
+          <tr><td>Image sequence</td><td>PNG sequence, JPG sequence</td><td>One file per frame into a directory you choose; PNG preserves alpha, JPG is opaque</td></tr>
           <tr><td>Still image</td><td>PNG, JPG, WebP</td><td>PNG and WebP support alpha; JPG is opaque</td></tr>
         </tbody>
       </table>
@@ -109,6 +123,12 @@ export default function MediaExport() {
         Formats appear only when the desktop encoder capability check succeeds. RAV verifies the
         encoder tools and runs small encode/decode probes rather than assuming that an executable
         on disk supports every advertised codec.
+      </p>
+      <p>
+        <strong>ProRes 4444</strong> is available for both timeline export and interaction
+        recording and is the recommended way to hand alpha footage to DCC tools. <strong>PNG
+        sequence</strong> and <strong>JPG sequence</strong> write one file per frame into a
+        directory instead of a single output file.
       </p>
       <p>
         Open <strong>Settings → About</strong> to see the active Rive Web runtime and the exact
@@ -123,13 +143,18 @@ export default function MediaExport() {
         <li><strong>Width and height</strong> default to the artboard. Lock aspect ratio, or set both dimensions for an exact frame size.</li>
         <li><strong>Source scale</strong> offers 100%, 75%, 50%, and 25% shortcuts. Video dimensions must be even.</li>
         <li><strong>Frame rate</strong> supports 1–60 FPS; GIF is capped at 50 FPS and presets may lower it.</li>
-        <li><strong>Quality</strong> is 1–100 for lossy encoders. PNG and APNG are lossless, so the control is hidden for them.</li>
-        <li><strong>Transparent</strong> is available only for formats that can preserve alpha. Otherwise the matte color is rendered behind the animation.</li>
-        <li><strong>Save to</strong> uses the yellow folder button to choose both a folder and filename. Changing format clears an incompatible chosen path.</li>
+        <li><strong>Quality</strong> is 1–100 for lossy encoders. PNG, PNG sequences, and APNG are lossless, so the control is hidden for them.</li>
+        <li><strong>Transparent</strong> is available for every format with an alpha channel (ProRes 4444, WebM, APNG, GIF, PNG sequence, PNG, WebP). H.264, H.265, JPG, and JPG sequences are opaque and reject alpha requests; use the matte color behind the animation.</li>
+        <li><strong>Save to</strong> uses the yellow folder button to choose both a folder and filename. Changing format clears an incompatible chosen path. For PNG sequence and JPG sequence output, the picker chooses a directory instead of a filename; MCP callers supply that directory as <code>output_path</code>.</li>
       </ul>
       <p>
-        RAV preserves existing files unless an MCP caller explicitly opts into replacement. The
-        desktop picker returns to unchanged settings when cancelled.
+        A non-empty sequence folder opens a confirmation with <strong>Overwrite</strong>,
+        <strong> Choose folder…</strong>, and <strong>Cancel</strong>. Overwrite applies only to
+        the current export or recording and replaces numbered sequence frames, keeping unrelated
+        files. Choosing another folder returns to the settings before capture starts; cancelling
+        either the confirmation or the picker preserves the settings. A folder filled after the
+        preflight check returns to the same confirmation at capture start. Unattended MCP callers
+        still receive an error unless they explicitly pass <code>overwrite: true</code>.
       </p>
 
       <h2>GIF size controls</h2>
@@ -165,6 +190,12 @@ export default function MediaExport() {
         result button to the toolbar.
       </p>
       <p>
+        Job status is push-based: the native encoder emits progress during encoding, verification,
+        and publishing, so the Export overlay no longer polls for updates. Completed job cards can
+        be dismissed individually, and the overlay resizes to fit its content instead of keeping a
+        fixed footprint.
+      </p>
+      <p>
         RAV fully decodes a completed artifact before publishing it. Low disk space can stop a
         nonempty recording and finish the accepted portion. A renderer, transport, or write error
         retains acknowledged capture data for recovery instead of publishing an unverified file.
@@ -178,6 +209,12 @@ export default function MediaExport() {
         height={1800}
         caption="Capture, drain, encoding, validation, and publication progress stays in the normal status area instead of obscuring the canvas."
       />
+
+      <h2>Known limits</h2>
+      <ul>
+        <li>Alpha WebM at very large sizes (around 2560&times;1440) can exceed the native encoder&apos;s memory ceiling and fail after capture; use ProRes 4444 or a PNG sequence instead.</li>
+        <li>APNG encoding of long, large captures is slow and produces very large files.</li>
+      </ul>
 
       <h2>Agent and MCP access</h2>
       <p>

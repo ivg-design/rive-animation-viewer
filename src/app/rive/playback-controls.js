@@ -10,7 +10,6 @@ export function createPlaybackController({
     getPlaybackState = () => ({ currentPlaybackName: null, currentPlaybackType: null }),
     getRiveInstance = () => null,
     isAuthoritativeChildMode = () => false,
-    now = () => globalThis.performance.now(),
 } = {}) {
     const {
         applyVmControlSnapshot = () => 0,
@@ -23,29 +22,18 @@ export function createPlaybackController({
         updateInfo = () => {},
     } = callbacks;
 
-    let frameCount = 0;
-    let lastFpsUpdate = 0;
-
-    function updatePlaybackChips() {
+    function updatePlaybackChips(fps) {
         const fpsChip = documentRef.getElementById('fps-chip');
         if (fpsChip?.dataset.renderSurfaceActive === 'true') {
             return;
         }
-        frameCount += 1;
-        const currentTime = now();
-        if (currentTime - lastFpsUpdate >= 1000) {
-            const fps = Math.round((frameCount * 1000) / (currentTime - lastFpsUpdate));
-            if (fpsChip) {
-                fpsChip.innerHTML = `<span class="dot"></span>${fps} FPS`;
-            }
-            frameCount = 0;
-            lastFpsUpdate = currentTime;
+        const value = Number(fps);
+        if (fpsChip && Number.isFinite(value)) {
+            fpsChip.innerHTML = `<span class="dot"></span>${Math.round(value)} FPS`;
         }
     }
 
     function resetPlaybackChips() {
-        frameCount = 0;
-        lastFpsUpdate = now();
         const fpsChip = documentRef.getElementById('fps-chip');
         if (fpsChip?.dataset.renderSurfaceActive === 'true') {
             return;

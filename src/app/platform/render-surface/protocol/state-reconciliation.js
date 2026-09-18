@@ -13,9 +13,7 @@ function controlKey(input) {
     if (typeof input?.key === 'string' && input.key) return input.key;
     const descriptor = input?.descriptor && typeof input.descriptor === 'object' ? input.descriptor : input;
     const kind = input?.kind || descriptor?.kind || '';
-    if (descriptor?.source === 'state-machine') {
-        return `sm:${descriptor.stateMachineName || ''}:${descriptor.name || ''}:${kind}`;
-    }
+    if (descriptor?.source === 'state-machine') return null;
     if (descriptor?.source === 'global-view-model') {
         return `gvm:${encodeURIComponent(descriptor.globalViewModelName || '')}:${descriptor.path || ''}:${kind}`;
     }

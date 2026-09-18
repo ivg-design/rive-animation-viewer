@@ -332,29 +332,4 @@ export const CORE_TOOLS = [
       'Capture the currently rendered RAV canvas as a PNG image with dimensions, renderer, and playback-surface metadata.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
-  {
-    name: 'rav_get_sm_inputs',
-    description:
-      'Get all state machine inputs for the current animation, with their ' +
-      'names, types, and current values.',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-  },
-  {
-    name: 'rav_set_sm_input',
-    description: 'Set a state machine input value by name.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        name: {
-          type: 'string',
-          description: 'State machine input name',
-        },
-        value: {
-          description: 'New value (number, boolean, or "fire" for triggers)',
-        },
-      },
-      required: ['name', 'value'],
-      additionalProperties: false,
-    },
-  },
 ];

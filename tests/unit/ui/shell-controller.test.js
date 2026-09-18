@@ -214,8 +214,6 @@ describe('ui/shell-controller', () => {
 
     it('manages settings popover, demo button state, and cleanup', async () => {
         const elements = createElements();
-        const intervalCallbacks = [];
-        const clearIntervalFn = vi.fn();
         const clearTimeoutFn = vi.fn();
         let currentCanvasSizing = {
             mode: 'auto',
@@ -250,13 +248,8 @@ describe('ui/shell-controller', () => {
                 showError: vi.fn(),
                 updateInfo: vi.fn(),
             },
-            clearIntervalFn,
             clearTimeoutFn,
             elements,
-            setIntervalFn: (callback) => {
-                intervalCallbacks.push(callback);
-                return 'interval-1';
-            },
             setTimeoutFn: () => 'timeout-1',
             windowRef: {
                 addEventListener: vi.fn(),
@@ -318,10 +311,8 @@ describe('ui/shell-controller', () => {
         }));
 
         expect(elements.demoBundleButton.disabled).toBe(false);
-        expect(intervalCallbacks).toHaveLength(1);
 
         controller.dispose();
-        expect(clearIntervalFn).toHaveBeenCalledWith('interval-1');
     });
 
     it('resizes right and center panels during drag gestures', () => {
@@ -465,7 +456,6 @@ describe('ui/shell-controller', () => {
             },
             clearTimeoutFn,
             elements,
-            setIntervalFn: () => 'interval-setup',
             setTimeoutFn: () => 'timeout-setup',
             windowRef: {
                 addEventListener: vi.fn((type, handler) => {
@@ -496,11 +486,9 @@ describe('ui/shell-controller', () => {
         expect(handleResize).toHaveBeenCalled();
     });
 
-    it('ignores no-op selections, clears demo polling when ready, and guards hidden left-panel drags', async () => {
+    it('ignores no-op selections, reacts to Tauri readiness, and guards hidden left-panel drags', async () => {
         const elements = createElements();
-        const intervalCallbacks = [];
         const timeoutCallbacks = [];
-        const clearIntervalFn = vi.fn();
         const clearTimeoutFn = vi.fn();
         const windowListeners = {};
         const documentListeners = {};
@@ -524,7 +512,6 @@ describe('ui/shell-controller', () => {
                 updateInfo: vi.fn(),
                 updateVersionInfo: vi.fn(),
             },
-            clearIntervalFn,
             clearTimeoutFn,
             documentRef: {
                 ...document,
@@ -534,10 +521,6 @@ describe('ui/shell-controller', () => {
                 body: document.body,
             },
             elements,
-            setIntervalFn: vi.fn((callback) => {
-                intervalCallbacks.push(callback);
-                return `interval-${intervalCallbacks.length}`;
-            }),
             setTimeoutFn: vi.fn((callback) => {
                 timeoutCallbacks.push(callback);
                 return `timeout-${timeoutCallbacks.length}`;
@@ -559,13 +542,9 @@ describe('ui/shell-controller', () => {
         elements.layoutSelect.dispatchEvent(new Event('change'));
         await Promise.resolve();
 
-        expect(intervalCallbacks).toHaveLength(1);
         expect(timeoutCallbacks).toHaveLength(1);
 
         tauriInvoker = vi.fn();
-        intervalCallbacks[0]();
-        expect(clearIntervalFn).toHaveBeenCalledWith('interval-1');
-
         windowListeners['tauri://ready']();
         expect(elements.demoBundleButton.disabled).toBe(false);
 

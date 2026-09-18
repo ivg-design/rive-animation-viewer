@@ -6,6 +6,7 @@ import { createExportWorkspaceCommands } from './commands/export-workspace.js';
 import { createVmInstanceCommands } from './commands/vm-instance.js';
 import { createGlobalViewModelCommands } from './commands/global-view-model.js';
 import { createCanvasScreenshotCommands } from './commands/canvas-screenshot.js';
+import { createEntitlementCommands } from './commands/entitlement/commands.js';
 
 export function createMcpCommandHandlers({
     assertMcpScriptAccess,
@@ -25,6 +26,7 @@ export function createMcpCommandHandlers({
         ...createExportWorkspaceCommands({ documentRef, windowRef }),
         ...createCanvasScreenshotCommands({ documentRef, windowRef }),
         ...createMediaCommands({ windowRef }),
+        ...createEntitlementCommands({ windowRef }),
     };
     return Object.fromEntries(Object.entries(handlers).map(([name, handler]) => [name, async (...args) => {
         const result = await handler(...args);

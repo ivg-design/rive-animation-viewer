@@ -125,6 +125,10 @@ const APP_DIALOGS_HTML = `
           <button type="button" id="instantiation-preset-changed-btn" class="btn-compact">CHANGED ONLY</button>
           <button type="button" id="instantiation-preset-all-btn" class="btn-compact">SELECT ALL</button>
           <button type="button" id="instantiation-preset-none-btn" class="btn-compact">CLEAR</button>
+          <label class="instantiation-option-toggle" title="Enable Rive GPU Canvas in generated snippets and standalone HTML">
+            <input type="checkbox" id="instantiation-gpu-canvas-toggle">
+            <span>GPU CANVAS</span>
+          </label>
           <select id="instantiation-package-source-select" class="header-select header-select-compact" aria-label="Snippet package source">
             <option value="cdn" selected>SNIPPET: CDN</option>
             <option value="local">SNIPPET: LOCAL</option>

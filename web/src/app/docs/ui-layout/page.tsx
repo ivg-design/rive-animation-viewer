@@ -31,8 +31,14 @@ export default function UiLayout() {
       <ul>
         <li><strong>Left</strong> &mdash; app identity and the <strong>OPEN</strong> button for file loading</li>
         <li><strong>Center</strong> &mdash; reset, play, pause, renderer selector, fit, alignment, and FPS chip</li>
-        <li><strong>Right</strong> &mdash; <strong>EXPORT</strong>, Settings gear, and MCP Setup (cable icon)</li>
+        <li><strong>Right</strong> &mdash; <strong>GPU Canvas</strong> toggle (box icon), <strong>EXPORT</strong>, Settings gear, and MCP Setup (cable icon)</li>
       </ul>
+      <p>
+        <strong>GPU Canvas</strong> is available only with the WebGL2 renderer. Enabling it turns
+        on Rive GPU Canvas features such as 3D shaders for desktop playback, standalone exports,
+        and generated snippets; the preference persists across launches. The <strong>FPS chip</strong>{" "}
+        reports the Rive runtime&apos;s own FPS counter rather than a per-advance frame count.
+      </p>
 
       <h2>Script Editor</h2>
 
@@ -74,7 +80,7 @@ export default function UiLayout() {
 
       <h2>Properties Panel</h2>
       <p>
-        Contains the Artboard/Animation switcher, ViewModel controls, and state machine inputs.
+        Contains the Artboard/Animation switcher and ViewModel controls. State machines remain available as playback targets.
         Resizable by dragging the divider, collapsible entirely.
       </p>
 

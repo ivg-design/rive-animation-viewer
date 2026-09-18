@@ -7,6 +7,7 @@ export function createArtboardSelectionUi({
     elements,
     getRiveInstance,
     getSelection,
+    hasPlaybackSource = () => Boolean(getRiveInstance()),
     populatePlaybackSelect,
     populateVmInstanceSelect,
 } = {}) {
@@ -27,7 +28,7 @@ export function createArtboardSelectionUi({
         const summary = elements.artboardSelectionSummary;
         const selection = getSelection();
         if (!summary) return;
-        if (!getRiveInstance() || !selection.artboardName) {
+        if (!hasPlaybackSource() || !selection.artboardName) {
             summary.textContent = '';
             summary.hidden = true;
             return;

@@ -4,13 +4,14 @@ import {
     resolveVmRootInstance,
 } from './accessors.js';
 import { createVmControlAccessorResolver } from './controller/accessor-resolver.js';
-import { buildStateMachineHierarchy, buildVmHierarchy, buildVmListTopologySignature, countAllInputs, stripNestedRootVmInputs } from './hierarchy.js';
+import { buildVmHierarchy, buildVmListTopologySignature, countAllInputs, stripNestedRootVmInputs } from './hierarchy.js';
 import { createRemoteControlsAdapter } from './remote/controls.js';
 import { attachRemoteControlListeners } from './remote/events.js';
 import { createVmRemoteEventHandlers } from './remote/handlers.js';
 import { createRemoteInteractionGate } from './remote/interaction-gate.js';
 import { createVmControlRowFactory, createVmSectionElementFactory } from './ui-render.js';
 import { resetVmInputControls, syncVmBindings } from './ui/binding-sync.js';
+import { createWatchControlsController } from './ui/watch-controls.js';
 import { createVmSnapshotController } from './snapshot.js';
 import { createVmSyncCoordinator } from './sync-coordinator.js';
 import { getVmDepthColor } from './ui/depth-color.js';
@@ -30,6 +31,7 @@ export function createVmControlsController({
     isAuthoritativeChildMode = false,
     pickImageFile = null,
     clearIntervalFn = globalThis.clearInterval,
+    requestAuthoritativeCommand = async () => ({ applied: false, status: 'unavailable' }),
     scheduleReactiveFlush,
     setIntervalFn = globalThis.setInterval,
     syncMode = 'auto',
@@ -73,13 +75,7 @@ export function createVmControlsController({
         vmControlBindings.push(registeredBinding);
         remoteInteractionGate.registerBinding(registeredBinding);
     }
-    const {
-        fireStateMachineTriggerByName,
-        resolveControlAccessor,
-        resolveVmAccessor,
-    } = createVmControlAccessorResolver({
-        getCurrentRuntime,
-        getLoadedRuntime,
+    const { resolveControlAccessor, resolveVmAccessor } = createVmControlAccessorResolver({
         getRiveInstance,
         isAuthoritativeChildMode,
         remoteControls,
@@ -135,13 +131,8 @@ export function createVmControlsController({
                 };
         });
     }
-    const currentStateMachineHierarchy = () => buildStateMachineHierarchy(
-        getRiveInstance(),
-        getLoadedRuntime(getCurrentRuntime()),
-    );
     const createVmControlRow = createVmControlRowFactory({
         documentRef,
-        fireStateMachineTriggerByName,
         getRiveInstance,
         getEmbeddedImageAssets,
         getLoadedRuntime: () => getLoadedRuntime(getCurrentRuntime()),
@@ -167,7 +158,6 @@ export function createVmControlsController({
     });
     const snapshotController = createVmSnapshotController({
         buildGlobalVmHierarchies,
-        buildStateMachineHierarchy: currentStateMachineHierarchy,
         getBindings: () => vmControlBindings,
         getRiveInstance,
         getCurrentSourceScope,
@@ -218,7 +208,7 @@ export function createVmControlsController({
                 if (!totalControls) {
                     empty.hidden = false;
                     empty.textContent = hierarchy
-                        ? 'No writable ViewModel or state machine inputs were found.'
+                        ? 'No writable ViewModel properties were found.'
                         : 'Preparing playback controls…';
                     return;
                 }
@@ -239,7 +229,6 @@ export function createVmControlsController({
             const vmHierarchy = rootVm ? buildVmHierarchy(rootVm, getRiveInstance(), {
                 onListAccessor: (entry) => nextVmListAccessors.push(entry),
             }) : null;
-            const stateMachineHierarchy = currentStateMachineHierarchy();
             const globalVmHierarchies = buildGlobalVmHierarchies(
                 (entry) => nextVmListAccessors.push(entry),
             );
@@ -253,7 +242,7 @@ export function createVmControlsController({
                 }
                 : null;
             vmDisclosureState.prepare(tree, {
-                hierarchy: [globalVmGroup, vmHierarchy, stateMachineHierarchy],
+                hierarchy: [globalVmGroup, vmHierarchy],
                 source: getRiveInstance(),
             });
             tree.innerHTML = '';
@@ -264,13 +253,12 @@ export function createVmControlsController({
                 (total, hierarchy) => total + hierarchy.totalInputs,
                 0,
             );
-            const stateMachineTotal = stateMachineHierarchy?.totalInputs || 0;
-            const totalControls = vmTotal + globalVmTotal + stateMachineTotal;
+            const totalControls = vmTotal + globalVmTotal;
             count.textContent = String(totalControls);
             vmSyncCoordinator.ensureUiListeners();
             if (!totalControls && !globalVmGroup) {
                 empty.hidden = false;
-                empty.textContent = 'No writable ViewModel or state machine inputs were found.';
+                empty.textContent = 'No writable ViewModel properties were found.';
                 if (vmListTopologySignature === null) {
                     vmSyncCoordinator.stopPolling();
                 } else {
@@ -289,12 +277,6 @@ export function createVmControlsController({
             if (vmHierarchy) {
                 tree.appendChild(createVmSectionElement(stripNestedRootVmInputs(vmHierarchy), true));
             }
-            if (stateMachineHierarchy?.totalInputs) {
-                stateMachineHierarchy.children.forEach((stateMachineNode) => {
-                    tree.appendChild(createVmSectionElement(stateMachineNode, false));
-                });
-            }
-
             syncVmControlBindings(true);
             vmSyncCoordinator.refresh();
             initLucideIcons();
@@ -304,8 +286,8 @@ export function createVmControlsController({
     }
     function renderRemoteTopology() {
         renderVmInputControls();
-        // Desktop's hidden parent can baseline before the authoritative child.
-        // Adopt controls when the child's complete hierarchy is first rendered.
+        // Adopt controls when the authoritative child's complete hierarchy is
+        // first rendered; asset preparation does not create a parent VM.
         snapshotController.reconcileVmControlBaselineSnapshot();
     }
     const remoteInteractionGate = createRemoteInteractionGate({
@@ -344,9 +326,26 @@ export function createVmControlsController({
         scheduleReactiveFlush,
         setIntervalFn,
         syncAllBindings: syncVmControlBindings,
-        syncMode,
+        syncMode: isAuthoritativeChildMode ? 'event' : syncMode,
         syncTopology: syncVmControlTopology,
     });
+    const detachWatchControls = isAuthoritativeChildMode ? createWatchControlsController({
+        elements,
+        getVisibleBindingKeys: () => vmSyncCoordinator.filterVisibleBindings().map((binding) => controlSnapshotKeyForDescriptor(binding.descriptor)).filter(Boolean),
+        sendWatchCommand: (keys) => requestAuthoritativeCommand('watch-controls', { keys }),
+    }).attach() : () => {};
+    function syncRemoteControlChanges(changes) {
+        if (!Array.isArray(changes) || !changes.length) return;
+        const changedKeys = new Set(changes.map((change) => (
+            typeof change?.key === 'string'
+                ? change.key
+                : controlSnapshotKeyForDescriptor(change)
+        )).filter(Boolean));
+        if (!changedKeys.size) return;
+        vmSyncCoordinator.syncChangedBindings(vmControlBindings.filter((binding) => (
+            changedKeys.has(controlSnapshotKeyForDescriptor(binding.descriptor))
+        )));
+    }
 
     const { handleRemoteAuthorityChange, handleRemoteCanonicalState, handleRemoteCommandResult } = createVmRemoteEventHandlers({
         getCurrentTopologySignature: remoteTopologySignature,
@@ -356,6 +355,7 @@ export function createVmControlsController({
         renderVmInputControls: remoteInteractionGate.renderTopologyWhenSafe,
         setRemoteAuthority: (authority) => { remoteAuthority = authority; },
         showError,
+        syncRemoteControlChanges,
         syncVmControlBindings,
     });
     const detachRemoteControlListeners = isAuthoritativeChildMode
@@ -370,6 +370,7 @@ export function createVmControlsController({
         vmSyncCoordinator.stopPolling();
         vmSyncCoordinator.stopReactive();
         detachRemoteControlListeners();
+        detachWatchControls();
     }
     return {
         applyVmControlSnapshot: snapshotController.applyVmControlSnapshot,

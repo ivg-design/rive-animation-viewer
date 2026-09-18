@@ -1,7 +1,15 @@
 import { readFileSync } from 'node:fs';
 const source = readFileSync('src-tauri/src/demo-template/js/media/frame-clock.js', 'utf8');
-const build = () => new Function(`${source}; return {renderSurfaceAdvanceFrame, stepRenderSurfaceFrames};`)();
+const build = () => new Function(`let renderSurfaceQuiesced = false; ${source}; return {
+    renderSurfaceAdvanceFrame,
+    setQuiesced(value) { renderSurfaceQuiesced = value; },
+    setupRenderSurfaceFrameClock,
+    stepRenderSurfaceFrames,
+};`)();
 describe('explicit Rive frame clock', () => {
+    it('classifies a failed active fallback draw as a fatal surface error', () => {
+        expect(source).toContain("recoverable: false, phase: 'frame-clock'");
+    });
     it('uses exactly the supplied delta and flushes before acknowledging, without a RAF dependency', () => {
         const order = [], deltas = [];
         const player = { loaded: true, artboard: {}, frameCount: 0, drawOptimization: 'drawOnChanged',
@@ -35,13 +43,38 @@ describe('explicit Rive frame clock', () => {
         expect(draw).not.toHaveBeenCalled();
     });
     it('never sends a frozen document timeline backwards after native advancement', () => {
-        const times = [], window = {};
-        const player = { lastRenderTime: 2000, _boundDraw(time) { times.push(time); }, runtime: {} };
+        const times = [], window = {}, resolveAnimationFrame = vi.fn();
+        const player = { lastRenderTime: 2000, _boundDraw(time) { times.push(time); }, runtime: { resolveAnimationFrame } };
         new Function('window', 'isRenderSurfaceMode', 'riveInstance', 'recordRenderSurfaceMediaFrame',
-            `${source}; setupRenderSurfaceFrameClock(riveInstance);`)(window, true, player, () => {});
+            `let renderSurfaceQuiesced = false; ${source}; setupRenderSurfaceFrameClock(riveInstance);`)(window, true, player, () => {});
         player._boundDraw(1000);
         player._boundDraw(2010);
         expect(times).toEqual([2000, 2010]);
+        expect(resolveAnimationFrame).not.toHaveBeenCalled();
+    });
+
+    it('stops both browser and native advancement while a replacement quiesces the child', () => {
+        const draw = vi.fn();
+        const stopRendering = vi.fn();
+        const player = {
+            _boundDraw: draw,
+            isPlaying: true,
+            lastRenderTime: 1000,
+            runtime: {},
+            stopRendering,
+        };
+        const windowRef = {};
+        const harness = new Function(
+            'window', 'isRenderSurfaceMode', 'riveInstance', 'recordRenderSurfaceMediaFrame',
+            `let renderSurfaceQuiesced = false; ${source}; setupRenderSurfaceFrameClock(riveInstance); return {
+                set(value) { renderSurfaceQuiesced = value; },
+            };`,
+        )(windowRef, true, player, () => {});
+        harness.set(true);
+        player._boundDraw(1016);
+        windowRef.__ravNativeFrameTick();
+        expect(draw).not.toHaveBeenCalled();
+        expect(stopRendering).toHaveBeenCalledTimes(2);
     });
 });
 

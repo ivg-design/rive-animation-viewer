@@ -1,6 +1,7 @@
 import { applySettingsOverlayAction, captureSettingsOverlayState, measureSettingsOverlay } from './settings-state.js';
 import { completeUiOverlayAction } from './action-completion.js';
 import { describeDefaultRivAppFailure } from './default-riv-app/error.js';
+import { createOverlayBoundsController } from './interaction/bounds.js';
 import { createOverlayParentLock } from './interaction/parent-lock.js';
 export function createUiOverlayController({
     callbacks = {},
@@ -64,6 +65,8 @@ export function createUiOverlayController({
         operationChain = next.catch(() => {});
         return next;
     }
+    const overlayBounds = createOverlayBoundsController({ enqueueOperation, getActiveEpoch: () => activeEpoch,
+        getTauriInvoker, isDisposed: () => disposed, windowRef });
     async function isNativeOverlaySupported() {
         if (!isNativeOverlayAvailable()) return false;
         if (!nativeSupportPromise) {
@@ -73,7 +76,6 @@ export function createUiOverlayController({
         }
         return nativeSupportPromise;
     }
-
     function currentSettingsState() {
         return captureSettingsOverlayState(elements, {
             canvasSizingState: getCurrentCanvasSizing(),
@@ -87,7 +89,7 @@ export function createUiOverlayController({
         activeFocusTarget = null;
         activePurpose = null;
         pendingEpoch = null;
-        previousEpoch = null;
+        previousEpoch = null; overlayBounds.clear();
         parentInteraction.unlock();
         elements.settingsButton?.setAttribute?.('aria-expanded', 'false');
     }
@@ -108,10 +110,7 @@ export function createUiOverlayController({
         if (restoreFocus) focusTarget?.focus?.({ preventScroll: true });
         return true;
     }
-
-    function close(options) {
-        return enqueueOperation(() => closeNow(options));
-    }
+    const close = (options) => enqueueOperation(() => closeNow(options));
     async function getActiveState(options) {
         let state;
         if (typeof activeDefinition?.getState === 'function') {
@@ -209,6 +208,7 @@ export function createUiOverlayController({
                 const actionDefinition = activeDefinition;
                 const result = await actionDefinition.handleAction(payload);
                 if (activeDefinition !== actionDefinition) return;
+                if (result?.bounds) await overlayBounds.resizeNow(result.bounds, result.transitionMs);
                 if (!result?.close) await syncStateNow();
                 await completeUiOverlayAction(getTauriInvoker, payload, true);
                 if (result?.close) {
@@ -397,6 +397,7 @@ export function createUiOverlayController({
             });
             if (disposed || activeDefinition !== definition) return false;
             activeEpoch = Number(epoch);
+            overlayBounds.setCurrent(bounds);
             pendingEpoch = null;
             definition.onStateSynced?.(state);
             if (activePurpose === 'settings') elements.settingsButton?.setAttribute?.('aria-expanded', 'true');
@@ -412,9 +413,7 @@ export function createUiOverlayController({
         }
     }
 
-    function openPurpose(definition) {
-        return enqueueOperation(() => openPurposeNow(definition));
-    }
+    const openPurpose = (definition) => enqueueOperation(() => openPurposeNow(definition));
 
     function dispose() {
         disposed = true;
@@ -438,6 +437,7 @@ export function createUiOverlayController({
         isNativeOverlaySupported,
         openPurpose,
         openSettings,
+        resize: overlayBounds.resize,
         setup,
     };
 }

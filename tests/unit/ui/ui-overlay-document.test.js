@@ -119,4 +119,12 @@ describe('native UI overlay document', () => {
         expect(settingsRenderer).toContain('body.scrollHeight > body.clientHeight + 2');
         expect(entry).toContain("window.addEventListener('resize', settingsRenderer.scheduleOverflowSync)");
     });
+
+    it('suppresses media scrollbars throughout native height transitions without shifting content', () => {
+        const css = read('src/app/ui/media/media.css');
+        expect(css).toMatch(/\.media-body\s*\{[^}]*overflow-y:\s*auto[^}]*scrollbar-width:\s*none/);
+        expect(css).toMatch(/\.media-body::\-webkit-scrollbar\s*\{[^}]*width:\s*0[^}]*height:\s*0/);
+        expect(css).not.toContain('scrollbar-gutter: stable;');
+        expect(css).toMatch(/\.media-export-panel\.is-resizing\s+\.media-body\s*\{[^}]*overflow-y:\s*hidden/);
+    });
 });

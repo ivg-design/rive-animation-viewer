@@ -79,6 +79,12 @@ describe('raw media schema enforcement', () => {
         expect(normalizeMediaRequest('rav_export_media',args)).toBe(args);
         expect(args.gif.quality).toBe(80); // Equal dual quality is accepted without rewriting raw input.
     });
+    it('accepts the ProRes and directory-sequence formats, and a directory-shaped output_path, for export and recording', () => {
+        for (const format of ['prores', 'png-sequence', 'jpg-sequence']) {
+            expect(normalizeMediaRequest('rav_export_media', { format, alpha: format !== 'jpg-sequence', output_path: '/tmp/shot-frames' })).toEqual({ format, alpha: format !== 'jpg-sequence', output_path: '/tmp/shot-frames' });
+            expect(normalizeMediaRequest('rav_record_start', { format }).format).toBe(format);
+        }
+    });
     it('preserves unlimited duration and applies agreed typed schedule normalization only after schema validation', () => {
         const args={format:'apng',interactions:[{at_seconds:3601,type:'vm-set',descriptor:{path:'nested.tint',kind:'color'},value:-1}]};
         const normalized=normalizeMediaRequest('rav_record_start',args);

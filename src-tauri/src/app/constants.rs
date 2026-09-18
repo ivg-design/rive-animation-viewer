@@ -11,6 +11,20 @@ pub fn is_official_app_identifier(identifier: &str) -> bool {
     identifier == OFFICIAL_APP_IDENTIFIER
 }
 
+/// The isolated DEV profile is incognito, so MCP Script Access cannot be
+/// pre-seeded through storage. Acceptance harnesses opt in per launch with
+/// `RAV_DEV_SCRIPT_ACCESS=1`; the official identifier never reads this.
+pub fn isolated_dev_initialization_script() -> &'static str {
+    let script_access = std::env::var("RAV_DEV_SCRIPT_ACCESS")
+        .map(|value| value == "1")
+        .unwrap_or(false);
+    if script_access {
+        "window.__RAV_ISOLATED_DEV__ = true; window.__RAV_MCP_SCRIPT_ACCESS__ = true;"
+    } else {
+        "window.__RAV_ISOLATED_DEV__ = true;"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{is_official_app_identifier, DEFAULT_MCP_PORT, ISOLATED_DEV_MCP_PORT};

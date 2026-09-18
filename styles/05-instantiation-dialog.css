@@ -83,6 +83,47 @@
     flex-wrap: wrap;
 }
 
+.instantiation-option-toggle {
+    height: 26px;
+    padding: 0 9px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.instantiation-option-toggle:hover {
+    border-color: var(--border-bright);
+    color: var(--text-white);
+}
+
+.instantiation-option-toggle:has(input:checked) {
+    border-color: var(--neon);
+    background: color-mix(in srgb, var(--neon) 13%, var(--bg-elevated));
+    color: var(--neon);
+}
+
+.instantiation-option-toggle:has(input:disabled) {
+    cursor: not-allowed;
+    opacity: 0.42;
+}
+
+.instantiation-option-toggle input {
+    width: 13px;
+    height: 13px;
+    margin: 0;
+    accent-color: var(--neon);
+}
+
 .instantiation-controls-grid {
     display: grid;
     grid-template-columns: minmax(320px, 0.95fr) minmax(320px, 1.05fr);

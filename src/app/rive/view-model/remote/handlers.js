@@ -4,6 +4,7 @@ export function createVmRemoteEventHandlers({
     getTopologySignature,
     getCurrentTopologySignature,
     renderVmInputControls,
+    syncRemoteControlChanges,
     syncVmControlBindings,
     showError,
     setRemoteAuthority,
@@ -16,6 +17,12 @@ export function createVmRemoteEventHandlers({
             renderVmInputControls();
             return;
         }
+        if (Array.isArray(event?.detail?.controlChanges)) {
+            syncRemoteControlChanges(event.detail.controlChanges);
+            return;
+        }
+        // Protocol-v2 compatibility: early children sent complete snapshots
+        // without an explicit delta list.
         syncVmControlBindings(false);
     }
     function handleRemoteCommandResult(event) {

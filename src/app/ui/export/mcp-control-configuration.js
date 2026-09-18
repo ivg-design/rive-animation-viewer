@@ -12,7 +12,6 @@ export function buildControlHierarchyTopologySignature(currentHierarchy) {
                 'input',
                 nodeIdentity,
                 descriptor.source || input?.source || '',
-                descriptor.stateMachineName || input?.stateMachineName || '',
                 descriptor.path || input?.path || '',
                 descriptor.name || input?.name || '',
                 descriptor.kind || input?.kind || '',
@@ -31,16 +30,18 @@ export function requestExportOverlayStateSync(documentRef) {
     }));
 }
 
-export function configureInstantiationControls({ selection, packageSource, snippetMode } = {}, {
+export function configureInstantiationControls({ enableGPUCanvas, selection, packageSource, snippetMode } = {}, {
     clearPreview,
     currentAvailableKeys,
     documentRef,
     elements,
     ensureDialogState,
     getChangedControlKeySet,
+    getExportGpuCanvasEnabled,
     getSelectedControlKeys,
     getSnippetMode,
     isOverlayOpen,
+    setExportGpuCanvasEnabled,
     setSelection,
 }) {
     if (!ensureDialogState()) throw new Error('Instantiation controls are not available');
@@ -84,9 +85,17 @@ export function configureInstantiationControls({ selection, packageSource, snipp
         clearPreview();
     }
 
+    if (enableGPUCanvas !== undefined) {
+        if (typeof enableGPUCanvas !== 'boolean') {
+            throw new Error('enableGPUCanvas must be a boolean');
+        }
+        setExportGpuCanvasEnabled(enableGPUCanvas);
+    }
+
     if (isOverlayOpen()) requestExportOverlayStateSync(documentRef);
     return {
         availableControlKeys: Array.from(currentAvailableKeys),
+        enableGPUCanvas: getExportGpuCanvasEnabled(),
         packageSource: elements.instantiationPackageSourceSelect?.value || 'cdn',
         selectedControlKeys: getSelectedControlKeys() || [],
         snippetMode: getSnippetMode(),

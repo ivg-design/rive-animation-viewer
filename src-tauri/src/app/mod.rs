@@ -1,5 +1,6 @@
 pub mod constants;
 pub mod demo_bundle;
+pub mod entitlement;
 pub mod install_counter;
 pub mod isolated_playback;
 pub mod launch_services;

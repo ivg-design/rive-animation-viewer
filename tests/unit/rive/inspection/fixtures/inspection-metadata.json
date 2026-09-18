@@ -1,0 +1,200 @@
+{
+  "timed": {
+    "schemaVersion": 1,
+    "parser": {
+      "name": "inspection",
+      "version": "fixture"
+    },
+    "artboards": [
+      {
+        "name": "Main",
+        "width": 1280,
+        "height": 720,
+        "isDefault": true,
+        "animations": [
+          {
+            "name": "Intro",
+            "fps": 30,
+            "durationFrames": 90,
+            "durationSeconds": 3,
+            "workStartFrame": 15,
+            "workEndFrame": 60,
+            "workAreaEnabled": true
+          }
+        ],
+        "stateMachines": [
+          {
+            "name": "Machine"
+          }
+        ]
+      }
+    ],
+    "viewModelMap": {
+      "schemaVersion": 1,
+      "propertyCount": 1,
+      "prototypes": [
+        {
+          "id": "vm-root",
+          "name": "Root Model",
+          "isDefault": true,
+          "instances": [
+            {
+              "index": 0,
+              "name": "Root"
+            }
+          ],
+          "properties": [
+            {
+              "name": "Child",
+              "kind": "viewmodel",
+              "viewModelRef": "vm-child"
+            }
+          ]
+        },
+        {
+          "id": "vm-child",
+          "name": "Child",
+          "isDefault": false,
+          "instances": [
+            {
+              "index": 0,
+              "name": "Child Instance"
+            }
+          ],
+          "properties": [
+            {
+              "name": "Amount",
+              "kind": "number"
+            }
+          ]
+        }
+      ],
+      "roots": [
+        {
+          "key": "Root",
+          "instance": {
+            "id": "vm-root-i0",
+            "name": "Root",
+            "prototypeId": "vm-root",
+            "prototypeName": "Root Model",
+            "nestedInstances": [
+              {
+                "propertyName": "Child",
+                "instanceRef": "Child Instance",
+                "instanceIndex": 0,
+                "instance": {
+                  "id": "vm-child-i0",
+                  "name": "Child Instance",
+                  "prototypeId": "vm-child",
+                  "prototypeName": "Child",
+                  "nestedInstances": [],
+                  "lists": []
+                }
+              }
+            ],
+            "lists": []
+          }
+        }
+      ]
+    }
+  },
+  "untimed": {
+    "schemaVersion": 1,
+    "parser": {
+      "name": "inspection",
+      "version": "fixture"
+    },
+    "artboards": [
+      {
+        "name": "Main",
+        "width": 1280,
+        "height": 720,
+        "isDefault": true,
+        "animations": [
+          {
+            "name": "Intro",
+            "fps": null,
+            "durationFrames": null,
+            "durationSeconds": null,
+            "workStartFrame": null,
+            "workEndFrame": null,
+            "workAreaEnabled": null
+          }
+        ],
+        "stateMachines": [
+          {
+            "name": "Machine"
+          }
+        ]
+      }
+    ],
+    "viewModelMap": {
+      "schemaVersion": 1,
+      "propertyCount": 1,
+      "prototypes": [
+        {
+          "id": "vm-root",
+          "name": "Root Model",
+          "isDefault": true,
+          "instances": [
+            {
+              "index": 0,
+              "name": "Root"
+            }
+          ],
+          "properties": [
+            {
+              "name": "Child",
+              "kind": "viewmodel",
+              "viewModelRef": "vm-child"
+            }
+          ]
+        },
+        {
+          "id": "vm-child",
+          "name": "Child",
+          "isDefault": false,
+          "instances": [
+            {
+              "index": 0,
+              "name": "Child Instance"
+            }
+          ],
+          "properties": [
+            {
+              "name": "Amount",
+              "kind": "number"
+            }
+          ]
+        }
+      ],
+      "roots": [
+        {
+          "key": "Root",
+          "instance": {
+            "id": "vm-root-i0",
+            "name": "Root",
+            "prototypeId": "vm-root",
+            "prototypeName": "Root Model",
+            "nestedInstances": [
+              {
+                "propertyName": "Child",
+                "instanceRef": "Child Instance",
+                "instanceIndex": 0,
+                "instance": {
+                  "id": "vm-child-i0",
+                  "name": "Child Instance",
+                  "prototypeId": "vm-child",
+                  "prototypeName": "Child",
+                  "nestedInstances": [],
+                  "lists": []
+                }
+              }
+            ],
+            "lists": []
+          }
+        }
+      ]
+    }
+  }
+}

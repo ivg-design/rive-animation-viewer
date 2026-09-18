@@ -17,7 +17,7 @@ describe('media export sampling and controls', () => {
         expect([tiny.width, tiny.height]).toEqual([160, 90]);
     });
     it('rejects impossible alpha, odd video dimensions, invalid target size and over-limit work', () => {
-        expect(() => resolveMediaOptions({ format: 'h264', alpha: true }, info)).toThrow('alpha');
+        expect(() => resolveMediaOptions({ format: 'h264', alpha: true }, info)).toThrow('no alpha channel');
         expect(() => resolveMediaOptions({ format: 'h265', width: 301 }, info)).toThrow('even');
         expect(() => resolveMediaOptions({ format: 'gif', gif_preset: 'target-size' }, info)).toThrow('max_bytes');
         expect(() => resolveMediaOptions({ format: 'webm', end_seconds: 3 }, info)).toThrow('segment');
@@ -28,6 +28,15 @@ describe('media export sampling and controls', () => {
         expect(resolveMediaOptions({ format: 'webm' }, { ...info, playback: { type: 'stateMachine' } }, true).duration_seconds).toBeNull();
         expect(resolveMediaOptions({ format: 'webm', duration_seconds: 3601 }, { ...info, playback: { type: 'stateMachine' } }, true, { max_duration_seconds: null, max_frames: null }).duration_seconds).toBe(3601);
         expect(() => resolveMediaOptions({ format: 'webm', duration_seconds: -1 }, info, true)).toThrow('positive');
+    });
+    it('keeps alpha for every format with an alpha channel and rejects it for the rest', () => {
+        for (const format of ['prores', 'webm', 'apng', 'gif', 'png-sequence']) {
+            expect(resolveMediaOptions({ format, alpha: true }, info).alpha).toBe(true);
+        }
+        expect(resolveMediaOptions({ format: 'png', alpha: true }, { width: 100, height: 100 }).alpha).toBe(true);
+        for (const format of ['h264', 'h265', 'jpg-sequence']) {
+            expect(() => resolveMediaOptions({ format, alpha: true }, info)).toThrow('no alpha channel');
+        }
     });
     it('advertises the identical media contract in both MCP servers', () => {
         expect(MEDIA_TOOLS).toEqual(JSON.parse(readFileSync('mcp-server/tools/media-tools.json', 'utf8')));

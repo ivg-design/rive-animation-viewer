@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 
-const EXPECTED_TOOL_COUNT = 57;
+const EXPECTED_TOOL_COUNT = 55;
 const REQUIRED_RELEASE_TOOLS = [
     'rav_get_global_vm_tree', 'rav_global_vm_get', 'rav_global_vm_set',
     'rav_global_vm_fire', 'rav_global_vm_set_image', 'rav_global_vm_clear_image',
@@ -14,7 +14,7 @@ const REQUIRED_RELEASE_TOOLS = [
 ];
 
 export const REQUIRED_ASSERTIONS = [
-    'tools/list: exact 57 unique tools including GVM/capture/media names',
+    'tools/list: exact 55 unique tools including GVM/capture/media names',
     'global VM tree/get/set/restore',
     'capture: valid PNG byte length matches metadata',
     'MCP connected to the exact isolated DEV build',
@@ -26,8 +26,6 @@ export const REQUIRED_ASSERTIONS = [
     'timeline: open timeline',
     'timeline canonical frames/seconds, pause hold, and reset',
     'state machine hides timeline metrics',
-    'state-machine inputs: open stateMachine',
-    'state-machine inputs round-trip through child ACK and canonical state',
     'images: open b',
     'independent image slots replay through playback reset, default reset, and A/B/A',
     'independent image slots set and clear through presented child ACK',
@@ -188,13 +186,13 @@ export function verifyReceipt(receipt, options = {}) {
     if (names.length !== required.length) fail('Receipt assertion inventory is incomplete.');
 
     const toolsAssertion = receipt.assertions.find((entry) => entry.name
-        === 'tools/list: exact 57 unique tools including GVM/capture/media names');
+        === 'tools/list: exact 55 unique tools including GVM/capture/media names');
     if (toolsAssertion?.count !== EXPECTED_TOOL_COUNT
         || !Array.isArray(toolsAssertion.names)
         || toolsAssertion.names.length !== EXPECTED_TOOL_COUNT
         || new Set(toolsAssertion.names).size !== EXPECTED_TOOL_COUNT
         || !REQUIRED_RELEASE_TOOLS.every((name) => toolsAssertion.names.includes(name))) {
-        fail('tools/list receipt evidence does not prove exactly 57 unique tools and all required GVM, capture, and media names.');
+        fail('tools/list receipt evidence does not prove exactly 55 unique tools and all required GVM, capture, and media names.');
     }
     const globalAssertion = receipt.assertions.find((entry) => entry.name === 'global VM tree/get/set/restore');
     if (!globalAssertion || globalAssertion.original !== globalAssertion.restored

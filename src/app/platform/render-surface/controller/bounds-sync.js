@@ -1,10 +1,13 @@
 import { measureRenderSurfaceBounds, renderSurfaceBoundsKey } from '../bounds.js';
 
 export function createRenderSurfaceBoundsSync({
+    canFocusSync = () => false,
     elements,
     hasSurface,
     invokeQuietly,
     isDisposed,
+    onResult = () => {},
+    prepareFocusSync = async () => true,
     windowRef,
 }) {
     let frameId = null;
@@ -27,7 +30,9 @@ export function createRenderSurfaceBoundsSync({
         if (!force && nextKey === lastBoundsKey) return true;
         lastBoundsKey = nextKey;
         if (!hasSurface()) return true;
-        return invokeQuietly('set_render_surface_bounds', bounds);
+        const applied = await invokeQuietly('set_render_surface_bounds', bounds);
+        onResult({ applied, bounds });
+        return applied;
     }
 
     function schedule() {
@@ -38,11 +43,22 @@ export function createRenderSurfaceBoundsSync({
         });
     }
 
-    function dispose() {
-        if (frameId === null) return;
-        cancelFrame(frameId);
-        frameId = null;
+    async function handleFocus() {
+        if (!canFocusSync()) return;
+        if (await prepareFocusSync()) await sync({ force: true });
     }
 
-    return { dispose, remember, schedule, sync };
+    function setupFocusSync() {
+        windowRef?.addEventListener?.('focus', handleFocus);
+    }
+
+    function dispose() {
+        windowRef?.removeEventListener?.('focus', handleFocus);
+        if (frameId !== null) {
+            cancelFrame(frameId);
+            frameId = null;
+        }
+    }
+
+    return { dispose, remember, schedule, setupFocusSync, sync };
 }

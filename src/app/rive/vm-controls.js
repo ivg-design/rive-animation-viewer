@@ -11,7 +11,6 @@ export {
     controlSelectionKeyForDescriptor,
     getGlobalViewModelInstances,
     getGlobalViewModelNames,
-    getStateMachineInputKind,
     getVmAccessor,
     getVmListItemAt,
     getVmListItemName,
@@ -26,7 +25,6 @@ export {
 } from './view-model/accessors.js';
 
 export {
-    buildStateMachineHierarchy,
     buildVmHierarchy,
     countAllInputs,
     formatVmListItemLabel,

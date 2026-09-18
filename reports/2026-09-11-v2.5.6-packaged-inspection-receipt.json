@@ -1,0 +1,104 @@
+{
+  "receipt": "rav-packaged-inspection",
+  "createdAt": "2026-09-11T19:04:37.432110+00:00",
+  "bundle": "/Users/ivg/github/rive-animation-viewer/src-tauri/target/release/bundle/macos/RAV 2.5.7 DEV.app",
+  "build": "b0239-20260911-1457-50ebd63-dirty",
+  "version": "2.5.7",
+  "channel": "dev",
+  "mainBinarySha256": "368c5bb8fd7a47d3c73659712d34e80d4af6c36936ba99156f35d9dbc97c9559",
+  "stagedModuleManifest": {
+    "createdAt": "2026-09-11T18:57:03.122Z",
+    "files": [
+      {
+        "path": "src/app/rive/inspection/private/client.js",
+        "sha256": "b89d7efe4c6693758a4789db11aff888fadf43c0d01166bd7050260f6dd740ad"
+      },
+      {
+        "path": "src/app/rive/inspection/private/metadata.js",
+        "sha256": "a01f74c0c6d5d1c0f1a3a592de11c996b7a6b9c942a7f18cb1cb03c8f0f425c5"
+      },
+      {
+        "path": "src/app/rive/inspection/private/metadata.shared.js",
+        "sha256": "67fb57b4dfdec06a3536dfc5822daeeef0304df28ea2bc8d2912cec9753bd851"
+      },
+      {
+        "path": "src/app/rive/inspection/private/worker.js",
+        "sha256": "5f9c0882dbea15b6be626f54d5b2543f2426a32fb30d0f583ef84ba826815985"
+      },
+      {
+        "path": "tests/unit/rive/inspection/private/client.test.js",
+        "sha256": "78cbc8a10ebf09cb4d0ed277ec93cd793732258a49526612ae4b422092110659"
+      },
+      {
+        "path": "tests/unit/rive/inspection/private/metadata.test.js",
+        "sha256": "3f0df6ec9701146b6d84a4ffaaa029ff2b81a6f3dab168d3e1ce4e4ed9a223c3"
+      },
+      {
+        "path": "vendor/inspection/LICENSE",
+        "sha256": "6d7c466f299d43700f237f1512c3fd8f44300fbf9f3b23e5cfc07ff5aaeb4fc5"
+      },
+      {
+        "path": "vendor/inspection/parser.js",
+        "sha256": "c7bb8e9978b8ef02748f3b8fb9187958464ff45e0844a43d3ddcf28f962645a8"
+      },
+      {
+        "path": "vendor/inspection/parser.wasm",
+        "sha256": "bddd707e21953567313dddaa6cbeeb43775115ccef7c3d8fca520c484137bb68"
+      }
+    ]
+  },
+  "runtimeEvidence": {
+    "fixture": "data_binding_images_test.riv (runtime-v0.1.344 fixture set)",
+    "method": "rav_open_file, then rav_eval in the playback child: getInspectionVmIndex() prototypes",
+    "result": [
+      "main: main_im/image, Number property/number, sub_2/viewmodel, sub_1/viewmodel",
+      "sub_1: sub_1_im/image",
+      "sub_2: sub_2_im/image"
+    ],
+    "interpretation": "Prototype ids and kinds come only from the parse-once inspection metadata; 2.5.6 has no runtime-based inspection fallback, so a populated index proves the packaged worker inspected the file bytes.",
+    "harnessReceipt": "reports/2026-09-11-v2.5.6-isolated-dev-mcp-receipt.json (49 assertions passed, including images: open b / set image via sub_1/sub_1_im)"
+  },
+  "passed": true,
+  "embeddedFrontend": {
+    "frontendDist": "dist-dev (tauri.flicker-test.conf.json)",
+    "builtAt": "2026-09-11 14:57 local (build stamp)",
+    "stagedFiles": [
+      {
+        "path": "dist-dev/src/app/rive/inspection/private/client.js",
+        "sha256": "b89d7efe4c6693758a4789db11aff888fadf43c0d01166bd7050260f6dd740ad",
+        "matchesManifest": true
+      },
+      {
+        "path": "dist-dev/src/app/rive/inspection/private/metadata.js",
+        "sha256": "a01f74c0c6d5d1c0f1a3a592de11c996b7a6b9c942a7f18cb1cb03c8f0f425c5",
+        "matchesManifest": true
+      },
+      {
+        "path": "dist-dev/src/app/rive/inspection/private/metadata.shared.js",
+        "sha256": "67fb57b4dfdec06a3536dfc5822daeeef0304df28ea2bc8d2912cec9753bd851",
+        "matchesManifest": true
+      },
+      {
+        "path": "dist-dev/src/app/rive/inspection/private/worker.js",
+        "sha256": "5f9c0882dbea15b6be626f54d5b2543f2426a32fb30d0f583ef84ba826815985",
+        "matchesManifest": true
+      },
+      {
+        "path": "dist-dev/vendor/inspection/LICENSE",
+        "sha256": "6d7c466f299d43700f237f1512c3fd8f44300fbf9f3b23e5cfc07ff5aaeb4fc5",
+        "matchesManifest": true
+      },
+      {
+        "path": "dist-dev/vendor/inspection/parser.js",
+        "sha256": "c7bb8e9978b8ef02748f3b8fb9187958464ff45e0844a43d3ddcf28f962645a8",
+        "matchesManifest": true
+      },
+      {
+        "path": "dist-dev/vendor/inspection/parser.wasm",
+        "sha256": "bddd707e21953567313dddaa6cbeeb43775115ccef7c3d8fca520c484137bb68",
+        "matchesManifest": true
+      }
+    ],
+    "note": "Tauri embeds frontend assets compressed, so byte markers are not searchable in the binary; the embedded tree is dist-dev, whose staged module files hash-match the bundle manifest."
+  }
+}

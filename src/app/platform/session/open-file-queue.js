@@ -1,18 +1,14 @@
-import { OPEN_FILE_POLL_INTERVAL_MS } from '../../core/constants.js';
 import { extractOpenedFilePath } from './path-utils.js';
 
 export function createOpenedFileQueue({
-    clearTimeoutFn = globalThis.clearTimeout,
     ensureTauriBridge = async () => {},
     getTauriEventListener = async () => null,
     getTauriInvoker = () => null,
     isTauriEnvironment = () => false,
     loadRivFromPath = async () => false,
-    setTimeoutFn = globalThis.setTimeout,
 } = {}) {
     let drainPromise = null;
     let drainRequested = false;
-    let pollTimeout = null;
     let unlisten = null;
 
     async function drain() {
@@ -59,18 +55,9 @@ export function createOpenedFileQueue({
         }
     }
 
-    function startPolling(intervalMs = OPEN_FILE_POLL_INTERVAL_MS) {
-        if (!isTauriEnvironment()) return;
-        if (pollTimeout) clearTimeoutFn(pollTimeout);
-
-        const poll = async () => {
-            await drain();
-            pollTimeout = setTimeoutFn(poll, intervalMs);
-        };
-        pollTimeout = setTimeoutFn(poll, Math.max(250, intervalMs));
-    }
-
     async function setupListener() {
+        if (!isTauriEnvironment()) return false;
+        if (typeof unlisten === 'function') return true;
         const listen = await getTauriEventListener();
         if (typeof listen !== 'function') return false;
         try {
@@ -87,10 +74,6 @@ export function createOpenedFileQueue({
     }
 
     function dispose() {
-        if (pollTimeout) {
-            clearTimeoutFn(pollTimeout);
-            pollTimeout = null;
-        }
         if (typeof unlisten === 'function') {
             try {
                 unlisten();
@@ -101,5 +84,5 @@ export function createOpenedFileQueue({
         unlisten = null;
     }
 
-    return { dispose, drain, setupListener, startPolling };
+    return { dispose, drain, setupListener };
 }

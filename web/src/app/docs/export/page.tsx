@@ -60,6 +60,7 @@ export default function Export() {
         <li><strong>Presets</strong> &mdash; CHANGED ONLY (default), SELECT ALL, CLEAR</li>
         <li><strong>Package source</strong> &mdash; CDN vs LOCAL (see below)</li>
         <li><strong>Snippet mode</strong> &mdash; COMPACT vs SCAFFOLD (see below)</li>
+        <li><strong>GPU CANVAS</strong> &mdash; WebGL2 only (see below)</li>
         <li><strong>Inline preview</strong> &mdash; live code preview with COPY button</li>
         <li><strong>GENERATE SNIPPET</strong> &mdash; copies the snippet to clipboard</li>
         <li><strong>EXPORT</strong> &mdash; saves a standalone HTML file</li>
@@ -111,6 +112,16 @@ export default function Export() {
         into an app and want all controls documented. MCP clients can drive both via the
         <code>package_source</code> and <code>snippet_mode</code> arguments on
         <code>generate_web_instantiation_code</code> and <code>rav_export_demo_visual</code>.
+      </p>
+
+      <h3>GPU Canvas</h3>
+      <p>
+        Available only when the WebGL2 renderer is active, matching the toolbar toggle described in
+        <Link href={asset("/docs/ui-layout")}> UI Layout</Link>. Enabling <strong>GPU CANVAS</strong>{" "}
+        adds <code>enableGPUCanvas: true</code> to the generated snippet or standalone export and
+        sets <code>useOffscreenRenderer: false</code>, so exported and embedded animations render
+        with the same Rive GPU Canvas features &mdash; such as 3D shaders &mdash; as desktop
+        playback.
       </p>
 
       <h2>Exporting Workflow</h2>

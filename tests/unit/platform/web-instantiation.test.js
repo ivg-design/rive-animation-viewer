@@ -56,6 +56,7 @@ describe('platform/web-instantiation', () => {
                 onPlay: () => {},
             },
             runtimeName: 'webgl2',
+            enableGPUCanvas: true,
             runtimeVersion: '2.40.0',
             sourceMode: 'editor',
             canvasBackgroundState: {
@@ -112,16 +113,6 @@ describe('platform/web-instantiation', () => {
                 },
                 {
                     descriptor: {
-                        kind: 'number',
-                        name: 'progress',
-                        source: 'state-machine',
-                        stateMachineName: 'main-sm',
-                    },
-                    kind: 'number',
-                    value: 0.3333333333,
-                },
-                {
-                    descriptor: {
                         kind: 'string', name: 'headline', path: 'headline',
                         source: 'global-view-model', globalViewModelName: 'GlobalLabels',
                     },
@@ -151,6 +142,8 @@ describe('platform/web-instantiation', () => {
         expect(code).not.toContain('defaultViewModel.defaultInstance');
         expect(code).toContain('fit: rive.Fit.Cover');
         expect(code).toContain('alignment: rive.Alignment.TopLeft');
+        expect(code).toContain('enableGPUCanvas: true,');
+        expect(code).toContain('useOffscreenRenderer: false,');
         expect(code).toContain('onLoadError: (error, ...args) => {');
         expect(code).toContain('console.error("Rive load error:", error, ...args);');
         expect(code).toContain('if (typeof userConfig.onLoadError === "function") userConfig.onLoadError(error, ...args);');
@@ -165,7 +158,7 @@ describe('platform/web-instantiation', () => {
         expect(code).toContain('"viewModel/card-vm/chart-picker": riveInst.viewModelInstance?.enum?.("card-vm/chart-picker") ?? null');
         expect(code).toContain('"viewModel/card-vm/accent-color": riveInst.viewModelInstance?.color?.("card-vm/accent-color") ?? null');
         expect(code).toContain('"viewModel/card-vm/refresh": riveInst.viewModelInstance?.trigger?.("card-vm/refresh") ?? null');
-        expect(code).toContain('"stateMachine/main-sm/progress": riveInst.stateMachineInputs?.("main-sm")?.find((input) => input.name === "progress") ?? null');
+        expect(code).not.toContain('stateMachineInputs');
         expect(code).toContain('"globalViewModel/GlobalLabels/headline": riveInst.globalViewModelInstance?.("GlobalLabels")?.string?.("headline") ?? null');
         expect(code).toContain('window.riveProperties = riveProperties;');
         expect(code).not.toContain('VM_OVERRIDES');

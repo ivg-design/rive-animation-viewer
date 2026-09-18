@@ -28,6 +28,12 @@ describe('MCP media schema matches supported operations', () => {
         for (const axis of ['x', 'y']) expect(props[axis]).toMatchObject({ minimum: 0, maximum: 1 });
         expect(props.id.const).toBe(0);
     });
+    it('advertises the new directory-output and ProRes formats as animated, and only export accepts still formats', () => {
+        for (const format of ['prores', 'png-sequence', 'jpg-sequence']) {
+            expect(tool('rav_record_start').inputSchema.properties.format.enum).toContain(format);
+            expect(tool('rav_export_media').inputSchema.properties.format.enum).toContain(format);
+        }
+    });
     it('documents matching GIF quality aliases and the signed repeat range', () => {
         for (const name of ['rav_export_media', 'rav_record_start']) {
             const props = tool(name).inputSchema.properties;

@@ -1,6 +1,11 @@
-import { createOverlayActionClient } from '../../../src/app/ui/overlay/action-client.js';
+import { createOverlayActionClient, isOverlayLifecycleFailure } from '../../../src/app/ui/overlay/action-client.js';
 
 describe('native UI overlay action client', () => {
+    it('distinguishes retired-overlay lifecycle noise from actionable failures', () => {
+        expect(isOverlayLifecycleFailure(new Error('UI overlay action was submitted by a stale or unauthorized overlay'))).toBe(true);
+        expect(isOverlayLifecycleFailure(new Error('UI overlay epoch is stale'))).toBe(true);
+        expect(isOverlayLifecycleFailure(new Error('Destination is read-only'))).toBe(false);
+    });
     it('reports a rejected action so the child can restore canonical state', async () => {
         const failure = new Error('stale overlay');
         const onFailure = vi.fn();

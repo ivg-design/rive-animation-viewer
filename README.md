@@ -6,6 +6,7 @@ For media export and recording, see [Media export and recording](Documentation/M
 
 ## Release
 
+- Prepared release candidate: `2.5.6` (native acceptance and publication pending).
 - Current public release: `2.5.5` ([GitHub release](https://github.com/ivg-design/rive-animation-viewer/releases/tag/v2.5.5)).
 - macOS downloads and updater apps are Developer ID signed, notarized, and stapled; updater payloads retain their separate update signatures.
 
@@ -152,7 +153,7 @@ args = ["--stdio-only", "--port", "9274"]
 
 Open the RAV desktop app and enable the MCP bridge. The **MCP** chip is muted and crossed out when disabled, yellow while connecting, red after a bridge failure, green when healthy and ready, and blue for 30 seconds after an agent command arrives. From then on, your MCP client can control RAV whenever both are running.
 
-#### Available Tools (57)
+#### Available Tools (55)
 
 | Tool | Description |
 |------|-------------|
@@ -189,7 +190,6 @@ Open the RAV desktop app and enable the MCP bridge. The **MCP** chip is muted an
 | `generate_web_instantiation_code` | Generate the canonical live web-instantiation snippet (`local` npm package or `cdn`) with selected typed accessors on `window.riveProperties`. Preferred over hand-writing snippets from scratch. |
 | `rav_toggle_instantiation_controls_dialog` | Open/close the in-app Snippet & Export Controls dialog so a human can choose which controls are serialized |
 | `rav_configure_workspace` | Open/close sidebars, switch live source mode (`internal` / `editor`), and inject/remove the VM Explorer snippet idempotently |
-| `rav_get_sm_inputs` / `rav_set_sm_input` | State machine input access |
 | `rav_eval` | Evaluate JS with `target: auto|host|playback`, returning the resolved surface/session (`Script Access` required) |
 | `rav_console_open` / `rav_console_close` | Toggle the JS console remotely |
 | `rav_console_set_mode` / `rav_console_set_filter` / `rav_console_clear` | Switch console mode, mirror visible filters, and clear the active transcript |
@@ -277,6 +277,11 @@ npm run tauri dev   # Development mode
 npm run tauri build # Production build
 ```
 
+File inspection (artboards, animations, ViewModel prototypes, embedded assets
+read directly from a `.riv`) is provided by a separately distributed module that
+release builds stage with `scripts/private-modules.mjs`. A tree without it builds
+and runs, but opening a file reports that the inspection module is not included.
+
 Export behavior must be tested in a packaged desktop build. The web build
 deliberately disables or cannot provide the native export path, so browser-only
 testing cannot accept an export change. Keep the exported artifact and identify
@@ -328,7 +333,7 @@ The editor uses `eval()` to evaluate JavaScript code, allowing full JavaScript s
 
 Use `stateMachine: "name"` for one state machine. RAV accepts both this spelling and existing `stateMachines` configurations, then chooses the runtime API for the loaded version: singular on Rive 2.41+, plural on older runtimes. Standalone demos and generated snippets use the same version boundary. For LOCAL snippets, install the runtime version reported with the snippet so the emitted API matches your package.
 
-Explicit timeline playback, multiple simultaneous state machines, legacy state-machine inputs, and user-supplied event callbacks remain supported. These can still emit upstream deprecation warnings on 2.41+. The active viewer/demo also retains StateChange and RiveEvent listeners for its event log; generated snippets do not subscribe unless user code requests them. RAV does not rewrite authored state machines or bindings inside a compiled `.riv` file, and it does not suppress runtime warnings.
+Explicit timeline playback, multiple simultaneous state machines, and user-supplied event callbacks remain supported. The active viewer/demo also retains StateChange and RiveEvent listeners for its event log; generated snippets do not subscribe unless user code requests them. RAV does not rewrite authored state machines or bindings inside a compiled `.riv` file, and it does not suppress runtime warnings.
 
 ### Error Handling
 - Configuration errors display in a red error banner

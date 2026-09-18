@@ -34,6 +34,11 @@
             var original = player._boundDraw;
             if (typeof original !== 'function') throw new Error('Runtime frame callbacks are unavailable.');
             player._boundDraw = function () {
+                if (renderSurfaceQuiesced) {
+                    player.stopRendering();
+                    clock.lastDraw = performance.now();
+                    return;
+                }
                 if (typeof pumpRenderSurfaceRecording === 'function' && pumpRenderSurfaceRecording()) return;
                 var args = Array.prototype.slice.call(arguments);
                 var stale = Number(args[0]) < Number(player.lastRenderTime);
@@ -44,13 +49,22 @@
                     clock.lastDraw = performance.now();
                     clock.fallback = false;
                 }
-                if (player.runtime && player.runtime.resolveAnimationFrame) player.runtime.resolveAnimationFrame();
+                // A normal Rive RAF resolves the shared WebGL2 frame after all
+                // registered draw callbacks return. Resolving again inside the
+                // callback duplicates renderer work and breaks that batching.
+                // Explicit/manual advancement still flushes in
+                // renderSurfaceAdvanceFrame(), where no runtime RAF surrounds it.
                 recordRenderSurfaceMediaFrame();
                 return result;
             };
             // Native ticks continue when the OS suppresses the child RAF queue.
             // No wall-time catch-up is applied after a pause or explicit step.
             window.__ravNativeFrameTick = function () {
+                if (renderSurfaceQuiesced) {
+                    clock.lastDraw = performance.now();
+                    player.stopRendering();
+                    return;
+                }
                 if (typeof pumpRenderSurfaceRecording === 'function' && pumpRenderSurfaceRecording()) return;
                 if (riveInstance !== player || clock.inside || !player.isPlaying) {
                     clock.lastDraw = performance.now();
@@ -74,7 +88,7 @@
                 } catch (error) {
                     clock.fallback = false;
                     if (window.__ravRenderSurfaceEmit) window.__ravRenderSurfaceEmit('render-surface:error', {
-                        recoverable: true, phase: 'frame-clock', message: String(error.message || error),
+                        recoverable: false, phase: 'frame-clock', message: String(error.message || error),
                     });
                 } finally { clock.inside = false; }
             };

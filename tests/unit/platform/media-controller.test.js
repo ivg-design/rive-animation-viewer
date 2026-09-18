@@ -1,8 +1,9 @@
 import { createMediaExportController } from '../../../src/app/platform/media/controller.js';
 
-function setup({ frameGate, stopGate, abortGate, failFrame, nativeResolved, rejectedCommand, recording = false } = {}) {
+function setup({ frameGate, stopGate, abortGate, failFrame, nativeResolved, rejectedCommand, recording = false, finishState = 'completed' } = {}) {
     let session = 'one';
     const commands = [], requests = [], listeners = {};
+    const events = [], mediaCaptureStates = [];
     const info = { width: 64, height: 64, playback: { type: recording ? 'stateMachine' : 'animation', fps: 30, durationSeconds: .1 } };
     let nativeState = 'capturing';
     const native = async (command, { request } = {}) => {
@@ -10,7 +11,7 @@ function setup({ frameGate, stopGate, abortGate, failFrame, nativeResolved, reje
         if (command === 'media_export_capabilities') return { formats: [{ id: 'webm', available: true }], limits: { max_frames: 6000 } };
         if (command === 'media_export_choose_path') return '/tmp/chosen.webm';
         if (command === 'media_export_frame' && failFrame) throw new Error('Disk full');
-        if (command === 'media_export_finish') nativeState = 'completed';
+        if (command === 'media_export_finish') nativeState = finishState;
         if (command === 'media_export_cancel') nativeState = 'cancelled';
         if (command === 'media_export_abort') { nativeState = 'failed'; return { job_id: 'native', state: nativeState, warnings: ['Accepted capture retained'], resolved_settings: { recovery_spool: '/tmp/recovery', accepted_frame_count: 2 } }; }
         return { job_id: 'native', state: nativeState, warnings: [], actual_bytes: 100, resolved_settings: nativeResolved };
@@ -18,9 +19,10 @@ function setup({ frameGate, stopGate, abortGate, failFrame, nativeResolved, reje
     const controller = createMediaExportController({
         getTauriInvoker: () => native,
         getTauriEventListener: async () => async (name, fn) => { listeners[name] = fn; },
-        windowRef: { dispatchEvent() {} },
+        windowRef: { dispatchEvent(event) { events.push(event); } },
         renderSurfaceController: {
             getState: () => ({ activeSessionId: session }),
+            setMediaCaptureActive: (active) => mediaCaptureStates.push(active),
             async requestActiveCommand(type, payload) {
                 commands.push({ type, payload });
                 if (type === rejectedCommand) return { applied: false, message: 'Capture preparation failed: test cause' };
@@ -32,7 +34,7 @@ function setup({ frameGate, stopGate, abortGate, failFrame, nativeResolved, reje
             },
         },
     });
-    return { controller, commands, requests, setSession: (value) => { session = value; } };
+    return { controller, commands, requests, listeners, events, mediaCaptureStates, setSession: (value) => { session = value; } };
 }
 describe('desktop media job orchestration', () => {
     it('routes native destination selection without starting a capture', async () => {
@@ -54,6 +56,22 @@ describe('desktop media job orchestration', () => {
         expect(h.requests.find((r) => r.command === 'media_export_begin').request).not.toHaveProperty('frame_count');
         expect(JSON.stringify(await h.controller.status(result.job_id))).not.toContain('frame-data');
         expect(h.commands.at(-1).type).toBe('media-close');
+    });
+    it('reconciles asynchronous native encoder status by native job id without polling', async () => {
+        const h = setup({ finishState: 'encoding' });
+        const result = await h.controller.exportMedia({ format: 'webm', fps: 30, output_path: '/tmp/export.webm' });
+        await vi.waitFor(() => expect(h.requests.some((request) => request.command === 'media_export_finish')).toBe(true));
+
+        h.listeners['media-export:status']({ payload: {
+            job_id: 'native', state: 'completed', stage: 'completed', progress: 1,
+            actual_bytes: 1234, output_path: '/tmp/export.webm', warnings: [],
+        } });
+
+        expect(h.events.at(-1).type).toBe('rav:media-status');
+        expect(h.events.at(-1).detail).toMatchObject({
+            job_id: result.job_id, state: 'completed', actual_bytes: 1234,
+        });
+        expect(h.requests.filter((request) => request.command === 'media_export_status')).toHaveLength(0);
     });
     it('retains accepted capture on failure and exposes its recovery receipt', async () => {
         const h = setup({ failFrame: true });
@@ -94,11 +112,23 @@ it('explicit cancellation aborts capture without requesting graceful encoder dra
     expect(h.requests.some(r=>r.command==='media_export_abort')).toBe(false);
 });
 
+it('enables the native wake clock only for native-owned recordings and releases it on abort', async () => {
+    const h = setup({ recording: true });
+    const job = await h.controller.startRecording({ format: 'webm' });
+    expect(h.requests).toContainEqual({ command: 'set_render_surface_frame_clock', request: { enabled: true } });
+    expect(h.mediaCaptureStates).toEqual([true]);
+    await h.controller.cancel(job.job_id);
+    expect(h.requests).toContainEqual({ command: 'set_render_surface_frame_clock', request: { enabled: false } });
+    expect(h.mediaCaptureStates).toEqual([true, false]);
+});
+
 it('preserves renderer failure details through the host boundary and clears the failed capture', async () => {
     const h = setup({ recording: true, rejectedCommand: 'media-record-start' });
     await expect(h.controller.startRecording({ format: 'webm' })).rejects.toThrow('Capture preparation failed: test cause');
+    expect(h.mediaCaptureStates).toEqual([true, false]);
     expect((await h.controller.status()).state).toBe('failed');
     await expect(h.controller.startRecording({ format: 'webm' })).rejects.toThrow('Capture preparation failed: test cause');
+    expect(h.mediaCaptureStates).toEqual([true, false, true, false]);
 });
 
 it('fails a recording promptly when polling detects a replaced source session', async () => {
@@ -131,4 +161,36 @@ it('never starts native finalization when cancellation races the pending stop ac
     const cancel=h.controller.cancel(job.job_id);stopDone();await vi.advanceTimersByTimeAsync(0);
     expect(h.requests.some(r=>r.command==='media_export_finish')).toBe(false);
     abortDone();await expect(cancel).resolves.toMatchObject({state:'cancelled'});
+});
+
+it('publishes the native accepted-frame count live from capture receipts and ignores stale or foreign jobs', async () => {
+    const h = setup({ recording: true });
+    const job = await h.controller.startRecording({ format: 'webm' });
+    const before = h.events.length;
+    h.listeners['media-export:capture']({ payload: { job_id: 'native', received_frames: 42, bytes_spooled: 4096 } });
+    expect(h.events.length).toBe(before + 1);
+    expect(h.events.at(-1).detail).toMatchObject({ job_id: job.job_id, state: 'capturing', captured_frames: 42 });
+    h.listeners['media-export:capture']({ payload: { job_id: 'someone-else', received_frames: 99 } });
+    expect(h.events.length).toBe(before + 1);
+    h.listeners['media-export:capture']({ payload: { job_id: 'native' } });
+    expect(h.events.length).toBe(before + 1);
+    expect((await h.controller.status()).captured_frames).toBeGreaterThanOrEqual(0);
+});
+
+it('defaults scheduled recordings with a duration to the offline clock and honours an explicit live clock', async () => {
+    const h = setup({ recording: true });
+    const scheduled = await h.controller.startRecording({ format: 'webm', duration_seconds: 2,
+        interactions: [{ at_seconds: 0.5, type: 'pointer', event: 'move', x: 0.5, y: 0.5 }] });
+    expect(scheduled.resolved_settings.clock).toBe('offline');
+    const start = h.commands.find((entry) => entry.type === 'media-record-start');
+    expect(start.payload.clock).toBe('offline');
+    await h.controller.cancel();
+    const manual = await h.controller.startRecording({ format: 'webm' });
+    expect(manual.resolved_settings.clock).toBe('live');
+    await h.controller.cancel();
+    const explicit = await h.controller.startRecording({ format: 'webm', duration_seconds: 2, clock: 'live',
+        interactions: [{ at_seconds: 0.5, type: 'pointer', event: 'move', x: 0.5, y: 0.5 }] });
+    expect(explicit.resolved_settings.clock).toBe('live');
+    await h.controller.cancel();
+    await expect(h.controller.startRecording({ format: 'webm', clock: 'offline' })).rejects.toThrow('duration_seconds');
 });

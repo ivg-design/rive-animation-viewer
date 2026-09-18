@@ -69,6 +69,7 @@
                 return recording.schedule.run(elapsed, Math.floor(elapsed * recording.options.fps.numerator / recording.options.fps.denominator + 0.5)).length > 0;
             } catch (error) {
                 recording.error = error; recording.stopped = true;
+                settleRenderSurfaceRecordingDrain(recording, error);
                 window.__ravRenderSurfaceEmit('render-surface:media-ended', { capture_id: recording.id });
                 return false;
             }
@@ -78,25 +79,41 @@
             var state = getRenderSurfaceMediaState();
             if (state.export || state.recording) throw new Error('A capture is already active.');
             if ((window.__ravRenderSurfaceTarget || {}).type !== 'stateMachine') throw new Error('Recording requires a state machine.');
-            setupRenderSurfaceMediaPointer();
-            state.recording = { id: options.capture_id, options: options, start: performance.now(),
-                lastIndex: -1, dropped: 0, stopped: false, ready: false, ownsClock: Boolean(options.native_job_id), delivery: Promise.resolve(), schedule: schedule,
-                slots: options.capture_codec ? [] : createMediaRecordingSlots(Boolean(options.native_job_id)),
-                transport: options.native_job_id && !options.capture_codec ? createMediaBinaryTransport(options.native_job_id) : null };
-            if (options.capture_codec) state.recording.video = createMediaVideoWriter(options, function (error) {
-                if (!state.recording || state.recording.id !== options.capture_id) return;
-                state.recording.error = error; state.recording.stopped = true;
-                window.__ravRenderSurfaceEmit('render-surface:media-ended', { capture_id: options.capture_id });
+            if (options.cursor) setupRenderSurfaceMediaPointer();
+            if (options.clock === 'offline' && options.duration_seconds == null) throw new Error('Offline recording requires duration_seconds.');
+            var reportProgress = function () {
+                var active = state.recording;
+                if (active && active.id === options.capture_id && active.stopProgress) active.stopProgress();
+            };
+            var recording = { id: options.capture_id, options: options, start: performance.now(),
+                lastIndex: -1, dropped: 0, stopped: false, ready: false, ownsClock: Boolean(options.native_job_id), schedule: schedule,
+                pipeline: null, loop: null };
+            recording.pipeline = createMediaCapturePipeline(options, {
+                onProgress: reportProgress,
+                onError: function (error) {
+                    if (state.recording !== recording || recording.error) return;
+                    recording.error = error; recording.stopped = true;
+                    settleRenderSurfaceRecordingDrain(recording, error);
+                    window.__ravRenderSurfaceEmit('render-surface:media-ended', { capture_id: recording.id });
+                },
+                emitFrame: function (index, base64) {
+                    return window.__ravRenderSurfaceEmit('render-surface:media-frame', {
+                        capture_id: recording.id, frame_index: index, png_base64: base64,
+                    });
+                },
             });
+            state.recording = recording;
             handleResize();
-            var preparing = state.recording;
             renderSurfaceAdvanceFrame(riveInstance, 0);
-            if (preparing.video) await preparing.video.warmUp(els.canvas);
-            if (state.recording !== preparing || preparing.stopped) throw new Error('Recording preparation was cancelled.');
-            preparing.start = performance.now();
-            preparing.ready = true;
-            if (preparing.ownsClock) pumpRenderSurfaceRecording();
-            else {
+            await recording.pipeline.configure();
+            await recording.pipeline.warmUp(els.canvas);
+            if (state.recording !== recording || recording.stopped) throw new Error('Recording preparation was cancelled.');
+            recording.start = performance.now();
+            recording.ready = true;
+            if (recording.ownsClock) {
+                recording.loop = createRenderSurfaceRecordingLoop(recording);
+                recording.loop.run();
+            } else {
                 advanceMediaRecordingInteractions();
                 renderSurfaceAdvanceFrame(riveInstance, 0);
                 recordRenderSurfaceMediaFrame();
@@ -120,44 +137,19 @@
             var index = explicitIndex == null ? (recording.lastIndex < 0 ? 0 : Math.floor(elapsed * options.fps.numerator / options.fps.denominator + 0.5)) : explicitIndex;
             if (options.duration_seconds) index = Math.min(index, Math.ceil(options.duration_seconds * options.fps.numerator / options.fps.denominator) - 1);
             if (index <= recording.lastIndex) return;
-            if (recording.video) {
-                try {
-                    if (!recording.canvas) recording.canvas = document.createElement('canvas');
-                    composeMediaCanvas(els.canvas, options, getRenderSurfaceMediaState().cursor, recording.canvas);
-                    recording.video.frame(recording.canvas, index);
-                    recording.lastIndex = index;
-                } catch (error) {
-                    recording.error = error; recording.stopped = true;
-                    window.__ravRenderSurfaceEmit('render-surface:media-ended', { capture_id: recording.id });
-                }
-                return;
-            }
-            var slot = recording.slots.find(function (entry) { return entry.index === null; });
-            if (!slot) return; // Three bounded slots overlap browser compression and native IO.
+            // Presentation-clock captures skip frames the pipeline cannot take;
+            // the receipt reports them as dropped. The recording loop never
+            // reaches this point without capacity.
+            if (!recording.pipeline.canAccept()) { if (!recording.ownsClock) return; }
             if (recording.lastIndex >= 0) recording.dropped += Math.max(0, index - recording.lastIndex - 1);
-            recording.lastIndex = index;
-            slot.index = index;
-            var encoded;
-            try { encoded = mediaCanvasPngAsync(els.canvas, options, getRenderSurfaceMediaState().cursor, slot.canvas, slot.encode, Boolean(recording.transport)); }
-            catch (error) { encoded = Promise.reject(error); }
-            // Attach a rejection handler immediately, including when an older
-            // frame is still encoding. Deliver in capture order, not finish order.
-            var ready = encoded.then(function (png) { return { png: png }; }, function (error) { return { error: error }; });
-            recording.delivery = recording.delivery.then(async function () {
-                var frame = await ready;
-                if (recording.error) return;
-                if (frame.error) throw frame.error;
-                if (recording.transport) {
-                    await recording.transport.send(index, frame.png);
-                    slot.index = null;
-                } else await window.__ravRenderSurfaceEmit('render-surface:media-frame', {
-                    capture_id: recording.id, frame_index: index, png_base64: frame.png,
-                });
-            }).catch(function (error) {
-                if (getRenderSurfaceMediaState().recording !== recording) return;
+            try {
+                recording.pipeline.capture(els.canvas, index, getRenderSurfaceMediaState().cursor);
+                recording.lastIndex = index;
+            } catch (error) {
                 recording.error = error; recording.stopped = true;
+                settleRenderSurfaceRecordingDrain(recording, error);
                 window.__ravRenderSurfaceEmit('render-surface:media-ended', { capture_id: recording.id });
-            });
+            }
         }
 
         function abortRenderSurfaceRecording(captureId) {
@@ -168,13 +160,12 @@
             }
             if (!recording) return { recording: false, aborted: true };
             if (captureId && recording.id !== captureId) return { recording: true, aborted: false };
-            // Invalidate callbacks before releasing workers/transport. Abort never
-            // waits for frame debt or a codec that has stopped responding.
+            // Invalidate callbacks before releasing the worker/transport. Abort
+            // never waits for frame debt or a codec that has stopped responding.
             state.recording = null; recording.stopped = true;
-            if (recording.pendingWake) clearTimeout(recording.pendingWake);
-            if (recording.video) recording.video.dispose();
-            if (recording.transport) recording.transport.cancel();
-            recording.slots.forEach(function (slot) { slot.dispose(); });
+            settleRenderSurfaceRecordingDrain(recording, new Error('Recording was aborted.'));
+            if (recording.loop) recording.loop.kick();
+            if (recording.pipeline) recording.pipeline.dispose();
             if (recording.schedule) recording.schedule.dispose();
             handleResize();
             renderSurfaceAdvanceFrame(riveInstance, 0);
@@ -188,32 +179,49 @@
             if (!recording) throw new Error('No recording is active.');
             if (!recording.ready) { abortRenderSurfaceRecording(); throw new Error('Recording did not finish preparing.'); }
             var elapsed = (performance.now() - recording.start) / 1000;
+            if (recording.options.clock === 'offline') {
+                // Offline time is the rendered frame count, never wall time.
+                elapsed = (recording.lastIndex + 1) * recording.options.fps.denominator / recording.options.fps.numerator;
+            }
             if (recording.options.duration_seconds) elapsed = Math.min(elapsed, recording.options.duration_seconds);
             // Seal the wall-time boundary once; drain pending simulation frames
             // before flushing, including manual stop between native wake-ups.
             if (recording.ownsClock && !recording.error) {
                 recording.stopAt = elapsed;
                 recording.stopped = false;
-                var progressedAt = performance.now(), progressIndex = recording.lastIndex;
-                while (!recording.stopped && !recording.error && state.recording === recording) {
+                recording.stopDrain = {};
+                recording.stopDrain.promise = new Promise(function (resolve, reject) {
+                    recording.stopDrain.resolve = resolve; recording.stopDrain.reject = reject;
+                });
+                recording.stopDrain.arm = function () {
+                    if (recording.stopDrain.settled) return;
+                    if (recording.stopDrain.timeout) clearTimeout(recording.stopDrain.timeout);
+                    recording.stopDrain.timeout = setTimeout(function () {
+                        var error = new Error('Recording stopped making capture progress. Accepted frames are retained for recovery.');
+                        recording.error = error; recording.stopped = true;
+                        settleRenderSurfaceRecordingDrain(recording, error);
+                    }, 15000);
+                };
+                recording.stopDrain.arm();
+                try {
                     pumpRenderSurfaceRecording();
-                    if (recording.lastIndex !== progressIndex) { progressIndex = recording.lastIndex; progressedAt = performance.now(); }
-                    if (performance.now() - progressedAt > 15000) recording.error = new Error('Recording stopped making capture progress. Accepted frames are retained for recovery.');
-                    if (!recording.stopped && !recording.error) await new Promise(function (resolve) { setTimeout(resolve, 4); });
+                    await recording.stopDrain.promise;
+                } catch (error) {
+                    if (state.recording !== recording) throw new Error('Recording was aborted.');
+                    if (!recording.error) recording.error = error;
                 }
                 if (state.recording !== recording) throw new Error('Recording was aborted.');
             }
             recording.stopped = true;
-            if (recording.pendingWake) clearTimeout(recording.pendingWake);
             var count = Math.max(recording.lastIndex + 1, Math.ceil(elapsed * recording.options.fps.numerator / recording.options.fps.denominator));
+            if (recording.ownsClock) count = recording.lastIndex + 1;
             var videoReceipt = null;
-            try { if (recording.video && !recording.error) videoReceipt = await recording.video.finish(count); }
-            catch (error) { recording.error = error; }
-            finally { if (recording.video) recording.video.dispose(); }
-            // Finish queued compression/delivery before the host drains native
-            // writes. Do not wait for ACK commands queued behind this stop.
-            await recording.delivery;
-            recording.slots.forEach(function (slot) { slot.dispose(); });
+            // Finish drains the worker, its deliveries and native writes before
+            // the host drains encoding. Do not wait for ACK commands queued
+            // behind this stop.
+            try { if (!recording.error) videoReceipt = await recording.pipeline.finish(count); }
+            catch (error) { if (!recording.error) recording.error = error; }
+            finally { recording.pipeline.dispose(); }
             var interactionReceipt = recording.schedule ? recording.schedule.status() : null;
             if (recording.schedule) recording.schedule.dispose();
             var diskStop = recording.error && recording.error.code === 'disk_space' ? recording.error.receipt : null;
@@ -225,7 +233,8 @@
             if (recording.error) throw recording.error;
             return { recording: false, capture_id: recording.id, elapsed_seconds: elapsed,
                 dropped_frames: recording.dropped, video: videoReceipt, interactions: interactionReceipt,
-                clock: { mode: recording.ownsClock ? 'fixed-step' : 'presentation', max_lag_ms: recording.maxLagMs || 0 },
+                clock: { mode: recording.ownsClock ? (recording.options.clock === 'offline' ? 'offline' : 'fixed-step') : 'presentation',
+                    max_lag_ms: recording.options.clock === 'offline' ? 0 : (recording.maxLagMs || 0) },
                 stop_reason: diskStop ? 'disk_space' : null,
                 frame_count: Math.max(1, count) };
         }
@@ -233,14 +242,18 @@
         // Progress acknowledgements renew only this stop command's inactivity
         // deadline. Rendering debt can drain for any duration while advancing.
         function withRenderSurfaceStopProgress(command, emit, run) {
-            var previous = null, revision = 0;
-            var timer = setInterval(function () {
-                var r = getRenderSurfaceMediaState().recording;
-                if (!r) return;
-                var value = r.lastIndex + ':' + (r.video && r.video.progress ? r.video.progress() : r.transport && r.transport.progress ? r.transport.progress() : 0);
-                if (value === previous) return;
-                previous = value;
-                emit('render-surface:ack', { commandId: command.commandId, status: 'progress', progress: ++revision });
-            }, 1000);
-            return Promise.resolve().then(run).finally(function () { clearInterval(timer); });
+            var recording = getRenderSurfaceMediaState().recording;
+            var revision = 0, lastEmittedAt = -Infinity;
+            var progress = function () {
+                var now = performance.now();
+                if (now - lastEmittedAt < 1000) return;
+                lastEmittedAt = now;
+                Promise.resolve(emit('render-surface:ack', {
+                    commandId: command.commandId, status: 'progress', progress: ++revision,
+                })).catch(function () {});
+            };
+            if (recording) recording.stopProgress = progress;
+            return Promise.resolve().then(run).finally(function () {
+                if (recording && recording.stopProgress === progress) recording.stopProgress = null;
+            });
         }

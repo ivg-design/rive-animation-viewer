@@ -1,5 +1,5 @@
 const STATIC = new Set(['png', 'jpg', 'webp']);
-const FORMATS = new Set([...STATIC, 'h264', 'h265', 'webm', 'apng', 'gif']);
+const FORMATS = new Set([...STATIC, 'h264', 'h265', 'webm', 'apng', 'gif', 'prores', 'png-sequence', 'jpg-sequence']);
 const GIF_PRESETS = { balanced: { edge: 960, fps: 20, quality: 80 }, small: { edge: 480, fps: 12, quality: 60 } };
 function finite(value, fallback) { return value == null ? fallback : Number(value); }
 
@@ -40,7 +40,7 @@ export function resolveMediaOptions(input = {}, info = {}, recording = false, li
     if (fps.numerator / fps.denominator > (format === 'gif' ? 50 : (limits.max_fps || 60))) throw new Error('Frame rate exceeds encoder limits.');
     if (['h264', 'h265', 'webm'].includes(format) && (outWidth % 2 || outHeight % 2)) throw new Error('Video width and height must be even numbers.');
     const alpha = input.alpha === true;
-    if (alpha && ['h264', 'h265', 'jpg'].includes(format)) throw new Error(`${format} does not support alpha in RAV. Choose WebM, APNG, PNG or WebP.`);
+    if (alpha && ['h264', 'h265', 'jpg', 'jpg-sequence'].includes(format)) throw new Error(`${format} has no alpha channel and is exported opaque over the background. Choose ProRes 4444, WebM, APNG, GIF, PNG sequence, PNG or WebP for transparency.`);
     const background = input.background || '#000000';
     if (!/^#[0-9a-f]{6}$/i.test(background)) throw new Error('Background must be a six digit hex color.');
     const gifQuality = format === 'gif' ? input.gif?.quality : null;
@@ -64,11 +64,20 @@ export function resolveMediaOptions(input = {}, info = {}, recording = false, li
     const duration = input.duration_seconds == null ? null : Number(input.duration_seconds);
     if (duration != null && (!Number.isFinite(duration) || duration <= 0 || duration > recordingLimit)) throw new Error('Recording duration must be positive and within the advertised limits.');
     const frameCount = recording ? null : still ? 1 : Math.ceil((end - start) * fps.numerator / fps.denominator - 1e-8);
+    // Scheduled recordings with a known duration are deterministic scripts:
+    // render them offline (exact timeline, no wall-clock catch-up) unless the
+    // caller asks for the live clock. Manual-stop recordings stay live.
+    const requestedClock = input.clock == null ? null : String(input.clock);
+    if (requestedClock != null && !['live', 'offline'].includes(requestedClock)) throw new Error('clock must be "live" or "offline".');
+    if (requestedClock === 'offline' && duration == null) throw new Error('Offline recording requires duration_seconds.');
+    const clock = recording
+        ? (requestedClock || ((input.interactions || []).length > 0 && duration != null ? 'offline' : 'live'))
+        : null;
     if (!recording && (frameCount > maxFrames || end - start > maxDuration)) throw new Error(`Export exceeds the ${maxFrames} frame / ${maxDuration} second limit. Reduce the segment or frame rate.`);
     const gif = { encoder: 'auto', repeat: 0, ...input.gif, quality };
     if (input.gif_preset === 'target-size' && !(gif.max_bytes > 0)) throw new Error('Target size requires gif.max_bytes.');
     return { format, mode, width: outWidth, height: outHeight, fps, alpha, background, quality,
-        ...(recording ? { interactions: input.interactions || [] } : {}),
+        ...(recording ? { interactions: input.interactions || [], clock } : {}),
         cursor: input.cursor === true, output_path: input.output_path, overwrite: input.overwrite === true,
         ...(format === 'gif' ? { gif } : {}), start_seconds: start, end_seconds: end,
         at_seconds: at, duration_seconds: duration, frame_count: frameCount,

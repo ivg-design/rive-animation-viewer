@@ -13,7 +13,7 @@ const NEW_TOOL_NAMES: [&str; 7] = [
 ];
 
 #[test]
-fn advertises_57_unique_tools_including_globals_and_canvas_capture() {
+fn advertises_55_unique_tools_including_globals_and_canvas_capture() {
     let tools = tools_list();
     let tools = tools.as_array().expect("tools_list must return an array");
     let names = tools
@@ -26,8 +26,10 @@ fn advertises_57_unique_tools_including_globals_and_canvas_capture() {
         .collect::<Vec<_>>();
     let unique_names = names.iter().copied().collect::<HashSet<_>>();
 
-    assert_eq!(names.len(), 57);
-    assert_eq!(unique_names.len(), 57);
+    assert_eq!(names.len(), 55);
+    assert_eq!(unique_names.len(), 55);
+    assert!(!unique_names.contains("rav_get_sm_inputs"));
+    assert!(!unique_names.contains("rav_set_sm_input"));
     for expected in NEW_TOOL_NAMES {
         assert!(unique_names.contains(expected), "missing tool {expected}");
     }

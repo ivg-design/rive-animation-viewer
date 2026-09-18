@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rive Animation Viewer</title>
-    <meta name="theme-color" content="#0d1117">
+    <title>Rive Animation Viewer</title><meta name="theme-color" content="#0d1117">
     <link rel="icon" type="image/png" href="icons/app-icon.png">
     <link rel="stylesheet" href="style.css">
     <script src="./vendor/lucide.min.js"></script>
@@ -95,6 +94,7 @@
                 </div>
                 <div class="toolbar-right">
                     <div class="header-right-actions">
+                        <button type="button" id="gpu-canvas-toggle-btn" class="icon-btn icon-btn-toolbar gpu-canvas-toggle" aria-pressed="false" aria-label="GPU Canvas: Off" title="GPU Canvas: Off. Required for Rive GPU Canvas features such as 3D shaders."><i data-lucide="box" class="lucide-18"></i></button>
                         <div class="settings-wrapper">
                             <button type="button" id="settings-btn" class="icon-btn icon-btn-toolbar" title="Settings" aria-label="Settings">
                                 <i data-lucide="settings" class="lucide-18"></i>

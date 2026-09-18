@@ -3,6 +3,7 @@
             var protocolVersion = 2, commandChain = Promise.resolve(), lastCommandRevision = 0;
             var readyRetryDelays = [0, 100, 300, 750, 1500, 3000, 6000];
             var readyRetryTimers = [], parentReadyAcknowledged = false;
+            var disposed = false, unlistenPromises = [];
             var eventApi = {
                 available: Boolean(events),
                 listen: Boolean(events && typeof events.listen === 'function'),
@@ -18,7 +19,7 @@
             // provides a native receipt if the injected event facade is absent
             // or rejects an outbound event; it is not a general IPC channel.
             var reportBridgeProbe = function (phase) {
-                if (typeof window.fetch !== 'function') return;
+                if (disposed || typeof window.fetch !== 'function') return;
                 var query = [
                     'phase=' + encodeURIComponent(String(phase || 'unknown').slice(0, 32)),
                     'available=' + (eventApi.available ? '1' : '0'),
@@ -44,7 +45,7 @@
             // receipts therefore also cross the already-proven custom protocol.
             // ACK/state/metrics deliberately remain on the canonical event IPC.
             var reportStartupReceipt = function (eventName, payload) {
-                if (typeof window.fetch !== 'function') return Promise.resolve(false);
+                if (disposed || typeof window.fetch !== 'function') return Promise.resolve(false);
                 var startupEvent = ({
                     'render-surface:error': 'error',
                     'render-surface:loaded': 'loaded',
@@ -66,6 +67,7 @@
                 );
             };
             var emitToMain = function (eventName, payload) {
+                if (disposed) return Promise.resolve(false);
                 var eventPayload = Object.assign({ sessionId: renderSurfaceSessionId }, payload || {});
                 var emitFallback = function () {
                     if (!eventApi.emit) return Promise.resolve(false);
@@ -84,11 +86,28 @@
                 });
             };
             window.__ravRenderSurfaceEmit = emitToMain;
-            document.addEventListener('pointerdown', function (event) {
+            var relayPointerDown = function (event) {
                 void emitToMain('render-surface:pointerdown', {
                     pointerType: event.pointerType || 'unknown',
                 });
-            }, { capture: true, passive: true });
+            };
+            document.addEventListener('pointerdown', relayPointerDown, { capture: true, passive: true });
+            window.__ravDisposeRenderSurfaceBridge = function () {
+                if (disposed) return false;
+                disposed = true;
+                parentReadyAcknowledged = true;
+                readyRetryTimers.forEach(function (timer) { window.clearTimeout(timer); });
+                readyRetryTimers = [];
+                document.removeEventListener('pointerdown', relayPointerDown, { capture: true });
+                unlistenPromises.forEach(function (pending) {
+                    Promise.resolve(pending).then(function (unlisten) {
+                        if (typeof unlisten === 'function') unlisten();
+                    }).catch(function () { /* noop */ });
+                });
+                unlistenPromises = [];
+                window.__ravRenderSurfaceEmit = function () { return Promise.resolve(false); };
+                return true;
+            };
             reportBridgeProbe(eventApi.listen ? 'boot' : 'event-api-missing');
             if (!eventApi.listen) return;
             var announceReady = function (reason, attempt) {
@@ -110,7 +129,8 @@
                 }, delay);
                 readyRetryTimers.push(timer);
             });
-            events.listen('render-surface:load', function (event) {
+            unlistenPromises.push(events.listen('render-surface:load', function (event) {
+                if (disposed) return;
                 var payload = event && event.payload && typeof event.payload === 'object' ? event.payload : {};
                 if (payload.sessionId && renderSurfaceSessionId && payload.sessionId !== renderSurfaceSessionId) return;
                 // Parent listeners can receive an already queued ready beacon.
@@ -125,8 +145,9 @@
             }).catch(function (error) {
                 reportBridgeProbe('load-listen-rejected');
                 emitToMain('render-surface:error', { phase: 'load-listen', message: String((error && error.message) || error) });
-            });
-            events.listen('render-surface:command', function (event) {
+            }));
+            unlistenPromises.push(events.listen('render-surface:command', function (event) {
+                if (disposed) return;
                 var command = event && event.payload && typeof event.payload === 'object' ? event.payload : {};
                 if (command.sessionId && renderSurfaceSessionId && command.sessionId !== renderSurfaceSessionId) return;
                 // Abort may interrupt a graceful stop waiting for encoder work.
@@ -187,5 +208,5 @@
                 });
             }).catch(function (error) {
                 emitToMain('render-surface:error', { phase: 'listen', message: String((error && error.message) || error) });
-            });
+            }));
         }

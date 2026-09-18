@@ -6,6 +6,7 @@ use crate::app::operational_trace::record;
 
 use super::super::{
     creation::rollback_failed_staged_surface,
+    native_loss::dispose_and_close,
     registry::{ActivationWatchdogRetry, ActivationWatchdogTicket, RenderSurfaceManager},
     source::render_surface_retry_label,
     MAIN_WINDOW_LABEL,
@@ -88,7 +89,7 @@ async fn recover_once(app: AppHandle, ticket: ActivationWatchdogTicket, webview_
     );
 
     if let Some(expired) = app.get_webview(&retry.expired.label) {
-        if let Err(error) = expired.close() {
+        if let Err(error) = dispose_and_close(&expired) {
             let _ = manager.record_retired(retry.expired.clone());
             fail_retry(
                 &app,

@@ -1,6 +1,9 @@
         function formatVmNumber(value) {
             var numericValue = Number(value);
-            return Number.isFinite(numericValue) ? numericValue.toFixed(2) : '0.00';
+            if (!Number.isFinite(numericValue)) return '0';
+            var formatted = numericValue.toFixed(2);
+            if (Number(formatted) === 0) return '0';
+            return formatted.replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
         }
 
         function getDepthColor(depth) {
@@ -106,12 +109,11 @@
                     if (!Number.isFinite(nextValue)) return;
                     // Format on commit while preserving the runtime value's precision.
                     if (formatValue) numberInput.value = formatVmNumber(nextValue);
-                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'number', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName, stateMachineName: descriptor.stateMachineName });
+                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'number', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName });
                     if (live) {
                         live.value = nextValue;
                         if (shouldLog) {
-                            var numberSource = descriptor.source === 'state-machine' ? 'sm-number' : 'vm-number';
-                            logEvent('ui', numberSource, 'Set ' + descriptor.path + ' = ' + nextValue);
+                            logEvent('ui', 'vm-number', 'Set ' + descriptor.path + ' = ' + nextValue);
                         }
                     }
                 };
@@ -127,11 +129,10 @@
                 checkbox.checked = Boolean(accessor && accessor.value);
                 checkbox.disabled = isDisabled;
                 checkbox.addEventListener('change', function () {
-                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'boolean', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName, stateMachineName: descriptor.stateMachineName });
+                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'boolean', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName });
                     if (live) {
                         live.value = checkbox.checked;
-                        var boolSource = descriptor.source === 'state-machine' ? 'sm-boolean' : 'vm-boolean';
-                        logEvent('ui', boolSource, 'Set ' + descriptor.path + ' = ' + checkbox.checked);
+                        logEvent('ui', 'vm-boolean', 'Set ' + descriptor.path + ' = ' + checkbox.checked);
                     }
                 });
                 registerVmControlBinding(descriptor, { kind: 'boolean', input: checkbox });
@@ -143,7 +144,7 @@
                 textInput.value = (accessor && typeof accessor.value === 'string') ? accessor.value : '';
                 textInput.disabled = isDisabled;
                 var applyStringValue = function (shouldLog) {
-                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'string', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName, stateMachineName: descriptor.stateMachineName });
+                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'string', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName });
                     if (live) {
                         live.value = textInput.value;
                         if (shouldLog) logEvent('ui', 'vm-string', 'Set ' + descriptor.path + ' = ' + textInput.value);
@@ -172,7 +173,7 @@
                 if (accessor && typeof accessor.value === 'string') select.value = accessor.value;
                 select.disabled = isDisabled || values.length === 0;
                 select.addEventListener('change', function () {
-                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'enum', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName, stateMachineName: descriptor.stateMachineName });
+                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'enum', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName });
                     if (live) {
                         live.value = select.value;
                         logEvent('ui', 'vm-enum', 'Set ' + descriptor.path + ' = ' + select.value);
@@ -200,7 +201,7 @@
                 alphaInput.disabled = isDisabled;
 
                 var applyColor = function (formatAlpha, shouldLog) {
-                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'color', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName, stateMachineName: descriptor.stateMachineName });
+                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'color', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName });
                     if (!live) return;
                     var rgb = hexToRgb(colorInput.value);
                     if (alphaInput.value.trim() === '') return;
@@ -276,7 +277,7 @@
 
                 var applyImageBytes = function (bytes, sourceLabel, requestId) {
                     var runtime = loadedRiveRuntime;
-                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'image', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName, stateMachineName: descriptor.stateMachineName });
+                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'image', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName });
                     if (!runtime || typeof runtime.decodeImage !== 'function' || !live) return Promise.resolve(false);
                     var decodedImage = null;
                     return Promise.resolve().then(function () {
@@ -305,7 +306,7 @@
                     }
                     if (assetSelect.value === '__clear__') {
                         imageRequestSequence += 1;
-                        var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'image', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName, stateMachineName: descriptor.stateMachineName });
+                        var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'image', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName });
                         if (!live) return;
                         live.value = null;
                         imageInput.value = '';
@@ -359,7 +360,7 @@
                 button.textContent = 'Fire';
                 button.disabled = isDisabled;
                 button.addEventListener('click', function () {
-                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'trigger', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName, stateMachineName: descriptor.stateMachineName });
+                    var live = resolveControlAccessor({ path: descriptor.path, name: descriptor.name, kind: 'trigger', source: descriptor.source, globalViewModelName: descriptor.globalViewModelName });
 
                     // Ensure animation is playing for trigger to take effect
                     if (riveInstance && riveInstance.isPaused) {
@@ -375,17 +376,10 @@
                         firedVmTrigger = true;
                     }
 
-                    var firedSmCount = 0;
-                    if (descriptor.source !== 'state-machine') {
-                        firedSmCount = fireStateMachineTriggerByName(descriptor.name);
-                    }
-                    if (firedVmTrigger || firedSmCount > 0) {
-                        var suffix = firedSmCount > 0 ? ' (+' + firedSmCount + ' state machine trigger matches)' : '';
-                        var triggerSource = descriptor.source === 'state-machine' ? 'sm-trigger' : 'vm-trigger';
-                        logEvent('ui', triggerSource, 'Fired trigger ' + descriptor.path + suffix);
+                    if (firedVmTrigger) {
+                        logEvent('ui', 'vm-trigger', 'Fired trigger ' + descriptor.path);
                     } else {
-                        var missSource = descriptor.source === 'state-machine' ? 'sm-trigger-miss' : 'vm-trigger-miss';
-                        logEvent('ui', missSource, 'No trigger accessor or state machine trigger matched ' + descriptor.path);
+                        logEvent('ui', 'vm-trigger-miss', 'No ViewModel trigger accessor matched ' + descriptor.path);
                     }
                 });
                 inputContainer.appendChild(button);

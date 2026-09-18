@@ -53,22 +53,32 @@ function requireDynamicWebsiteMetadata(content) {
   }
 }
 
+function compareVersions(left, right) {
+  const a = String(left).split('.').map(Number);
+  const b = String(right).split('.').map(Number);
+  if (a.length !== 3 || b.length !== 3 || [...a, ...b].some((part) => !Number.isInteger(part) || part < 0)) {
+    throw new Error(`Versions must use numeric major.minor.patch values: ${left}, ${right}`);
+  }
+  for (let index = 0; index < 3; index += 1) {
+    if (a[index] !== b[index]) return a[index] - b[index];
+  }
+  return 0;
+}
+
 export function collectVersions() {
   const packageJson = readJson('package.json');
   const packageLock = readJson('package-lock.json');
   const tauriConfig = readJson('src-tauri/tauri.conf.json');
-  const isolatedDevConfig = readJson('src-tauri/tauri.flicker-test.conf.json');
   const cargoToml = read('src-tauri/Cargo.toml');
   const cargoLock = read('src-tauri/Cargo.lock');
-  const websiteLayout = read('web/src/app/layout.tsx');
-  requireDynamicWebsiteMetadata(websiteLayout);
+  const websiteStructuredData = read('web/src/components/ProductStructuredData.tsx');
+  requireDynamicWebsiteMetadata(websiteStructuredData);
 
   return {
     'package.json': packageJson.version,
     'package-lock.json': packageLock.version,
     'package-lock.json packages[""]': packageLock.packages?.['']?.version,
     'src-tauri/tauri.conf.json': tauriConfig.version,
-    'src-tauri/tauri.flicker-test.conf.json': isolatedDevConfig.version,
     'src-tauri/Cargo.toml': matchVersion(
       cargoToml,
       /^\[package\][\s\S]*?^version = "([^"]+)"/m,
@@ -110,6 +120,7 @@ function requireReleaseContent(version) {
 
 export function verifyReleaseVersion({ expectedVersion, requireReleaseNotes = false } = {}) {
   const versions = collectVersions();
+  const devVersion = readJson('src-tauri/tauri.flicker-test.conf.json').version;
   const canonicalVersion = expectedVersion || versions['package.json'];
   const mismatches = Object.entries(versions)
     .filter(([, version]) => version !== canonicalVersion)
@@ -120,12 +131,15 @@ export function verifyReleaseVersion({ expectedVersion, requireReleaseNotes = fa
       `Expected version ${canonicalVersion}, but found mismatches:\n- ${mismatches.join('\n- ')}`,
     );
   }
+  if (compareVersions(devVersion, canonicalVersion) <= 0) {
+    throw new Error(`Isolated DEV version ${devVersion} must be newer than production ${canonicalVersion}`);
+  }
 
   if (requireReleaseNotes) {
     requireReleaseContent(canonicalVersion);
   }
 
-  return { version: canonicalVersion, sources: versions };
+  return { version: canonicalVersion, devVersion, sources: versions };
 }
 
 function main() {

@@ -31,7 +31,6 @@ function serializeHierarchyNode(node, resolveControlAccessor) {
                 path: input.path,
                 source: input.source,
                 globalViewModelName: input.globalViewModelName,
-                stateMachineName: input.stateMachineName,
             };
             let value = null;
             try {
@@ -48,7 +47,6 @@ function serializeHierarchyNode(node, resolveControlAccessor) {
                         path: input.path,
                         source: input.source,
                         globalViewModelName: input.globalViewModelName,
-                        stateMachineName: input.stateMachineName,
                         value,
                     };
                 }
@@ -63,7 +61,6 @@ function serializeHierarchyNode(node, resolveControlAccessor) {
                 path: input.path,
                 source: input.source,
                 globalViewModelName: input.globalViewModelName,
-                stateMachineName: input.stateMachineName,
                 value,
             };
         }),
@@ -79,7 +76,6 @@ function serializeHierarchyNode(node, resolveControlAccessor) {
 
 export function createVmSnapshotController({
     buildGlobalVmHierarchies = () => [],
-    buildStateMachineHierarchy,
     getBindings,
     getRiveInstance,
     getCurrentSourceScope = null,
@@ -115,12 +111,13 @@ export function createVmSnapshotController({
         if (!descriptor || kind === 'trigger') {
             return 'discarded';
         }
+        if (descriptor.source === 'state-machine') return 'discarded';
 
         if (descriptor.source === 'global-view-model') {
             if (!resolveGlobalViewModelInstance(getRiveInstance(), descriptor.globalViewModelName)) {
                 return 'pending';
             }
-        } else if (descriptor.source !== 'state-machine' && !getRiveInstance()?.viewModelInstance) {
+        } else if (!getRiveInstance()?.viewModelInstance) {
             return 'pending';
         }
 
@@ -337,7 +334,6 @@ export function createVmSnapshotController({
         const vmHierarchy = rootVm
             ? stripNestedRootVmInputs(buildVmHierarchy(rootVm, getRiveInstance()))
             : null;
-        const stateMachineHierarchy = buildStateMachineHierarchy();
         const children = [];
 
         const globalVmHierarchies = buildGlobalVmHierarchies()
@@ -356,12 +352,6 @@ export function createVmSnapshotController({
 
         if (vmHierarchy && (vmHierarchy.inputs.length || vmHierarchy.children.length)) {
             children.push(serializeHierarchyNode(vmHierarchy, resolveControlAccessor));
-        }
-
-        if (stateMachineHierarchy?.children?.length) {
-            stateMachineHierarchy.children.forEach((node) => {
-                children.push(serializeHierarchyNode(node, resolveControlAccessor));
-            });
         }
 
         if (!children.length) {

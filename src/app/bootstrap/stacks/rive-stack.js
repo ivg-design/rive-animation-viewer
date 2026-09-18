@@ -24,6 +24,7 @@ export function createRiveStack({
         getCurrentLayoutAlignment,
         getCurrentLayoutFit,
         getCurrentRuntime,
+        getGpuCanvasEnabled,
         getCurrentRuntimeVersion,
         getLoadedRuntime,
         getLiveConfig,
@@ -32,6 +33,7 @@ export function createRiveStack({
         getRenderSurfaceCanonicalState,
         getCurrentSourceScope,
         getControlSourceScope,
+        getInspectionMetadata,
         getTauriInvoker,
         hideError,
         initLucideIcons,
@@ -57,7 +59,9 @@ export function createRiveStack({
     const embeddedImageAssetCatalog = createEmbeddedImageAssetCatalog();
     const vmControlsController = createVmControlsController({
         elements,
-        getEmbeddedImageAssets: () => embeddedImageAssetCatalog.list(),
+        getEmbeddedImageAssets: () => (isAuthoritativeChildMode?.()
+            ? getRenderSurfaceCanonicalState?.()?.embeddedImageAssets || []
+            : embeddedImageAssetCatalog.list()),
         getCurrentRuntime,
         getLoadedRuntime,
         getRiveInstance,
@@ -70,6 +74,7 @@ export function createRiveStack({
             if (typeof invoke !== 'function') return null;
             return invoke('pick_image_file');
         },
+        requestAuthoritativeCommand,
         callbacks: {
             initLucideIcons,
             logEvent,
@@ -95,6 +100,8 @@ export function createRiveStack({
         getCurrentFileUrl,
         getCurrentSourceScope,
         getCanonicalSourceScope: callbacks.getCanonicalSourceScope,
+        getInspectionMetadata,
+        getRenderSurfaceCanonicalState,
         getRiveInstance,
         isAuthoritativeChildMode,
         callbacks: {
@@ -176,6 +183,7 @@ export function createRiveStack({
         getCurrentFileBuffer,
         getCurrentLayoutFit,
         getCurrentRuntime,
+        getGpuCanvasEnabled,
         getEditorConfig: getLiveConfig,
         getCurrentRuntimeVersion,
         isAuthoritativeChildMode,

@@ -92,16 +92,26 @@ export function mediaTemplate() {
           <button type="submit" class="btn btn-primary" data-media-submit>Export media</button>
         </footer>
       </form>
+      <section class="media-output-conflict" data-media-output-conflict hidden aria-labelledby="media-output-conflict-title">
+        <h2 id="media-output-conflict-title">Folder already contains files</h2>
+        <p>The folder <strong data-media-conflict-path></strong> already contains files.</p>
+        <p class="media-help">Overwrite replaces numbered sequence frames only. Unrelated files are kept.</p>
+        <div class="media-conflict-actions">
+          <button type="button" class="btn btn-primary" data-media-action="media-output-overwrite">Overwrite</button>
+          <button type="button" class="btn btn-dark" data-media-action="media-output-choose">Choose folder…</button>
+          <button type="button" class="btn btn-dark" data-media-action="media-output-cancel">Cancel</button>
+        </div>
+      </section>
       <section class="media-job" data-media-job hidden aria-label="Media export job">
         <div class="media-job-heading"><div class="media-job-title"><span class="media-job-dot" aria-hidden="true"></span><strong data-media-job-text role="status" aria-live="polite"></strong></div>
           <div class="media-job-actions"><button type="button" class="btn media-stop" data-media-action="media-stop">Stop</button>
-          <button type="button" class="btn" data-media-action="media-cancel">Cancel</button></div></div>
+          <button type="button" class="btn" data-media-action="media-cancel">Cancel</button>
+          <button type="button" class="btn" data-media-action="media-dismiss-job" aria-label="Dismiss export result">Dismiss</button></div></div>
         <progress class="media-progress" max="1" aria-label="Export progress"></progress>
         <p class="media-error" data-media-job-error role="alert" hidden></p>
         <ul class="media-warnings" data-media-warnings aria-label="Export warnings" hidden></ul>
         <details class="media-job-disclosure" data-media-job-disclosure><summary>Technical details</summary><pre data-media-job-details></pre></details>
       </section>
       <p class="media-error" data-media-error role="alert" hidden></p>
-      <p class="media-note media-limits" data-media-limits></p>
     </div>`;
 }

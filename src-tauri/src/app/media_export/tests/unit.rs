@@ -1,7 +1,7 @@
 use crate::{discovery, gif, jobs::Backend, spool, types::*};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde_json::json;
-use std::{fs, path::PathBuf, sync::Arc};
+use std::{fs, path::PathBuf, sync::{Arc, Mutex}};
 
 pub fn root() -> PathBuf {
     let dir =
@@ -191,6 +191,34 @@ fn bounded_jobs_order_cancel_zero_and_terminal_retention() {
         assert!(done.error.unwrap().contains("zero-frame"));
     }
     assert!(backend.status(&job.job_id).is_err());
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn finish_notifier_receives_terminal_failure() {
+    let dir = root();
+    let backend = backend();
+    let job = backend
+        .begin(request(dir.join("empty.png"), Format::Png))
+        .unwrap();
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let sink = events.clone();
+    let result = backend
+        .finish_with_notifier(
+            FinishRequest {
+                job_id: job.job_id.clone(),
+                frame_count: 1,
+            },
+            Some(Arc::new(move |job| sink.lock().unwrap().push(job))),
+        )
+        .unwrap();
+    assert_eq!(result.state, "failed");
+    let events = events.lock().unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].job_id, result.job_id);
+    assert_eq!(events[0].state, result.state);
+    assert_eq!(events[0].stage, result.stage);
+    backend.cancel(&job.job_id).unwrap();
     fs::remove_dir_all(dir).unwrap();
 }
 #[test]

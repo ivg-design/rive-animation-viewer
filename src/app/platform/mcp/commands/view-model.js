@@ -195,7 +195,6 @@ export function createViewModelCommands({
                         name: input.name,
                         path: input.path,
                         source: input.source || 'view-model',
-                        stateMachineName: input.stateMachineName || null,
                     },
                     value: normalizedValue,
                 });
@@ -252,7 +251,7 @@ export function createViewModelCommands({
             const safeLabel = typeof label === 'string' && label.trim() ? label.trim().slice(0, 255) : 'MCP image';
             const descriptor = {
                 kind: 'image', name: input.name, path: input.path,
-                source: input.source || 'view-model', stateMachineName: input.stateMachineName || null,
+                source: input.source || 'view-model',
             };
             const payload = {
                 ...descriptor,
@@ -274,7 +273,7 @@ export function createViewModelCommands({
             if (!input) throw new Error(`Image property "${normalizedPath.split('/').pop()}" not found or not writable`);
             const descriptor = {
                 kind: 'image', name: input.name, path: input.path,
-                source: input.source || 'view-model', stateMachineName: input.stateMachineName || null,
+                source: input.source || 'view-model',
             };
             const payload = {
                 ...descriptor,
@@ -301,7 +300,6 @@ export function createViewModelCommands({
                         name: input.name,
                         path: input.path,
                         source: input.source || 'view-model',
-                        stateMachineName: input.stateMachineName || null,
                     },
                 });
                 return {

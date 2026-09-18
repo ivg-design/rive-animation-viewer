@@ -1,0 +1,841 @@
+{
+  "harness": "rav-isolated-dev-mcp-acceptance",
+  "startedAt": "2026-09-11T18:58:27.859Z",
+  "target": {
+    "port": 9278,
+    "sidecar": "/Users/ivg/github/rive-animation-viewer/src-tauri/target/release/bundle/macos/RAV 2.5.7 DEV.app/Contents/MacOS/rav-mcp",
+    "sidecarSha256": "448e66fd7f847434dd7098e2c012cbe0028e65b3f59194954c15559849a170f3",
+    "scenario": "/Users/ivg/.rav-dev/isolated-dev-mcp-acceptance.json",
+    "scenarioSha256": "d029067e48ef52721c1c5c0f1f73f343405ba10670c4c0fc18fc970b7fcfbeae",
+    "expectedApp": {
+      "build": "b0239-20260911-1457-50ebd63-dirty",
+      "channel": "dev",
+      "version": "2.5.7"
+    }
+  },
+  "assertions": [
+    {
+      "name": "tools/list: exact 55 unique tools including GVM/capture/media names",
+      "ok": true,
+      "count": 55,
+      "required": [
+        "rav_get_global_vm_tree",
+        "rav_global_vm_get",
+        "rav_global_vm_set",
+        "rav_global_vm_fire",
+        "rav_global_vm_set_image",
+        "rav_global_vm_clear_image",
+        "rav_capture_canvas",
+        "rav_media_capabilities",
+        "rav_export_media",
+        "rav_record_start",
+        "rav_record_stop",
+        "rav_media_status",
+        "rav_media_cancel",
+        "rav_step_frames",
+        "rav_pointer"
+      ],
+      "names": [
+        "rav_status",
+        "rav_set_anonymous_usage",
+        "rav_open_file",
+        "rav_play",
+        "rav_pause",
+        "rav_reset",
+        "rav_get_artboards",
+        "rav_get_state_machines",
+        "rav_switch_artboard",
+        "rav_reset_artboard",
+        "rav_get_event_log",
+        "rav_get_editor_code",
+        "rav_set_editor_code",
+        "rav_apply_code",
+        "rav_set_runtime",
+        "rav_set_layout",
+        "rav_set_alignment",
+        "rav_set_canvas_color",
+        "rav_set_canvas_size",
+        "rav_switch_vm_instance",
+        "rav_get_vm_tree",
+        "rav_get_global_vm_tree",
+        "rav_global_vm_get",
+        "rav_global_vm_set",
+        "rav_global_vm_fire",
+        "rav_global_vm_set_image",
+        "rav_global_vm_clear_image",
+        "rav_vm_get",
+        "rav_vm_set",
+        "rav_vm_set_image",
+        "rav_vm_clear_image",
+        "rav_vm_fire",
+        "rav_media_capabilities",
+        "rav_export_media",
+        "rav_record_start",
+        "rav_record_stop",
+        "rav_media_status",
+        "rav_media_cancel",
+        "rav_step_frames",
+        "rav_pointer",
+        "rav_open_isolated_playback",
+        "rav_export_demo",
+        "rav_export_demo_visual",
+        "generate_web_instantiation_code",
+        "rav_toggle_instantiation_controls_dialog",
+        "rav_configure_workspace",
+        "rav_eval",
+        "rav_console_open",
+        "rav_console_close",
+        "rav_console_set_mode",
+        "rav_console_set_filter",
+        "rav_console_clear",
+        "rav_console_read",
+        "rav_console_exec",
+        "rav_capture_canvas"
+      ]
+    },
+    {
+      "name": "MCP connected to the exact isolated DEV build",
+      "ok": true,
+      "initial": {
+        "app": {
+          "build": "b0239-20260911-1457-50ebd63-dirty",
+          "channel": "dev",
+          "version": "2.5.7"
+        },
+        "file": {
+          "name": null,
+          "loaded": false
+        },
+        "playback": {
+          "isPlaying": false,
+          "isPaused": true,
+          "name": null,
+          "type": null
+        },
+        "renderSurface": {
+          "health": "unavailable",
+          "active": false,
+          "isLoaded": false,
+          "sessionId": null
+        },
+        "vmHasRoot": false,
+        "vmInstanceKeyPresent": true,
+        "vmPathCount": 0,
+        "vmInstanceKey": null,
+        "artboard": null
+      }
+    },
+    {
+      "name": "open sequence 1/5 step 1/3: a",
+      "ok": true,
+      "elapsedMs": 621,
+      "sessionId": "mtxbkdg2-1",
+      "file": "data_bind_test_cmdq.riv",
+      "firstFrameHealthyAfterMs": 2
+    },
+    {
+      "name": "open sequence 1/5 step 2/3: b",
+      "ok": true,
+      "elapsedMs": 457,
+      "sessionId": "mtxbkduf-2",
+      "file": "data_binding_images_test.riv",
+      "firstFrameHealthyAfterMs": 2
+    },
+    {
+      "name": "open sequence 1/5 step 3/3: a",
+      "ok": true,
+      "elapsedMs": 511,
+      "sessionId": "mtxbke76-3",
+      "file": "data_bind_test_cmdq.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "open sequence 2/5 step 1/3: a",
+      "ok": true,
+      "elapsedMs": 502,
+      "sessionId": "mtxbkelc-4",
+      "file": "data_bind_test_cmdq.riv",
+      "firstFrameHealthyAfterMs": 2
+    },
+    {
+      "name": "open sequence 2/5 step 2/3: b",
+      "ok": true,
+      "elapsedMs": 433,
+      "sessionId": "mtxbkez2-5",
+      "file": "data_binding_images_test.riv",
+      "firstFrameHealthyAfterMs": 2
+    },
+    {
+      "name": "open sequence 2/5 step 3/3: a",
+      "ok": true,
+      "elapsedMs": 450,
+      "sessionId": "mtxbkfbd-6",
+      "file": "data_bind_test_cmdq.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "open sequence 3/5 step 1/3: a",
+      "ok": true,
+      "elapsedMs": 517,
+      "sessionId": "mtxbkfnv-7",
+      "file": "data_bind_test_cmdq.riv",
+      "firstFrameHealthyAfterMs": 2
+    },
+    {
+      "name": "open sequence 3/5 step 2/3: b",
+      "ok": true,
+      "elapsedMs": 450,
+      "sessionId": "mtxbkg23-8",
+      "file": "data_binding_images_test.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "open sequence 3/5 step 3/3: a",
+      "ok": true,
+      "elapsedMs": 500,
+      "sessionId": "mtxbkgep-9",
+      "file": "data_bind_test_cmdq.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "open sequence 4/5 step 1/3: a",
+      "ok": true,
+      "elapsedMs": 519,
+      "sessionId": "mtxbkgsl-a",
+      "file": "data_bind_test_cmdq.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "open sequence 4/5 step 2/3: b",
+      "ok": true,
+      "elapsedMs": 466,
+      "sessionId": "mtxbkh6v-b",
+      "file": "data_binding_images_test.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "open sequence 4/5 step 3/3: a",
+      "ok": true,
+      "elapsedMs": 532,
+      "sessionId": "mtxbkhjy-c",
+      "file": "data_bind_test_cmdq.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "open sequence 5/5 step 1/3: a",
+      "ok": true,
+      "elapsedMs": 535,
+      "sessionId": "mtxbkhyt-d",
+      "file": "data_bind_test_cmdq.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "open sequence 5/5 step 2/3: b",
+      "ok": true,
+      "elapsedMs": 419,
+      "sessionId": "mtxbkidh-e",
+      "file": "data_binding_images_test.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "open sequence 5/5 step 3/3: a",
+      "ok": true,
+      "elapsedMs": 512,
+      "sessionId": "mtxbkip7-f",
+      "file": "data_bind_test_cmdq.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "authored instance transition: open a",
+      "ok": true,
+      "elapsedMs": 540,
+      "sessionId": "mtxbkj3g-g",
+      "file": "data_bind_test_cmdq.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "authored instances -> open list",
+      "ok": true,
+      "elapsedMs": 466,
+      "sessionId": "mtxbkka6-j",
+      "file": "script_create_viewmodel_instance.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "authored instance sequence followed by unrelated fixture",
+      "ok": true,
+      "transitions": [
+        {
+          "instance": "Test Alternate",
+          "instanceKey": "Test Alternate",
+          "sessionId": "mtxbkji5-h",
+          "vmPathCount": 8
+        },
+        {
+          "instance": "Test Default",
+          "instanceKey": "Test Default",
+          "sessionId": "mtxbkjvu-i",
+          "vmPathCount": 10
+        },
+        {
+          "file": "script_create_viewmodel_instance.riv",
+          "sessionId": "mtxbkka6-j",
+          "vmPathCount": 22
+        }
+      ]
+    },
+    {
+      "name": "instance modes: open numericInstance",
+      "ok": true,
+      "elapsedMs": 465,
+      "sessionId": "mtxbkkn4-k",
+      "file": "shared_viewmodel_instance.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "numeric and automatic VM instance transitions",
+      "ok": true,
+      "transitions": [
+        {
+          "instance": 0,
+          "instanceKey": "0",
+          "sessionId": "mtxbkkzn-l",
+          "vmPathCount": 2
+        },
+        {
+          "instance": "auto",
+          "instanceKey": null,
+          "sessionId": "mtxbklc3-m",
+          "vmPathCount": 2
+        }
+      ]
+    },
+    {
+      "name": "timeline: open timeline",
+      "ok": true,
+      "elapsedMs": 414,
+      "sessionId": "mtxbklos-n",
+      "file": "timeline_event_test.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "timeline canonical frames/seconds, pause hold, and reset",
+      "ok": true,
+      "first": {
+        "currentFrame": 11,
+        "currentSeconds": 0.1889999955892563,
+        "durationSeconds": 1,
+        "fps": 60,
+        "isPaused": false,
+        "isPlaying": true,
+        "name": "Timeline 1",
+        "totalFrames": 60,
+        "totalSeconds": 1,
+        "type": "animation"
+      },
+      "running": {
+        "currentFrame": 60,
+        "currentSeconds": 1,
+        "durationSeconds": 1,
+        "fps": 60,
+        "isPaused": true,
+        "isPlaying": false,
+        "name": "Timeline 1",
+        "totalFrames": 60,
+        "totalSeconds": 1,
+        "type": "animation"
+      },
+      "paused": {
+        "currentFrame": 60,
+        "currentSeconds": 1,
+        "durationSeconds": 1,
+        "fps": 60,
+        "isPaused": true,
+        "isPlaying": false,
+        "name": "Timeline 1",
+        "totalFrames": 60,
+        "totalSeconds": 1,
+        "type": "animation"
+      },
+      "reset": {
+        "currentFrame": 1,
+        "currentSeconds": 0.016999999061226845,
+        "durationSeconds": 1,
+        "fps": 60,
+        "isPaused": false,
+        "isPlaying": true,
+        "name": "Timeline 1",
+        "totalFrames": 60,
+        "totalSeconds": 1,
+        "type": "animation"
+      }
+    },
+    {
+      "name": "state machine hides timeline metrics",
+      "ok": true,
+      "playback": {
+        "currentFrame": null,
+        "currentSeconds": null,
+        "durationSeconds": null,
+        "fps": null,
+        "isPaused": false,
+        "isPlaying": true,
+        "name": "State Machine 1",
+        "totalFrames": null,
+        "totalSeconds": null,
+        "type": "stateMachine"
+      }
+    },
+    {
+      "name": "images: open b",
+      "ok": true,
+      "elapsedMs": 433,
+      "sessionId": "mtxbko2b-q",
+      "file": "data_binding_images_test.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "independent image slots replay through playback reset, default reset, and A/B/A",
+      "ok": true,
+      "paths": [
+        "sub_1/sub_1_im",
+        "sub_2/sub_2_im"
+      ],
+      "sessions": {
+        "original": "mtxbko2b-q",
+        "playbackReset": "mtxbko2b-q",
+        "defaultReset": "mtxbko2b-q",
+        "away": "mtxbkol3-r",
+        "reopened": "mtxbkoyw-s"
+      },
+      "replayElapsedMs": {
+        "playbackReset": 1,
+        "defaultReset": 1,
+        "reopened": 1
+      }
+    },
+    {
+      "name": "independent image slots set and clear through presented child ACK",
+      "ok": true,
+      "results": [
+        {
+          "path": "sub_1/sub_1_im",
+          "set": true
+        },
+        {
+          "path": "sub_2/sub_2_im",
+          "set": true
+        }
+      ]
+    },
+    {
+      "name": "vm color: open a",
+      "ok": true,
+      "elapsedMs": 490,
+      "sessionId": "mtxbkpcp-t",
+      "file": "data_bind_test_cmdq.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "vm color signed two-way round-trip",
+      "ok": true,
+      "path": "Test Color",
+      "signedValue": -16711936,
+      "readBack": -16711936
+    },
+    {
+      "name": "vm boolean: open a",
+      "ok": true,
+      "elapsedMs": 512,
+      "sessionId": "mtxbkpqi-u",
+      "file": "data_bind_test_cmdq.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "vm boolean two-way set/get",
+      "ok": true,
+      "path": "Test Bool",
+      "requested": false,
+      "readBack": false
+    },
+    {
+      "name": "vm number: open a",
+      "ok": true,
+      "elapsedMs": 530,
+      "sessionId": "mtxbkq4v-v",
+      "file": "data_bind_test_cmdq.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "vm number two-way set/get",
+      "ok": true,
+      "path": "Test Num",
+      "requested": 7,
+      "readBack": 7
+    },
+    {
+      "name": "vm enum: open a",
+      "ok": true,
+      "elapsedMs": 525,
+      "sessionId": "mtxbkqjt-w",
+      "file": "data_bind_test_cmdq.riv",
+      "firstFrameHealthyAfterMs": 4
+    },
+    {
+      "name": "vm enum two-way set/get",
+      "ok": true,
+      "path": "Test Enum",
+      "requested": "Value 2",
+      "readBack": "Value 2"
+    },
+    {
+      "name": "global VM: open global",
+      "ok": true,
+      "elapsedMs": 490,
+      "sessionId": "mtxbkqyn-x",
+      "file": "global_viewmodels_test.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "global VM tree/get/set/restore",
+      "ok": true,
+      "globalViewModelName": "GlobalLabels",
+      "path": "s2",
+      "kind": "string",
+      "original": "from-global-s2",
+      "requested": "mcp-live-2.5.4-web-2.41.1",
+      "restored": "from-global-s2"
+    },
+    {
+      "name": "capture: valid PNG byte length matches metadata",
+      "ok": true,
+      "mimeType": "image/png",
+      "decodedByteLength": 69145,
+      "metadataByteLength": 69145
+    },
+    {
+      "name": "list growth: open list",
+      "ok": true,
+      "elapsedMs": 479,
+      "sessionId": "mtxbkrd6-y",
+      "file": "script_create_viewmodel_instance.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "runtime list growth and generated-item mutation",
+      "ok": true,
+      "triggerPath": "newButton/onClick",
+      "newItemPath": "settings/lis/1/subch/bol",
+      "pathCount": {
+        "before": 22,
+        "after": 26
+      }
+    },
+    {
+      "name": "runtime list shrink and stale-path rejection",
+      "ok": true,
+      "shrinkTriggerPath": "popButton/onClick",
+      "stalePath": "settings/lis/1/subch/bol",
+      "pathCount": {
+        "before": 22,
+        "afterGrowth": 26,
+        "afterShrink": 22
+      },
+      "restoredPaths": [
+        "chi/label",
+        "chi/subch/bol",
+        "chi/subch/num",
+        "chi/subch/str",
+        "newAtButton/label",
+        "newAtButton/onClick",
+        "newButton/label",
+        "newButton/onClick",
+        "popButton/label",
+        "popButton/onClick",
+        "settings/index1",
+        "settings/index2",
+        "settings/lis/0/label",
+        "settings/lis/0/subch/bol",
+        "settings/lis/0/subch/num",
+        "settings/lis/0/subch/str",
+        "settings/newItem",
+        "settings/swapItems",
+        "shiftButton/label",
+        "shiftButton/onClick",
+        "swapButton/label",
+        "swapButton/onClick"
+      ]
+    },
+    {
+      "name": "playback: open a",
+      "ok": true,
+      "elapsedMs": 499,
+      "sessionId": "mtxbkrwo-z",
+      "file": "data_bind_test_cmdq.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "playback command rav_pause",
+      "ok": true,
+      "before": {
+        "app": {
+          "build": "b0239-20260911-1457-50ebd63-dirty",
+          "channel": "dev",
+          "version": "2.5.7"
+        },
+        "file": {
+          "name": "data_bind_test_cmdq.riv",
+          "loaded": true
+        },
+        "playback": {
+          "isPlaying": true,
+          "isPaused": false,
+          "name": "SM",
+          "type": "stateMachine"
+        },
+        "renderSurface": {
+          "health": "active",
+          "active": true,
+          "isLoaded": true,
+          "sessionId": "mtxbkrwo-z"
+        },
+        "vmHasRoot": true,
+        "vmInstanceKeyPresent": true,
+        "vmPathCount": 10,
+        "vmInstanceKey": null,
+        "artboard": "Test Artboard"
+      },
+      "status": {
+        "app": {
+          "build": "b0239-20260911-1457-50ebd63-dirty",
+          "channel": "dev",
+          "version": "2.5.7"
+        },
+        "file": {
+          "name": "data_bind_test_cmdq.riv",
+          "loaded": true
+        },
+        "playback": {
+          "isPlaying": false,
+          "isPaused": true,
+          "name": "SM",
+          "type": "stateMachine"
+        },
+        "renderSurface": {
+          "health": "active",
+          "active": true,
+          "isLoaded": true,
+          "sessionId": "mtxbkrwo-z"
+        },
+        "vmHasRoot": true,
+        "vmInstanceKeyPresent": true,
+        "vmPathCount": 10,
+        "vmInstanceKey": null,
+        "artboard": "Test Artboard"
+      }
+    },
+    {
+      "name": "playback command rav_play",
+      "ok": true,
+      "before": {
+        "app": {
+          "build": "b0239-20260911-1457-50ebd63-dirty",
+          "channel": "dev",
+          "version": "2.5.7"
+        },
+        "file": {
+          "name": "data_bind_test_cmdq.riv",
+          "loaded": true
+        },
+        "playback": {
+          "isPlaying": false,
+          "isPaused": true,
+          "name": "SM",
+          "type": "stateMachine"
+        },
+        "renderSurface": {
+          "health": "active",
+          "active": true,
+          "isLoaded": true,
+          "sessionId": "mtxbkrwo-z"
+        },
+        "vmHasRoot": true,
+        "vmInstanceKeyPresent": true,
+        "vmPathCount": 10,
+        "vmInstanceKey": null,
+        "artboard": "Test Artboard"
+      },
+      "status": {
+        "app": {
+          "build": "b0239-20260911-1457-50ebd63-dirty",
+          "channel": "dev",
+          "version": "2.5.7"
+        },
+        "file": {
+          "name": "data_bind_test_cmdq.riv",
+          "loaded": true
+        },
+        "playback": {
+          "isPlaying": true,
+          "isPaused": false,
+          "name": "SM",
+          "type": "stateMachine"
+        },
+        "renderSurface": {
+          "health": "active",
+          "active": true,
+          "isLoaded": true,
+          "sessionId": "mtxbkrwo-z"
+        },
+        "vmHasRoot": true,
+        "vmInstanceKeyPresent": true,
+        "vmPathCount": 10,
+        "vmInstanceKey": null,
+        "artboard": "Test Artboard"
+      }
+    },
+    {
+      "name": "playback command rav_reset",
+      "ok": true,
+      "before": {
+        "app": {
+          "build": "b0239-20260911-1457-50ebd63-dirty",
+          "channel": "dev",
+          "version": "2.5.7"
+        },
+        "file": {
+          "name": "data_bind_test_cmdq.riv",
+          "loaded": true
+        },
+        "playback": {
+          "isPlaying": true,
+          "isPaused": false,
+          "name": "SM",
+          "type": "stateMachine"
+        },
+        "renderSurface": {
+          "health": "active",
+          "active": true,
+          "isLoaded": true,
+          "sessionId": "mtxbkrwo-z"
+        },
+        "vmHasRoot": true,
+        "vmInstanceKeyPresent": true,
+        "vmPathCount": 10,
+        "vmInstanceKey": null,
+        "artboard": "Test Artboard"
+      },
+      "status": {
+        "app": {
+          "build": "b0239-20260911-1457-50ebd63-dirty",
+          "channel": "dev",
+          "version": "2.5.7"
+        },
+        "file": {
+          "name": "data_bind_test_cmdq.riv",
+          "loaded": true
+        },
+        "playback": {
+          "isPlaying": true,
+          "isPaused": false,
+          "name": "SM",
+          "type": "stateMachine"
+        },
+        "renderSurface": {
+          "health": "active",
+          "active": true,
+          "isLoaded": true,
+          "sessionId": "mtxbkrwo-z"
+        },
+        "vmHasRoot": true,
+        "vmInstanceKeyPresent": true,
+        "vmPathCount": 10,
+        "vmInstanceKey": null,
+        "artboard": "Test Artboard"
+      }
+    },
+    {
+      "name": "playback command rav_reset_artboard",
+      "ok": true,
+      "before": {
+        "app": {
+          "build": "b0239-20260911-1457-50ebd63-dirty",
+          "channel": "dev",
+          "version": "2.5.7"
+        },
+        "file": {
+          "name": "data_bind_test_cmdq.riv",
+          "loaded": true
+        },
+        "playback": {
+          "isPlaying": true,
+          "isPaused": false,
+          "name": "SM",
+          "type": "stateMachine"
+        },
+        "renderSurface": {
+          "health": "active",
+          "active": true,
+          "isLoaded": true,
+          "sessionId": "mtxbkrwo-z"
+        },
+        "vmHasRoot": true,
+        "vmInstanceKeyPresent": true,
+        "vmPathCount": 10,
+        "vmInstanceKey": null,
+        "artboard": "Test Artboard"
+      },
+      "status": {
+        "app": {
+          "build": "b0239-20260911-1457-50ebd63-dirty",
+          "channel": "dev",
+          "version": "2.5.7"
+        },
+        "file": {
+          "name": "data_bind_test_cmdq.riv",
+          "loaded": true
+        },
+        "playback": {
+          "isPlaying": true,
+          "isPaused": false,
+          "name": "SM",
+          "type": "stateMachine"
+        },
+        "renderSurface": {
+          "health": "active",
+          "active": true,
+          "isLoaded": true,
+          "sessionId": "mtxbkrwo-z"
+        },
+        "vmHasRoot": true,
+        "vmInstanceKeyPresent": true,
+        "vmPathCount": 10,
+        "vmInstanceKey": null,
+        "artboard": "Test Artboard"
+      }
+    },
+    {
+      "name": "presentation: open a",
+      "ok": true,
+      "elapsedMs": 504,
+      "sessionId": "mtxbkscr-10",
+      "file": "data_bind_test_cmdq.riv",
+      "firstFrameHealthyAfterMs": 3
+    },
+    {
+      "name": "presentation controls persist through play/reset/default",
+      "ok": true,
+      "fit": "cover",
+      "alignment": "bottomRight",
+      "color": "#123456",
+      "width": 500,
+      "height": 409,
+      "lockAspectRatio": true
+    }
+  ],
+  "skipped": [],
+  "failures": [],
+  "passed": true,
+  "finishedAt": "2026-09-11T18:58:47.873Z",
+  "stderr": []
+}

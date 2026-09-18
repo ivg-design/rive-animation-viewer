@@ -16,7 +16,7 @@ mod protocol;
 mod registry;
 mod source;
 
-pub use messages::clock::start as start_frame_clock;
+pub use messages::clock::{start as start_frame_clock, NativeFrameClock};
 pub use protocol::serve_render_surface_protocol;
 pub use registry::RenderSurfaceManager;
 pub use source::CreateRenderSurfaceRequest;
@@ -24,6 +24,11 @@ pub use source::CreateRenderSurfaceRequest;
 pub(crate) use commands::{cleanup_render_surface_cache_on_startup, close_all_render_surfaces};
 
 use tauri::{AppHandle, State};
+
+#[derive(serde::Deserialize)]
+pub struct NativeFrameClockRequest {
+    pub enabled: bool,
+}
 
 pub const RENDER_SURFACE_PROTOCOL: &str = "rav-render";
 
@@ -100,13 +105,13 @@ pub fn close_render_surface(
 }
 
 #[tauri::command]
-pub fn activate_render_surface(
+pub async fn activate_render_surface(
     app: AppHandle,
     manager: State<'_, RenderSurfaceManager>,
     session_id: String,
     reveal: bool,
 ) -> Result<(), String> {
-    commands::activate_render_surface(app, manager, session_id, reveal)
+    commands::activate_render_surface(app, manager, session_id, reveal).await
 }
 
 #[tauri::command]
@@ -126,4 +131,15 @@ pub async fn send_render_surface_message(
     payload: serde_json::Value,
 ) -> Result<(), String> {
     messages::send_render_surface_message(app, manager, event, payload).await
+}
+
+/// Enable the native wake lane only for a native-owned recording. Ordinary
+/// playback remains entirely event/RAF driven inside the child WebView.
+#[tauri::command]
+pub fn set_render_surface_frame_clock(
+    clock: State<'_, NativeFrameClock>,
+    request: NativeFrameClockRequest,
+) -> Result<(), String> {
+    clock.set_enabled(request.enabled);
+    Ok(())
 }

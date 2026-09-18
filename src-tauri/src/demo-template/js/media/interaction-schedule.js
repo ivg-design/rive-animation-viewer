@@ -129,10 +129,30 @@ var RavMediaInteractions = (function () {
 // Allows the host to import this exact validation code without eval or a duplicate validator.
 globalThis.RavMediaInteractions = RavMediaInteractions;
 
+function validateRenderSurfaceInteractionAccessors(interactions, durationSeconds) {
+    var normalized = RavMediaInteractions.validate(interactions, durationSeconds);
+    normalized.forEach(function (operation) {
+        if (operation.type === 'pointer') return;
+        var descriptor = operation.descriptor;
+        var accessor = resolveControlAccessor(descriptor);
+        if (!accessor) {
+            throw new Error('Scheduled control "' + descriptor.path + '" is unavailable in the current ViewModel. Refresh the ViewModel tree and use a current path.');
+        }
+        if (descriptor.kind === 'enum') {
+            var values = readEnumValues(accessor);
+            if (values.length && values.indexOf(operation.value) < 0) {
+                throw new Error('Scheduled enum value for "' + descriptor.path + '" is not an available choice.');
+            }
+        }
+    });
+    return normalized;
+}
+
 async function prepareRenderSurfaceInteractionSchedule(interactions, options, preparationIsCurrent, onCancellation) {
     options = options || {};
-    var normalized = RavMediaInteractions.validate(interactions, options.duration_seconds);
+    var normalized = validateRenderSurfaceInteractionAccessors(interactions, options.duration_seconds);
     var player = riveInstance, session = renderSurfaceSessionId, resources = new Map(), pendingImages = [];
+    var preparedAccessors = new Map();
     var disposed = false;
     function isCurrent() { return !disposed && (!preparationIsCurrent || preparationIsCurrent()) && player === riveInstance && session === renderSurfaceSessionId; }
     function release(image) { if (image && typeof image.unref === 'function') image.unref(); }
@@ -143,6 +163,15 @@ async function prepareRenderSurfaceInteractionSchedule(interactions, options, pr
     }
     if (onCancellation) onCancellation(dispose);
     try {
+        // A valid Rive property can be briefly unreachable while the runtime
+        // publishes a new nested ViewModel wrapper between rendered frames.
+        // Retain the accessor observed before the recording clock starts and
+        // use it only as a fallback when a same-session live lookup misses.
+        normalized.forEach(function (operation, index) {
+            if (operation.type === 'pointer') return;
+            var accessor = resolveControlAccessor(operation.descriptor);
+            if (accessor) preparedAccessors.set(index, accessor);
+        });
         // Validate the whole schedule before the first decode. Estimates are RGBA
         // pixels, not a process/GPU quota; encoded and decoded allocations are separate.
         var encodedBytes = 0, decodedBytes = 0;
@@ -179,8 +208,8 @@ async function prepareRenderSurfaceInteractionSchedule(interactions, options, pr
             apply: function (op, index) {
                 if (op.type === 'pointer') return dispatchRenderSurfacePointer({ type: op.event, x: op.x, y: op.y, id: 0, buttons: op.buttons });
                 var descriptor = op.descriptor;
+                var accessor = resolveControlAccessor(descriptor) || preparedAccessors.get(index);
                 if (descriptor.kind === 'image') {
-                    var accessor = resolveControlAccessor(descriptor);
                     if (!accessor || !('value' in accessor)) throw new Error('Scheduled image control is unavailable.');
                     accessor.value = resources.get(index) || null;
                     pendingImages.push({ index: index, descriptor: Object.assign({}, descriptor, {
@@ -189,13 +218,14 @@ async function prepareRenderSurfaceInteractionSchedule(interactions, options, pr
                     return;
                 }
                 if (descriptor.kind === 'enum') {
-                    var enumAccessor = resolveControlAccessor(descriptor);
-                    var values = readEnumValues(enumAccessor);
+                    var values = readEnumValues(accessor);
                     if (values.length && values.indexOf(op.value) < 0) throw new Error('Scheduled enum value is not an available choice.');
                 }
-                // Existing root/nested/global/list accessor route and trigger receipts.
-                return handleRenderSurfaceCommand({ type: op.type === 'vm-trigger' ? 'vm-fire' : 'vm-set',
-                    payload: { descriptor: descriptor, value: op.value } });
+                if (!accessor) throw new Error('Scheduled control "' + descriptor.path + '" is unavailable.');
+                if (descriptor.kind === 'trigger' && riveInstance && riveInstance.isPlaying === false) riveInstance.play();
+                setRenderSurfaceAccessorValue(accessor, descriptor.kind, op.value);
+                if (descriptor.kind === 'trigger') recordRenderSurfaceTriggerReceipt(Object.assign({}, descriptor, { kind: 'trigger' }));
+                return { descriptor: descriptor, value: descriptor.kind === 'trigger' ? null : accessor.value };
             },
         });
         return { run: schedule.run, status: schedule.status,

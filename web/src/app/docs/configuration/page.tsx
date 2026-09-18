@@ -47,6 +47,12 @@ export default function Configuration() {
         Choose between <strong>Canvas</strong> and <strong>WebGL2</strong> in the toolbar.
         WebGL2 is recommended for vector feathering and complex animations.
       </p>
+      <p>
+        The toolbar&apos;s <strong>GPU Canvas</strong> toggle is available only with the WebGL2
+        renderer. It enables Rive GPU Canvas features such as 3D shaders, and the preference is
+        stored per app as <code>ravGpuCanvasEnabled</code>. Enabling it applies consistently to
+        desktop playback, exports, and generated snippets.
+      </p>
 
       <h2>Runtime Version</h2>
       <p>

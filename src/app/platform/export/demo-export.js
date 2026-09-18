@@ -25,6 +25,7 @@ export function createDemoExportController({
     getCurrentLayoutAlignment = () => 'center',
     getCurrentLayoutFit = () => 'contain',
     getCurrentRuntime = () => 'webgl2',
+    getGpuCanvasEnabled = () => false,
     getEditorConfig = () => ({}),
     getEffectiveRuntimeVersionToken = (token) => token,
     getLiveConfigState = () => ({
@@ -82,7 +83,7 @@ export function createDemoExportController({
         return captureVmControlSnapshot();
     }
 
-    async function buildInstantiationContext({ packageSource = 'local', selectedControlKeys, snippetMode = 'compact' } = {}) {
+    async function buildInstantiationContext({ enableGPUCanvas, packageSource = 'local', selectedControlKeys, snippetMode = 'compact' } = {}) {
         const currentFileName = getCurrentFileName();
         if (!currentFileName) {
             throw new Error('Please load a Rive file first.');
@@ -123,6 +124,7 @@ export function createDemoExportController({
                 : [],
             editorCode: liveConfigState.appliedEditorCode,
             editorConfig: getEditorConfig(),
+            enableGPUCanvas: typeof enableGPUCanvas === 'boolean' ? enableGPUCanvas : getGpuCanvasEnabled(),
             runtimeName,
             runtimeVersion: selectedRuntimeSemver,
             sourceMode: liveConfigState.sourceMode,
@@ -141,7 +143,7 @@ export function createDemoExportController({
         };
     }
 
-    async function buildExportContext({ packageSource = 'cdn', selectedControlKeys, snippetMode = 'compact' } = {}) {
+    async function buildExportContext({ enableGPUCanvas, packageSource = 'cdn', selectedControlKeys, snippetMode = 'compact' } = {}) {
         const currentFileBuffer = getCurrentFileBuffer();
         const currentFileName = getCurrentFileName();
         if (!currentFileBuffer || !currentFileName) {
@@ -189,6 +191,7 @@ export function createDemoExportController({
                 : [],
             editorCode: getLiveConfigState().appliedEditorCode,
             editorConfig: getEditorConfig(),
+            enableGPUCanvas: typeof enableGPUCanvas === 'boolean' ? enableGPUCanvas : getGpuCanvasEnabled(),
             runtimeName,
             runtimeVersion: selectedRuntimeSemver,
             sourceMode: getLiveConfigState().sourceMode,
@@ -227,6 +230,7 @@ export function createDemoExportController({
             editorConfig: {
                 autoplay: descriptor.autoplay,
             },
+            enableGPUCanvas: descriptor.enableGPUCanvas === true,
             instantiationCode: instantiationSnippets[defaultPackageSource].code,
             instantiationSnippets: {
                 cdn: instantiationSnippets.cdn.code,
@@ -365,8 +369,8 @@ export function createDemoExportController({
         return result;
     }
 
-    async function generateWebInstantiationCode({ packageSource = 'cdn', selectedControlKeys, snippetMode = 'compact' } = {}) {
-        const context = await buildInstantiationContext({ packageSource, selectedControlKeys, snippetMode });
+    async function generateWebInstantiationCode({ enableGPUCanvas, packageSource = 'cdn', selectedControlKeys, snippetMode = 'compact' } = {}) {
+        const context = await buildInstantiationContext({ enableGPUCanvas, packageSource, selectedControlKeys, snippetMode });
         return context.result;
     }
 

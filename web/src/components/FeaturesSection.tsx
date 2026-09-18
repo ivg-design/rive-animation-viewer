@@ -14,7 +14,7 @@ const primaryFeatures = [
   {
     label: "Controls",
     title: "Every property, live",
-    description: "RAV reads the ViewModel hierarchy and state machine inputs from your .riv file. List rows resolve exact authored labels. Each image property gets one full-width select with every embedded raster, Open file…, and Clear; the external file input stays hidden.",
+    description: "RAV reads the ViewModel hierarchy from your .riv file and keeps state-machine playback available. List rows resolve exact authored labels. Each image property gets one full-width select with every embedded raster, Open file…, and Clear; the external file input stays hidden.",
     responsiveImage: "viewModelControls",
     imageAlt: "ViewModel controls panel showing enums, numbers, booleans, color picker, and nested instances",
     imageWidth: 400,
@@ -34,7 +34,7 @@ const primaryFeatures = [
   {
     label: "MCP",
     title: "AI agents as co-pilots",
-    description: "A bundled native sidecar exposes 57 MCP tools. Claude, Codex, or any MCP client can inspect and drive playback, record timed interactions, export every media format, edit scripts, generate snippets, and control the console panel. One-click install from the app.",
+    description: "A bundled native sidecar exposes 55 MCP tools. Claude, Codex, or any MCP client can inspect and drive playback, record timed interactions, export every media format, edit scripts, generate snippets, and control the console panel. One-click install from the app.",
     responsiveImage: "mcpSetup",
     imageAlt: "MCP Setup dialog with client detection, one-click install, and snippet copy",
     imageWidth: 500,

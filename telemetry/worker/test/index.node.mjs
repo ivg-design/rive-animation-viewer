@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { describe, it } from 'node:test';
 
-import {
+import worker, {
   digestToken,
   handleRequest,
   validateEventPayload,
@@ -85,8 +85,10 @@ function sqliteDatabase() {
         bind(...values) {
           return {
             async run() {
-              sqlite.prepare(sql).run(...values);
-              return { success: true };
+              const info = sqlite.prepare(sql).run(...values);
+              // D1 reports affected rows on meta.changes; the retention sweep
+              // batches on it, so the fake has to carry it too.
+              return { success: true, meta: { changes: Number(info?.changes ?? 0) } };
             },
           };
         },
@@ -263,8 +265,8 @@ describe('privacy-preserving storage', () => {
 
     const result = await handleRequest(request, environment(database), { now: () => NOW });
     assert.equal(result.status, 204);
-    assert.equal(database.calls.length, 2);
-    const [{ values }, cleanup] = database.calls;
+    assert.equal(database.calls.length, 1);
+    const [{ values }] = database.calls;
     assert.equal(values[0], 'monthly_active');
     assert.equal(values[1], '2026-08');
     assert.match(values[2], /^[0-9a-f]{64}$/);
@@ -273,8 +275,10 @@ describe('privacy-preserving storage', () => {
     assert.ok(!values.includes(INSTALL_TOKEN));
     assert.ok(!values.includes('203.0.113.10'));
     assert.ok(!values.includes('sensitive-test-agent'));
-    assert.match(cleanup.sql, /DELETE FROM anonymous_events/);
-    assert.equal(cleanup.values.length, 1);
+    // Retention runs on the cron trigger, never on the request path.
+    for (const call of database.calls) {
+      assert.doesNotMatch(call.sql, /DELETE FROM anonymous_events/);
+    }
   });
 
   it('produces stable dedupe digests and maps telemetry-off to the install identity', async () => {
@@ -311,8 +315,8 @@ describe('privacy-preserving storage', () => {
     }), environment(database), { now: () => NOW });
 
     assert.equal(result.status, 204);
-    assert.equal(database.calls.length, 3);
-    const [installWrite, statusWrite, eventCleanup] = database.calls;
+    assert.equal(database.calls.length, 2);
+    const [installWrite, statusWrite] = database.calls;
     const installDigest = await digestToken({ event: 'install', period: '', token: INSTALL_TOKEN }, PEPPER);
     assert.match(installWrite.sql, /INSERT OR IGNORE INTO anonymous_events/);
     assert.match(installWrite.sql, /NOT EXISTS/);
@@ -331,8 +335,9 @@ describe('privacy-preserving storage', () => {
       assert.ok(!values.includes('203.0.113.11'));
       assert.ok(!values.includes('sensitive-opt-out-agent'));
     }
-    assert.match(eventCleanup.sql, /DELETE FROM anonymous_events/);
-    assert.doesNotMatch(eventCleanup.sql, /anonymous_install_status/);
+    for (const call of database.calls) {
+      assert.doesNotMatch(call.sql, /DELETE FROM anonymous_events/);
+    }
   });
 
   it('marks the same installation enabled again on an install receipt', async () => {
@@ -672,5 +677,60 @@ describe('HTTP boundary', () => {
     assert.equal(result.status, 503);
     assert.equal(result.headers.get('cache-control'), 'no-store');
     assert.equal(await result.text(), 'service unavailable');
+  });
+});
+
+describe('scheduled retention sweep', () => {
+  const CUTOFF_DAYS = 90;
+  const scheduledTime = NOW.getTime();
+
+  function seedEvents(database, { expired, fresh }) {
+    const insert = database.sqlite.prepare(`
+      INSERT INTO anonymous_events (event_type, period, token_digest, release, received_at)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    const old = new Date(scheduledTime - (CUTOFF_DAYS + 5) * 86_400_000).toISOString();
+    const recent = new Date(scheduledTime - 1 * 86_400_000).toISOString();
+    // token_digest is CHECK-constrained to 64 lowercase hex characters.
+    const digest = (n) => n.toString(16).padStart(64, '0');
+    for (let i = 0; i < expired; i++) {
+      insert.run('monthly_active', '2026-01', digest(i), '2.5.0', old);
+    }
+    for (let i = 0; i < fresh; i++) {
+      insert.run('monthly_active', '2026-08', digest(1_000_000 + i), '2.5.0', recent);
+    }
+  }
+
+  function runScheduled(database) {
+    const pending = [];
+    return worker
+      .scheduled({ scheduledTime }, environment(database), { waitUntil: (p) => pending.push(p) })
+      .then(() => Promise.all(pending));
+  }
+
+  it('deletes only rows past the retention cutoff', async () => {
+    const database = sqliteDatabase();
+    seedEvents(database, { expired: 40, fresh: 12 });
+    await runScheduled(database);
+    const remaining = database.sqlite.prepare('SELECT COUNT(*) AS n FROM anonymous_events').get();
+    assert.equal(Number(remaining.n), 12);
+  });
+
+  it('batches past a single statement so a large backlog still drains', async () => {
+    const database = sqliteDatabase();
+    // More than one RETENTION_SWEEP_BATCH (500) to force the loop to iterate.
+    seedEvents(database, { expired: 1_200, fresh: 3 });
+    await runScheduled(database);
+    const remaining = database.sqlite.prepare('SELECT COUNT(*) AS n FROM anonymous_events').get();
+    assert.equal(Number(remaining.n), 3);
+  });
+
+  it('caps one sweep so a runaway backlog cannot exhaust the daily write budget', async () => {
+    const database = sqliteDatabase();
+    // 20 batches x 500 is the ceiling; anything beyond waits for tomorrow.
+    seedEvents(database, { expired: 10_600, fresh: 0 });
+    await runScheduled(database);
+    const remaining = database.sqlite.prepare('SELECT COUNT(*) AS n FROM anonymous_events').get();
+    assert.equal(Number(remaining.n), 600);
   });
 });

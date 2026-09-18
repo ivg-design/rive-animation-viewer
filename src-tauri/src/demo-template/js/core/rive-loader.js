@@ -29,6 +29,7 @@
                 }
                 var animationBlob = new Blob([bytes], { type: 'application/octet-stream' });
                 var animationUrl = URL.createObjectURL(animationBlob);
+                loadedAnimationUrl = animationUrl;
                 reportRenderSurfaceLoadStage('animation-decoded');
                 resizeCanvas();
                 // Build Rive config
@@ -84,11 +85,14 @@
                         alignment: resolveRiveLayoutAlignment(rive, currentLayoutAlignment),
                     }, appliedLayoutProps));
                 }
-                if (isCanvasBackgroundTransparent() && CONFIG.runtimeName !== 'canvas' && typeof riveConfig.useOffscreenRenderer === 'undefined') {
+                riveConfig.enableGPUCanvas = CONFIG.runtimeName === 'webgl2' && CONFIG.enableGPUCanvas === true;
+                if (riveConfig.enableGPUCanvas) {
+                    riveConfig.useOffscreenRenderer = false;
+                } else if (isCanvasBackgroundTransparent() && CONFIG.runtimeName !== 'canvas' && typeof riveConfig.useOffscreenRenderer === 'undefined') {
                     riveConfig.useOffscreenRenderer = true;
                 }
                 riveConfig.onLoad = function () {
-                    runtimeCompatibility.clearStateMachineInputMetadata(riveInstance);
+                    runtimeCompatibility.clearInspectionMetadata(riveInstance);
                     runtimeCompatibility.setInspectionMetadata(riveInstance, CONFIG.inspectionMetadata);
                     setupRenderSurfaceFrameClock(riveInstance);
                     reportRenderSurfaceLoadStage('rive-onload');
@@ -133,6 +137,7 @@
                             return;
                         }
                     }
+                    enableNativeFpsCounter(riveInstance);
                     hideError();
                     resizeCanvas();
                     if (riveInstance) riveInstance.resizeDrawingSurfaceToCanvas();
@@ -237,7 +242,6 @@
                     userSpecifiedStateMachines: userSpecifiedStateMachines,
                 });
                 riveConfig.onAdvance = function (event) { renderSurfaceAdvanceRevision += 1;
-                    updatePlaybackChips();
                     retryPendingControlSnapshot();
                     recordRenderSurfaceTimelineAdvance();
                     invokeRenderSurfaceAwareEditorCallback(appliedEditorConfig.onAdvance, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
@@ -267,6 +271,14 @@
             return [];
         }
         function cleanupInstance() {
+            var instance = riveInstance;
+            riveInstance = null;
+            window.riveInst = null;
+            loadedRiveRuntime = null;
+            releaseNativeFpsCounter(instance);
+            if (instance && typeof instance.stopRendering === 'function') {
+                try { instance.stopRendering(); } catch (e) { /* noop */ }
+            }
             clearRiveEventListeners();
             resetPlaybackChips();
             stopVmControlSync();
@@ -280,12 +292,13 @@
             }
             vmListTopologySignature = null;
             pendingControlSnapshot.clear();
-            if (riveInstance && riveInstance.cleanup) {
-                try { riveInstance.cleanup(); } catch (e) { /* noop */ }
+            if (instance && instance.cleanup) {
+                try { instance.cleanup(); } catch (e) { /* noop */ }
             }
-            riveInstance = null;
-            window.riveInst = null;
-            loadedRiveRuntime = null;
+            if (loadedAnimationUrl) {
+                try { URL.revokeObjectURL(loadedAnimationUrl); } catch (e) { /* noop */ }
+                loadedAnimationUrl = null;
+            }
         }
         /* ── Rive event listeners ────────────────────────────── */
         function clearRiveEventListeners() {
@@ -326,14 +339,16 @@
                 var rootVm = resolveVmRootInstance();
                 vmListTopologySignature = buildAllVmTopologySignature();
                 var liveVmHierarchy = rootVm
-                    ? buildVmHierarchy(rootVm)
+                    ? (buildVmHierarchyFromInspection(rootVm) || buildVmHierarchy(rootVm))
                     : (VM_HIERARCHY && VM_HIERARCHY.label
                         ? JSON.parse(JSON.stringify(VM_HIERARCHY))
                         : null);
                 var vmHierarchy = filterHierarchyNode(liveVmHierarchy);
                 var globalVmHierarchies = getGlobalViewModelNames().map(function (name) {
                     var instance = resolveGlobalVmRootInstance(name);
-                    return instance ? filterHierarchyNode(buildVmHierarchy(instance, name)) : null;
+                    return instance ? filterHierarchyNode(
+                        buildVmHierarchyFromInspection(instance, name) || buildVmHierarchy(instance, name)
+                    ) : null;
                 }).filter(Boolean);
                 var globalVmGroup = globalVmHierarchies.length ? {
                     children: globalVmHierarchies,
@@ -342,15 +357,13 @@
                     label: 'Global VM',
                     path: '__global_view_models__',
                 } : null;
-                var stateMachineHierarchy = filterHierarchyNode(buildStateMachineHierarchy());
                 var vmTotal = vmHierarchy ? countHierarchyInputs(vmHierarchy) : 0;
                 var globalVmTotal = globalVmGroup ? countHierarchyInputs(globalVmGroup) : 0;
-                var smTotal = stateMachineHierarchy ? countHierarchyInputs(stateMachineHierarchy) : 0;
-                var totalControls = vmTotal + globalVmTotal + smTotal;
+                var totalControls = vmTotal + globalVmTotal;
                 countEl.textContent = String(totalControls);
                 if (!totalControls && !globalVmGroup) {
                     emptyEl.hidden = false;
-                    emptyEl.textContent = 'No writable ViewModel or state machine inputs were found.';
+                    emptyEl.textContent = 'No writable ViewModel properties were found.';
                     if (vmListTopologySignature === null && !pendingControlSnapshot.size) stopVmControlSync();
                     else startVmControlSync();
                     return;
@@ -369,9 +382,6 @@
                     vmHierarchy.inputs = vmHierarchy.inputs.filter(function (inp) { return !childPaths.has(inp.path); });
                 }
                 if (vmHierarchy) treeEl.appendChild(createVmSectionElement(vmHierarchy, true, 0));
-                if (stateMachineHierarchy && stateMachineHierarchy.totalInputs) {
-                    treeEl.appendChild(createVmSectionElement(stateMachineHierarchy, false, 0));
-                }
                 startVmControlSync();
                 syncVmControlBindings(true);
                 initLucideIcons();

@@ -9,6 +9,7 @@ function harness({ desktop = true, info = stateMachine, overlayAvailable = true 
     const service = {
         capabilities: vi.fn(async () => capabilities), status: vi.fn(async () => ({ state: 'idle' })),
         chooseOutputPath: vi.fn(async () => '/tmp/trackmap-timeline.mp4'),
+        outputState: vi.fn(async () => ({ exists: false, empty: true, is_dir: false })),
         startRecording: vi.fn(async () => capture), exportMedia: vi.fn(async () => ({ ...capture, recording: false })),
         stopRecording: vi.fn(async () => ({ ...capture, state: 'encoding' })),
         cancel: vi.fn(async () => ({ ...capture, state: 'cancelled' })),
@@ -38,9 +39,18 @@ describe('media UI native integration', () => {
     it('opens in the existing native export overlay with keyboard focus', async () => {
         h = harness(); await h.ui.open();
         expect(h.request).toMatchObject({ purpose: 'export', focus: true,
-            bounds: { width: 680, height: 640, x: 172, y: 64 } });
+            bounds: { width: 680, height: 420, x: 172, y: 174 } });
         expect(h.request.getState().mediaExport.view).toBe('menu');
         expect(document.querySelector('dialog')).toBeNull();
+    });
+    it('anchors measured content at the opening top edge and clamps the bottom', async () => {
+        h = harness(); await h.ui.open();
+        await expect(h.request.handleAction({ action: 'media-resize', value: 378 })).resolves.toEqual({
+            bounds: { width: 680, height: 378, x: 172, y: 174 }, transitionMs: 200,
+        });
+        await expect(h.request.handleAction({ action: 'media-resize', value: 5000 })).resolves.toEqual({
+            bounds: { width: 680, height: 574, x: 172, y: 174 }, transitionMs: 200,
+        });
     });
     it('reports unavailable overlays instead of hiding a host dialog behind the child', async () => {
         h = harness({ overlayAvailable: false });
@@ -86,6 +96,18 @@ describe('media UI native integration', () => {
         await h.ui.open();
         expect(h.request.purpose).toBe('export');
         expect(h.request.getState().mediaExport).toMatchObject({ view: 'menu', job: result });
+    });
+    it('dismisses a terminal result and does not restore it on the next open', async () => {
+        h = harness();
+        const result = { ...h.capture, state: 'failed', error: 'Control is unavailable.' };
+        window.dispatchEvent(new CustomEvent('rav:media-status', { detail: result }));
+        h.service.status.mockResolvedValue(result);
+        await h.ui.open();
+        await h.request.handleAction({ action: 'media-dismiss-job' });
+        expect(h.request.getState().mediaExport.job).toBeNull();
+        h.request.onClose();
+        await h.ui.open();
+        expect(h.request.getState().mediaExport.job).toBeNull();
     });
     it('shows passive encoding progress without an enabled Stop or a navigation control', () => {
         h = harness();
@@ -162,16 +184,14 @@ describe('media UI native integration', () => {
             view: 'settings', draft: { width: '1280', output_path: '' }, error: '',
         });
     });
-    it('receives external/MCP jobs, polls encoding, then shows measured result bytes/path', async () => {
+    it('receives external/MCP jobs and shows an event-delivered measured result without polling', async () => {
         h = harness();
         window.dispatchEvent(new CustomEvent('rav:media-status', { detail: { ...h.capture, state: 'encoding' } }));
-        h.service.status.mockResolvedValue({ ...h.capture, state: 'completed', actual_bytes: 1234, output_path: '/tmp/movie.mp4', warnings: ['Some frames were held'] });
-        await vi.advanceTimersByTimeAsync(750);
-        expect(h.service.status).toHaveBeenCalledWith('job-1');
+        h.service.status.mockClear();
+        window.dispatchEvent(new CustomEvent('rav:media-status', { detail: { ...h.capture, state: 'completed', actual_bytes: 1234, output_path: '/tmp/movie.mp4', warnings: ['Some frames were held'] } }));
         expect(h.ui.getState().mediaExport.job).toMatchObject({ state: 'completed', actual_bytes: 1234, warnings: ['Some frames were held'] });
-        const calls = h.service.status.mock.calls.length;
         await vi.advanceTimersByTimeAsync(2000);
-        expect(h.service.status).toHaveBeenCalledTimes(calls);
+        expect(h.service.status).not.toHaveBeenCalled();
     });
     it('handles cancellation and recording errors without leaving the UI busy', async () => {
         h = harness();
@@ -199,5 +219,121 @@ describe('media UI native integration', () => {
         h.ui.dispose();
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'R', metaKey: true, shiftKey: true, bubbles: true }));
         expect(h.service.status).not.toHaveBeenCalled();
+    });
+});
+
+
+describe('sequence destination confirmation', () => {
+    const change = (name, value) => h.request.handleAction({ action: 'media-change', value: { name, value } });
+    async function sequence(mode = 'timeline', path = '/tmp/frames') {
+        h = harness({ info: mode === 'record' ? stateMachine : timeline });
+        await h.ui.open(mode);
+        await change('format', 'png-sequence');
+        await change('fps', '30');
+        await change('output_path', path);
+    }
+    async function submit() {
+        expect(await h.request.handleAction({ action: 'media-submit' })).toEqual({ close: true, restoreFocus: false });
+        h.request.onClose(); await flush();
+    }
+    async function conflict(mode = 'timeline') {
+        await sequence(mode);
+        h.service.outputState.mockResolvedValue({ exists: true, empty: false, is_dir: true });
+        await submit();
+    }
+    it('checks an explicit non-empty folder before beginning and reopens the prompt', async () => {
+        await conflict();
+        expect(h.service.outputState).toHaveBeenCalledWith({ format: 'png-sequence', output_path: '/tmp/frames' });
+        expect(h.service.exportMedia).not.toHaveBeenCalled();
+        expect(h.showError).not.toHaveBeenCalled();
+        expect(h.request.getState().mediaExport).toMatchObject({ error: '', pending: false, outputConflict: { output_path: '/tmp/frames' } });
+    });
+    it('overwrites only after the overlay closes and does not persist consent in the draft', async () => {
+        await conflict('record');
+        const before = { ...h.request.getState().mediaExport.draft };
+        expect(await h.request.handleAction({ action: 'media-output-overwrite' })).toEqual({ close: true, restoreFocus: false });
+        expect(h.service.startRecording).not.toHaveBeenCalled();
+        h.request.onClose(); await flush();
+        expect(h.service.startRecording).toHaveBeenCalledWith(expect.objectContaining({ format: 'png-sequence', fps: 30, output_path: '/tmp/frames', overwrite: true }));
+        expect(h.service.outputState).toHaveBeenCalledOnce();
+        expect(h.ui.getState().mediaExport.draft).toEqual(before);
+        expect(h.ui.getState().mediaExport.draft).not.toHaveProperty('overwrite');
+    });
+    it('chooses a new folder after closing, then restores settings without auto-submitting', async () => {
+        await conflict();
+        h.service.chooseOutputPath.mockResolvedValue('/tmp/new-frames');
+        expect(await h.request.handleAction({ action: 'media-output-choose' })).toEqual({ close: true, restoreFocus: false });
+        expect(h.service.chooseOutputPath).not.toHaveBeenCalled();
+        h.request.onClose(); await flush();
+        expect(h.service.chooseOutputPath).toHaveBeenCalledWith({ format: 'png-sequence', suggested_name: 'animation-timeline' });
+        expect(h.request.getState().mediaExport).toMatchObject({ view: 'settings', outputConflict: null, draft: { fps: '30', output_path: '/tmp/new-frames' } });
+        expect(h.service.exportMedia).not.toHaveBeenCalled();
+    });
+    it('cancels the conflict without changing settings or starting a job', async () => {
+        await conflict();
+        const before = { ...h.request.getState().mediaExport.draft };
+        await h.request.handleAction({ action: 'media-output-cancel' });
+        expect(h.request.getState().mediaExport).toMatchObject({ view: 'settings', outputConflict: null, draft: before });
+        expect(h.service.exportMedia).not.toHaveBeenCalled();
+        expect(h.service.chooseOutputPath).not.toHaveBeenCalled();
+    });
+    it('preserves the original folder when the replacement picker is cancelled', async () => {
+        await conflict(); h.service.chooseOutputPath.mockResolvedValue(null);
+        await h.request.handleAction({ action: 'media-output-choose' });
+        h.request.onClose(); await flush();
+        expect(h.request.getState().mediaExport).toMatchObject({ outputConflict: null, draft: { output_path: '/tmp/frames', fps: '30' } });
+        expect(h.service.exportMedia).not.toHaveBeenCalled();
+    });
+    it('gets a folder from the picker before preflighting a request without a path', async () => {
+        await sequence('record', '');
+        h.service.chooseOutputPath.mockResolvedValue('/tmp/picked-frames');
+        h.service.outputState.mockResolvedValue({ exists: true, empty: false, is_dir: true });
+        await submit();
+        expect(h.service.outputState).toHaveBeenCalledWith({ format: 'png-sequence', output_path: '/tmp/picked-frames' });
+        expect(h.request.getState().mediaExport.outputConflict.output_path).toBe('/tmp/picked-frames');
+        expect(h.service.startRecording).not.toHaveBeenCalled();
+    });
+    it('returns to settings without an error when the initial folder picker is cancelled', async () => {
+        await sequence('record', ''); h.service.chooseOutputPath.mockResolvedValue(null);
+        await submit();
+        expect(h.request.getState().mediaExport).toMatchObject({ view: 'settings', outputConflict: null, error: '' });
+        expect(h.service.outputState).not.toHaveBeenCalled();
+        expect(h.service.startRecording).not.toHaveBeenCalled();
+        expect(h.showError).not.toHaveBeenCalled();
+    });
+    it('maps the begin-time race to the same prompt and dismisses its failed job', async () => {
+        await sequence();
+        const message = 'Output directory exists and is not empty';
+        h.service.exportMedia.mockImplementation(async () => {
+            window.dispatchEvent(new CustomEvent('rav:media-status', { detail: { job_id: 'raced', state: 'failed', error: message } }));
+            throw new Error(message);
+        });
+        await submit();
+        expect(h.request.getState().mediaExport).toMatchObject({ outputConflict: { output_path: '/tmp/frames' }, error: '' });
+        expect(h.showError).not.toHaveBeenCalled();
+        expect(h.request.getState().mediaExport.job?.job_id).not.toBe('raced');
+    });
+    it('does not misclassify IO failures or offer overwrite for non-directories', async () => {
+        await sequence();
+        h.service.outputState.mockResolvedValue({ exists: true, empty: false, is_dir: false });
+        await submit();
+        expect(h.ui.getState().mediaExport.outputConflict).toBeNull();
+        expect(h.service.exportMedia).not.toHaveBeenCalled();
+        expect(h.showError).toHaveBeenCalledWith('Output exists and is not a plain directory');
+    });
+    it('starts normally for an empty folder without granting overwrite', async () => {
+        await sequence(); h.service.outputState.mockResolvedValue({ exists: true, empty: true, is_dir: true });
+        await submit();
+        expect(h.service.exportMedia).toHaveBeenCalledOnce();
+        expect(h.service.exportMedia.mock.calls[0][0]).not.toHaveProperty('overwrite');
+    });
+    it('blocks form edits and recording shortcuts until a conflict choice is made', async () => {
+        await conflict('record');
+        await change('format', 'h264');
+        await h.ui.toggleRecording();
+        await h.request.handleAction({ action: 'media-submit' });
+        expect(h.request.getState().mediaExport.draft.format).toBe('png-sequence');
+        expect(h.request.getState().mediaExport.outputConflict).not.toBeNull();
+        expect(h.service.startRecording).not.toHaveBeenCalled();
     });
 });

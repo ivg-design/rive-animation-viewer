@@ -1,6 +1,6 @@
 export const capabilities = {
-    formats: ['png', 'jpg', 'webp', 'h264', 'h265', 'webm', 'apng', 'gif'].map((id) => ({
-        id, available: true, alpha: !['jpg', 'h264', 'h265'].includes(id),
+    formats: ['png', 'jpg', 'webp', 'h264', 'h265', 'webm', 'apng', 'gif', 'prores', 'png-sequence', 'jpg-sequence'].map((id) => ({
+        id, available: true, alpha: !['jpg', 'h264', 'h265', 'jpg-sequence'].includes(id),
     })),
     limits: { max_frames: 36000, max_pixels: 4194304, max_edge: 4096, max_duration_seconds: 300, max_fps: 60 },
     gif: { resolved_auto_encoder: 'ffmpeg', gifski_available: false, ffmpeg_available: true,

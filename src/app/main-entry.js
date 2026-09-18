@@ -11,6 +11,10 @@ import {
     persistCanvasSizingPreference,
 } from './core/canvas-sizing.js';
 import {
+    loadGpuCanvasPreference,
+    persistGpuCanvasPreference,
+} from './core/gpu-canvas.js';
+import {
     DEFAULT_LAYOUT_ALIGNMENT,
     DEFAULT_LAYOUT_FIT,
     FALLBACK_RUNTIME_VERSION_OPTIONS,
@@ -85,6 +89,7 @@ const appState = {
     currentLayoutFit: DEFAULT_LAYOUT_FIT,
     currentMcpPort: Number(globalThis.window?._mcpBridge?.port) || 9274,
     currentRuntime: 'webgl2',
+    gpuCanvasEnabled: loadGpuCanvasPreference(),
     runtimeVersionToken: runtimePreferences.runtimeVersionToken,
 };
 
@@ -108,6 +113,7 @@ const getCurrentLayoutAlignment = () => appState.currentLayoutAlignment;
 const getCurrentLayoutFit = () => appState.currentLayoutFit;
 const getCurrentMcpPort = () => appState.currentMcpPort;
 const getCurrentRuntime = () => appState.currentRuntime;
+const getGpuCanvasEnabled = () => appState.gpuCanvasEnabled;
 const getRuntimeVersionToken = () => appState.runtimeVersionToken;
 
 const {
@@ -184,6 +190,7 @@ const controllerStack = createControllerStack({
         getCurrentLayoutFit,
         getCurrentMcpPort,
         getCurrentRuntime,
+        getGpuCanvasEnabled,
         getRiveInstance,
         getRuntimeVersionToken,
         getTauriEventListener,
@@ -210,6 +217,11 @@ const controllerStack = createControllerStack({
         setCurrentMcpPort,
         setCurrentRuntime: (nextRuntime) => {
             appState.currentRuntime = nextRuntime;
+        },
+        setGpuCanvasEnabled: (enabled) => {
+            appState.gpuCanvasEnabled = Boolean(enabled);
+            persistGpuCanvasPreference(appState.gpuCanvasEnabled);
+            return appState.gpuCanvasEnabled;
         },
         showError,
         updateInfo,
@@ -254,6 +266,7 @@ startApp({
         getCurrentLayoutAlignment,
         getCurrentLayoutFit,
         getCurrentRuntime,
+        getGpuCanvasEnabled,
         getRiveInstance,
         getTauriInvoker,
         handleResize,

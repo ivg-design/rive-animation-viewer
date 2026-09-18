@@ -242,69 +242,12 @@ export function getGlobalViewModelInstances(riveInstance) {
     }));
 }
 
-export function getStateMachineInputKind(input, runtime) {
-    if (!input || typeof input !== 'object') {
-        return null;
-    }
-
-    const runtimeInputTypes = runtime?.StateMachineInputType;
-    const inputType = typeof input.type === 'number' ? input.type : null;
-    if (runtimeInputTypes && inputType !== null) {
-        if (inputType === runtimeInputTypes.Boolean) {
-            return 'boolean';
-        }
-        if (inputType === runtimeInputTypes.Number) {
-            return 'number';
-        }
-        if (inputType === runtimeInputTypes.Trigger) {
-            return 'trigger';
-        }
-    }
-
-    const rawInputTypes = runtime?.SMIInput;
-    if (rawInputTypes && inputType !== null) {
-        if (inputType === rawInputTypes.bool) {
-            return 'boolean';
-        }
-        if (inputType === rawInputTypes.number) {
-            return 'number';
-        }
-        if (inputType === rawInputTypes.trigger) {
-            return 'trigger';
-        }
-    }
-
-    const constructorName = typeof input.constructor?.name === 'string'
-        ? input.constructor.name.toLowerCase()
-        : '';
-    if (constructorName.includes('bool')) {
-        return 'boolean';
-    }
-    if (constructorName.includes('number')) {
-        return 'number';
-    }
-    if (constructorName.includes('trigger')) {
-        return 'trigger';
-    }
-
-    if (typeof input.value === 'boolean') {
-        return 'boolean';
-    }
-    if (typeof input.value === 'number') {
-        return 'number';
-    }
-    if (typeof input.fire === 'function' && !('value' in input)) {
-        return 'trigger';
-    }
-    return null;
-}
-
 export function controlSnapshotKeyForDescriptor(descriptor) {
     if (!descriptor) {
         return null;
     }
     if (descriptor.source === 'state-machine') {
-        return `sm:${descriptor.stateMachineName || ''}:${descriptor.name || ''}:${descriptor.kind || ''}`;
+        return null;
     }
     if (descriptor.source === 'global-view-model') {
         return `gvm:${encodeURIComponent(descriptor.globalViewModelName || '')}:${descriptor.path || ''}:${descriptor.kind || ''}`;
@@ -316,10 +259,6 @@ export function controlSelectionKeyForDescriptor(descriptor) {
     if (!descriptor) {
         return null;
     }
-    if (descriptor.source === 'state-machine') {
-        return controlSnapshotKeyForDescriptor(descriptor);
-    }
-
     return normalizeControlSelectionKey(controlSnapshotKeyForDescriptor(descriptor));
 }
 
@@ -329,14 +268,14 @@ export function normalizeControlSelectionKey(key) {
     }
     const trimmed = key.trim();
     if (!trimmed.startsWith('vm:') && !trimmed.startsWith('gvm:')) {
-        return trimmed || null;
+        return null;
     }
     const kindSeparator = trimmed.lastIndexOf(':');
     const pathStart = trimmed.startsWith('gvm:')
         ? trimmed.indexOf(':', 4) + 1
         : 3;
     if (kindSeparator <= pathStart) {
-        return trimmed || null;
+        return null;
     }
     const path = trimmed.slice(pathStart, kindSeparator)
         .split('/')

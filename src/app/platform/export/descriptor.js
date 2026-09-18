@@ -1,5 +1,6 @@
 import { DEFAULT_CANVAS_COLOR } from '../../core/constants.js';
 import { normalizeCanvasSizingState } from '../../core/canvas-sizing.js';
+import { resolveGpuCanvasConfig } from '../../core/gpu-canvas.js';
 import { getStateMachineNames } from '../../rive/runtime-compatibility.js';
 import { getRuntimePackageName } from '../runtime/runtime-utils.js';
 
@@ -53,6 +54,7 @@ export function buildEffectiveInstantiationDescriptor({
     detectedStateMachines = [],
     editorCode = '',
     editorConfig = {},
+    enableGPUCanvas = false,
     artboardState = {},
     runtimeName = 'webgl2',
     runtimeVersion = null,
@@ -80,6 +82,7 @@ export function buildEffectiveInstantiationDescriptor({
     const autoBind = viewModelInstanceName === null
         ? (typeof effectiveEditorConfig.autoBind === 'boolean' ? effectiveEditorConfig.autoBind : true)
         : false;
+    const gpuCanvasActive = resolveGpuCanvasConfig(runtimeName, enableGPUCanvas);
 
     return {
         animations: playbackSelection.animations,
@@ -90,6 +93,7 @@ export function buildEffectiveInstantiationDescriptor({
         canvasSizing,
         canvasTransparent,
         editorCode: normalizedSourceMode === 'editor' ? String(editorCode || '').trim() : '',
+        enableGPUCanvas: runtimeName === 'webgl2' ? gpuCanvasActive : undefined,
         fileName: currentFileName || 'animation.riv',
         layoutAlignment: currentLayoutAlignment,
         layoutFit: currentLayoutFit,
@@ -99,7 +103,9 @@ export function buildEffectiveInstantiationDescriptor({
         runtimeCdnUrl: `https://unpkg.com/${packageName}@${effectiveRuntimeVersion}`,
         sourceMode: normalizedSourceMode,
         stateMachines: playbackSelection.stateMachines,
-        useOffscreenRenderer: runtimeName !== 'canvas' && canvasTransparent
+        useOffscreenRenderer: gpuCanvasActive
+            ? false
+            : runtimeName !== 'canvas' && canvasTransparent
             ? (typeof effectiveEditorConfig.useOffscreenRenderer === 'boolean' ? effectiveEditorConfig.useOffscreenRenderer : true)
             : effectiveEditorConfig.useOffscreenRenderer,
         viewModelInstanceName,

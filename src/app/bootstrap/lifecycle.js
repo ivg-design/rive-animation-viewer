@@ -29,6 +29,7 @@ export function createAppLifecycle({
         getCurrentLayoutAlignment,
         getCurrentLayoutFit,
         getCurrentRuntime,
+        getGpuCanvasEnabled,
         getCurrentRuntimeVersion,
         getLiveConfig,
         getLiveConfigState,
@@ -94,6 +95,7 @@ export function createAppLifecycle({
                 : [],
             editorCode: liveConfigState.appliedEditorCode,
             editorConfig: getLiveConfig(),
+            enableGPUCanvas: getGpuCanvasEnabled(),
             runtimeName: getCurrentRuntime(),
             runtimeVersion: getCurrentRuntimeVersion(),
             sourceMode: liveConfigState.sourceMode,
@@ -306,16 +308,15 @@ export function createAppLifecycle({
                 refreshInfoStrip();
                 console.log('[rive-viewer] runtime ready:', getCurrentRuntime());
                 const loadedFromPending = await fileSessionController.checkOpenedFile();
-                await fileSessionController.setupTauriOpenFileListener();
+                const openFileListenerReady = await fileSessionController.setupTauriOpenFileListener();
                 // Close the small gap between the startup drain and listener
                 // registration. The serialized queue drain makes this idempotent.
                 const loadedDuringListenerSetup = await fileSessionController.checkOpenedFile();
-                if (!loadedFromPending) {
-                    if (!loadedDuringListenerSetup) {
-                        console.log('[rive-viewer] no pending file at startup; open-file polling enabled');
-                    }
+                if (!openFileListenerReady) {
+                    console.warn('[rive-viewer] native open-file event listener is unavailable; queued files will be reconciled on the next app start');
+                } else if (!loadedFromPending && !loadedDuringListenerSetup) {
+                    console.log('[rive-viewer] no pending file at startup; listening for native open-file events');
                 }
-                fileSessionController.startOpenedFilePolling();
             })
             .catch((error) => {
                 console.error('[rive-viewer] runtime load failed:', error);

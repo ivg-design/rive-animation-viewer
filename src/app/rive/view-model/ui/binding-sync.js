@@ -13,7 +13,10 @@ export function updateStringInputRows(input, value) {
 // means initial render, polling, and reactive updates all use the same shape.
 export function formatVmNumber(value) {
     const numericValue = Number(value);
-    return Number.isFinite(numericValue) ? numericValue.toFixed(2) : '0.00';
+    if (!Number.isFinite(numericValue)) return '0';
+    const formatted = numericValue.toFixed(2);
+    if (Number(formatted) === 0) return '0';
+    return formatted.replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
 }
 
 export function syncVmEnumInput(input, accessor, documentRef, canEdit = true) {

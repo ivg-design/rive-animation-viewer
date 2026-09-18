@@ -1,4 +1,4 @@
-import { changeDraft, createDraft, mediaOptions, sourceReason } from '../../../../src/app/ui/media/model.js';
+import { changeDraft, createDraft, mediaOptions, sourceReason, isSequenceFormat, needsOutputConfirmation, isOutputDirectoryConflict } from '../../../../src/app/ui/media/model.js';
 import { resolveMediaOptions } from '../../../../src/app/platform/media/options.js';
 import { capabilities as caps, timeline, stateMachine } from './fixtures.js';
 
@@ -56,6 +56,14 @@ describe('media UI option contract', () => {
         expect(() => mediaOptions({ ...draft, alpha: true }, timeline, opaque)).toThrow('transparency');
         expect(changeDraft({ ...draft, alpha: true }, 'format', 'h265', timeline, caps).alpha).toBe(false);
     });
+    it('supports ProRes and PNG-sequence alpha while rejecting JPG-sequence alpha', () => {
+        for (const format of ['prores', 'png-sequence']) {
+            const draft = { ...createDraft('timeline', timeline, caps, format), alpha: true };
+            expect(mediaOptions(draft, timeline, caps)).toMatchObject({ format, alpha: true });
+        }
+        const jpgSequence = { ...createDraft('timeline', timeline, caps, 'jpg-sequence'), alpha: true };
+        expect(() => mediaOptions(jpgSequence, timeline, caps)).toThrow('transparency');
+    });
     it('preserves timing on unit changes and respects source aspect lock', () => {
         const draft = createDraft('timeline', timeline, caps);
         expect(changeDraft(draft, 'range_unit', 'frames', timeline, caps)).toMatchObject({ start: 0, end: 240 });
@@ -82,5 +90,37 @@ describe('media UI option contract', () => {
         expect(() => resolve({ ...draft, width: 4096, height: 4096 })).toThrow('encoder limit');
         expect(() => resolve({ ...draft, width: 1919 })).toThrow('even');
         expect(() => resolve({ ...draft, fps: 61 })).toThrow('Frame rate');
+    });
+});
+
+
+describe('sequence conflict model', () => {
+    it.each(['png-sequence', 'jpg-sequence'])('confirms only occupied plain directories for %s', (format) => {
+        const options = { format, output_path: '/tmp/frames' };
+        const occupied = { exists: true, empty: false, is_dir: true };
+        expect(isSequenceFormat(format)).toBe(true);
+        expect(needsOutputConfirmation(options, occupied)).toBe(true);
+        for (const state of [null, { exists: false, empty: true, is_dir: false }, { ...occupied, empty: true }, { ...occupied, is_dir: false }]) {
+            expect(needsOutputConfirmation(options, state)).toBe(false);
+        }
+        expect(needsOutputConfirmation({ ...options, overwrite: true }, occupied)).toBe(false);
+        expect(needsOutputConfirmation({ ...options, output_path: '' }, occupied)).toBe(false);
+        expect(isOutputDirectoryConflict(new Error('Output directory exists and is not empty'), options)).toBe(true);
+        expect(isOutputDirectoryConflict('Output directory exists and is not empty', options)).toBe(true);
+        expect(isOutputDirectoryConflict('Permission denied', options)).toBe(false);
+        expect(isOutputDirectoryConflict('Output directory exists and is not empty', { ...options, overwrite: true })).toBe(false);
+    });
+    it('does not turn file exports into directory prompts', () => {
+        const options = { format: 'prores', output_path: '/tmp/file.mov' };
+        expect(needsOutputConfirmation(options, { exists: true, empty: false, is_dir: true })).toBe(false);
+        expect(isOutputDirectoryConflict('Output directory exists and is not empty', options)).toBe(false);
+    });
+    it('keeps cancel/change-folder drafts free of sticky overwrite permission', () => {
+        const draft = { ...createDraft('timeline', timeline, caps, 'png-sequence'), output_path: '/tmp/frames', alpha: true };
+        for (const next of [draft, changeDraft(draft, 'output_path', '/tmp/other', timeline, caps)]) {
+            expect(mediaOptions(next, timeline, caps)).not.toHaveProperty('overwrite');
+            expect(next.alpha).toBe(true);
+            expect(next.fps).toBe(draft.fps);
+        }
     });
 });

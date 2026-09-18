@@ -158,19 +158,13 @@ describe('rive/playback-controls', () => {
         fpsChip.id = 'fps-chip';
         document.body.appendChild(fpsChip);
 
-        let tick = 0;
-        const harness = createHarness({
-            now: () => {
-                tick += 1000;
-                return tick;
-            },
-        });
+        const harness = createHarness();
 
         harness.controller.resetPlaybackChips();
         expect(fpsChip.innerHTML).toContain('-- FPS');
 
-        harness.controller.updatePlaybackChips();
-        expect(fpsChip.innerHTML).toContain('1 FPS');
+        harness.controller.updatePlaybackChips(59.6);
+        expect(fpsChip.innerHTML).toContain('60 FPS');
     });
 
     it('no-ops play and pause when no instance is available and plays current state for non-animation targets', () => {

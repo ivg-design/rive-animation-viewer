@@ -22,6 +22,8 @@ export function createArtboardSwitcherController({
     getCurrentFileUrl = () => null,
     getCurrentSourceScope = null,
     getCanonicalSourceScope = null,
+    getInspectionMetadata = () => null,
+    getRenderSurfaceCanonicalState = () => null,
     getRiveInstance = () => null,
     isAuthoritativeChildMode = () => false,
     setTimeoutFn = globalThis.setTimeout?.bind(globalThis),
@@ -43,6 +45,7 @@ export function createArtboardSwitcherController({
     let defaultPlaybackKey = null;
     let fileContentsCache = null;
     let canonicalStateListenerAttached = false;
+    let availableVmKeysSignature = '';
     const scheduleSelectionChange = createLatestSelectionScheduler(setTimeoutFn);
     const loadTransition = createLatestLoadTransition();
     // A staged child is built asynchronously while the old child can still
@@ -93,6 +96,7 @@ export function createArtboardSwitcherController({
         elements,
         getRiveInstance,
         getSelection,
+        hasPlaybackSource: () => Boolean(getRiveInstance() || isAuthoritativeChildMode()),
         populatePlaybackSelect,
         populateVmInstanceSelect,
     });
@@ -111,6 +115,7 @@ export function createArtboardSwitcherController({
         defaultArtboardName = null;
         defaultPlaybackKey = null;
         fileContentsCache = null;
+        availableVmKeysSignature = '';
         if (!hasRequestedSelectionInFlight()) confirmSelection();
         updateSelectionSummary();
     }
@@ -133,10 +138,7 @@ export function createArtboardSwitcherController({
         currentArtboardName = selection.artboardName || currentArtboardName;
         currentPlaybackType = selection.playbackType;
         currentPlaybackName = selection.playbackName;
-        // A candidate hidden instance reports its configured selection before
-        // the visible child confirms activation. Do not promote that staged
-        // selection to the rollback baseline: a later binding/activation
-        // rejection must restore the last visible child, not the candidate.
+        // Do not promote staged selection metadata until child activation.
         if (!hasRequestedSelectionInFlight()) confirmSelection();
         updateSelectionSummary();
     }
@@ -148,6 +150,7 @@ export function createArtboardSwitcherController({
             elements,
             fileContentsCache,
             getRiveInstance,
+            inspectionMetadata: getInspectionMetadata(),
             initLucideIcons,
         });
         defaultArtboardName = nextState.defaultArtboardName;
@@ -171,6 +174,9 @@ export function createArtboardSwitcherController({
 
     function populateVmInstanceSelect() {
         populateVmInstanceSelectUi({
+            availableInstanceKeys: isAuthoritativeChildMode()
+                ? getRenderSurfaceCanonicalState()?.vmInstance?.availableKeys
+                : null,
             documentRef,
             elements,
             getRiveInstance,
@@ -181,22 +187,22 @@ export function createArtboardSwitcherController({
 
     function syncStateFromCanonical(state) {
         if (!state || !isAuthoritativeChildMode()) return false;
-        // A file load resets requestedSelectionTransitionId while the old child
-        // is still active. Reject its ticks both before inspection is ready and
-        // after it resolves the replacement file's identity.
+        // Reject old-child ticks while the replacement file is loading.
         if ((getCurrentSourceScope || getCanonicalSourceScope) && !canonicalSelectionMatchesSource(
             state, getCurrentSourceScope?.(), getCanonicalSourceScope?.(),
         )) return false;
-        // The active child stays authoritative only until a replacement has
-        // been requested. Its ticks must not replace the target artboard,
-        // playback, or explicit ViewModel selection while the new render
-        // context is being constructed.
+        // Once replacement starts, its requested selection stays authoritative.
         if (hasRequestedSelectionInFlight()) return false;
         const selection = selectionFromCanonical(state, getSelection());
         const selectionChanged = selection.artboardName !== currentArtboardName
             || selection.playbackType !== currentPlaybackType
             || selection.playbackName !== currentPlaybackName
             || selection.vmInstanceName !== currentVmInstanceName;
+        const nextAvailableVmKeysSignature = JSON.stringify(
+            Array.isArray(state?.vmInstance?.availableKeys) ? state.vmInstance.availableKeys : [],
+        );
+        const availableVmKeysChanged = nextAvailableVmKeysSignature !== availableVmKeysSignature;
+        availableVmKeysSignature = nextAvailableVmKeysSignature;
         currentArtboardName = selection.artboardName;
         currentPlaybackType = selection.playbackType;
         currentPlaybackName = selection.playbackName;
@@ -206,7 +212,7 @@ export function createArtboardSwitcherController({
         // Rebuilding native <select> options for an unchanged selection closes
         // its open popup in WebKit, so only reconcile selection controls when
         // the selection itself actually changed.
-        if (selectionChanged) selectionInteractionGuard.request();
+        if (selectionChanged || availableVmKeysChanged) selectionInteractionGuard.request();
         updateSelectionSummary();
         return true;
     }
@@ -274,6 +280,16 @@ export function createArtboardSwitcherController({
                 ? `${currentPlaybackType === 'animation' ? 'anim' : 'sm'}:${currentPlaybackName}`
                 : null;
             await switchArtboard(currentArtboardName, playbackTarget, { viewModelInstanceKey: null });
+            return;
+        }
+
+        if (isAuthoritativeChildMode()) {
+            const playbackTarget = currentPlaybackName
+                ? `${currentPlaybackType === 'animation' ? 'anim' : 'sm'}:${currentPlaybackName}`
+                : null;
+            await switchArtboard(currentArtboardName, playbackTarget, {
+                viewModelInstanceKey: instanceKey,
+            });
             return;
         }
 

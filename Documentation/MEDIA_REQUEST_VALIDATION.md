@@ -41,10 +41,19 @@ interaction types and timing behavior.
 - Segment fields are valid only for animated timeline export.
 - Top-level `quality` and `gif.quality` may both be present only when their
   values match. Either field can be supplied by itself.
-- PNG and APNG ignore quality because they are lossless.
+- PNG, APNG and `png-sequence` ignore quality because they are lossless.
 - Codec support, alpha support, even video dimensions, selected-timeline bounds,
   and optional encoder features are checked by the media service after schema
   validation. Query `rav_media_capabilities` before choosing settings.
+- `png-sequence` and `jpg-sequence` publish a directory of `frame_NNNNNN.(png|jpg)`
+  files instead of a single file: `output_path` names that directory and is not
+  extension-checked. The destination must not exist, or must be empty, unless
+  `overwrite: true`, in which case only files matching that naming pattern are
+  removed first. `alpha` is accepted for `png-sequence` but rejected for
+  `jpg-sequence`, exactly like still `jpg`.
+- `prores` (Apple ProRes 4444, `.mov`) supports full alpha and is the recommended
+  format for alpha hand-off to a DCC/NLE tool; `quality` maps onto ffmpeg's
+  `-qscale:v` (100 → best, 1 → worst).
 
 The desktop UI applies the same service-level rules after resolving its controls.
 MCP clients should keep the original request and returned job ID, then poll

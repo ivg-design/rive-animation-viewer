@@ -17,6 +17,8 @@ pub mod spool;
 pub mod types;
 #[cfg(test)]
 mod unit;
+#[cfg(test)]
+mod unit_sequence;
 #[path = "../verify.rs"]
 pub mod verify;
 

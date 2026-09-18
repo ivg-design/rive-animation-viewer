@@ -9,14 +9,13 @@ export function normalizeControlSnapshot(controlSnapshot = []) {
     }
 
     return controlSnapshot
-        .filter((entry) => entry && entry.descriptor)
+        .filter((entry) => entry?.descriptor && entry.descriptor.source !== 'state-machine')
         .map((entry) => ({
             descriptor: {
                 kind: entry.descriptor.kind,
                 name: entry.descriptor.name,
                 path: entry.descriptor.path,
                 source: entry.descriptor.source,
-                stateMachineName: entry.descriptor.stateMachineName,
                 globalViewModelName: entry.descriptor.globalViewModelName,
             },
             enumValues: Array.isArray(entry.enumValues)
@@ -26,9 +25,7 @@ export function normalizeControlSnapshot(controlSnapshot = []) {
             value: (entry.kind || entry.descriptor.kind) === 'trigger' ? null : entry.value,
         }))
         .sort((left, right) => {
-            const sortKey = (entry) => entry.descriptor.source === 'state-machine'
-                ? `sm:${entry.descriptor.stateMachineName || ''}/${entry.descriptor.name || ''}`
-                : entry.descriptor.source === 'global-view-model'
+            const sortKey = (entry) => entry.descriptor.source === 'global-view-model'
                     ? `gvm:${entry.descriptor.globalViewModelName || ''}/${entry.descriptor.path || ''}`
                     : `vm:${entry.descriptor.path || ''}`;
             const leftSortKey = sortKey(left);

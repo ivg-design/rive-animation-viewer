@@ -13,7 +13,6 @@ import { formatVmNumber, syncVmEnumInput, updateStringInputRows } from './ui/bin
 export function createVmControlRowFactory({
     documentRef,
     canMutateRemoteControls = () => true,
-    fireStateMachineTriggerByName,
     getRiveInstance,
     getEmbeddedImageAssets = () => [],
     getLoadedRuntime = () => null,
@@ -29,7 +28,7 @@ export function createVmControlRowFactory({
         if (!isAuthoritativeChildMode) return false;
         if (!canMutateRemoteControls()) {
             onRemoteMutationFailure('Playback controls are unavailable while the renderer is recovering.');
-            // Consume the change event so it cannot write the hidden parent.
+            // Consume the event so a recovering child remains the sole owner.
             return true;
         }
         if (!dispatchVmControlMutation(documentRef, detail)) {
@@ -74,8 +73,7 @@ export function createVmControlRowFactory({
                 const liveAccessor = resolveControlAccessor({ ...descriptor, kind: 'number' });
                 if (liveAccessor) {
                     liveAccessor.value = nextValue;
-                    const source = descriptor.source === 'state-machine' ? 'sm-number' : 'vm-number';
-                    logEvent('ui', source, `Set ${descriptor.path} = ${nextValue}`);
+                    logEvent('ui', 'vm-number', `Set ${descriptor.path} = ${nextValue}`);
                     dispatchVmControlMutation(documentRef, { descriptor, kind: 'number', value: nextValue });
                 }
             });
@@ -94,8 +92,7 @@ export function createVmControlRowFactory({
                 const liveAccessor = resolveControlAccessor({ ...descriptor, kind: 'boolean' });
                 if (liveAccessor) {
                     liveAccessor.value = checkbox.checked;
-                    const source = descriptor.source === 'state-machine' ? 'sm-boolean' : 'vm-boolean';
-                    logEvent('ui', source, `Set ${descriptor.path} = ${checkbox.checked}`);
+                    logEvent('ui', 'vm-boolean', `Set ${descriptor.path} = ${checkbox.checked}`);
                     dispatchVmControlMutation(documentRef, { descriptor, kind: 'boolean', value: checkbox.checked });
                 }
             });
@@ -264,7 +261,6 @@ export function createVmControlRowFactory({
                 }
 
                 let firedVmTrigger = false;
-                let firedStateMachineCount = 0;
                 if (liveAccessor && typeof liveAccessor.trigger === 'function') {
                     liveAccessor.trigger();
                     firedVmTrigger = true;
@@ -273,21 +269,15 @@ export function createVmControlRowFactory({
                     firedVmTrigger = true;
                 }
 
-                if (descriptor.source !== 'state-machine') {
-                    firedStateMachineCount = fireStateMachineTriggerByName(descriptor.name);
-                }
-                if (firedVmTrigger || firedStateMachineCount > 0) {
-                    const suffix = firedStateMachineCount > 0 ? ` (+${firedStateMachineCount} state machine trigger matches)` : '';
-                    const source = descriptor.source === 'state-machine' ? 'sm-trigger' : 'vm-trigger';
-                    logEvent('ui', source, `Fired trigger ${descriptor.path}${suffix}`);
+                if (firedVmTrigger) {
+                    logEvent('ui', 'vm-trigger', `Fired trigger ${descriptor.path}`);
                     dispatchVmControlMutation(documentRef, {
                         action: 'fire',
                         descriptor,
                         kind: 'trigger',
                     });
                 } else {
-                    const source = descriptor.source === 'state-machine' ? 'sm-trigger-miss' : 'vm-trigger-miss';
-                    logEvent('ui', source, `No trigger accessor or state machine trigger matched ${descriptor.path}`);
+                    logEvent('ui', 'vm-trigger-miss', `No ViewModel trigger accessor matched ${descriptor.path}`);
                 }
             });
             registerVmControlBinding(descriptor, { button, kind: 'trigger' });

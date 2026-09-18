@@ -15,7 +15,11 @@
             // A small export may be presented much larger than its output size.
             // Keep the live preview at least as dense as the display while the
             // composition canvas still downsamples to the requested output.
-            var renderPixelRatio = Math.max(1, scale * (window.devicePixelRatio || 1));
+            // Offline recordings render at exactly the output size so the file
+            // does not depend on the preview window; live captures keep the
+            // preview at display density.
+            var offline = Boolean(state.recording && state.recording.options.clock === 'offline');
+            var renderPixelRatio = offline ? 1 : Math.max(1, scale * (window.devicePixelRatio || 1));
             var renderWidth = Math.max(1, Math.round(options.width * renderPixelRatio));
             var renderHeight = Math.max(1, Math.round(options.height * renderPixelRatio));
             if (canvas.width !== renderWidth) canvas.width = renderWidth;
@@ -65,28 +69,11 @@
             return data;
         }
 
-        function mediaCanvasPngAsync(canvas, options, cursor, output, encode, binary) {
-            // Copy pixels now, but let the browser compress off the draw path.
-            // Each bounded recording slot owns its canvas until native ACK.
-            output = composeMediaCanvas(canvas, options, cursor, output);
-            if (encode) return encode(output.transferToImageBitmap());
-            return new Promise(function (resolve, reject) {
-                output.toBlob(function (blob) {
-                    if (!blob || blob.size > 20 * 1024 * 1024) { reject(new Error('Encoded frame exceeds the 20 MiB transport limit.')); return; }
-                    if (binary) { blob.arrayBuffer().then(resolve, reject); return; }
-                    var reader = new FileReader();
-                    reader.onload = function () { resolve(String(reader.result).split(',')[1]); };
-                    reader.onerror = function () { reject(new Error('Could not read the captured frame.')); };
-                    reader.readAsDataURL(blob);
-                }, 'image/png');
-            });
-        }
-
         function restoreMediaPlayerSnapshot(player, snapshot) {
             (snapshot || []).forEach(function (entry) {
                 var descriptor = entry.descriptor || entry;
                 var kind = entry.kind || descriptor.kind;
-                if (kind === 'trigger' || kind === 'image' || descriptor.source === 'state-machine') return;
+                if (kind === 'trigger' || kind === 'image') return;
                 var root = descriptor.source === 'global-view-model'
                     ? safeVmCall(player, 'globalViewModelInstance', descriptor.globalViewModelName)
                     : player.viewModelInstance;
@@ -126,7 +113,8 @@
                     player = new loadedRiveRuntime.Rive({
                         buffer: bytes.buffer, canvas: canvas, artboard: CONFIG.artboardName || undefined,
                         animations: target.name, autoplay: false, autoBind: true,
-                        useOffscreenRenderer: true,
+                        enableGPUCanvas: CONFIG.runtimeName === 'webgl2' && CONFIG.enableGPUCanvas === true,
+                        useOffscreenRenderer: CONFIG.runtimeName === 'webgl2' && CONFIG.enableGPUCanvas === true ? false : true,
                         layout: new loadedRiveRuntime.Layout({
                             fit: resolveRiveLayoutFit(loadedRiveRuntime, currentLayoutFit),
                             alignment: resolveRiveLayoutAlignment(loadedRiveRuntime, currentLayoutAlignment),
@@ -235,13 +223,6 @@
             }
             if (type === 'media-record-stop') return stopRenderSurfaceRecording();
             if (type === 'media-record-abort') return abortRenderSurfaceRecording(payload.capture_id);
-            if (type === 'media-record-ack') {
-                var recording = getRenderSurfaceMediaState().recording;
-                if (recording && recording.id === payload.capture_id) {
-                    var slot = recording.slots.find(function (entry) { return entry.index === payload.frame_index; });
-                    if (slot) slot.index = null;
-                }
-                return { acknowledged: true };
-            }
+            if (type === 'media-record-ack') return { acknowledged: true };
             throw new Error('Unknown media command: ' + type);
         }

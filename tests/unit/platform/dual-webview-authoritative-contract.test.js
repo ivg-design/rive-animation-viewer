@@ -19,19 +19,6 @@ function control(kind, name, valueOrExtra) {
     return { ...input, value: valueOrExtra };
 }
 
-function stateMachineControl(kind, name, valueOrExtra) {
-    const descriptor = {
-        kind,
-        name,
-        path: `MainSM/${name}`,
-        source: 'state-machine',
-        stateMachineName: 'MainSM',
-    };
-    const input = { ...descriptor, descriptor };
-    if (kind === 'trigger') return { ...input, receipt: Number(valueOrExtra) || 0 };
-    return { ...input, value: valueOrExtra };
-}
-
 function initialState(sessionId = SESSION_ID) {
     return {
         artboard: 'Dashboard',
@@ -43,9 +30,6 @@ function initialState(sessionId = SESSION_ID) {
                     control('number', 'speed', 12),
                     control('trigger', 'refresh', 0),
                     control('image', 'logo', false),
-                    stateMachineControl('boolean', 'armed', false),
-                    stateMachineControl('number', 'level', 1),
-                    stateMachineControl('trigger', 'launch', 0),
                 ],
                 kind: 'vm',
                 label: 'Dashboard VM',
@@ -91,17 +75,10 @@ function createAuthoritativeChild({ onAck } = {}) {
 
         state = { ...state, revision: state.stateRevision + 1, stateRevision: state.stateRevision + 1 };
         const change = {
-            key: input.source === 'state-machine'
-                ? `sm:${input.stateMachineName}:${input.name}:${input.kind}`
-                : `vm:${input.path}:${input.kind}`,
+            key: `vm:${input.path}:${input.kind}`,
             kind: input.kind,
-            ...(input.source === 'state-machine' ? {
-                name: input.name,
-                source: input.source,
-                stateMachineName: input.stateMachineName,
-            } : {}),
         };
-        if (command.type === 'vm-fire' || command.type === 'sm-fire') {
+        if (command.type === 'vm-fire') {
             input.receipt += 1;
             change.receipt = input.receipt;
         } else if (command.type === 'vm-image-set') {
@@ -244,61 +221,6 @@ describe('dual-WebView authoritative child contract', () => {
         expect(harness.receivedCommands.map((command) => command.type)).toEqual(['vm-set', 'vm-set', 'vm-fire']);
         expect(harness.remote.resolveAccessor({ kind: 'number', path: 'speed', source: 'view-model' }).value).toBe(33);
         expect(harness.remote.resolveAccessor({ kind: 'trigger', path: 'refresh', source: 'view-model' }).receipt).toBe(1);
-        harness.eventRelay.dispose();
-    });
-
-    it('round-trips state-machine boolean, number, and trigger writes only through authoritative ACK deltas', async () => {
-        const harness = createHarness();
-        const descriptor = (kind, name) => ({
-            kind,
-            name,
-            path: `MainSM/${name}`,
-            source: 'state-machine',
-            stateMachineName: 'MainSM',
-        });
-
-        dispatchVmControlMutation(document, {
-            descriptor: descriptor('boolean', 'armed'), kind: 'boolean', value: true,
-        });
-        dispatchVmControlMutation(document, {
-            descriptor: descriptor('number', 'level'), kind: 'number', value: 7,
-        });
-        dispatchVmControlMutation(document, {
-            action: 'fire', descriptor: descriptor('trigger', 'launch'), kind: 'trigger',
-        });
-        await harness.relay.whenIdle();
-
-        expect(harness.receivedCommands.map((command) => command.type)).toEqual([
-            'sm-set', 'sm-set', 'sm-fire',
-        ]);
-        expect(harness.remote.resolveAccessor(descriptor('boolean', 'armed')).value).toBe(true);
-        expect(harness.remote.resolveAccessor(descriptor('number', 'level')).value).toBe(7);
-        expect(harness.remote.resolveAccessor(descriptor('trigger', 'launch')).receipt).toBe(1);
-
-        const acceptedRevision = harness.protocol.getState().canonicalState.stateRevision;
-        harness.protocol.handleState({ payload: {
-            controlChanges: [{
-                key: 'sm:MainSM:level:number',
-                kind: 'number',
-                name: 'level',
-                source: 'state-machine',
-                stateMachineName: 'MainSM',
-                value: -1,
-            }],
-            sessionId: SESSION_ID,
-            stateRevision: acceptedRevision - 1,
-            stateType: 'delta',
-            topologyRevision: 1,
-        } });
-        expect(harness.remote.resolveAccessor(descriptor('number', 'level')).value).toBe(7);
-
-        const before = harness.receivedCommands.length;
-        const rejected = await harness.protocol.requestCommand('sm-fire', descriptor('trigger', 'launch'), {
-            targetSessionId: STALE_SESSION_ID,
-        });
-        expect(rejected).toEqual(expect.objectContaining({ applied: false, status: 'unavailable' }));
-        expect(harness.receivedCommands).toHaveLength(before);
-        expect(harness.remote.resolveAccessor(descriptor('trigger', 'launch')).receipt).toBe(1);
         harness.eventRelay.dispose();
     });
 

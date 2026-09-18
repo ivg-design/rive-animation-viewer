@@ -1,3 +1,4 @@
+mod bounds;
 mod commands;
 mod manager;
 mod support;
@@ -7,7 +8,7 @@ mod types;
 pub use manager::UiOverlayManager;
 pub use types::{
     ShowUiOverlayRequest, UiOverlayActionCompletionRequest, UiOverlayActionRequest,
-    UiOverlayReadyRequest,
+    UiOverlayBounds, UiOverlayReadyRequest,
 };
 
 use tauri::{AppHandle, State};
@@ -94,6 +95,16 @@ pub fn update_ui_overlay_state(
     state: serde_json::Value,
 ) -> Result<(), String> {
     commands::update_ui_overlay_state(app, manager, epoch, state)
+}
+
+#[tauri::command]
+pub fn set_ui_overlay_bounds(
+    app: AppHandle,
+    manager: State<'_, UiOverlayManager>,
+    epoch: u64,
+    bounds: UiOverlayBounds,
+) -> Result<(), String> {
+    bounds::set_ui_overlay_bounds(app, manager, epoch, bounds)
 }
 
 #[tauri::command]

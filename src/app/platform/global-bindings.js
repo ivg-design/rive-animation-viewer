@@ -49,6 +49,7 @@ export function createGlobalBindingsController({
         getRenderSurfaceState = () => null,
         getRenderSurfaceController = () => null,
         getMediaExportController = () => null,
+        getFullInspection = async () => { throw new Error('Full inspection is unavailable.'); },
         getSidebarVisibility = () => ({ left: false, right: true }),
         getScriptConsoleEntries = () => ({ total: 0, returned: 0, entries: [] }),
         getVmExplorerSnippetState = () => ({ injected: false }),
@@ -191,6 +192,7 @@ export function createGlobalBindingsController({
         windowRef._mcpGetRenderSurfaceState = () => getRenderSurfaceState();
         windowRef._mcpGetRenderSurfaceController = () => getRenderSurfaceController();
         windowRef._mcpGetMediaExportController = () => getMediaExportController();
+        windowRef._mcpGetFullInspection = () => getFullInspection();
         windowRef._mcpGetSidebarVisibility = () => getSidebarVisibility();
         windowRef._mcpGetVmExplorerSnippetState = () => getVmExplorerSnippetState();
         windowRef._mcpSetLiveConfigSource = async (sourceMode) => setLiveConfigSource(sourceMode);

@@ -68,6 +68,19 @@ export default function Troubleshooting() {
         <li>If RAV reports that the bundled sidecar is missing after an update, install the current release from GitHub, relaunch RAV, and reopen MCP Setup</li>
       </ul>
 
+      <h2>Preview looks slower while recording a heavy file</h2>
+      <ul>
+        <li>The recorded output is complete and exact regardless of how the live preview looks while capturing</li>
+        <li>Live recordings (the default clock) track wall time and can report capture lag on demanding files; check the frame count and lag in the status bar</li>
+        <li>Offline recordings render every simulation frame exactly and never consult wall time, so they are unaffected by preview slowdown</li>
+      </ul>
+
+      <h2>Hidden or minimized windows</h2>
+      <ul>
+        <li>Desktop playback runs on the window&apos;s own animation frames; a hidden or occluded window pauses rendering and resumes automatically once it is revealed</li>
+        <li>Recording continues while the window is hidden or minimized &mdash; frames are still captured on schedule</li>
+      </ul>
+
       <h2>Getting Help</h2>
       <p>
         If your issue isn&apos;t covered here,{" "}

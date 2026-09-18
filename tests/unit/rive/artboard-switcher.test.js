@@ -1137,9 +1137,8 @@ describe('rive/artboard-switcher', () => {
         elements.playbackSelect.value = 'anim:Bounce';
 
         const switchPromise = harness.controller.switchArtboard('Second', 'anim:Bounce');
-        // The hidden plumbing candidate reaches onLoad before the visible
-        // child confirms activation. That staged state must not replace the
-        // last visible selection used for rollback.
+        // Staged selection metadata must not replace the last visible
+        // selection used for rollback before child activation succeeds.
         harness.controller.syncStateAfterLoad({
             artboard: { name: 'Second' },
             playingAnimationNames: ['Bounce'],

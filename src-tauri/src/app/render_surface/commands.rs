@@ -5,7 +5,7 @@ use crate::app::operational_trace::record;
 use super::{
     activation::{converge_committed_bounds, prepare_staged_surface_for_activation},
     geometry::RenderSurfaceBounds,
-    native_loss::active_render_surface,
+    native_loss::{active_render_surface, dispose_and_close, dispose_and_close_confirmed},
     registry::RenderSurfaceManager,
     source::{
         cleanup_stale_render_surface_cache, normalize_session_id, remove_render_surface_cache_file,
@@ -55,6 +55,18 @@ pub(super) fn set_render_surface_bounds(
                     surface.resource.label
                 )
             })?;
+            trace(
+                &app,
+                "render_surface.bounds_applied",
+                serde_json::json!({
+                    "height": height,
+                    "label": surface.resource.label,
+                    "staged": surface.staged,
+                    "width": width,
+                    "x": x,
+                    "y": y,
+                }),
+            );
         }
     }
     Ok(())
@@ -106,7 +118,7 @@ pub(crate) fn close_all_render_surfaces(
     }
 }
 
-pub(super) fn activate_render_surface(
+pub(super) async fn activate_render_surface(
     app: AppHandle,
     manager: State<'_, RenderSurfaceManager>,
     session_id: String,
@@ -185,7 +197,7 @@ pub(super) fn activate_render_surface(
         // The activation commit atomically moved this predecessor into the
         // retired registry. A close/cache failure therefore stays discoverable
         // for shutdown cleanup and must not invalidate the new authority.
-        if let Err(error) = retire_surface(&app, &manager, previous) {
+        if let Err(error) = retire_surface_confirmed(&app, &manager, previous).await {
             eprintln!("[rav-app] Render surface activated; deferred predecessor cleanup: {error}");
             trace(
                 &app,
@@ -257,9 +269,33 @@ fn retire_surface(
     surface: &super::registry::SurfaceResource,
 ) -> Result<(), String> {
     if let Some(webview) = app.get_webview(&surface.label) {
-        webview.close().map_err(|error| {
+        dispose_and_close(&webview).map_err(|error| {
             format!("Failed to close render surface {}: {error}", surface.label)
         })?;
+    }
+    remove_surface_cache(app, manager, &surface.session_id)?;
+    manager.release_surface(surface)
+}
+
+async fn retire_surface_confirmed(
+    app: &AppHandle,
+    manager: &RenderSurfaceManager,
+    surface: &super::registry::SurfaceResource,
+) -> Result<(), String> {
+    if let Some(webview) = app.get_webview(&surface.label) {
+        let confirmed = dispose_and_close_confirmed(&webview)
+            .await
+            .map_err(|error| {
+                format!("Failed to close render surface {}: {error}", surface.label)
+            })?;
+        trace(
+            app,
+            "render_surface.retirement_disposal",
+            serde_json::json!({
+                "confirmed": confirmed,
+                "sessionId": surface.session_id,
+            }),
+        );
     }
     remove_surface_cache(app, manager, &surface.session_id)?;
     manager.release_surface(surface)

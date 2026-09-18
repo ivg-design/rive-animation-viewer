@@ -2,7 +2,7 @@ import {
     renderControlHierarchyTree,
     updateControlHierarchySelection,
 } from '../export/control-tree.js';
-import { createOverlayActionClient } from './action-client.js';
+import { createOverlayActionClient, isOverlayLifecycleFailure } from './action-client.js';
 import { createAboutRenderer, createMcpRenderer } from './purpose-renderers.js';
 import { waitForOverlayVisualReadiness } from './readiness.js';
 import { createSettingsOverlayRenderer } from './settings-renderer.js';
@@ -50,11 +50,15 @@ function clearActionError() {
     target.textContent = '';
 }
 
-const emitAction = createOverlayActionClient({
+const actionClient = createOverlayActionClient({
     epoch,
     exclusiveActions: EXCLUSIVE_ACTIONS,
     invoke,
     onFailure: ({ error }) => {
+        if (isOverlayLifecycleFailure(error)) {
+            clearActionError();
+            return;
+        }
         renderCurrentPurpose();
         showActionError(error);
     },
@@ -69,6 +73,9 @@ const emitAction = createOverlayActionClient({
     purpose,
     windowRef: window,
 });
+function emitAction(action, value) {
+    return actionClient(action, value);
+}
 const renderAbout = createAboutRenderer({ documentRef: document, emitAction });
 const renderMcp = createMcpRenderer({ documentRef: document, emitAction });
 const settingsRenderer = createSettingsOverlayRenderer({ documentRef: document, emitAction, windowRef: window });
@@ -93,6 +100,14 @@ function renderExport(state = {}) {
     const snippetMode = document.querySelector('[data-overlay-export-mode]');
     if (snippetMode && document.activeElement !== snippetMode) {
         snippetMode.value = state.snippetMode === 'scaffold' ? 'scaffold' : 'compact';
+    }
+    const gpuCanvas = document.querySelector('[data-overlay-export-gpu-canvas]');
+    if (gpuCanvas && document.activeElement !== gpuCanvas) {
+        gpuCanvas.checked = state.gpuCanvasEnabled === true;
+        gpuCanvas.disabled = state.gpuCanvasAvailable !== true;
+        gpuCanvas.title = state.gpuCanvasAvailable === true
+            ? 'Enable Rive GPU Canvas in generated snippets and standalone HTML.'
+            : 'GPU Canvas requires the WebGL 2 renderer.';
     }
     exportExpandedBranchKeys = new Set(state.expandedBranchKeys || exportExpandedBranchKeys);
     const nextRevision = Number(state.hierarchyRevision);
@@ -195,6 +210,9 @@ if (purpose === 'export') {
     exportPanel?.querySelector('[data-overlay-export-mode]')?.addEventListener('change', (event) => {
         void emitAction('snippet-mode', event.target.value);
     });
+    exportPanel?.querySelector('[data-overlay-export-gpu-canvas]')?.addEventListener('change', (event) => {
+        void emitAction('gpu-canvas', event.target.checked);
+    });
     exportPanel?.querySelector('[data-overlay-export-generate]')?.addEventListener('click', () => void emitAction('generate-preview'));
     exportPanel?.querySelector('[data-overlay-export-copy]')?.addEventListener('click', () => void emitAction('copy-preview'));
     exportPanel?.querySelector('[data-overlay-export-submit]')?.addEventListener('click', () => void emitAction('export'));
@@ -216,7 +234,7 @@ const stateListenerPromise = Promise.resolve(events?.listen?.('ui-overlay:state'
     renderCurrentPurpose();
 }));
 const actionResultListenerPromise = Promise.resolve(events?.listen?.('ui-overlay:action-result', (event) => {
-    emitAction.handleResult(event?.payload || {});
+    actionClient.handleResult(event?.payload || {});
 }));
 document.addEventListener('focusin', (event) => {
     const targetId = event.target?.id;

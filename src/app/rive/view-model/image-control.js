@@ -142,11 +142,13 @@ export function appendVmImageControl({
                 return false;
             }
             const sent = dispatchVmControlMutation(documentRef, {
-                action: 'set-image',
+                action: imageSelection?.kind === 'embedded' ? 'set-embedded-image' : 'set-image',
                 descriptor,
                 kind: 'image',
                 imageSelection,
-                value: Array.from(new Uint8Array(bytes)),
+                value: imageSelection?.kind === 'embedded'
+                    ? null
+                    : Array.from(new Uint8Array(bytes)),
             });
             if (!sent) {
                 onRemoteMutationFailure(`Unable to send ${descriptor.path} image to the playback surface.`);

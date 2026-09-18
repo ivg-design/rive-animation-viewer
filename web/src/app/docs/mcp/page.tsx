@@ -61,9 +61,9 @@ export default function McpIntegration() {
         <li><strong>Manual snippets</strong> &mdash; copy-paste configurations for any MCP client</li>
       </ul>
 
-      <h2>Available Tools (57)</h2>
+      <h2>Available Tools (55)</h2>
       <p>
-        The bundled native sidecar advertises 57 unique tools. Root ViewModel paths
+        The bundled native sidecar advertises 55 unique tools. Root ViewModel paths
         use the regular <code>rav_vm_*</code> tools; global ViewModels use a separate global
         name plus property path. Eight desktop media tools expose the same export and
         recording service as the <strong>EXPORT</strong> menu.
@@ -102,7 +102,7 @@ export default function McpIntegration() {
           <tr><td><code>rav_capture_canvas</code></td><td>Capture the currently rendered RAV canvas as PNG image content</td></tr>
           <tr><td><code>rav_media_capabilities</code></td><td>Inspect verified encoders, formats, alpha support, limits, and production distribution state</td></tr>
           <tr><td><code>rav_export_media</code></td><td>Start an asynchronous whole/segment timeline export or current/timed still capture</td></tr>
-          <tr><td><code>rav_record_start</code></td><td>Start live state-machine recording, optionally timed and supplied with recording-clock interactions</td></tr>
+          <tr><td><code>rav_record_start</code></td><td>Start live state-machine recording, optionally timed, with a <code>clock: &quot;live&quot; | &quot;offline&quot;</code> option and recording-clock interactions</td></tr>
           <tr><td><code>rav_record_stop</code></td><td>Seal a manual recording and begin finalization; continue polling its job</td></tr>
           <tr><td><code>rav_media_status</code></td><td>Read capture, encoding, verification, warnings, resolved settings, and output details</td></tr>
           <tr><td><code>rav_media_cancel</code></td><td>Cancel an active media job and clean that job&apos;s temporary capture</td></tr>
@@ -114,7 +114,6 @@ export default function McpIntegration() {
           <tr><td><code>generate_web_instantiation_code</code></td><td>Generate canonical web snippet with helpers and control values</td></tr>
           <tr><td><code>rav_toggle_instantiation_controls_dialog</code></td><td>Open/close the export controls dialog</td></tr>
           <tr><td><code>rav_configure_workspace</code></td><td>Set sidebar visibility, live source mode, and VM Explorer state</td></tr>
-          <tr><td><code>rav_get_sm_inputs</code> / <code>rav_set_sm_input</code></td><td>State machine input access</td></tr>
           <tr><td><code>rav_eval</code></td><td>Evaluate JS in browser context (Script Access required)</td></tr>
           <tr><td><code>rav_console_open</code></td><td>Open the bottom console panel, optionally setting <code>mode</code>, <code>level</code>, <code>sources</code>, and <code>search</code></td></tr>
           <tr><td><code>rav_console_close</code></td><td>Close the bottom console panel</td></tr>
@@ -137,7 +136,19 @@ export default function McpIntegration() {
         changes, and normalized pointer events. Operations run on the recording clock before the
         corresponding frame is drawn, and completion reports requested and applied times. Existing
         ViewModel and global-ViewModel tools can also be used interactively while a manual recording
-        is active. See <a href={asset("/docs/media-export")}>Media Export &amp; Recording</a> for formats,
+        is active. Offline recording requires an explicit duration. <code>rav_record_start</code> also accepts <code>clock: &quot;live&quot; |
+        &quot;offline&quot;</code>; offline is the default when a duration and scheduled
+        interactions are both supplied, otherwise live.
+      </p>
+      <p>
+        <code>rav_export_media</code> and <code>rav_record_start</code> also accept{" "}
+        <code>prores</code> (Apple ProRes 4444 in a <code>.mov</code> container, with or without
+        alpha) and <code>png-sequence</code> / <code>jpg-sequence</code> (one file per frame).
+        Sequence <code>output_path</code> values are directory paths. A non-empty destination
+        is refused unless the caller explicitly sets <code>overwrite: true</code>; MCP does not
+        open an overwrite prompt. H.264, H.265, JPG, and JPG sequences reject alpha requests.
+        Sequence formats take a directory as <code>output_path</code> instead of a single file.
+        See <a href={asset("/docs/media-export")}>Media Export &amp; Recording</a> for formats,
         settings, GIF size controls, and recording behavior.
       </p>
 

@@ -6,6 +6,7 @@ use super::{
     activation::arm_activation_watchdog,
     commands::remove_surface_cache,
     geometry::RenderSurfaceBounds,
+    native_loss::dispose_and_close,
     registry::{RenderSurfaceManager, SurfaceResource},
     source::{
         normalize_session_id, render_surface_file_name, render_surface_label,
@@ -47,7 +48,7 @@ pub(super) async fn create_render_surface(
     let surface_file_name = render_surface_file_name(&session_id);
 
     if let Some(stale_webview) = app.get_webview(&surface_label) {
-        if let Err(error) = stale_webview.close() {
+        if let Err(error) = dispose_and_close(&stale_webview) {
             manager.record_retired(SurfaceResource {
                 session_id: session_id.clone(),
                 label: surface_label.clone(),
@@ -172,7 +173,7 @@ pub(super) fn rollback_failed_staged_surface(
     }
 
     if let Some(webview) = app.get_webview(&candidate.label) {
-        if let Err(error) = webview.close() {
+        if let Err(error) = dispose_and_close(&webview) {
             match manager.record_retired(candidate.clone()) {
                 Ok(()) => details.push(format!(
                     "failed to close rolled-back render surface {} (retained for cleanup): {error}",

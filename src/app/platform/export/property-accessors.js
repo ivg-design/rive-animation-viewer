@@ -28,12 +28,6 @@ export function buildRivePropertyObjectPath(entry) {
     const descriptor = entry?.descriptor;
     if (!descriptor) return null;
 
-    if (descriptor.source === 'state-machine') {
-        const stateMachineName = String(descriptor.stateMachineName || 'default').trim();
-        const inputName = String(descriptor.name || '').trim();
-        return inputName ? `stateMachine/${stateMachineName}/${inputName}` : null;
-    }
-
     if (descriptor.source === 'global-view-model') {
         const globalName = String(descriptor.globalViewModelName || '').trim();
         const path = String(descriptor.path || '').trim();
@@ -48,11 +42,6 @@ function buildRivePropertyAccessorExpression(entry) {
     const descriptor = entry?.descriptor;
     const kind = propertyKind(entry);
     if (!descriptor || !VIEW_MODEL_ACCESSOR_METHODS.has(kind)) return 'null';
-
-    if (descriptor.source === 'state-machine') {
-        const stateMachineName = descriptor.stateMachineName || 'default';
-        return `riveInst.stateMachineInputs?.(${JSON.stringify(stateMachineName)})?.find((input) => input.name === ${JSON.stringify(descriptor.name)}) ?? null`;
-    }
 
     if (descriptor.source === 'global-view-model') {
         return `riveInst.globalViewModelInstance?.(${JSON.stringify(descriptor.globalViewModelName)})?.${kind}?.(${JSON.stringify(descriptor.path)}) ?? null`;
@@ -114,8 +103,7 @@ export function buildPropertyUsageExamples(controlSnapshot = [], options = {}) {
 
         const kind = propertyKind(entry);
         if (kind === 'trigger') {
-            const method = entry.descriptor.source === 'state-machine' ? 'fire' : 'trigger';
-            examples.push(`window.riveProperties[${JSON.stringify(path)}]?.${method}();`);
+            examples.push(`window.riveProperties[${JSON.stringify(path)}]?.trigger();`);
             return;
         }
         if (kind === 'image') {

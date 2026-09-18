@@ -33,6 +33,7 @@ export function createControllerStack({
         getCurrentLayoutFit,
         getCurrentMcpPort,
         getCurrentRuntime,
+        getGpuCanvasEnabled,
         getRiveInstance,
         getRuntimeVersionToken,
         getTauriEventListener,
@@ -49,6 +50,7 @@ export function createControllerStack({
         setCurrentLayoutFit,
         setCurrentMcpPort,
         setCurrentRuntime,
+        setGpuCanvasEnabled,
         showError,
         updateInfo,
         updateVersionInfo,
@@ -117,6 +119,7 @@ export function createControllerStack({
         applyRuntimeVersionToken,
         applyStoredRuntimeVersionForCurrentFile,
         ensureRuntime,
+        ensureRuntimeAsset,
         getCurrentRuntimeSource,
         getCurrentRuntimeVersion,
         getEffectiveRuntimeVersionToken,
@@ -126,6 +129,9 @@ export function createControllerStack({
         getRuntimeVersion,
         setupRuntimeVersionPicker,
     } = runtimeLoaderController;
+    const ensurePlaybackRuntime = (runtimeName) => (
+        isTauriEnvironment() ? ensureRuntimeAsset(runtimeName) : ensureRuntime(runtimeName)
+    );
     const canvasBackgroundController = runtimeStack.canvasBackgroundController;
     const {
         applyCanvasBackground,
@@ -141,7 +147,7 @@ export function createControllerStack({
                 platformStack?.renderSurfaceController?.loadCurrentAnimationForSelection?.(options)
                 ?? platformStack?.renderSurfaceController?.loadCurrentAnimation?.(options) ?? false
             ),
-            ensureRuntime,
+            ensureRuntime: ensurePlaybackRuntime,
             getCurrentFileBuffer,
             getCurrentFileName,
             getCurrentFileUrl,
@@ -149,6 +155,7 @@ export function createControllerStack({
             getCurrentLayoutAlignment,
             getCurrentLayoutFit,
             getCurrentRuntime,
+            getGpuCanvasEnabled,
             getLoadedRuntime,
             getLiveConfig: uiStack.getLiveConfig,
             getCurrentRuntimeVersion,
@@ -196,10 +203,11 @@ export function createControllerStack({
             createDemoBundle,
             eventLogController: uiStack.eventLogController,
             ensureEditorReady: uiStack.ensureEditorReady,
-            ensureRuntime,
+            ensureRuntime: ensurePlaybackRuntime,
             ensureTauriBridge,
             getArtboardStateSnapshot: riveStack.getArtboardStateSnapshot,
             getInspectionMetadata: runtimeStack.inspectionController.getMetadata,
+            getFullInspection: runtimeStack.inspectionController.getFullInspection,
             getCurrentSourceScope: () => runtimeStack.inspectionController.getSourceScope(riveStack.getArtboardStateSnapshot()),
             getChangedVmControlSnapshot: riveStack.getChangedVmControlSnapshot,
             getCurrentFileBuffer,
@@ -212,6 +220,7 @@ export function createControllerStack({
             getCurrentLayoutFit,
             getCurrentMcpPort,
             getCurrentRuntime,
+            getGpuCanvasEnabled,
             getEffectiveRuntimeVersionToken,
             getEditorCode: uiStack.getEditorCode,
             getEventLogEntries: uiStack.getEventLogEntries,
@@ -254,11 +263,9 @@ export function createControllerStack({
                 }
                 riveStack.populateArtboardSwitcher?.();
                 riveStack.renderVmInputControls?.();
-                // The hidden candidate reports its selection before the
-                // visible child confirms a first frame. When that child is
-                // rejected, restore the footer from the retained canonical
-                // session rather than leaving the candidate's artboard/SM
-                // label visible beside the restored file and properties.
+                // A staged child can report its selection before confirming a
+                // first frame. On rejection, restore the footer from the
+                // retained canonical session.
                 updateInfo(buildPlaybackStatusLabel(buildPlaybackContext({
                     playbackState: riveStack.getArtboardStateSnapshot?.() || {},
                     riveInstance: getRiveInstance(),
@@ -273,6 +280,7 @@ export function createControllerStack({
             setCurrentLayoutFit,
             setCurrentMcpPort,
             setCurrentRuntime,
+            setGpuCanvasEnabled,
             setEditorCode: uiStack.setEditorCode,
             setLiveConfigSource: uiStack.setLiveConfigSource,
             setSidebarVisibility: (visibility) => platformStack.shellController?.setSidebarVisibility?.(visibility) ?? { left: false, right: true },
@@ -296,7 +304,7 @@ export function createControllerStack({
         ...riveStack,
         ...platformStack,
         applyRuntimeVersionToken,
-        ensureRuntime,
+        ensureRuntime: ensurePlaybackRuntime,
         getCurrentRuntimeSource,
         getCurrentRuntimeVersion,
         getEffectiveRuntimeVersionToken,

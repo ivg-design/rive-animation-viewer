@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+
+const devVersion = JSON.parse(readFileSync('src-tauri/tauri.flicker-test.conf.json', 'utf8')).version;
 
 function runNodeScript(script, env = process.env) {
   const result = spawnSync(process.execPath, [script], {
@@ -15,6 +18,7 @@ runNodeScript('scripts/generate-media-tools.mjs');
 runNodeScript('scripts/generate-snippet-modules.mjs');
 runNodeScript('scripts/build-dist.mjs', {
   ...process.env,
+  APP_VERSION: devVersion,
   APP_BUILD_CHANNEL: 'dev',
   APP_DIST_DIR: 'dist-dev',
 });

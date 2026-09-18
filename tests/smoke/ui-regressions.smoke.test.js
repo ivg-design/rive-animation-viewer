@@ -320,9 +320,10 @@ describe('ui regression smoke', () => {
         expect(preamble).toContain('let pendingControlSnapshot = new Map();');
         expect(eventLog).toContain('function setEventLogCollapsed(collapsed)');
         expect(eventLog).toContain('document.documentElement.requestFullscreen');
-        expect(vmAccessors).toContain('typeof input.fire === \'function\' && !(\'value\' in input)');
+        expect(vmAccessors).toContain("['trigger', 'trigger']");
+        expect(vmAccessors).not.toContain("typeof input.fire === 'function' && !('value' in input)");
         expect(riveLoader).toContain('Prefer the current runtime tree so converter-driven lists cannot go stale.');
-        expect(riveLoader).toContain('? buildVmHierarchy(rootVm)');
+        expect(riveLoader).toContain('buildVmHierarchyFromInspection(rootVm) || buildVmHierarchy(rootVm)');
         expect(vmHierarchy).toContain('function buildVmListTopologySignature(rootVm)');
         expect(vmHierarchy).toContain('ALLOWED_CONTROL_KEYS.has(selectionKey)');
         expect(vmHierarchy).toContain('function formatVmListItemLabel(listName, index, itemInstance)');

@@ -29,17 +29,18 @@ export function populateArtboardSwitcherUi({
     elements,
     fileContentsCache,
     getRiveInstance = () => null,
+    inspectionMetadata = null,
     initLucideIcons = () => {},
 } = {}) {
     const switcher = elements.artboardSwitcher;
     const artboardSelect = elements.artboardSelect;
     const riveInstance = getRiveInstance();
-    if (!switcher || !artboardSelect || !riveInstance) {
+    if (!switcher || !artboardSelect) {
         if (switcher) switcher.hidden = true;
         return { defaultArtboardName, fileContentsCache };
     }
 
-    const contents = getInspectionMetadata(riveInstance);
+    const contents = inspectionMetadata || getInspectionMetadata(riveInstance);
     if (!contents?.artboards?.length) {
         switcher.hidden = true;
         return { defaultArtboardName, fileContentsCache: null };
@@ -113,6 +114,7 @@ export function populatePlaybackSelectUi({
 }
 
 export function populateVmInstanceSelectUi({
+    availableInstanceKeys = null,
     elements,
     getRiveInstance = () => null,
     documentRef = globalThis.document,
@@ -121,12 +123,40 @@ export function populateVmInstanceSelectUi({
     const row = elements.vmInstanceRow;
     const select = elements.vmInstanceSelect;
     const riveInstance = getRiveInstance();
-    if (!row || !select || !riveInstance) {
+    if (!row || !select) {
         if (row) row.hidden = true;
         return;
     }
 
     try {
+        if (Array.isArray(availableInstanceKeys)) {
+            if (!availableInstanceKeys.length) {
+                row.hidden = true;
+                return;
+            }
+            const instances = availableInstanceKeys.map((key, index) => ({
+                key: String(key),
+                label: String(key || `Instance ${index + 1}`),
+            }));
+            const options = [{
+                value: AUTO_BOUND_VM_INSTANCE_KEY,
+                label: instances.length === 1 ? `${instances[0].label} (auto)` : 'Default instance (auto)',
+            }, ...instances.map(({ key, label }) => ({ value: key, label }))];
+            const normalizedSelection = selectedInstanceKey == null
+                ? AUTO_BOUND_VM_INSTANCE_KEY
+                : String(selectedInstanceKey);
+            reconcileSelectOptions(select, options,
+                options.some((option) => String(option.value) === normalizedSelection)
+                    ? normalizedSelection
+                    : AUTO_BOUND_VM_INSTANCE_KEY,
+            documentRef);
+            row.hidden = false;
+            return;
+        }
+        if (!riveInstance) {
+            row.hidden = true;
+            return;
+        }
         const viewModelDefinition = typeof riveInstance.defaultViewModel === 'function'
             ? riveInstance.defaultViewModel()
             : null;

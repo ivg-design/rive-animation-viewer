@@ -17,6 +17,7 @@ function buildElements() {
             <option value="compact" selected>compact</option>
             <option value="scaffold">scaffold</option>
         </select>
+        <input type="checkbox" id="instantiation-gpu-canvas-toggle" />
         <span id="instantiation-preview-status"></span>
         <pre id="instantiation-preview-output"></pre>
         <button id="copy-instantiation-preview-btn"></button>
@@ -42,6 +43,7 @@ function buildElements() {
         instantiationPresetNoneButton: document.getElementById('instantiation-preset-none-btn'),
         instantiationPackageSourceSelect: document.getElementById('instantiation-package-source-select'),
         instantiationSnippetModeSelect: document.getElementById('instantiation-snippet-mode-select'),
+        instantiationGpuCanvasToggle: document.getElementById('instantiation-gpu-canvas-toggle'),
         instantiationPreviewStatus: document.getElementById('instantiation-preview-status'),
         instantiationPreviewOutput: document.getElementById('instantiation-preview-output'),
         copyInstantiationPreviewButton: document.getElementById('copy-instantiation-preview-btn'),
@@ -92,20 +94,6 @@ describe('ui/instantiation-controls-dialog', () => {
                         },
                         {
                             descriptor: {
-                                kind: 'boolean',
-                                name: 'armed',
-                                path: 'stateMachine/Main/armed',
-                                source: 'state-machine',
-                                stateMachineName: 'Main',
-                            },
-                            kind: 'boolean',
-                            name: 'armed',
-                            path: 'stateMachine/Main/armed',
-                            source: 'state-machine',
-                            stateMachineName: 'Main',
-                        },
-                        {
-                            descriptor: {
                                 kind: 'trigger',
                                 name: 'reset',
                                 path: 'card/reset',
@@ -129,12 +117,11 @@ describe('ui/instantiation-controls-dialog', () => {
         controller.setup();
         await expect(controller.openDialog()).resolves.toEqual({ open: true, selectionCount: 1 });
         expect(controller.getSelectedControlKeys()).toEqual(['vm:card/progress:number']);
-        expect(elements.instantiationSelectionSummary.textContent).toContain('1 of 3');
+        expect(elements.instantiationSelectionSummary.textContent).toContain('1 of 2');
 
         elements.instantiationPresetAllButton.click();
         expect(controller.getSelectedControlKeys()).toEqual([
             'vm:card/progress:number',
-            'sm:Main:armed:boolean',
             'vm:card/reset:trigger',
         ]);
 
@@ -149,7 +136,6 @@ describe('ui/instantiation-controls-dialog', () => {
             snippetMode: 'scaffold',
         }));
         expect([...lastCall.selectedControlKeys].sort()).toEqual([
-            'sm:Main:armed:boolean',
             'vm:card/progress:number',
             'vm:card/reset:trigger',
         ]);
@@ -161,14 +147,48 @@ describe('ui/instantiation-controls-dialog', () => {
             expect(createDemoBundle).toHaveBeenCalled();
         });
         expect(createDemoBundle).toHaveBeenCalledWith({
+            enableGPUCanvas: false,
             packageSource: 'local',
             selectedControlKeys: [
                 'vm:card/progress:number',
-                'sm:Main:armed:boolean',
                 'vm:card/reset:trigger',
             ],
             snippetMode: 'scaffold',
         });
+    });
+
+    it('initializes the export override from the toolbar and applies dialog changes to both output paths', async () => {
+        const elements = buildElements();
+        const createDemoBundle = vi.fn().mockResolvedValue('/tmp/gpu-demo.html');
+        const generateWebInstantiationCode = vi.fn().mockResolvedValue({ code: 'gpu snippet' });
+        const controller = createInstantiationControlsDialogController({
+            callbacks: {
+                createDemoBundle,
+                generateWebInstantiationCode,
+                getCurrentFileName: () => 'shader.riv',
+                getCurrentRuntime: () => 'webgl2',
+                getGpuCanvasEnabled: () => true,
+                getTauriInvoker: () => vi.fn(),
+            },
+            elements,
+            serializeControlHierarchy: () => ({ children: [], inputs: [], kind: 'controls' }),
+        });
+
+        controller.setup();
+        await controller.openDialog();
+        expect(elements.instantiationGpuCanvasToggle.checked).toBe(true);
+        expect(controller.getExportGpuCanvasEnabled()).toBe(true);
+
+        elements.instantiationGpuCanvasToggle.checked = false;
+        elements.instantiationGpuCanvasToggle.dispatchEvent(new Event('change'));
+        elements.instantiationDialogSnippetButton.click();
+        elements.instantiationDialogExportButton.click();
+
+        await vi.waitFor(() => {
+            expect(generateWebInstantiationCode).toHaveBeenCalledWith(expect.objectContaining({ enableGPUCanvas: false }));
+            expect(createDemoBundle).toHaveBeenCalledWith(expect.objectContaining({ enableGPUCanvas: false }));
+        });
+        expect(controller.getExportGpuCanvasEnabled()).toBe(false);
     });
 
     it('uses one dynamic field selection while counting every concrete list-item control', async () => {

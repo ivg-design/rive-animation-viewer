@@ -18,7 +18,6 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 
 ### Rive Runtime API
 - \`stateMachineNames\` and \`animationNames\` are **properties**, not functions. Never read \`contents\` on the live file: metadata enumeration can create instances and disturb playback. Use RAV's metadata tools, which inspect an independently owned file.
-- \`stateMachineInputs(smName)\` IS a function that takes the state machine name.
 - \`viewModelInstance\` is a **property** that returns the currently bound ViewModel instance. \`autoBind: true\` binds the default instance automatically; RAV uses \`autoBind: false\` when it explicitly binds a named instance.
 
 ### ViewModel Paths
@@ -45,9 +44,8 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 - Standalone HTML export is separate: it embeds the runtime and UI chrome and restores the selected live values.
 
 ### State Machines vs ViewModels
-- **State machine inputs** are the legacy way to control animations (boolean, number, trigger).
-- **ViewModel properties** are the modern data-binding approach with richer types.
-- Many animations have both — check rav_get_sm_inputs AND rav_get_vm_tree.
+- State machines remain available as playback targets and can be selected by name.
+- **ViewModel properties** are the supported data-binding approach for reading and controlling authored values.
 
 ## Tips
 - If rav_get_vm_tree returns empty but you suspect there is a ViewModel, verify that a default or explicit VM instance is selected and bound. Use \`autoBind: true\` for the default instance, or select an explicit instance in RAV; configure the state machine separately when playback requires one.

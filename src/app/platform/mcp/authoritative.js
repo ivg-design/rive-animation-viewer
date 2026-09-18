@@ -134,14 +134,14 @@ export function canonicalGlobalVmSnapshot(canonicalState) {
 
 export function canonicalControlSnapshot(canonicalState) {
     return canonicalInputs(canonicalState)
-        .filter((input) => input.kind !== 'trigger' && input.kind !== 'image')
+        .filter((input) => input.kind !== 'trigger' && input.kind !== 'image'
+            && (input.source || input.descriptor?.source) !== 'state-machine')
         .map((input) => ({
             descriptor: {
                 kind: input.kind,
                 name: input.name,
                 path: input.path,
                 source: input.source || input.descriptor?.source || 'view-model',
-                stateMachineName: input.stateMachineName || input.descriptor?.stateMachineName || null,
                 globalViewModelName: input.globalViewModelName || input.descriptor?.globalViewModelName || null,
             },
             kind: input.kind,

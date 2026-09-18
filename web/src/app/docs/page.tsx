@@ -21,7 +21,7 @@ const topics = [
   { icon: Clapperboard, title: "Media Export & Recording", desc: "Timeline video, animated images, stills, and live interaction capture", href: "/docs/media-export" },
   { icon: FileCode, title: "Export + Snippets", desc: "Standalone HTML and instantiation code", href: "/docs/export" },
   { icon: Settings, title: "Configuration", desc: "Settings panel, renderer, runtime, canvas sizing", href: "/docs/configuration" },
-  { icon: Cable, title: "MCP Integration", desc: "57 tools, including complete media automation", href: "/docs/mcp" },
+  { icon: Cable, title: "MCP Integration", desc: "55 tools, including complete media automation", href: "/docs/mcp" },
   { icon: RefreshCw, title: "Auto Updates", desc: "Built-in updater flow", href: "/docs/updates" },
   { icon: Keyboard, title: "Keyboard Shortcuts", desc: "All implemented keybindings", href: "/docs/shortcuts" },
   { icon: HelpCircle, title: "Troubleshooting", desc: "Common issues and fixes", href: "/docs/troubleshooting" },

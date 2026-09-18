@@ -39,7 +39,10 @@ export function isReplayPayloadValid(payload) {
     const path = normalizeScopePart(payload?.path || payload?.name);
     if (!path || payload?.kind !== 'image') return false;
     if (payload.action === 'clear-image') return payload.value == null;
-    if (payload.action !== 'set-image' || payload.value == null) return false;
+    if (payload.action !== 'set-image') return false;
+    const embedded = payload.imageSelection?.kind === 'embedded'
+        && normalizeScopePart(payload.imageSelection?.key);
+    if (payload.value == null) return Boolean(embedded);
     return Array.isArray(payload.value)
         || payload.value instanceof ArrayBuffer
         || ArrayBuffer.isView(payload.value)
@@ -47,7 +50,10 @@ export function isReplayPayloadValid(payload) {
 }
 
 export function normalizeImageCommandPayload(payload = {}) {
-    const isClear = payload.action === 'clear' || payload.action === 'clear-image' || payload.value == null;
+    const embedded = payload.imageSelection?.kind === 'embedded'
+        && normalizeScopePart(payload.imageSelection?.key);
+    const isClear = payload.action === 'clear' || payload.action === 'clear-image'
+        || (payload.value == null && !embedded);
     const clonedPayload = clonePayload(payload);
     return {
         ...clonedPayload,

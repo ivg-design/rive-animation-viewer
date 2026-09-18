@@ -2,8 +2,9 @@ import { dispatchAnimationLoaded } from '../control-events.js';
 import { runUserOnLoadWithVmRestore } from '../instance/load-hooks.js';
 import { buildPlaybackContext, buildPlaybackStatusLabel } from '../playback-status.js';
 import { normalizeLoadErrorMessage } from './load-settlement.js';
-import { clearStateMachineInputMetadata, getStateMachineNames, setInspectionMetadata } from '../runtime-compatibility.js';
+import { clearInspectionMetadata, getStateMachineNames, setInspectionMetadata } from '../runtime-compatibility.js';
 import { normalizeStateMachineSelection } from '../default-state-machine.js';
+import { enableNativeFpsCounter } from './native-fps.js';
 import {
     captureTimelineProgressForInstance,
     dispatchTimelineProgress,
@@ -63,8 +64,16 @@ export function configureRiveLoadLifecycle({
             notifyLoadFailure(new Error('Animation load superseded.'));
             return;
         }
-        clearStateMachineInputMetadata(getRiveInstance());
+        clearInspectionMetadata(getRiveInstance());
         setInspectionMetadata(getRiveInstance(), inspectionMetadata);
+        const fpsInstance = getRiveInstance();
+        if (!authoritativeChildMode) {
+            enableNativeFpsCounter(
+                fpsInstance,
+                updatePlaybackChips,
+                () => isCurrentLoad() && getRiveInstance() === fpsInstance,
+            );
+        }
         const inPlaceReset = takePendingInPlaceReset();
         hideError();
         resizeCanvas(config.canvas, userConfig);
@@ -153,7 +162,6 @@ export function configureRiveLoadLifecycle({
     config.onAdvance = (event) => {
         if (!isCurrentLoad()) return;
         if (!authoritativeChildMode) {
-            updatePlaybackChips();
             dispatchTimelineProgress(
                 documentRef,
                 captureTimelineProgressForInstance(getRiveInstance(), getPlaybackState()),

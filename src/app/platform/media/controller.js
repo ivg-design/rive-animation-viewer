@@ -12,6 +12,23 @@ export function createMediaExportController({ getTauriInvoker, getTauriEventList
             throw error instanceof Error ? error : new Error(String(error));
         });
     };
+    async function releaseNativeFrameClock(job) {
+        if (!job) return;
+        try {
+            if (job.native_clock) await invoke('set_render_surface_frame_clock', { enabled: false });
+        } catch (error) {
+            // The native command is deliberately idempotent. Keep cleanup
+            // best-effort so an encoder/source failure cannot strand the
+            // capture lifecycle, and make the failure visible in the job.
+            (job.warnings ||= []).push(`Could not stop the native playback clock: ${String(error.message || error)}`);
+        } finally {
+            job.native_clock = false;
+            if (job.render_liveness_suspended) {
+                job.render_liveness_suspended = false;
+                renderSurfaceController.setMediaCaptureActive?.(false);
+            }
+        }
+    }
     const emit = (job) => { onChange(publicJob(job)); windowRef?.dispatchEvent?.(new CustomEvent('rav:media-status', { detail: publicJob(job) })); };
     function publicJob(job) {
         if (!job) return null;
@@ -36,7 +53,11 @@ export function createMediaExportController({ getTauriInvoker, getTauriEventList
         if (current === job) current = null;
         // Dispose capture immediately. Failure is different from the user's
         // explicit Cancel: acknowledged native data must survive for recovery.
-        if (sourceSession() === job.source_session) await command(job, job.recording ? 'media-record-abort' : 'media-close', job.recording ? { capture_id: job.id } : {}).catch(() => {});
+        try {
+            if (sourceSession() === job.source_session) await command(job, job.recording ? 'media-record-abort' : 'media-close', job.recording ? { capture_id: job.id } : {}).catch(() => {});
+        } finally {
+            await releaseNativeFrameClock(job);
+        }
         if (job.native?.job_id) {
             try { job.native = await invoke(job.state === 'cancelled' ? 'media_export_cancel' : 'media_export_abort',
                 { job_id: job.native.job_id, ...(job.state === 'cancelled' ? {} : { error: job.error.slice(0, 4096) }) }); }
@@ -63,6 +84,29 @@ export function createMediaExportController({ getTauriInvoker, getTauriEventList
             });
             await listen('render-surface:media-ended', ({ payload }) => {
                 if (current?.id === payload.capture_id && current.source_session === payload.sessionId) void stopRecording().catch(() => {});
+            });
+            await listen('media-export:status', ({ payload }) => {
+                const nativeId = payload?.job_id;
+                if (!nativeId) return;
+                const job = [...jobs.values()].find((candidate) => candidate.native?.job_id === nativeId);
+                if (!job) return;
+                job.native = payload;
+                job.native_event_revision = (job.native_event_revision || 0) + 1;
+                if (payload.state) job.state = payload.state;
+                if (job.recording && payload.received_frames != null) job.captured_frames = payload.received_frames;
+                emit(job);
+            });
+            await listen('media-export:capture', ({ payload }) => {
+                // Native accepted-frame receipts are the live count; the
+                // renderer's own frame index is not, because encoding and
+                // disk writes trail it.
+                const nativeId = payload?.job_id;
+                if (!nativeId || payload.received_frames == null) return;
+                const job = [...jobs.values()].find((candidate) => candidate.native?.job_id === nativeId);
+                if (!job || job.state !== 'capturing') return;
+                job.captured_frames = payload.received_frames;
+                if (payload.bytes_spooled != null) job.bytes_spooled = payload.bytes_spooled;
+                emit(job);
             });
             await listen('render-surface:media-shortcut', ({ payload }) => {
                 if (payload.sessionId === sourceSession()) windowRef?.dispatchEvent?.(new CustomEvent('rav:media-toggle-recording'));
@@ -97,17 +141,32 @@ export function createMediaExportController({ getTauriInvoker, getTauriEventList
             if (current !== job || job.state === 'cancelled') throw new Error('Capture cancelled.');
             job.state = 'capturing';
             if (recording) {
+                // A native-owned recording is the sole consumer of the
+                // obscured/minimized WebView wake lane. Enable it immediately
+                // before child recording setup, and release it on every exit.
+                renderSurfaceController.setMediaCaptureActive?.(true);
+                job.render_liveness_suspended = true;
+                await invoke('set_render_surface_frame_clock', { enabled: true });
+                job.native_clock = true;
                 await ensureListeners();
                 await command(job, 'media-record-start', { ...options, capture_id: job.id, native_job_id: job.native.job_id });
             } else {
+                await ensureListeners();
                 await command(job, 'media-open', { ...options, snapshot: getControlSnapshot() });
             }
             emit(job); return job;
         } catch (error) { await fail(job, error); throw error; }
     }
     async function finish(job, count) {
-        job.native = await invoke('media_export_finish', { job_id: job.native.job_id, frame_count: count });
-        job.state = job.native.state;
+        const revision = job.native_event_revision || 0;
+        const response = await invoke('media_export_finish', { job_id: job.native.job_id, frame_count: count });
+        // A fast encoder may emit its terminal event before the command
+        // response resolves. Do not overwrite that newer event with the
+        // command's initial encoding snapshot.
+        if ((job.native_event_revision || 0) === revision) {
+            job.native = response;
+            job.state = response.state;
+        }
         if (current === job) current = null;
         emit(job); return publicJob(job);
     }
@@ -169,6 +228,7 @@ export function createMediaExportController({ getTauriInvoker, getTauriEventList
             }
             return await finish(job, receipt.frame_count);
         } catch (error) { await fail(job, error); throw error; }
+        finally { await releaseNativeFrameClock(job); }
     }
     async function status(id) {
         const job = id ? jobs.get(id) || [...jobs.values()].find((j) => j.native?.job_id === id) : current || [...jobs.values()].at(-1);
@@ -201,11 +261,13 @@ export function createMediaExportController({ getTauriInvoker, getTauriEventList
         if (!job) return { state: 'idle' };
         if (['completed', 'failed', 'cancelled'].includes(job.state)) return publicJob(job);
         job.state = 'cancelled';
-        if (sourceSession() === job.source_session) await command(job, job.recording ? 'media-record-abort' : 'media-close', job.recording ? { capture_id: job.id } : {}).catch(() => {});
-        await recordingWrite;
-        if (job.native) { job.native = await invoke('media_export_cancel', { job_id: job.native.job_id }); job.state = job.native.state; }
-        if (current === job) current = null;
-        emit(job); return publicJob(job);
+        try {
+            if (sourceSession() === job.source_session) await command(job, job.recording ? 'media-record-abort' : 'media-close', job.recording ? { capture_id: job.id } : {}).catch(() => {});
+            await recordingWrite;
+            if (job.native) { job.native = await invoke('media_export_cancel', { job_id: job.native.job_id }); job.state = job.native.state; }
+            if (current === job) current = null;
+            emit(job); return publicJob(job);
+        } finally { await releaseNativeFrameClock(job); }
     }
 
     async function chooseOutputPath(options) {
@@ -215,6 +277,7 @@ export function createMediaExportController({ getTauriInvoker, getTauriEventList
         if (current) void fail(current, new Error('Capture stopped because the source or playback selection changed.'));
     });
     return { setup: ensureListeners, capabilities: () => invoke('media_export_capabilities'), chooseOutputPath,
+        outputState: (options) => invoke('media_export_output_state', options),
         exportMedia, startRecording, stopRecording, status, cancel,
         stepFrames: (options) => command({ source_session: sourceSession() }, 'step-frames', options),
         pointer: (options) => command({ source_session: sourceSession() }, 'pointer', options) };

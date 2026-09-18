@@ -58,6 +58,7 @@ export function createMcpSetupController({
     }
 
     function isScriptAccessEnabled() {
+        if (typeof windowRef.__RAV_MCP_SCRIPT_ACCESS__ === 'boolean') return windowRef.__RAV_MCP_SCRIPT_ACCESS__;
         try {
             return windowRef.localStorage?.getItem(MCP_SCRIPT_ACCESS_STORAGE_KEY) === 'true';
         } catch {
