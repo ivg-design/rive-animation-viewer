@@ -43,7 +43,7 @@ function listFiles(directory, root) {
     return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
         const full = path.join(directory, entry.name);
         if (entry.isDirectory()) return listFiles(full, root);
-        return entry.isFile() && entry.name !== 'manifest.json' && entry.name !== '.DS_Store' ? [path.relative(root, full)] : [];
+        return entry.isFile() && entry.name !== 'manifest.json' && entry.name !== '.DS_Store' ? [path.relative(root, full).split(path.sep).join('/')] : [];
     }).sort();
 }
 
