@@ -14,6 +14,7 @@ import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 
 const STAGED_DIRECTORIES = [
@@ -22,7 +23,7 @@ const STAGED_DIRECTORIES = [
     'vendor/inspection',
 ];
 const MANIFEST_PATH = 'src/app/rive/inspection/private/manifest.json';
-const REPO_ROOT = path.resolve(new URL('..', import.meta.url).pathname);
+const REPO_ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 
 const sha256 = (buffer) => createHash('sha256').update(buffer).digest('hex');
 const fail = (message) => { console.error(`private-modules: ${message}`); process.exit(1); };
