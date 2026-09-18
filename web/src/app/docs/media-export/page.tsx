@@ -23,7 +23,7 @@ export default function MediaExport() {
       </p>
 
       <DocsFigure
-        src={asset("/docs/2.5.5/export-chooser.webp?v=curated-1")}
+        src={asset("/docs/2.5.6/export-chooser.webp?v=curated-2.5.6")}
         alt="RAV Export window with compact cards for still image, timeline, interaction recording, and web code export"
         width={1473}
         height={1394}
@@ -44,7 +44,7 @@ export default function MediaExport() {
       </p>
 
       <DocsFigure
-        src={asset("/docs/2.5.5/timeline-scrubber.webp?v=curated-1")}
+        src={asset("/docs/2.5.6/timeline-scrubber.webp?v=curated-2.5.6")}
         alt="RAV timeline scrubber above the status bar paused at frame 30 of 60"
         width={1988}
         height={265}
@@ -52,7 +52,7 @@ export default function MediaExport() {
       />
 
       <DocsFigure
-        src={asset("/docs/2.5.5/timeline-export-settings.webp?v=curated-1")}
+        src={asset("/docs/2.5.6/timeline-export-settings.webp?v=curated-2.5.6")}
         alt="RAV timeline export settings showing full-duration range and H.264 output controls"
         width={2620}
         height={1920}
@@ -87,7 +87,7 @@ export default function MediaExport() {
       </p>
 
       <DocsFigure
-        src={asset("/docs/2.5.5/interaction-recording-settings.webp?v=curated-1")}
+        src={asset("/docs/2.5.6/interaction-recording-settings.webp?v=curated-2.5.6")}
         alt="RAV interaction recording settings with manual stop, output, cursor, and save destination controls"
         width={1470}
         height={1391}
@@ -102,7 +102,7 @@ export default function MediaExport() {
       </p>
 
       <DocsFigure
-        src={asset("/docs/2.5.5/still-image-export-settings.webp?v=curated-1")}
+        src={asset("/docs/2.5.6/still-image-export-settings.webp?v=curated-2.5.6")}
         alt="RAV still-image export settings with PNG output selected"
         width={1473}
         height={1392}
@@ -175,7 +175,7 @@ export default function MediaExport() {
       </p>
 
       <DocsFigure
-        src={asset("/docs/2.5.5/gif-size-options.webp?v=curated-1")}
+        src={asset("/docs/2.5.6/gif-size-options.webp?v=curated-2.5.6")}
         alt="RAV GIF export settings showing preset, target-size, frame-rate, quality, repeat, and encoder controls"
         width={1475}
         height={1392}
@@ -203,7 +203,7 @@ export default function MediaExport() {
       </p>
 
       <DocsFigure
-        src={asset("/docs/2.5.5/export-progress-status.webp?v=curated-1")}
+        src={asset("/docs/2.5.6/export-progress-status.webp?v=curated-2.5.6")}
         alt="RAV bottom status bar showing media export progress with a lime progress indicator"
         width={2500}
         height={1800}

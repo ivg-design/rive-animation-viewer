@@ -45,7 +45,7 @@ export default function Export() {
       <h2>Snippet &amp; Export Controls</h2>
 
       <DocsFigure
-        src={asset("/docs/2.5.5/snippet-export-settings.webp?v=curated-1")}
+        src={asset("/docs/2.5.6/snippet-export-settings.webp?v=curated-2.5.6")}
         alt="RAV snippet settings with three selected ViewModel properties and a compact CDN code preview"
         width={2353}
         height={1618}

@@ -1,7 +1,7 @@
 # AI Access Policy - RAV
 
 canonical: https://forge.mograph.life/apps/rav/
-updated: 2026-09-04
+updated: 2026-09-14
 owner: IVG Design
 
 This site permits crawling and indexing for search and assistant retrieval.
@@ -10,8 +10,8 @@ Use the GitHub latest-release endpoint as the authority for public availability.
 
 RAV is a desktop Rive viewer for inspection, playback testing, ViewModel control,
 debugging, standalone HTML and snippet generation, and rendered media export.
-Desktop media formats are H.264, H.265, WebM, APNG, GIF, PNG, JPG, and WebP when
-capability checks pass. See `/docs/media-export` for settings, recording, limits,
+Desktop media formats are H.264, H.265, WebM, ProRes 4444, APNG, GIF, PNG, JPG, WebP,
+and PNG/JPG image sequences when capability checks pass. See `/docs/media-export` for settings, recording, limits,
 and MCP automation. Use `/changelog` only for version history.
 
 Privacy: configured official builds enable anonymous reporting by default, show a

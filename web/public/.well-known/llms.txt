@@ -32,7 +32,9 @@ RAV is a standalone desktop app for inspecting, debugging, testing, and exportin
 ## Current Behavior Facts
 - Linear animations show a draggable frame/seconds scrubber; state machines hide it.
 - Standalone HTML includes the runtime and UI chrome. Copy-paste snippets include setup plus only selected typed property accessors.
-- Desktop media formats are H.264, H.265, WebM, APNG, GIF, PNG, JPG, and WebP when capability checks pass.
+- Desktop media formats are H.264, H.265, WebM, ProRes 4444, APNG, GIF, PNG, JPG, WebP, and PNG/JPG image sequences when capability checks pass.
+- A GPU Canvas toolbar toggle enables Rive's WebGL2 GPU renderer for desktop playback, standalone HTML, and generated snippets.
+- File structure (artboards, animations, state machines, ViewModel schema) is read once via parse-once inspection instead of a Rive runtime instance; Properties-drawer ViewModel readouts refresh at the render rate.
 - Timeline export supports authored duration or an exact segment. State-machine recording supports live pointer and ViewModel interaction, optional cursor, manual or timed stop, and no product duration ceiling.
 - GIF controls can reduce dimensions, FPS, and quality or perform a best-effort target-size search.
 - Media progress uses the bottom status bar. EXPORT remains the single entry point for settings and completed results.

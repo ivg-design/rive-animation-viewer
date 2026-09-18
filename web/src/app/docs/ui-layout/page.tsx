@@ -11,7 +11,7 @@ export default function UiLayout() {
       <h1>UI Layout</h1>
 
       <DocsFigure
-        src={asset("/docs/2.5.3/workspace-root-vm.webp")}
+        src={asset("/docs/2.5.6/workspace-root-vm.webp?v=curated-2.5.6")}
         alt="RAV workspace with the editor on the left, animation canvas in the center, and Properties panel on the right"
         width={2500}
         height={1800}
