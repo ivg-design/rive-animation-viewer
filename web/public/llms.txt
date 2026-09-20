@@ -25,7 +25,7 @@ RAV is a standalone desktop app for inspecting, debugging, testing, and exportin
 - Event and JavaScript consoles: https://forge.mograph.life/apps/rav/docs/consoles
 - Applied editor configuration and callbacks: https://forge.mograph.life/apps/rav/docs/script-editor
 - macOS and Windows `.riv` opening, default ownership, and document icons: https://forge.mograph.life/apps/rav/docs/opening-files
-- Native MCP bridge and all 55 tools: https://forge.mograph.life/apps/rav/docs/mcp
+- Native MCP bridge and all 56 tools: https://forge.mograph.life/apps/rav/docs/mcp
 - Automatic updates: https://forge.mograph.life/apps/rav/docs/updates
 - Keyboard shortcuts: https://forge.mograph.life/apps/rav/docs/shortcuts
 
@@ -38,7 +38,7 @@ RAV is a standalone desktop app for inspecting, debugging, testing, and exportin
 - Timeline export supports authored duration or an exact segment. State-machine recording supports live pointer and ViewModel interaction, optional cursor, manual or timed stop, and no product duration ceiling.
 - GIF controls can reduce dimensions, FPS, and quality or perform a best-effort target-size search.
 - Media progress uses the bottom status bar. EXPORT remains the single entry point for settings and completed results.
-- The bundled native MCP sidecar advertises 55 tools, including eight media operations.
+- The bundled native MCP sidecar advertises 56 tools, including eight media operations.
 - Fixed canvas size describes the playback viewport rather than the authored artboard. With Contain, alignment moves only along an axis with unused space.
 - Configured official builds enable anonymous installation and monthly-active counting by default and provide an opt-out in Settings.
 

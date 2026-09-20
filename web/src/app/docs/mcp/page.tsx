@@ -61,9 +61,9 @@ export default function McpIntegration() {
         <li><strong>Manual snippets</strong> &mdash; copy-paste configurations for any MCP client</li>
       </ul>
 
-      <h2>Available Tools (55)</h2>
+      <h2>Available Tools (56)</h2>
       <p>
-        The bundled native sidecar advertises 55 unique tools. Root ViewModel paths
+        The bundled native sidecar advertises 56 unique tools. Root ViewModel paths
         use the regular <code>rav_vm_*</code> tools; global ViewModels use a separate global
         name plus property path. Eight desktop media tools expose the same export and
         recording service as the <strong>EXPORT</strong> menu.
@@ -72,6 +72,7 @@ export default function McpIntegration() {
         <thead><tr><th>Tool</th><th>Description</th></tr></thead>
         <tbody>
           <tr><td><code>rav_status</code></td><td>App status: file, runtime, playback, canvas sizing, ViewModel summary</td></tr>
+          <tr><td><code>rav_entitlement_status</code></td><td>Machine id and activation state; pass an activation key once to activate optional capabilities</td></tr>
           <tr><td><code>rav_set_anonymous_usage</code></td><td>Enable or disable Anonymous Usage reporting</td></tr>
           <tr><td><code>rav_open_file</code></td><td>Open a .riv file by absolute path</td></tr>
           <tr><td><code>rav_play</code> / <code>rav_pause</code> / <code>rav_reset</code></td><td>Playback controls</td></tr>

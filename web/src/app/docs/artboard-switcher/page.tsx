@@ -36,9 +36,10 @@ export default function ArtboardSwitcher() {
       <p>
         When the selected target is a timeline animation, a dedicated scrubber row appears above
         the runtime status bar. Select the readout to switch between frames and seconds, use the
-        duration-aware ticks to judge position, or drag the large unclipped current-time indicator
-        to seek. The indicator advances on every rendered animation frame. State machines hide the
-        entire row. The same authored time/frame scale can be used to define an exact segment in
+        frame-aligned ruler to judge position, or drag the large unclipped current-time indicator
+        to seek: grabbing it pauses playback and each drag position seeks to that exact frame. The
+        indicator advances on every rendered animation frame at the authored speed and direction.
+        State machines hide the entire row. The same authored time/frame scale can be used to define an exact segment in
         <a href={asset("/docs/media-export")}> Media Export</a>.
       </p>
 

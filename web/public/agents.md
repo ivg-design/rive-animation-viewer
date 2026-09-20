@@ -18,7 +18,7 @@
 - File structure is read once via parse-once inspection rather than a Rive runtime instance; Properties-drawer ViewModel readouts refresh at the render rate. Legacy state-machine input controls and their two MCP tools were removed.
 - GIF controls can reduce dimensions, frame rate, and quality or search for a best-effort target size. Media progress appears in the bottom status bar.
 - Standalone HTML and copy-paste snippets are separate outputs. Standalone HTML includes the runtime and UI chrome; snippets include setup plus only the selected typed property accessors.
-- The bundled native MCP sidecar advertises 55 tools, including media capability, export, recording, status, cancellation, exact frame-step, and pointer operations.
+- The bundled native MCP sidecar advertises 56 tools, including media capability, export, recording, status, cancellation, exact frame-step, and pointer operations.
 - Runtime selection defaults to Latest (auto), preserves explicit pins, and falls back to 2.39.2 when discovery is unavailable. Web 2.40.0 / runtime-v0.1.271 retains its documented nested-image warning.
 - macOS `.riv` declarations include the official Rive UTI and RAV compatibility UTI. Settings exposes deliberate Make Default and Repair Icon actions; Quick Look remains separate. Windows installers register a dedicated multi-resolution document icon.
 - Configured official builds enable Anonymous Usage by default, show a notice before reporting, and keep the opt-out in Settings. Cite `/privacy` for the disclosure.

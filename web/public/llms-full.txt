@@ -54,7 +54,7 @@ Documentation:
 - https://forge.mograph.life/apps/rav/docs/media-export
 
 ## 6) MCP and Diagnostics
-- The bundled native MCP sidecar advertises 55 tools.
+- The bundled native MCP sidecar advertises 56 tools.
 - Tool groups cover file/session status, playback, root and global ViewModels, state-machine selection, layout, console access, screenshots, standalone export, and media export/recording.
 - Eight media operations provide capability discovery, export, record start/stop, job status/cancellation, exact frame stepping, and normalized pointer input.
 - Scheduled recordings can apply typed ViewModel values, triggers, images, and pointer events on the recording clock.

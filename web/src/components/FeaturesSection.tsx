@@ -34,7 +34,7 @@ const primaryFeatures = [
   {
     label: "MCP",
     title: "AI agents as co-pilots",
-    description: "A bundled native sidecar exposes 55 MCP tools. Claude, Codex, or any MCP client can inspect and drive playback, record timed interactions, export every media format, edit scripts, generate snippets, and control the console panel. One-click install from the app.",
+    description: "A bundled native sidecar exposes 56 MCP tools. Claude, Codex, or any MCP client can inspect and drive playback, record timed interactions, export every media format, edit scripts, generate snippets, and control the console panel. One-click install from the app.",
     responsiveImage: "mcpSetup",
     imageAlt: "MCP Setup dialog with client detection, one-click install, and snippet copy",
     imageWidth: 500,

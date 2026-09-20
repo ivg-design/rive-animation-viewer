@@ -3,7 +3,7 @@ import { toCanonicalUrl } from "@/lib/seo";
 
 const RELEASE_MODIFIED = new Date("2026-09-01T00:00:00.000Z");
 const DOCS_MODIFIED = new Date("2026-09-14T00:00:00.000Z");
-const CHANGELOG_MODIFIED = new Date("2026-09-01T00:00:00.000Z");
+const CHANGELOG_MODIFIED = new Date("2026-09-19T00:00:00.000Z");
 const PRIVACY_MODIFIED = new Date("2026-08-27T00:00:00.000Z");
 
 export default function sitemap(): MetadataRoute.Sitemap {

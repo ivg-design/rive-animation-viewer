@@ -72,10 +72,14 @@ export default function UiLayout() {
       <h2>Timeline Scrubber</h2>
       <p>
         Linear animations add a dedicated scrubber row immediately above the runtime status bar.
-        Switch the readout between frames and seconds, use the duration-aware scale, or drag the
-        large current-time indicator to seek. The indicator advances on every rendered animation
-        frame during playback and remains fully visible at both ends of the track. State-machine
-        playback hides the row entirely.
+        Switch the readout between frames and seconds, use the ruler (labelled in natural steps,
+        one tick per frame), or drag the large current-time indicator to seek. Grabbing the
+        playhead pauses playback; every drag position lands on that exact frame without letting
+        wall time advance nested content. The indicator follows the authored playback speed and
+        direction (the readout shows a &times;speed suffix for timelines not authored at 1&times;,
+        and ping-pong loops travel back frame by frame), advances on every rendered frame during
+        playback, and remains fully visible at both ends of the track. State-machine playback
+        hides the row entirely.
       </p>
 
       <h2>Properties Panel</h2>
@@ -106,7 +110,8 @@ export default function UiLayout() {
         <div className="md:w-2/5 flex flex-col justify-center">
           <p className="text-sm text-[var(--text-dim)] leading-relaxed">
             Desktop builds include a custom About window accessible from the Settings
-            popover or the native Help menu. It surfaces build metadata, runtime version,
+            popover or the native Help menu. It surfaces build metadata (including this
+            installation&apos;s machine id with a copy button), runtime version,
             credits, product links including the Privacy Policy, and a scrollable dependency inventory.
             The inventory includes the active Rive Web runtime plus the FFmpeg, ffprobe, and gifski
             encoder versions detected by the desktop media capability service.
