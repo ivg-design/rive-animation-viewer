@@ -109,6 +109,7 @@ export function createTimelineSeekHandler({
                     isPlaying: playback.isPlaying,
                     playbackName: playback.name,
                     playbackType: playback.type,
+                    speed: playback.speed,
                     totalFrames: playback.totalFrames,
                     totalSeconds: playback.totalSeconds ?? playback.durationSeconds,
                 } } : {}),

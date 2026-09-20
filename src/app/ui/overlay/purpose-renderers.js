@@ -11,6 +11,36 @@ function replaceDefinitionList(documentRef, target, rows = []) {
     target.replaceChildren(fragment);
 }
 
+function appendMachineIdRow(documentRef, grid, state, emitAction) {
+    if (!grid) return;
+    const term = documentRef.createElement('dt');
+    term.textContent = 'Machine ID';
+    const detail = documentRef.createElement('dd');
+    detail.className = 'about-dialog-machine-id-cell';
+    const value = documentRef.createElement('span');
+    value.className = 'about-dialog-machine-id-value';
+    value.textContent = String(state.machineId || state.machineIdError || '…');
+    const copy = documentRef.createElement('button');
+    copy.type = 'button';
+    copy.className = 'about-dialog-machine-id-copy';
+    copy.textContent = 'COPY';
+    copy.disabled = !state.machineId;
+    let resetTimer = null;
+    copy.addEventListener('click', () => {
+        if (copy.disabled) return;
+        void emitAction('copy-machine-id', null);
+        copy.textContent = 'COPIED';
+        copy.classList.add('copied');
+        globalThis.clearTimeout?.(resetTimer);
+        resetTimer = globalThis.setTimeout?.(() => {
+            copy.textContent = 'COPY';
+            copy.classList.remove('copied');
+        }, 1500);
+    });
+    detail.append(value, copy);
+    grid.append(term, detail);
+}
+
 export function createAboutRenderer({ documentRef, emitAction }) {
     return function renderAbout(state = {}) {
         const setText = (selector, value) => {
@@ -27,6 +57,7 @@ export function createAboutRenderer({ documentRef, emitAction }) {
             { label: 'Runtime', value: state.runtime },
             { label: 'License', value: state.license },
         ]);
+        appendMachineIdRow(documentRef, documentRef.querySelector('[data-overlay-about-build-grid]'), state, emitAction);
         replaceDefinitionList(
             documentRef,
             documentRef.querySelector('[data-overlay-about-credits]'),

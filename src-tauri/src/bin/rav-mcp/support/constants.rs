@@ -4,6 +4,10 @@ pub const DEFAULT_WS_PORT: u16 = 9274;
 pub const DEFAULT_COMMAND_TIMEOUT_MS: u64 = 15_000;
 pub const FILE_OPEN_COMMAND_TIMEOUT_MS: u64 = 60_000;
 pub const CAPTURE_COMMAND_TIMEOUT_MS: u64 = 60_000;
+// Matches the analyzer sidecar's own 180s timeout (src-tauri/src/app/analyzer/run.rs)
+// plus headroom for process spawn/report I/O around it.
+pub const ANALYZE_COMMAND_TIMEOUT_MS: u64 = 185_000;
+pub const ENTITLEMENT_STATUS_TIMEOUT_MS: u64 = 1_500;
 pub const DEFAULT_PROTOCOL_VERSION: &str = "2025-06-18";
 pub const RECONNECT_DELAY_MS: u64 = 250;
 pub const APP_CONNECTION_GRACE_MS: u64 = 2_500;

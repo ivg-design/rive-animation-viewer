@@ -77,13 +77,14 @@ Once connected, Claude has access to all RAV tools. Try:
 - "Pause the animation"
 - "Generate the live web instantiation snippet for CDN usage"
 
-## Available Tools (55)
+## Available Tools (56)
 
 Media tools require the desktop app and verified encoders. See [media export](../Documentation/MEDIA_EXPORT.md) for formats, GIF controls, limits, and asynchronous examples. Production packages include pinned, hash-verified FFmpeg and ffprobe resources; capability discovery still fails closed whenever an encoder or required format probe is unavailable.
 
 | Tool | Description |
 |------|-------------|
 | `rav_status` | App status: file, runtime, playback, live instantiation mode, ViewModel summary |
+| `rav_entitlement_status` | Machine id and activation state; pass an activation key once to activate optional capabilities (see [Activation](#activation)) |
 | `rav_set_anonymous_usage` | Enable or disable anonymous version reporting through the Settings preference controller |
 | `rav_open_file` | Open a .riv file by absolute path |
 | `rav_play` | Start/resume playback |
@@ -146,6 +147,29 @@ Media tools require the desktop app and verified encoders. See [media export](..
 - `rav_toggle_instantiation_controls_dialog` is the MCP hook for opening that dialog when a human needs to curate the export.
 - Exported demos now embed both snippet forms, default the copy button to CDN, and expose a **Copy Instantiation Code** button in the demo toolbar.
 - If `Script Access` is disabled in the MCP dialog, `rav_eval`, `rav_console_exec`, and `rav_apply_code` are rejected while read-only control tools remain available.
+
+## Activation
+
+Some optional capabilities are activated per machine and user account with a
+key issued outside the app.
+
+- **Machine id** — the About window's Build Matrix shows it with a copy
+  button, and `rav_entitlement_status` (advertised in `tools/list`) returns it
+  as `machine_id` together with the current activation state.
+- **Activate once** — pass the key as `rav_entitlement_status({ token })`. A
+  valid key is verified, stored for this machine and account, and stays active
+  until it expires (`expires` is a Unix timestamp, `0` means no expiry). Later
+  calls, sessions and agents need no key. The advertised tool set can change
+  after activation; the server declares `tools.listChanged` and sends
+  `notifications/tools/list_changed`, and clients that cache `tools/list`
+  should refresh on that notification.
+- **Analysis reports** — active installations can also generate a full analysis
+  report of the open file (HTML, Markdown, PDF) into a folder you choose; the
+  report tool appears in `tools/list` once active.
+- **Where the key lives** — `entitlement.key` in the desktop app's app-data
+  directory, owner-only permissions on macOS and Linux. A stored key that no
+  longer verifies is discarded and the `reason` is reported.
+- **Deactivate** — delete `entitlement.key` from that directory.
 
 ## Configuration
 

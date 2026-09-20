@@ -278,6 +278,7 @@ export function createPlatformStack({
             getRenderSurfaceState: () => renderSurfaceController.getState(),
             getRenderSurfaceController: () => renderSurfaceController,
             getMediaExportController: () => mediaExportController,
+            getInspectionMetadata,
             getFullInspection,
             getRuntimeSourceText,
             getRuntimeVersion,

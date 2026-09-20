@@ -35,14 +35,27 @@
     height: 28px;
     overflow: hidden;
     color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
+    display: grid;
+    align-content: center;
+    justify-items: end;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.02em;
     text-align: right;
     text-overflow: ellipsis;
+}
+
+/* Reserve the width of the widest value this timeline can show (set by the
+   controller in data-widest) with an invisible zero-height copy rendered in the
+   same font, so a changing digit count never resizes the track beside it.
+   A `ch` estimate cannot do this: it ignores letter-spacing and fallback glyphs. */
+.timeline-progress-readout::after {
+    content: attr(data-widest);
+    display: block;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .timeline-progress-unit {
@@ -124,14 +137,11 @@
     pointer-events: none;
 }
 
-.timeline-progress-scale::before {
-    position: absolute;
-    inset: 0;
-    height: 11px;
-    background-image: linear-gradient(to right, color-mix(in srgb, var(--text-muted) 58%, transparent) 1px, transparent 1px);
-    background-repeat: repeat-x;
-    background-size: 2.5% 11px;
-    content: "";
+/* Minor ticks are real frame positions rendered by the scale builder, so the
+   CTI always lands on a mark; no decorative repeating gradient here. */
+.timeline-progress-tick.is-minor::after {
+    height: 9px;
+    background: color-mix(in srgb, var(--text-muted) 58%, transparent);
 }
 
 .timeline-progress-tick {
@@ -148,13 +158,15 @@
     transform: translateX(-50%);
 }
 
+/* Major (labelled) ticks: long and bright. `--text-secondary` does not exist
+   in the token set, which made the previous color-mix invalid and hid them. */
 .timeline-progress-tick::after {
     position: absolute;
     top: 0;
     left: 50%;
     width: 1px;
     height: 18px;
-    background: color-mix(in srgb, var(--text-secondary) 72%, var(--border-bright));
+    background: color-mix(in srgb, var(--text-dim) 85%, var(--border-bright));
     content: "";
 }
 
@@ -229,7 +241,8 @@
         padding-left: 8px;
     }
 
-    .timeline-progress-tick:nth-child(even):not([data-edge="end"]) {
+    .timeline-progress-tick.is-minor,
+    .timeline-progress-tick[data-order="odd"]:not([data-edge="end"]) {
         display: none;
     }
 }

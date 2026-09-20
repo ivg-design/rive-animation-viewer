@@ -5,6 +5,8 @@ import {
     updateStatusIndicator,
 } from './command-format.js';
 
+
+
 async function decodeBridgeMessageData(data) {
     if (typeof data === 'string') {
         return JSON.parse(data);
@@ -33,10 +35,25 @@ async function decodeBridgeMessageData(data) {
     throw new Error('Unsupported bridge payload type');
 }
 
+// Commands that legitimately outlive the default deadline: full inspection of a
+// large file and the analyzer sidecar (its own limit is 180 s). Keep these in
+// step with the rav-mcp per-tool timeouts in support/constants.rs.
+export const SLOW_COMMAND_TIMEOUTS_MS = Object.freeze({
+    rav_open_file: 60_000,
+    rav_inspect_full: 180_000,
+    rav_analyze_full: 180_000,
+});
+
+export function resolveCommandTimeoutMs(command, defaultMs, overrides = SLOW_COMMAND_TIMEOUTS_MS) {
+    const override = overrides && typeof command === 'string' ? overrides[command] : undefined;
+    return Number.isFinite(override) && override > 0 ? override : defaultMs;
+}
+
 export function createMcpBridgeTransport({
     beforeConnect = async () => {},
     commandHandlers,
     commandTimeoutMs = 20_000,
+    commandTimeoutOverridesMs = SLOW_COMMAND_TIMEOUTS_MS,
     connectTimeoutMs = 2000,
     getBridgeUrl,
     getAppKind = () => 'legacy',
@@ -62,12 +79,13 @@ export function createMcpBridgeTransport({
     let connectTimeoutTimer = null;
     let connectStartedAt = 0;
 
-    function runCommandWithDeadline(handler, params) {
+    function runCommandWithDeadline(handler, params, command = '') {
         let timeoutId = null;
+        const deadlineMs = resolveCommandTimeoutMs(command, commandTimeoutMs, commandTimeoutOverridesMs);
         const timeout = new Promise((_resolve, reject) => {
             timeoutId = windowRef.setTimeout(() => {
                 reject(new Error('MCP command timed out before the app completed it.'));
-            }, commandTimeoutMs);
+            }, deadlineMs);
         });
         return Promise.race([
             Promise.resolve().then(() => handler(params)),
@@ -191,7 +209,7 @@ export function createMcpBridgeTransport({
                 onCommandStart(command);
                 const startedAt = performance.now();
                 try {
-                    const result = await runCommandWithDeadline(handler, params || {});
+                    const result = await runCommandWithDeadline(handler, params || {}, command);
                     const elapsed = Math.round(performance.now() - startedAt);
                     mcpLog('reply', `${command.replace(/^rav_/, '')} → ${formatResultSummary(command, result)}  (${elapsed}ms)`, undefined, windowRef);
                     nextSocket.send(JSON.stringify({ id, result }));

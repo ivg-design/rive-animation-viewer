@@ -1,5 +1,6 @@
 use serde_json::{json, Value};
 
+use crate::entitlement_tools::status_tool;
 use crate::vm_tool_registry::vm_tools;
 
 const MEDIA_TOOLS_JSON: &str = include_str!("../../../../mcp-server/tools/media-tools.json");
@@ -176,6 +177,7 @@ pub fn tools_list() -> Value {
             }
         }
     ]).as_array().cloned().unwrap_or_default();
+    tools.push(status_tool());
     tools.extend(vm_tools());
     tools.extend(
         serde_json::from_str::<Vec<Value>>(MEDIA_TOOLS_JSON).expect("valid media tool schema"),

@@ -29,12 +29,19 @@ import { createHash } from 'node:crypto';
 import { access, readFile, writeFile } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
 import readline from 'node:readline';
+import { TOOLS } from '../mcp-server/tools/index.js';
+import { ENTITLEMENT_TOOLS } from '../mcp-server/tools/entitlement-tools.js';
 
 const ISOLATED_PORT = 9278;
 const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_POLL_MS = 100;
 const DEFAULT_POLL_TIMEOUT_MS = 3_000;
-const EXPECTED_TOOL_COUNT = 55;
+// The public tool set comes from the registry the sidecar embeds. A machine
+// that has activated optional capabilities additionally advertises the gated
+// tools, so the harness accepts exactly the public set or exactly the public
+// set plus every gated tool.
+const EXPECTED_TOOL_COUNT = TOOLS.length;
+const GATED_TOOL_NAMES = ENTITLEMENT_TOOLS.filter((tool) => tool['x-rav-scope']).map((tool) => tool.name);
 const REQUIRED_RELEASE_TOOLS = [
     'rav_get_global_vm_tree', 'rav_global_vm_get', 'rav_global_vm_set',
     'rav_global_vm_fire', 'rav_global_vm_set_image', 'rav_global_vm_clear_image',
@@ -467,8 +474,11 @@ async function main() {
         const listed = await client.listTools();
         const listedTools = Array.isArray(listed?.tools) ? listed.tools : [];
         const listedNames = listedTools.map((tool) => tool?.name);
-        assertion(listedTools.length === EXPECTED_TOOL_COUNT,
-            `tools/list: expected exactly ${EXPECTED_TOOL_COUNT} tools, got ${listedTools.length}.`, { count: listedTools.length });
+        const activatedSet = listedTools.length === EXPECTED_TOOL_COUNT + GATED_TOOL_NAMES.length
+            && GATED_TOOL_NAMES.every((name) => listedNames.includes(name));
+        assertion(listedTools.length === EXPECTED_TOOL_COUNT || activatedSet,
+            `tools/list: expected exactly ${EXPECTED_TOOL_COUNT} tools (or ${EXPECTED_TOOL_COUNT + GATED_TOOL_NAMES.length} on an activated machine), got ${listedTools.length}.`,
+            { count: listedTools.length, gated: GATED_TOOL_NAMES });
         assertion(listedNames.every((name) => typeof name === 'string' && name.length > 0),
             'tools/list: every advertised tool must have a non-empty name.', { listedNames });
         assertion(new Set(listedNames).size === listedNames.length,
@@ -477,8 +487,11 @@ async function main() {
             'tools/list: required GVM, capture, and media tools are not all advertised.', {
                 missing: REQUIRED_RELEASE_TOOLS.filter((name) => !listedNames.includes(name)),
             });
-        addPass('tools/list: exact 55 unique tools including GVM/capture/media names', {
+        addPass('tools/list: exact public tool set (activated tools allowed) including GVM/capture/media names', {
             count: listedTools.length,
+            publicCount: EXPECTED_TOOL_COUNT,
+            gated: GATED_TOOL_NAMES,
+            activated: activatedSet,
             required: REQUIRED_RELEASE_TOOLS,
             names: listedNames,
         });
@@ -612,7 +625,9 @@ async function main() {
             const reset = await waitForPlayback((playback) => playback.type === 'animation'
                 && Number.isFinite(playback.currentFrame) && playback.currentFrame <= 2);
             const resetMetrics = assertTimelineMetrics(reset.playback, 'timeline reset sample');
-            assertion(resetMetrics.currentSeconds <= (2 / resetMetrics.fps),
+            // The frame is the rounded clock, so the seconds window must be the
+            // same rounding window: frame N covers up to (N + 0.5) / fps.
+            assertion(resetMetrics.currentSeconds <= ((resetMetrics.currentFrame + 0.5) / resetMetrics.fps),
                 'timeline: reset seconds did not return to the opening frame window.', { reset: reset.playback });
             addPass('timeline canonical frames/seconds, pause hold, and reset', {
                 first: first.playback, running: running.playback, paused: paused.playback, reset: reset.playback,

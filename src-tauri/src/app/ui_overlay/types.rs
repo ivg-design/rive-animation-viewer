@@ -200,6 +200,7 @@ impl UiOverlayActionRequest {
             }
             ("about", "close") => self.value.is_null(),
             ("about", "open-link") => is_bounded_text(&self.value, 2048),
+            ("about", "copy-machine-id") => self.value.is_null(),
             ("mcp", "close" | "script-access-toggle") => self.value.is_null(),
             ("mcp", "port-apply") => is_integer_string_in_range(&self.value, 1, 65535),
             ("mcp", "port-draft") => is_empty_or_integer_string_in_range(&self.value, 1, 65535),

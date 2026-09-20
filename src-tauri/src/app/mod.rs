@@ -1,3 +1,4 @@
+pub mod analyzer;
 pub mod constants;
 pub mod demo_bundle;
 pub mod entitlement;

@@ -32,12 +32,20 @@ describe('native UI overlay purpose renderers', () => {
             links: [{ label: 'Documentation', url: 'https://example.com/docs' }],
             runtime: '2.40.0',
             version: '2.5.2',
+            machineId: 'w5fluidhuuujzmoup5g4kmzzrk',
         });
 
         expect(document.querySelector('[data-overlay-about-name]').textContent)
             .toBe('Rive Animation Viewer');
         expect(document.querySelector('[data-overlay-about-build-grid]').textContent)
             .toContain('LicenseMIT');
+        expect(document.querySelector('[data-overlay-about-build-grid]').textContent)
+            .toContain('Machine IDw5fluidhuuujzmoup5g4kmzzrkCOPY');
+        const copyMachineId = document.querySelector('.about-dialog-machine-id-copy');
+        expect(copyMachineId.disabled).toBe(false);
+        copyMachineId.click();
+        expect(emitAction).toHaveBeenCalledWith('copy-machine-id', null);
+        expect(copyMachineId.textContent).toBe('COPIED');
         expect(document.querySelector('[data-overlay-about-credits]').textContent)
             .toBe('DesignIVG');
         expect(document.querySelector('[data-overlay-about-dependencies]').textContent)

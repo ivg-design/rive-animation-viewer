@@ -21,6 +21,10 @@ const STAGED_DIRECTORIES = [
     'src/app/rive/inspection/private',
     'tests/unit/rive/inspection/private',
     'vendor/inspection',
+    // Optional: the private analyzer sidecar binary. Absent in older bundles
+    // and in local dev checkouts that build/copy it manually; verify/pack
+    // must treat a missing directory here as "nothing to stage", not a fault.
+    'src-tauri/binaries',
 ];
 const MANIFEST_PATH = 'src/app/rive/inspection/private/manifest.json';
 const REPO_ROOT = path.resolve(fileURLToPath(new URL('..', import.meta.url)));

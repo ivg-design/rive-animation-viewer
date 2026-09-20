@@ -3,6 +3,7 @@
 @import url("./01-header-controls.css");
 @import url("./02-settings.css");
 @import url("./10-about-dialog.css");
+@import url("./10a-about-dialog-machine-id.css");
 @import url("./05-mcp-dialog.css");
 @import url("./05-instantiation-dialog.css");
 @import url("../src/app/ui/media/media.css");

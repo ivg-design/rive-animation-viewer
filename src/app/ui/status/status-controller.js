@@ -274,7 +274,7 @@ export function createStatusController({
         const currentRuntime = getCurrentRuntime();
         const channelStamp = getBuildChannelLabel() === 'dev' ? 'DEV · ' : '';
         const releaseLine = `Release: v${appVersionLabel} · ${channelStamp}Build: ${getBuildIdLabel()}`;
-        const footer = '<div class="version-footer">© 2026 IVG Design · MIT License · Runtime © Rive</div>';
+        const footer = '<div class="version-footer">© 2026 IVG Design · MIT License</div>';
 
         if (statusMessage) {
             elements.versionInfo.innerHTML = `${releaseLine}<br>${statusMessage}${footer}`;

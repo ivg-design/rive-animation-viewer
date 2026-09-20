@@ -8,6 +8,7 @@ import {
     formatTimelineFrames,
     formatTimelineSeconds,
     normalizeTimelineProgress,
+    travelDirection,
 } from './timeline/model.js';
 
 export {
@@ -24,6 +25,14 @@ export {
     dispatchTimelineProgress,
     seekRiveTimeline,
 } from './timeline/runtime.js';
+
+function speedSuffix(state) {
+    const speed = Number.isFinite(state.speed) ? state.speed : 1;
+    if (speed === 1) return '';
+    const magnitude = Math.abs(speed);
+    const text = magnitude >= 1 ? String(Number(magnitude.toFixed(2))) : magnitude.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+    return ` \u00b7 \u00d7${speed < 0 ? '\u2212' : ''}${text}`;
+}
 
 function formatReadout(state, unit) {
     return unit === 'seconds'
@@ -44,7 +53,10 @@ function sliderModel(state, unit) {
 
 function previewStateFromSlider(state, unit, rawValue) {
     const model = sliderModel(state, unit);
-    const value = clampTimelineValue(finiteTimelineNumber(rawValue, 0), 0, Math.max(0, model.maximum));
+    const raw = clampTimelineValue(finiteTimelineNumber(rawValue, 0), 0, Math.max(0, model.maximum));
+    // A reversed timeline keeps left-to-right travel, so the thumb position is
+    // mirrored back onto the counting-down value.
+    const value = state.reversed ? model.maximum - raw : raw;
     const progress = model.maximum > TIMELINE_EPSILON ? value / model.maximum : 0;
     if (unit === 'seconds') {
         return normalizeTimelineProgress({
@@ -69,6 +81,7 @@ export function createTimelineProgressController({
     documentRef = globalThis.document,
     now = null,
     onSeek = async () => ({ applied: false, status: 'unavailable' }),
+    onScrubStart = () => {},
     requestFrame = null,
     root = documentRef?.getElementById?.('timeline-progress'),
 } = {}) {
@@ -124,8 +137,17 @@ export function createTimelineProgressController({
         if (!presentationAnchor || !canRunPresentationClock()) return;
         const frameTime = Number.isFinite(Number(timestamp)) ? Number(timestamp) : readNow();
         const elapsedSeconds = Math.max(0, frameTime - presentationAnchor.time) / 1000;
+        // The timeline clock runs at the authored speed (negative = backwards).
+        // Hold rather than step against the direction of travel: a confirmed
+        // sample that arrived behind the presented time re-anchors the clock,
+        // and the presented CTI waits for the child clock to pass it.
+        const speed = Number.isFinite(state.speed) ? state.speed : 1;
+        const travel = travelDirection(state);
+        const rate = Math.abs(speed) * travel;
+        const extrapolated = presentationAnchor.seconds + elapsedSeconds * rate;
+        const held = state.currentSeconds ?? extrapolated;
         const currentSeconds = clampTimelineValue(
-            presentationAnchor.seconds + elapsedSeconds,
+            travel < 0 ? Math.min(extrapolated, held) : Math.max(extrapolated, held),
             0,
             state.totalSeconds,
         );
@@ -135,15 +157,21 @@ export function createTimelineProgressController({
             currentSeconds,
         });
         render();
-        if (currentSeconds < state.totalSeconds - TIMELINE_EPSILON) schedulePresentationClock();
+        const atEnd = travel < 0 ? currentSeconds <= TIMELINE_EPSILON : currentSeconds >= state.totalSeconds - TIMELINE_EPSILON;
+        if (!atEnd && speed !== 0) schedulePresentationClock();
     }
 
-    function synchronizePresentationClock() {
+    function synchronizePresentationClock(anchorSeconds = null) {
         if (!canRunPresentationClock()) {
             cancelPresentationClock();
             return;
         }
-        presentationAnchor = { seconds: state.currentSeconds, time: readNow() };
+        // Anchor on the confirmed child clock when given, so a presented lead
+        // decays instead of compounding across receipts.
+        presentationAnchor = {
+            seconds: anchorSeconds !== null ? anchorSeconds : state.currentSeconds,
+            time: readNow(),
+        };
         schedulePresentationClock();
     }
 
@@ -152,12 +180,14 @@ export function createTimelineProgressController({
         const nextKey = `${unit}:${state.totalFrames ?? 'x'}:${state.totalSeconds ?? 'x'}:${state.fps ?? 'x'}`;
         if (nextKey === scaleKey) return;
         scaleKey = nextKey;
+        let majorIndex = 0;
         scale.replaceChildren(...buildTimelineScale(state, unit).map((tick) => {
             const element = documentRef.createElement('span');
-            element.className = 'timeline-progress-tick';
+            element.className = tick.kind === 'minor' ? 'timeline-progress-tick is-minor' : 'timeline-progress-tick';
             element.textContent = tick.label;
             element.style.left = `${tick.percent}%`;
             if (tick.edge) element.dataset.edge = tick.edge;
+            if (tick.kind !== 'minor') element.dataset.order = (majorIndex++ % 2 === 0) ? 'even' : 'odd';
             return element;
         }));
     }
@@ -171,14 +201,25 @@ export function createTimelineProgressController({
         root.setAttribute('aria-hidden', String(!visible));
         root.dataset.unit = unit;
         root.style.setProperty('--timeline-fill', `${clampTimelineValue(state.progress) * 100}%`);
-        if (readout) readout.textContent = formatReadout(state, unit);
+        if (readout) {
+            readout.textContent = formatReadout(state, unit) + speedSuffix(state);
+            // Publish the widest value this timeline can show; the stylesheet
+            // renders it as an invisible copy so a changing digit count never
+            // resizes the track beside it.
+            const widest = formatReadout({
+                ...state,
+                currentFrame: state.totalFrames ?? state.currentFrame,
+                currentSeconds: state.totalSeconds ?? state.currentSeconds,
+            }, unit) + speedSuffix(state);
+            if (readout.dataset.widest !== widest) readout.dataset.widest = widest;
+        }
         if (progressBar) {
             const model = sliderModel(state, unit);
             const maximum = model.maximum > TIMELINE_EPSILON ? model.maximum : 1;
             progressBar.min = '0';
             progressBar.max = String(maximum);
             progressBar.step = String(model.step);
-            progressBar.value = String(clampTimelineValue(model.value, 0, maximum));
+            progressBar.value = String(clampTimelineValue(state.reversed ? maximum - model.value : model.value, 0, maximum));
             progressBar.disabled = !visible || model.maximum <= TIMELINE_EPSILON || state.totalSeconds === null;
             progressBar.setAttribute('aria-valuetext', formatReadout(state, unit));
             progressBar.title = `Drag to set ${unit === 'seconds' ? 'time' : 'frame'}`;
@@ -200,10 +241,17 @@ export function createTimelineProgressController({
                 && state.playbackName === nextState.playbackName
                 && state.currentSeconds !== null
                 && nextState.currentSeconds !== null;
-            const frameTolerance = nextState.fps && nextState.fps > 0 ? 2 / nextState.fps : 0.034;
+            // Child samples cross the bridge a few frames late; anything within
+            // this window is latency, not a rewind, so the presented time holds.
+            const frameTolerance = nextState.fps && nextState.fps > 0 ? 4 / nextState.fps : 0.067;
+            // "Behind" is measured against the direction the clock travels, so
+            // the return leg of a ping-pong loop is followed, not held.
+            const behind = travelDirection(nextState) < 0
+                ? nextState.currentSeconds - state.currentSeconds
+                : state.currentSeconds - nextState.currentSeconds;
             const smallClockRegression = samePlayingTimeline
-                && nextState.currentSeconds < state.currentSeconds
-                && state.currentSeconds - nextState.currentSeconds <= frameTolerance;
+                && behind > 0
+                && behind <= frameTolerance;
             state = smallClockRegression
                 ? normalizeTimelineProgress({
                     ...nextState,
@@ -211,7 +259,7 @@ export function createTimelineProgressController({
                     currentSeconds: state.currentSeconds,
                 })
                 : nextState;
-            synchronizePresentationClock();
+            synchronizePresentationClock(smallClockRegression ? nextState.currentSeconds : null);
         }
         render();
         return confirmedState;
@@ -228,9 +276,11 @@ export function createTimelineProgressController({
             isPlaying: playback.isPlaying,
             playbackName: playback.name,
             playbackType: playback.type || null,
+            speed: playback.speed,
+            direction: playback.direction,
             totalFrames: playback.totalFrames,
             totalSeconds: playback.totalSeconds ?? playback.durationSeconds,
-        }, { allowBackward: true });
+        }, { allowBackward: playback.isPlaying !== true });
     }
 
     function toggleUnit() {
@@ -278,9 +328,17 @@ export function createTimelineProgressController({
 
     function beginScrub() {
         if (progressBar?.disabled) return;
+        const wasScrubbing = isScrubbing;
         isScrubbing = true;
         cancelPresentationClock();
         root?.classList?.add('is-scrubbing');
+        // Grabbing the playhead pauses playback once per drag, before the first
+        // seek, so a playing timeline cannot run away from the dragged frame.
+        if (!wasScrubbing) {
+            try {
+                Promise.resolve(onScrubStart()).catch(() => { /* pause is best effort */ });
+            } catch { /* pause is best effort */ }
+        }
     }
 
     function previewScrub() {

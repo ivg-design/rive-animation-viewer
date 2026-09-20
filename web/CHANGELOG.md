@@ -2,6 +2,101 @@
 
 All notable released changes to this project are documented in this file.
 
+## [2.5.7] - 2026-09-19
+
+### Added
+
+- **Machine ID in About** — The Build Matrix in the About window shows this
+  installation's machine id with a copy button. Optional capabilities are
+  activated per machine and user account; the id is what you send when
+  requesting one.
+- **MCP `rav_entitlement_status`** — Advertised in `tools/list`. Without
+  arguments it returns the machine id. Given an activation key it verifies the
+  key, stores it for this machine and account, and keeps it active until the
+  key expires, so later sessions and agents need no key. The advertised tool
+  set can change after activation; the server now declares
+  `tools.listChanged` and sends `notifications/tools/list_changed`.
+
+- **Analysis reports** — On an active installation, RAV can generate a full
+  analysis report of the open file as HTML, Markdown or PDF into a folder you
+  choose, from the same tool set MCP clients already use. Reports cover
+  artboards, state machines, ViewModels, bindings, listeners, scripts and
+  assets, with prioritized findings and a health score.
+
+### Fixed
+
+- **Large files took minutes to inspect** — The bundled file-inspection module
+  is rebuilt on RF Parser 2.5.14, which removes a quadratic object lookup
+  introduced in parser 2.5.11. A 13 MB production file that previously ran
+  past the inspection deadline now inspects in about a second, and the
+  exported timeline data lists only data-bound keyframes again.
+- **Timeline scrubber jitter** — During linear-animation playback the current-time
+  indicator oscillated back and forth by a frame or two. The host smooths the
+  indicator between child clock samples; a second, throttled state broadcast
+  carried an older snapshot of the same clock and was allowed to move the
+  indicator backward. The presented time is now monotonic while a timeline
+  plays, late samples only slow it, and real rewinds such as loop restarts and
+  seeks still apply immediately.
+- **Timelines authored at a speed other than 1×** — Rive timelines carry a
+  playback multiplier, and many production files use it (0.4×, 0.2×, even
+  0.02× and reversed −1×). The scrubber assumed 1×, so its indicator ran ahead
+  of the real clock and snapped back. The child now reports the authored
+  speed, the indicator advances at that speed, the readout shows the
+  multiplier (for example "12 / 240 FR · ×0.2"), and reversed timelines keep
+  left-to-right travel with the frame and time values, ruler and slider
+  counting down.
+- **Stale timeline wrapper after switching artboards** — When two artboards
+  share an animation name, the runtime keeps the previous artboard's wrapper
+  with a frozen clock; the child could report that frozen clock instead of the
+  live one. Movement is now tracked per wrapper, so a frozen wrapper is never
+  chosen while the live one advances.
+- **Scrubbing ran the animation instead of seeking** — Grabbing the playhead
+  now pauses playback, and each drag position seeks the timeline to exactly
+  that frame. Previously the runtime's scrub helper redrew with the real time
+  elapsed since the last frame on every drag event, so nested artboards and
+  state machines kept advancing while the playhead was dragged, and the scrub
+  value was scaled by the authored speed, so a 0.2× timeline dragged to 2 s
+  landed at 0.4 s and snapped back. Seeks now queue the request on the paused
+  wrapper (divided by the authored speed), render one explicit microsecond
+  frame so the pose repaints, and stop a hair short of the end of a looping
+  timeline so the last frame stays on screen instead of wrapping to frame 0.
+  The readout keeps its ×speed suffix after a seek.
+- **Ping-pong timelines snapped on the return leg** — The scrubber only let
+  the indicator travel in the authored direction, so on the backward leg of a
+  ping-pong loop it held, then jumped four frames at a time and never reached
+  frame 0. The playback child now reports the observed clock direction, and
+  the indicator follows the clock either way, frame by frame.
+- **Pause ran the scrubber to the end** — Pausing a linear animation while a
+  sibling animation kept advancing let the child report the sibling's clock
+  under the paused timeline's name, and the scrubber kept presenting frames.
+  The child now reports only the named timeline, publishes one paused sample
+  on pause, and stops republishing a paused timeline on sibling advances.
+- **Timeline ruler** — Labels step in natural units (tens of frames on a
+  60-frame timeline, quarter seconds on a two-second one) instead of tenths of
+  the length, every minor tick sits on an exact frame or time value so the
+  current-time indicator always lands on a mark, and the end value is always
+  labelled.
+- **Labelled ruler ticks were invisible** — The tick line under each frame
+  label used a colour token that does not exist, so only the unlabelled marks
+  showed. Labelled ticks are now longer and brighter than the frame marks.
+- **Switching artboard and animation in one MCP call** — `rav_switch_artboard`
+  with a named playback on a non-current artboard failed on desktop with
+  "Playback metadata … is unavailable" because the validator only looked at
+  a host Rive instance that desktop playback no longer keeps. It now reads the
+  parse-once inspection metadata.
+- **Ruler width shifted with the frame counter** — The readout beside the
+  ruler sized itself to its current digits, so the track jumped as the frame
+  count grew. The readout now reserves the width of the widest value the
+  timeline can show.
+- **About dependencies grid** — Encoder entries showed their full version
+  banner and broke the two-column layout; only the version token is shown now
+  and long values truncate instead of wrapping.
+
+### Changed
+
+- **Left panel footer** — Reads "© 2026 IVG Design · MIT License"; the runtime
+  credit moved out of that line.
+
 ## [2.5.6] - 2026-09-14
 
 This release moves desktop playback to a single Rive owner (the isolated

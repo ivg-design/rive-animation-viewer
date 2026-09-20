@@ -12,6 +12,7 @@ const NEW_TOOL_NAMES = [
     'rav_global_vm_set_image',
     'rav_global_vm_clear_image',
     'rav_capture_canvas',
+    'rav_entitlement_status',
 ];
 
 function nativeToolNames() {
@@ -20,23 +21,36 @@ function nativeToolNames() {
         'src-tauri/src/bin/rav-mcp/vm_tool_registry.rs',
         'mcp-server/tools/media-tools.json',
     ];
-    return files.flatMap((file) => [
+    const literalNames = files.flatMap((file) => [
         ...readFileSync(resolve(file), 'utf8').matchAll(/"name":\s*"([^"]+)"/g),
     ].map((match) => match[1]));
+
+    // The entitlement status tool is always advertised; rav_inspect_full is
+    // gated behind an entitlement scope and only appended dynamically, so it
+    // is excluded from the base native tool set here.
+    const entitlementTools = JSON.parse(
+        readFileSync(resolve('mcp-server/tools/entitlement-tools.json'), 'utf8')
+    );
+    const ungatedEntitlementNames = entitlementTools
+        .filter((tool) => !('x-rav-scope' in tool))
+        .map((tool) => tool.name);
+
+    return [...literalNames, ...ungatedEntitlementNames];
 }
 
 describe('legacy MCP server registry', () => {
-    it('matches all 55 unique native tools and advertises globals plus canvas capture', () => {
+    it('matches all 56 unique native tools and advertises globals, canvas capture, and entitlement status', () => {
         const names = TOOLS.map((tool) => tool.name);
         const nativeNames = nativeToolNames();
         const captureTools = TOOLS.filter((tool) => tool.name === 'rav_capture_canvas');
 
-        expect(names).toHaveLength(55);
-        expect(new Set(names).size).toBe(55);
-        expect(new Set(nativeNames).size).toBe(55);
+        expect(names).toHaveLength(56);
+        expect(new Set(names).size).toBe(56);
+        expect(new Set(nativeNames).size).toBe(56);
         expect([...names].sort()).toEqual([...nativeNames].sort());
         expect(names).toEqual(expect.arrayContaining(NEW_TOOL_NAMES));
         expect(names).not.toEqual(expect.arrayContaining(['rav_get_sm_inputs', 'rav_set_sm_input']));
+        expect(names).not.toEqual(expect.arrayContaining(['rav_inspect_full']));
         expect(captureTools).toHaveLength(1);
         expect(captureTools[0].inputSchema).toEqual({
             additionalProperties: false,

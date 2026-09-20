@@ -8,15 +8,18 @@
 //!
 //! Token format: `RAVK1.<base64url(payload)>.<base64url(signature)>`.
 
+mod binding;
+pub mod store;
+
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+pub use binding::machine_binding_id;
 use ring::signature::{UnparsedPublicKey, ED25519};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use std::process::Command;
+use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tauri::Manager;
 
 const TOKEN_PREFIX: &str = "RAVK1";
-const BINDING_SALT: &str = "rav-entitlement-v1";
 /// Raw 32-byte Ed25519 public key of the issuer. The private half never ships.
 const ISSUER_PUBLIC_KEY: [u8; 32] = [
     0x85, 0x0b, 0x0f, 0xc5, 0x7c, 0x28, 0x6a, 0xe7, 0x6d, 0xff, 0x41, 0x8b, 0x77, 0x21, 0x70, 0x24,
@@ -39,66 +42,6 @@ pub struct Entitlement {
     pub scope: Vec<String>,
     pub expires: u64,
     pub machine_id: String,
-}
-
-fn platform_uuid() -> Option<String> {
-    #[cfg(target_os = "macos")]
-    {
-        let output = Command::new("ioreg")
-            .args(["-rd1", "-c", "IOPlatformExpertDevice"])
-            .output()
-            .ok()?;
-        let text = String::from_utf8_lossy(&output.stdout);
-        let line = text.lines().find(|line| line.contains("IOPlatformUUID"))?;
-        let value = line.split('=').nth(1)?.trim().trim_matches('"');
-        (!value.is_empty()).then(|| value.to_owned())
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        std::fs::read_to_string("/etc/machine-id")
-            .ok()
-            .map(|value| value.trim().to_owned())
-            .filter(|value| !value.is_empty())
-    }
-}
-
-fn account_name() -> String {
-    std::env::var("USER")
-        .or_else(|_| std::env::var("USERNAME"))
-        .unwrap_or_else(|_| "unknown".into())
-}
-
-fn encode_binding(uuid: &str, user: &str) -> String {
-    let digest = Sha256::digest(format!("{BINDING_SALT}|{uuid}|{user}").as_bytes());
-    let encoded = base32_lower(&digest);
-    encoded[..26].to_owned()
-}
-
-fn base32_lower(bytes: &[u8]) -> String {
-    const ALPHABET: &[u8; 32] = b"abcdefghijklmnopqrstuvwxyz234567";
-    let mut output = String::new();
-    let mut buffer: u32 = 0;
-    let mut bits = 0u32;
-    for &byte in bytes {
-        buffer = (buffer << 8) | u32::from(byte);
-        bits += 8;
-        while bits >= 5 {
-            bits -= 5;
-            output.push(ALPHABET[((buffer >> bits) & 31) as usize] as char);
-        }
-    }
-    if bits > 0 {
-        output.push(ALPHABET[((buffer << (5 - bits)) & 31) as usize] as char);
-    }
-    output
-}
-
-/// Stable id for this machine + account. Hardware UUID and the account name
-/// are hashed together, so neither a copied key nor a shared machine with a
-/// different login satisfies the binding.
-pub fn machine_binding_id() -> Result<String, String> {
-    let uuid = platform_uuid().ok_or("Machine identity is unavailable on this platform")?;
-    Ok(encode_binding(&uuid, &account_name()))
 }
 
 fn now_seconds() -> u64 {
@@ -163,24 +106,140 @@ pub fn verify(token: &str) -> Result<Entitlement, String> {
 
 #[derive(Deserialize)]
 pub struct EntitlementVerifyRequest {
-    pub token: String,
+    pub token: Option<String>,
     pub scope: Option<String>,
+    pub persist: Option<bool>,
 }
 
-#[tauri::command]
-pub fn entitlement_machine_id() -> Result<String, String> {
-    machine_binding_id()
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct EntitlementStatus {
+    pub machine_id: String,
+    pub unlocked: bool,
+    pub subject: Option<String>,
+    pub scope: Option<Vec<String>>,
+    pub expires: Option<u64>,
+    pub reason: Option<String>,
 }
 
-#[tauri::command]
-pub fn entitlement_verify(request: EntitlementVerifyRequest) -> Result<Entitlement, String> {
-    let entitlement = verify(&request.token)?;
-    if let Some(scope) = request.scope.as_deref() {
+const NO_STORED_KEY: &str =
+    "No entitlement key is stored on this machine; pass token once to unlock";
+
+fn entitlement_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map_err(|error| format!("Failed to resolve app data directory: {error}"))
+}
+
+fn check_scope(entitlement: &Entitlement, scope: Option<&str>) -> Result<(), String> {
+    if let Some(scope) = scope {
         if !entitlement.scope.iter().any(|entry| entry == scope) {
             return Err(format!("Entitlement key does not grant {scope}"));
         }
     }
-    Ok(entitlement)
+    Ok(())
+}
+
+fn status_from(machine_id: String, entitlement: &Entitlement) -> EntitlementStatus {
+    EntitlementStatus {
+        machine_id,
+        unlocked: true,
+        subject: Some(entitlement.subject.clone()),
+        scope: Some(entitlement.scope.clone()),
+        expires: Some(entitlement.expires),
+        reason: None,
+    }
+}
+
+/// Verifies a token (or the stored one when absent), persisting a freshly
+/// supplied and valid token unless the caller opts out. Takes the verifier as
+/// a parameter so tests can exercise the store/persist logic without the
+/// embedded issuer key.
+fn verify_and_maybe_persist_with(
+    dir: &Path,
+    token: Option<&str>,
+    scope: Option<&str>,
+    persist: Option<bool>,
+    verifier: impl Fn(&str) -> Result<Entitlement, String>,
+) -> Result<Entitlement, String> {
+    match token {
+        Some(token) => {
+            let entitlement = verifier(token)?;
+            check_scope(&entitlement, scope)?;
+            if persist != Some(false) {
+                store::save(dir, token)?;
+            }
+            Ok(entitlement)
+        }
+        None => {
+            let stored = store::load(dir).ok_or(NO_STORED_KEY)?;
+            // A stored key that no longer verifies is discarded so the next
+            // status call reports locked instead of failing the same way again.
+            let entitlement = verifier(&stored).inspect_err(|_| store::clear(dir))?;
+            check_scope(&entitlement, scope)?;
+            Ok(entitlement)
+        }
+    }
+}
+
+pub fn verify_and_maybe_persist(
+    dir: &Path,
+    token: Option<&str>,
+    scope: Option<&str>,
+    persist: Option<bool>,
+) -> Result<Entitlement, String> {
+    verify_and_maybe_persist_with(dir, token, scope, persist, verify)
+}
+
+fn locked_status(machine_id: String, reason: Option<String>) -> EntitlementStatus {
+    EntitlementStatus {
+        machine_id,
+        unlocked: false,
+        subject: None,
+        scope: None,
+        expires: None,
+        reason,
+    }
+}
+
+/// Loads and verifies the stored key for `dir`, clearing it on failure.
+/// Takes the verifier as a parameter for the same reason as
+/// `verify_and_maybe_persist_with`.
+fn status_with_verifier(
+    dir: &Path,
+    machine_id: String,
+    verifier: impl FnOnce(&str) -> Result<Entitlement, String>,
+) -> EntitlementStatus {
+    let Some(stored) = store::load(dir) else {
+        return locked_status(machine_id, None);
+    };
+    match verifier(&stored) {
+        Ok(entitlement) => status_from(machine_id, &entitlement),
+        Err(reason) => {
+            store::clear(dir);
+            locked_status(machine_id, Some(reason))
+        }
+    }
+}
+
+#[tauri::command]
+pub fn entitlement_status(app: tauri::AppHandle) -> Result<EntitlementStatus, String> {
+    let dir = entitlement_dir(&app)?;
+    let machine_id = machine_binding_id()?;
+    Ok(status_with_verifier(&dir, machine_id, verify))
+}
+
+#[tauri::command]
+pub fn entitlement_verify(
+    app: tauri::AppHandle,
+    request: EntitlementVerifyRequest,
+) -> Result<Entitlement, String> {
+    let dir = entitlement_dir(&app)?;
+    verify_and_maybe_persist(
+        &dir,
+        request.token.as_deref(),
+        request.scope.as_deref(),
+        request.persist,
+    )
 }
 
 #[cfg(test)]
@@ -212,18 +271,6 @@ mod tests {
             scope: vec!["inspection.full".into()],
             exp,
         }
-    }
-
-    #[test]
-    fn binding_is_stable_and_distinguishes_user_and_machine() {
-        let a = encode_binding("UUID-A", "ivg");
-        assert_eq!(a, encode_binding("UUID-A", "ivg"));
-        assert_eq!(a.len(), 26);
-        assert_ne!(a, encode_binding("UUID-B", "ivg"));
-        assert_ne!(a, encode_binding("UUID-A", "other"));
-        assert!(a
-            .bytes()
-            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit()));
     }
 
     #[test]
@@ -259,5 +306,56 @@ mod tests {
         assert!(verify_with_key(&token, other.public_key().as_ref(), "m", 1).is_err());
         assert!(verify_with_key("nonsense", &public, "m", 1).is_err());
         assert!(verify_with_key("RAVK9.a.b", &public, "m", 1).is_err());
+    }
+
+    fn temp_dir(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("rav-entitlement-{name}-{}", uuid::Uuid::new_v4()))
+    }
+
+    #[test]
+    fn verify_with_stored_token_persists_and_falls_back_to_the_store() {
+        let dir = temp_dir("verify");
+        let pair = key_pair();
+        let public = pair.public_key().as_ref().to_vec();
+        let token = issue(&pair, &payload("m", 0));
+        let verifier = move |candidate: &str| verify_with_key(candidate, &public, "m", 1_000);
+
+        // A supplied token is persisted by default.
+        let entitlement =
+            verify_and_maybe_persist_with(&dir, Some(&token), None, None, verifier.clone())
+                .unwrap();
+        assert_eq!(entitlement.subject, "tester");
+        assert_eq!(store::load(&dir).as_deref(), Some(token.as_str()));
+
+        // With no token supplied, the stored one is used instead.
+        store::clear(&dir);
+        store::save(&dir, &token).unwrap();
+        let from_store =
+            verify_and_maybe_persist_with(&dir, None, None, None, verifier.clone()).unwrap();
+        assert_eq!(from_store.subject, "tester");
+
+        // With neither a token nor a stored key, the caller gets the
+        // dedicated "pass token once" message.
+        store::clear(&dir);
+        let error = verify_and_maybe_persist_with(&dir, None, None, None, verifier).unwrap_err();
+        assert_eq!(error, NO_STORED_KEY);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn status_clears_an_expired_stored_key() {
+        let dir = temp_dir("status");
+        let pair = key_pair();
+        let public = pair.public_key().as_ref().to_vec();
+        let expired = issue(&pair, &payload("m", 500));
+        store::save(&dir, &expired).unwrap();
+
+        let status = status_with_verifier(&dir, "m".into(), |candidate| {
+            verify_with_key(candidate, &public, "m", 1_000)
+        });
+        assert!(!status.unlocked);
+        assert!(status.reason.unwrap().contains("expired"));
+        assert_eq!(store::load(&dir), None);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

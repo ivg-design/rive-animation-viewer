@@ -9,7 +9,9 @@ import {
 import { sendCommand } from './bridge.js';
 import { SERVER_INSTRUCTIONS } from './instructions.js';
 import { formatToolResult } from './tool-result.js';
-import { TOOLS } from './tools/index.js';
+import { TOOLS, gatedTools } from './tools/index.js';
+
+const ENTITLEMENT_STATUS_TIMEOUT_MS = 1500;
 
 const server = new Server(
   {
@@ -18,17 +20,34 @@ const server = new Server(
   },
   {
     capabilities: {
-      tools: {},
+      tools: { listChanged: true },
     },
     instructions: SERVER_INSTRUCTIONS,
   }
 );
 
+// Last-known app entitlement unlock state, used to detect a transition after
+// a rav_entitlement_status call and emit tools/list_changed accordingly.
+let lastKnownUnlocked = false;
+
 // List tools
-server.setRequestHandler(
-  ListToolsRequestSchema,
-  async () => ({ tools: TOOLS })
-);
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  const tools = [...TOOLS];
+  try {
+    const status = await sendCommand(
+      'rav_entitlement_status',
+      {},
+      ENTITLEMENT_STATUS_TIMEOUT_MS
+    );
+    if (status && status.unlocked === true) {
+      const grantedScopes = typeof status.scope === 'string' ? [status.scope] : [];
+      tools.push(...gatedTools(grantedScopes));
+    }
+  } catch {
+    // App not connected or errored: never fail tools/list, advertise base list only.
+  }
+  return { tools };
+});
 
 // Call tool
 server.setRequestHandler(
@@ -38,6 +57,10 @@ server.setRequestHandler(
 
     try {
       const result = await sendCommand(name, args || {});
+      if (result && typeof result.unlocked === 'boolean' && result.unlocked !== lastKnownUnlocked) {
+        lastKnownUnlocked = result.unlocked;
+        server.notification({ method: 'notifications/tools/list_changed' });
+      }
       return formatToolResult(name, result);
     } catch (error) {
       return {

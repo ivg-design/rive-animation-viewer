@@ -225,6 +225,7 @@
                 riveConfig.onPause = function (event) {
                     logEvent('native', 'pause', 'Playback paused by runtime.', event);
                     invokeRenderSurfaceAwareEditorCallback(appliedEditorConfig.onPause, Array.prototype.slice.call(arguments), reportAppliedEditorCallbackError);
+                    recordRenderSurfaceTimelinePause(event);
                     publishRenderSurfaceCanonicalState(true, 'pause');
                 };
                 riveConfig.onStop = function (event) {

@@ -50,6 +50,7 @@ export function createGlobalBindingsController({
         getRenderSurfaceController = () => null,
         getMediaExportController = () => null,
         getFullInspection = async () => { throw new Error('Full inspection is unavailable.'); },
+        getInspectionMetadata = () => null,
         getSidebarVisibility = () => ({ left: false, right: true }),
         getScriptConsoleEntries = () => ({ total: 0, returned: 0, entries: [] }),
         getVmExplorerSnippetState = () => ({ injected: false }),
@@ -193,6 +194,9 @@ export function createGlobalBindingsController({
         windowRef._mcpGetRenderSurfaceController = () => getRenderSurfaceController();
         windowRef._mcpGetMediaExportController = () => getMediaExportController();
         windowRef._mcpGetFullInspection = () => getFullInspection();
+        // Parse-once metadata for MCP validators: in desktop child mode the host
+        // keeps no Rive instance, so instance-attached metadata is unavailable.
+        windowRef._mcpGetInspectionMetadata = () => getInspectionMetadata();
         windowRef._mcpGetSidebarVisibility = () => getSidebarVisibility();
         windowRef._mcpGetVmExplorerSnippetState = () => getVmExplorerSnippetState();
         windowRef._mcpSetLiveConfigSource = async (sourceMode) => setLiveConfigSource(sourceMode);

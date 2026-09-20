@@ -69,7 +69,7 @@ export function getBridgeStatus() {
   };
 }
 
-export function sendCommand(command, params = {}) {
+export function sendCommand(command, params = {}, timeoutMs = COMMAND_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
     if (!ravSocket || ravSocket.readyState !== ravSocket.OPEN) {
       reject(new Error(
@@ -83,8 +83,8 @@ export function sendCommand(command, params = {}) {
     const id = randomUUID();
     const timer = setTimeout(() => {
       pendingRequests.delete(id);
-      reject(new Error(`Command "${command}" timed out after ${COMMAND_TIMEOUT_MS}ms`));
-    }, COMMAND_TIMEOUT_MS);
+      reject(new Error(`Command "${command}" timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
 
     pendingRequests.set(id, { resolve, reject, timer });
     ravSocket.send(JSON.stringify({ id, command, params }));

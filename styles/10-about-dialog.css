@@ -224,7 +224,7 @@
 }
 
 .about-dialog-grid-build {
-    grid-template-columns: minmax(72px, 86px) minmax(0, 1fr);
+    grid-template-columns: minmax(72px, 100px) minmax(0, 1fr);
 }
 
 .about-dialog-grid-credits {
@@ -302,7 +302,8 @@
 
 .about-dialog-dependency-row {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+    align-items: baseline;
     gap: 8px;
     color: var(--text-primary);
     font-size: 12px;
@@ -321,6 +322,11 @@
 
 .about-dialog-dependency-row span:last-child {
     color: var(--text-dim);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
 }
 
 .about-dialog-dependency-error {

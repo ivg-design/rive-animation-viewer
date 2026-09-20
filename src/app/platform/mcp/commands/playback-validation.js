@@ -18,7 +18,8 @@ export function assertKnownPlaybackTarget({
     windowRef,
 }) {
     const instance = windowRef.riveInst;
-    const inspection = instance ? getInspectionMetadata(instance) : null;
+    const inspection = (instance ? getInspectionMetadata(instance) : null)
+        ?? (typeof windowRef._mcpGetInspectionMetadata === 'function' ? windowRef._mcpGetInspectionMetadata() : null);
     const inspectedArtboards = Array.isArray(inspection?.artboards) ? inspection.artboards : [];
     if (inspectedArtboards.length) {
         const artboard = inspectedArtboards.find((entry) => (

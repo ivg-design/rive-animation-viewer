@@ -1,13 +1,50 @@
 use serde_json::{json, Value};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::bridge::Bridge;
+use crate::entitlement_tools::gated_tools;
 use crate::support::constants::{
-    CAPTURE_COMMAND_TIMEOUT_MS, DEFAULT_PROTOCOL_VERSION, FILE_OPEN_COMMAND_TIMEOUT_MS,
-    SERVER_NAME, SERVER_VERSION,
+    ANALYZE_COMMAND_TIMEOUT_MS, CAPTURE_COMMAND_TIMEOUT_MS, DEFAULT_PROTOCOL_VERSION,
+    ENTITLEMENT_STATUS_TIMEOUT_MS, FILE_OPEN_COMMAND_TIMEOUT_MS, SERVER_NAME, SERVER_VERSION,
 };
 use crate::support::instructions::SERVER_INSTRUCTIONS;
 use crate::tool_registry::tools_list;
+
+/// Per-connection state tracked across requests, currently just the
+/// last-known app entitlement unlock state so `tools/call` can detect a
+/// transition and emit a `notifications/tools/list_changed` follow-up.
+#[derive(Clone, Default)]
+pub struct SessionState {
+    unlocked: Arc<AtomicBool>,
+}
+
+impl SessionState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+fn list_changed_notification() -> Value {
+    json!({
+        "jsonrpc": "2.0",
+        "method": "notifications/tools/list_changed"
+    })
+}
+
+fn granted_scopes(status: &Value) -> Vec<String> {
+    // The app reports `scope` as an array of strings; accept a bare string too.
+    match status.get("scope") {
+        Some(Value::Array(items)) => items
+            .iter()
+            .filter_map(Value::as_str)
+            .map(str::to_owned)
+            .collect(),
+        Some(Value::String(scope)) => vec![scope.clone()],
+        _ => Vec::new(),
+    }
+}
 
 pub fn jsonrpc_error(id: Value, code: i64, message: impl Into<String>) -> Value {
     json!({
@@ -64,7 +101,11 @@ fn format_tool_result(name: &str, result: Value) -> Value {
     payload
 }
 
-pub async fn handle_request(bridge: &Bridge, request: Value) -> Value {
+pub async fn handle_request(
+    bridge: &Bridge,
+    session: &SessionState,
+    request: Value,
+) -> (Value, Vec<Value>) {
     let id = request.get("id").cloned().unwrap_or(Value::Null);
     let method = request
         .get("method")
@@ -79,7 +120,7 @@ pub async fn handle_request(bridge: &Bridge, request: Value) -> Value {
                 .and_then(Value::as_str)
                 .unwrap_or(DEFAULT_PROTOCOL_VERSION);
 
-            jsonrpc_result(
+            let response = jsonrpc_result(
                 id,
                 json!({
                     "protocolVersion": protocol_version,
@@ -92,7 +133,7 @@ pub async fn handle_request(bridge: &Bridge, request: Value) -> Value {
                             "subscribe": false
                         },
                         "tools": {
-                            "listChanged": false
+                            "listChanged": true
                         }
                     },
                     "serverInfo": {
@@ -101,20 +142,46 @@ pub async fn handle_request(bridge: &Bridge, request: Value) -> Value {
                     },
                     "instructions": SERVER_INSTRUCTIONS
                 }),
-            )
+            );
+            (response, Vec::new())
         }
-        "ping" => jsonrpc_result(id, json!({})),
-        "prompts/list" => jsonrpc_result(id, json!({ "prompts": [] })),
-        "resources/list" => jsonrpc_result(id, json!({ "resources": [] })),
-        "resources/templates/list" => jsonrpc_result(id, json!({ "resourceTemplates": [] })),
-        "logging/setLevel" => jsonrpc_result(id, json!({})),
-        "tools/list" => jsonrpc_result(id, json!({ "tools": tools_list() })),
+        "ping" => (jsonrpc_result(id, json!({})), Vec::new()),
+        "prompts/list" => (jsonrpc_result(id, json!({ "prompts": [] })), Vec::new()),
+        "resources/list" => (jsonrpc_result(id, json!({ "resources": [] })), Vec::new()),
+        "resources/templates/list" => (
+            jsonrpc_result(id, json!({ "resourceTemplates": [] })),
+            Vec::new(),
+        ),
+        "logging/setLevel" => (jsonrpc_result(id, json!({})), Vec::new()),
+        "tools/list" => {
+            let mut tools = tools_list().as_array().cloned().unwrap_or_default();
+            let status = bridge
+                .send_command_with_timeout(
+                    "rav_entitlement_status",
+                    json!({}),
+                    Duration::from_millis(ENTITLEMENT_STATUS_TIMEOUT_MS),
+                )
+                .await;
+            // Never fail tools/list over the entitlement check: if the app is
+            // unreachable or errors, fall back to advertising the base list.
+            if let Ok(status) = status {
+                let unlocked = status.get("unlocked").and_then(Value::as_bool) == Some(true);
+                session.unlocked.store(unlocked, Ordering::SeqCst);
+                if unlocked {
+                    tools.extend(gated_tools(&granted_scopes(&status)));
+                }
+            }
+            (jsonrpc_result(id, json!({ "tools": tools })), Vec::new())
+        }
         "tools/call" => {
             let Some(params) = request.get("params") else {
-                return jsonrpc_error(id, -32602, "Missing tool call params");
+                return (
+                    jsonrpc_error(id, -32602, "Missing tool call params"),
+                    Vec::new(),
+                );
             };
             let Some(name) = params.get("name").and_then(Value::as_str) else {
-                return jsonrpc_error(id, -32602, "Missing tool name");
+                return (jsonrpc_error(id, -32602, "Missing tool name"), Vec::new());
             };
             let arguments = params
                 .get("arguments")
@@ -137,12 +204,30 @@ pub async fn handle_request(bridge: &Bridge, request: Value) -> Value {
                         Duration::from_millis(CAPTURE_COMMAND_TIMEOUT_MS),
                     )
                     .await
+            } else if name == "rav_analyze_full" || name == "rav_inspect_full" {
+                bridge
+                    .send_command_with_timeout(
+                        name,
+                        arguments,
+                        Duration::from_millis(ANALYZE_COMMAND_TIMEOUT_MS),
+                    )
+                    .await
             } else {
                 bridge.send_command(name, arguments).await
             };
 
-            match command_result {
-                Ok(result) => jsonrpc_result(id, format_tool_result(name, result)),
+            let mut notifications = Vec::new();
+            let response = match command_result {
+                Ok(result) => {
+                    if let Some(new_unlocked) = result.get("unlocked").and_then(Value::as_bool) {
+                        let previously_unlocked =
+                            session.unlocked.swap(new_unlocked, Ordering::SeqCst);
+                        if previously_unlocked != new_unlocked {
+                            notifications.push(list_changed_notification());
+                        }
+                    }
+                    jsonrpc_result(id, format_tool_result(name, result))
+                }
                 Err(error) => jsonrpc_result(
                     id,
                     json!({
@@ -155,16 +240,33 @@ pub async fn handle_request(bridge: &Bridge, request: Value) -> Value {
                         "isError": true
                     }),
                 ),
-            }
+            };
+            (response, notifications)
         }
-        _ => jsonrpc_error(id, -32601, format!("Method not found: {}", method)),
+        _ => (
+            jsonrpc_error(id, -32601, format!("Method not found: {}", method)),
+            Vec::new(),
+        ),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::format_tool_result;
+    use super::{format_tool_result, granted_scopes};
     use serde_json::json;
+
+    #[test]
+    fn granted_scopes_accepts_array_and_string_shapes() {
+        let array = json!({ "unlocked": true, "scope": ["inspection.full", "report.pdf"] });
+        assert_eq!(
+            granted_scopes(&array),
+            vec!["inspection.full", "report.pdf"]
+        );
+        let string = json!({ "unlocked": true, "scope": "inspection.full" });
+        assert_eq!(granted_scopes(&string), vec!["inspection.full"]);
+        let missing = json!({ "unlocked": true, "scope": null });
+        assert!(granted_scopes(&missing).is_empty());
+    }
 
     #[test]
     fn canvas_capture_requires_nonempty_png_content() {

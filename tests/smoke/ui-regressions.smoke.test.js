@@ -163,7 +163,7 @@ describe('ui regression smoke', () => {
         expect(timelineCss).toContain('.timeline-progress-cti');
         expect(timelineCss).toContain('left: var(--timeline-fill);');
         expect(timelineCss).toContain('clip-path: polygon(');
-        expect(timelineCss).toContain('background-size: 2.5% 11px;');
+        expect(timelineCss).toContain('.timeline-progress-tick.is-minor::after');
         expect(timelineCss).toContain('.timeline-progress-bar::-moz-range-track');
         expect(timelineCss).toContain('.timeline-progress-bar::-moz-range-thumb');
         expect(timelineCss).toContain('--timeline-cti-width: 18px;');

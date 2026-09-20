@@ -1,0 +1,49 @@
+.about-dialog-machine-id-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.about-dialog-machine-id-value {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 13px;
+    letter-spacing: -0.03em;
+}
+
+.about-dialog-machine-id-copy {
+    flex: 0 0 auto;
+    height: 22px;
+    padding: 0 8px;
+    border: 1px solid rgba(196, 248, 42, 0.2);
+    border-radius: var(--radius-sm, 6px);
+    background: var(--bg-zinc, rgba(0, 0, 0, 0.22));
+    color: var(--text-muted);
+    font-family: "Space Mono", "SFMono-Regular", Consolas, monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.about-dialog-machine-id-copy:hover:not(:disabled) {
+    border-color: var(--neon);
+    color: var(--neon);
+}
+
+.about-dialog-machine-id-copy.copied {
+    border-color: #34d399;
+    color: #34d399;
+}
+
+.about-dialog-machine-id-copy:disabled {
+    opacity: 0.5;
+    cursor: default;
+}

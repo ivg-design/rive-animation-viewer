@@ -2,8 +2,12 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
+import { TOOLS } from '../mcp-server/tools/index.js';
+import { ENTITLEMENT_TOOLS } from '../mcp-server/tools/entitlement-tools.js';
 
-const EXPECTED_TOOL_COUNT = 55;
+// Public tool set from the embedded registry; an activated machine also lists the gated tools.
+const EXPECTED_TOOL_COUNT = TOOLS.length;
+const GATED_TOOL_NAMES = ENTITLEMENT_TOOLS.filter((tool) => tool['x-rav-scope']).map((tool) => tool.name);
 const REQUIRED_RELEASE_TOOLS = [
     'rav_get_global_vm_tree', 'rav_global_vm_get', 'rav_global_vm_set',
     'rav_global_vm_fire', 'rav_global_vm_set_image', 'rav_global_vm_clear_image',
@@ -14,7 +18,7 @@ const REQUIRED_RELEASE_TOOLS = [
 ];
 
 export const REQUIRED_ASSERTIONS = [
-    'tools/list: exact 55 unique tools including GVM/capture/media names',
+    'tools/list: exact public tool set (activated tools allowed) including GVM/capture/media names',
     'global VM tree/get/set/restore',
     'capture: valid PNG byte length matches metadata',
     'MCP connected to the exact isolated DEV build',
@@ -186,13 +190,18 @@ export function verifyReceipt(receipt, options = {}) {
     if (names.length !== required.length) fail('Receipt assertion inventory is incomplete.');
 
     const toolsAssertion = receipt.assertions.find((entry) => entry.name
-        === 'tools/list: exact 55 unique tools including GVM/capture/media names');
-    if (toolsAssertion?.count !== EXPECTED_TOOL_COUNT
-        || !Array.isArray(toolsAssertion.names)
-        || toolsAssertion.names.length !== EXPECTED_TOOL_COUNT
-        || new Set(toolsAssertion.names).size !== EXPECTED_TOOL_COUNT
-        || !REQUIRED_RELEASE_TOOLS.every((name) => toolsAssertion.names.includes(name))) {
-        fail('tools/list receipt evidence does not prove exactly 55 unique tools and all required GVM, capture, and media names.');
+        === 'tools/list: exact public tool set (activated tools allowed) including GVM/capture/media names');
+    const toolNames = Array.isArray(toolsAssertion?.names) ? toolsAssertion.names : [];
+    const activatedCount = EXPECTED_TOOL_COUNT + GATED_TOOL_NAMES.length;
+    const exactPublic = toolNames.length === EXPECTED_TOOL_COUNT;
+    const exactActivated = toolNames.length === activatedCount
+        && GATED_TOOL_NAMES.every((name) => toolNames.includes(name));
+    if (!toolsAssertion
+        || toolsAssertion.count !== toolNames.length
+        || !(exactPublic || exactActivated)
+        || new Set(toolNames).size !== toolNames.length
+        || !REQUIRED_RELEASE_TOOLS.every((name) => toolNames.includes(name))) {
+        fail(`tools/list receipt evidence does not prove exactly ${EXPECTED_TOOL_COUNT} unique public tools (or ${activatedCount} on an activated machine) and all required GVM, capture, and media names.`);
     }
     const globalAssertion = receipt.assertions.find((entry) => entry.name === 'global VM tree/get/set/restore');
     if (!globalAssertion || globalAssertion.original !== globalAssertion.restored

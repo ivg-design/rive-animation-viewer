@@ -183,6 +183,8 @@
                 currentSeconds: metrics && metrics.currentSeconds,
                 durationSeconds: metrics && metrics.totalSeconds,
                 fps: metrics && metrics.fps,
+                speed: metrics && Number.isFinite(metrics.speed) ? metrics.speed : undefined,
+                direction: metrics && (metrics.direction === 1 || metrics.direction === -1) ? metrics.direction : undefined,
                 totalFrames: metrics && metrics.totalFrames,
                 totalSeconds: metrics && metrics.totalSeconds,
             };

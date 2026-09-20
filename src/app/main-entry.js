@@ -243,6 +243,7 @@ shellController = controllerStack.shellController;
 statusController = controllerStack.statusController;
 
 createTimelineProgressController({
+    onScrubStart: () => controllerStack.pause?.(),
     onSeek: createTimelineSeekHandler({
         getPlaybackState: () => controllerStack.getArtboardStateSnapshot?.() || {},
         getRiveInstance,

@@ -147,6 +147,7 @@ export function createUiStack({
 
     const aboutDialogController = createAboutDialogController({
         callbacks: {
+            getTauriInvoker,
             getAppBuildLabel: () => statusController?.getBuildStampLabel?.() || 'DEV · dev',
             getAppVersionLabel: () => statusController?.getResolvedAppVersion?.() || 'dev',
             getAdditionalDependencyEntries: async () => {

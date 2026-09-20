@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { TOOLS } from '../../../mcp-server/tools/index.js';
 import {
     REQUIRED_ASSERTIONS,
     verifyReceipt,
@@ -68,14 +69,14 @@ function fixture() {
                 ...REQUIRED_ASSERTIONS.map((name) => ({
                     name,
                     ok: true,
-                    ...(name === 'tools/list: exact 55 unique tools including GVM/capture/media names'
-                        ? { count: 55, names: [
+                    ...(name === 'tools/list: exact public tool set (activated tools allowed) including GVM/capture/media names'
+                        ? { count: TOOLS.length, names: [
                             'rav_get_global_vm_tree', 'rav_global_vm_get', 'rav_global_vm_set',
                             'rav_global_vm_fire', 'rav_global_vm_set_image', 'rav_global_vm_clear_image',
                             'rav_capture_canvas', 'rav_media_capabilities', 'rav_export_media',
                             'rav_record_start', 'rav_record_stop', 'rav_media_status',
                             'rav_media_cancel', 'rav_step_frames', 'rav_pointer',
-                            ...Array.from({ length: 40 }, (_, index) => `tool-${index}`),
+                            ...Array.from({ length: TOOLS.length - 15 }, (_, index) => `tool-${index}`),
                         ] } : {}),
                     ...(name === 'global VM tree/get/set/restore'
                         ? { globalViewModelName: 'GlobalLabels', path: 'label', original: 'Original', restored: 'Original' } : {}),

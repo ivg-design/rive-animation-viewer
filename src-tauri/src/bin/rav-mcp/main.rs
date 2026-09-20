@@ -3,6 +3,7 @@ use std::time::Duration;
 
 mod bridge;
 mod cli;
+mod entitlement_tools;
 mod rpc;
 mod stdio_transport;
 mod support;

@@ -480,6 +480,7 @@ function createDemoVmHarness(riveInstance, {
             setRenderSurfaceWatchedControls: (keys) => setRenderSurfaceWatchedControls(getRenderSurfaceBridgeState(), keys),
             recordRenderSurfaceTimelinePlay,
             recordRenderSurfaceTimelineAdvance,
+            recordRenderSurfaceTimelinePause,
             recordRenderSurfaceTimelineStop,
             recordRenderSurfaceTriggerReceipt,
             readAcknowledgedRenderSurfaceImagePresence,
@@ -2308,6 +2309,118 @@ describe('exported demo ViewModel snapshot runtime', () => {
         expect(canonicalPublicationSource).toContain("publishRenderSurfaceCanonicalState(true, 'activation', true)");
     });
 
+    it('never reports a stale same-name wrapper while the live one moves, and carries speed', () => {
+        const stale = { animation: { duration: 60, fps: 60, speed: 0.4 }, instance: {}, name: 'Thundering', time: 0.0333 };
+        const live = { animation: { duration: 240, fps: 60, speed: 0.2 }, instance: {}, name: 'Thundering', time: 0.05 };
+        const riveInstance = { animator: { animations: [live, stale] }, isPlaying: true, playingAnimationNames: ['Thundering'], playingStateMachineNames: [] };
+        const harness = createDemoVmHarness(riveInstance, { renderSurfaceMode: true });
+        harness.setRenderSurfaceTarget({ name: 'Thundering', type: 'animation' });
+        harness.recordRenderSurfaceTimelineAdvance();
+        const frames = [];
+        for (let step = 1; step <= 6; step += 1) {
+            live.time = 0.05 + step * (0.2 / 60);
+            const metrics = harness.recordRenderSurfaceTimelineAdvance();
+            frames.push(metrics.currentFrame);
+            expect(metrics.totalFrames).toBe(240);
+            expect(metrics.speed).toBeCloseTo(0.2, 6);
+        }
+        expect(frames.every((frame, index) => index === 0 || frame >= frames[index - 1])).toBe(true);
+        expect(harness.emitted.at(-1).payload).toMatchObject({ playbackName: 'Thundering', totalFrames: 240, speed: 0.2 });
+    });
+
+    it('scrubs a slow timeline to the requested time by dividing by the authored speed', () => {
+        const scrubs = []; const calls = [];
+        const wrapper = { animation: { duration: 240, fps: 60, speed: 0.2 }, instance: {}, name: 'Thundering', playing: false, time: 0.4 };
+        const draws = [];
+        const riveInstance = {
+            animator: { animations: [wrapper] }, isPlaying: false, playingAnimationNames: [], playingStateMachineNames: [],
+            play: (name) => calls.push(`play:${name}`), pause: (name) => calls.push(`pause:${name}`),
+            scrub: (name, value) => scrubs.push([name, value]),
+            // Enough of the runtime surface for the explicit-frame helper to run.
+            // Like rive.js, the frame applies a pending scrub as time = 0; advance(value * speed).
+            artboard: {}, drawOptimization: 'drawOnChanged', loaded: true, stopRendering: () => {},
+            draw: (now) => { draws.push(now); if (wrapper.scrubTo != null) { wrapper.time = wrapper.scrubTo * 0.2; wrapper.scrubTo = null; } },
+        };
+        const harness = createDemoVmHarness(riveInstance, { renderSurfaceMode: true });
+        harness.setRenderSurfaceTarget({ name: 'Thundering', type: 'animation' });
+        const result = harness.scrubRenderSurfaceTimeline({ name: 'Thundering', seconds: 2 });
+        // The seek is queued on the wrapper (divided by the authored speed), never
+        // through scrub(): that helper draws with real elapsed wall time.
+        expect(scrubs).toEqual([]);
+        expect(result).toMatchObject({ currentSeconds: 2, currentFrame: 120, speed: 0.2 });
+        // Dragging pauses; the paused wrapper is repainted by one explicit frame.
+        expect(calls).toEqual(['pause:Thundering']);
+        // The repaint frame advances by a positive sub-frame interval: rive.js
+        // leaves the previous pose on the canvas for a zero-length draw.
+        expect(draws).toHaveLength(1);
+        const advancedMs = draws[0] - riveInstance.lastRenderTime;
+        expect(advancedMs).toBeGreaterThan(0);
+        expect(advancedMs).toBeLessThan(1000 / 60 / 100);
+    });
+
+    it('treats a moving clock as playing even when the wrapper flag is absent', () => {
+        const target = { animation: { duration: 240, fps: 60 }, instance: {}, name: 'Thundering', time: 0.0166 };
+        const riveInstance = { animator: { animations: [target] }, isPlaying: true, playingAnimationNames: ['Thundering'], playingStateMachineNames: [] };
+        const harness = createDemoVmHarness(riveInstance, { renderSurfaceMode: true });
+        harness.setRenderSurfaceTarget({ name: 'Thundering', type: 'animation' });
+        harness.recordRenderSurfaceTimelineAdvance();
+        target.time = 0.0333;
+        const count = harness.emitted.length;
+        expect(harness.recordRenderSurfaceTimelineAdvance()).toMatchObject({ currentFrame: 2 });
+        expect(harness.emitted.length).toBe(count + 1);
+        expect(harness.emitted.at(-1).payload).toMatchObject({ isPlaying: true, currentFrame: 2 });
+        // Clock unchanged on the next advance: nothing republished.
+        expect(harness.recordRenderSurfaceTimelineAdvance()).toMatchObject({ currentFrame: 2 });
+        expect(harness.emitted.length).toBe(count + 1);
+    });
+
+    it('reports the observed clock direction so a ping-pong return leg is followed', () => {
+        const target = { animation: { duration: 240, durationSeconds: 4, fps: 60 }, instance: {}, name: 'Cloudy', playing: true, time: 0.5 };
+        const riveInstance = { animator: { animations: [target] }, isPlaying: true, playingAnimationNames: ['Cloudy'], playingStateMachineNames: [] };
+        const harness = createDemoVmHarness(riveInstance, { renderSurfaceMode: true });
+        harness.setRenderSurfaceTarget({ name: 'Cloudy', type: 'animation' });
+        harness.recordRenderSurfaceTimelineAdvance();
+        target.time = 1.0;
+        expect(harness.recordRenderSurfaceTimelineAdvance()).toMatchObject({ direction: 1 });
+        target.time = 0.8;
+        expect(harness.recordRenderSurfaceTimelineAdvance()).toMatchObject({ direction: -1 });
+        // A loop wrap jumps by more than half the duration: not a direction change.
+        target.time = 3.9;
+        expect(harness.recordRenderSurfaceTimelineAdvance()).toMatchObject({ direction: -1 });
+        target.time = 3.95;
+        expect(harness.recordRenderSurfaceTimelineAdvance()).toMatchObject({ direction: 1 });
+        target.time = 0.05;
+        expect(harness.recordRenderSurfaceTimelineAdvance()).toMatchObject({ direction: 1 });
+        expect(harness.emitted.at(-1).payload).toMatchObject({ direction: 1 });
+    });
+
+    it('reports only the named timeline clock and a paused sample when the target pauses', () => {
+        const sibling = { animation: { duration: 35, fps: 60 }, instance: {}, name: 'Thundering', playing: true, time: 0.4 };
+        const target = { animation: { duration: 60, fps: 60 }, instance: {}, name: 'Thunder_Bolt', playing: true, time: 0.25 };
+        const riveInstance = {
+            animator: { animations: [sibling, target] },
+            isPlaying: true,
+            playingAnimationNames: ['Thundering', 'Thunder_Bolt'],
+            playingStateMachineNames: [],
+        };
+        const harness = createDemoVmHarness(riveInstance, { renderSurfaceMode: true });
+        harness.setRenderSurfaceTarget({ name: 'Thunder_Bolt', type: 'animation' });
+
+        expect(harness.recordRenderSurfaceTimelineAdvance()).toMatchObject({ currentFrame: 15, currentSeconds: 0.25 });
+        expect(harness.emitted.at(-1).payload).toMatchObject({ isPlaying: true, isPaused: false, playbackName: 'Thunder_Bolt', currentFrame: 15 });
+
+        target.playing = false;
+        const emittedBefore = harness.emitted.length;
+        // A sibling keeps advancing the renderer: the paused target's clock is
+        // neither borrowed from the sibling nor republished as playing.
+        expect(harness.recordRenderSurfaceTimelineAdvance()).toMatchObject({ currentFrame: 15, currentSeconds: 0.25 });
+        expect(harness.emitted.length).toBe(emittedBefore);
+
+        expect(harness.recordRenderSurfaceTimelinePause({ data: ['Thunder_Bolt'] })).toMatchObject({ currentFrame: 15 });
+        expect(harness.emitted.at(-1).payload).toMatchObject({ isPlaying: false, isPaused: true, playbackName: 'Thunder_Bolt', currentFrame: 15 });
+        expect(harness.emitted.at(-1).payload).not.toHaveProperty('playing');
+    });
+
     it('derives exact timeline progress from source-animation frame duration used by supported runtimes', () => {
         const riveInstance = {
             animator: {
@@ -2351,13 +2464,15 @@ describe('exported demo ViewModel snapshot runtime', () => {
             isPlaying: false,
             pause: vi.fn((name) => {
                 expect(name).toBe('Intro');
-                riveInstance.animator.animations.push(createWrapper());
+                if (!riveInstance.animator.animations.length) riveInstance.animator.animations.push(createWrapper());
             }),
             playingAnimationNames: [],
             playingStateMachineNames: [],
-            scrub: vi.fn((name, seconds) => {
-                expect(name).toBe('Intro');
-                riveInstance.animator.animations.at(-1).time = seconds;
+            scrub: vi.fn(),
+            artboard: {}, drawOptimization: 'drawOnChanged', loaded: true, stopRendering: () => {},
+            draw: vi.fn(() => {
+                const wrapper = riveInstance.animator.animations.at(-1);
+                if (wrapper && wrapper.scrubTo != null) { wrapper.time = wrapper.scrubTo; wrapper.scrubTo = null; }
             }),
         };
         const harness = createDemoVmHarness(riveInstance, { renderSurfaceMode: true });
@@ -2365,13 +2480,17 @@ describe('exported demo ViewModel snapshot runtime', () => {
 
         expect(harness.scrubRenderSurfaceTimeline({ name: 'Intro', seconds: 0.75 })).toEqual({
             currentFrame: 45,
+            fps: 60,
             currentSeconds: 0.75,
             name: 'Intro',
             totalFrames: 60,
             totalSeconds: 1,
         });
-        expect(riveInstance.pause).toHaveBeenCalledOnce();
-        expect(riveInstance.scrub).toHaveBeenCalledWith('Intro', 0.75);
+        // The single pause both stops playback and recreates the pruned wrapper;
+        // the seek is queued on the wrapper and applied by one explicit frame.
+        expect(riveInstance.pause).toHaveBeenCalledTimes(1);
+        expect(riveInstance.scrub).not.toHaveBeenCalled();
+        expect(riveInstance.draw).toHaveBeenCalledTimes(1);
 
         const delta = harness.captureRenderSurfaceCommandCanonicalDelta(
             { payload: { name: 'Intro', seconds: 0.75 }, type: 'scrub' },

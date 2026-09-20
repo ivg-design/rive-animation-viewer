@@ -3,7 +3,7 @@ use serde_json::Value;
 use tokio::io::{self, AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 
 use crate::bridge::Bridge;
-use crate::rpc::handle_request;
+use crate::rpc::{handle_request, SessionState};
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub enum StdioMessageFormat {
@@ -79,6 +79,7 @@ pub async fn run_stdio_server(bridge: Bridge) -> Result<()> {
     let stdout = io::stdout();
     let mut reader = BufReader::new(stdin);
     let mut writer = BufWriter::new(stdout);
+    let session = SessionState::new();
 
     loop {
         let Some((message, incoming_format)) = read_message(&mut reader).await? else {
@@ -90,8 +91,11 @@ pub async fn run_stdio_server(bridge: Bridge) -> Result<()> {
             continue;
         }
 
-        let response = handle_request(&bridge, message).await;
+        let (response, follow_up_notifications) = handle_request(&bridge, &session, message).await;
         write_message(&mut writer, &response, incoming_format).await?;
+        for notification in follow_up_notifications {
+            write_message(&mut writer, &notification, incoming_format).await?;
+        }
     }
 
     Ok(())

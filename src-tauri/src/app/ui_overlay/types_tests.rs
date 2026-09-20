@@ -119,6 +119,19 @@ fn action_contract_is_allowlisted_and_bounded() {
         ..action
     };
     assert!(rejected.validate().is_err());
+    let copy_machine_id = UiOverlayActionRequest {
+        epoch: 4,
+        action_id: "about-copy-1".into(),
+        purpose: "about".into(),
+        action: "copy-machine-id".into(),
+        value: serde_json::Value::Null,
+    };
+    assert!(copy_machine_id.validate().is_ok());
+    let copy_with_payload = UiOverlayActionRequest {
+        value: serde_json::json!("w5fl"),
+        ..copy_machine_id
+    };
+    assert!(copy_with_payload.validate().is_err());
 }
 
 #[test]

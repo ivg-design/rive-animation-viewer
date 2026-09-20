@@ -6,6 +6,7 @@ import {
     buildDependencyEntries,
 } from './about-data.js';
 import { measureDialogOverlay } from '../overlay/dialog-bounds.js';
+import { createMachineIdRow, fetchMachineId, refreshMachineId } from './about-machine-id.js';
 
 function createSectionHeading(documentRef, text) {
     const heading = documentRef.createElement('h3');
@@ -60,6 +61,7 @@ export function createAboutDialogController({
         getCurrentRuntimeVersion = () => 'latest',
         getOpenExternalUrl = () => null,
         getTauriEventListener = () => null,
+        getTauriInvoker = () => null,
         requestUiOverlay = null,
     } = callbacks;
 
@@ -71,6 +73,7 @@ export function createAboutDialogController({
     let loadedDependencies = false;
     let menuHookRetryTimer = null;
     let tauriAboutUnlisten = null;
+    let machineIdRow = null;
 
     function closeDialog() {
         if (!dialog) {
@@ -143,14 +146,17 @@ export function createAboutDialogController({
         });
 
         const metadataSection = dialog.querySelector('[data-about-metadata]');
+        const buildGrid = createDefinitionGrid(documentRef, [
+            { datasetKey: 'aboutVersionDetail', label: 'Version', value: getAppVersionLabel() },
+            { datasetKey: 'aboutBuildDetail', label: 'Build', value: getAppBuildLabel() },
+            { datasetKey: 'aboutRuntimeDetail', label: 'Runtime', value: `${String(getCurrentRuntime()).toUpperCase()} ${getCurrentRuntimeVersion()}` },
+            { datasetKey: 'aboutLicenseDetail', label: 'License', value: ABOUT_LICENSE },
+        ], 'about-dialog-grid-build');
+        machineIdRow = createMachineIdRow({ documentRef, windowRef: documentRef.defaultView || globalThis.window });
+        buildGrid.append(machineIdRow.dt, machineIdRow.dd);
         metadataSection.append(
             createSectionHeaderRow(documentRef, 'Build Matrix'),
-            createDefinitionGrid(documentRef, [
-                { datasetKey: 'aboutVersionDetail', label: 'Version', value: getAppVersionLabel() },
-                { datasetKey: 'aboutBuildDetail', label: 'Build', value: getAppBuildLabel() },
-                { datasetKey: 'aboutRuntimeDetail', label: 'Runtime', value: `${String(getCurrentRuntime()).toUpperCase()} ${getCurrentRuntimeVersion()}` },
-                { datasetKey: 'aboutLicenseDetail', label: 'License', value: ABOUT_LICENSE },
-            ], 'about-dialog-grid-build'),
+            buildGrid,
         );
 
         const creditsSection = dialog.querySelector('[data-about-credits]');
@@ -270,8 +276,16 @@ export function createAboutDialogController({
         aboutDialog.querySelector('[data-about-build-detail]')?.replaceChildren(getAppBuildLabel());
         aboutDialog.querySelector('[data-about-runtime-detail]')?.replaceChildren(runtimeSummary);
         aboutDialog.querySelector('[data-about-license-detail]')?.replaceChildren(ABOUT_LICENSE);
+        if (machineIdRow) {
+            void refreshMachineId({
+                valueSpan: machineIdRow.valueSpan,
+                copyButton: machineIdRow.copyButton,
+                getTauriInvoker,
+            });
+        }
         if (typeof requestUiOverlay === 'function') {
             await loadDependencies();
+            const machine = await fetchMachineId({ getTauriInvoker });
             const getState = () => ({
                 appName: ABOUT_APP_NAME,
                 build: getAppBuildLabel(),
@@ -280,6 +294,8 @@ export function createAboutDialogController({
                 dependencyError,
                 license: ABOUT_LICENSE,
                 links: ABOUT_LINKS,
+                machineId: machine.machineId,
+                machineIdError: machine.error,
                 runtime: `${String(getCurrentRuntime()).toUpperCase()} ${getCurrentRuntimeVersion()}`,
                 version: getAppVersionLabel(),
             });
@@ -287,6 +303,14 @@ export function createAboutDialogController({
                 bounds: measureDialogOverlay({ dialog: aboutDialog }),
                 getState,
                 handleAction: async ({ action, value }) => {
+                    if (action === 'copy-machine-id') {
+                        const clipboard = globalThis.navigator?.clipboard;
+                        if (!machine.machineId || typeof clipboard?.writeText !== 'function') {
+                            throw new Error('Machine id is unavailable to copy.');
+                        }
+                        await clipboard.writeText(machine.machineId);
+                        return null;
+                    }
                     if (action !== 'open-link') return null;
                     const link = ABOUT_LINKS.find((entry) => entry.url === value);
                     if (link) await openExternal(link.url);
