@@ -2,6 +2,17 @@
 
 All notable released changes to this project are documented in this file.
 
+## [2.5.8] - Unreleased
+
+### Fixed
+
+- **Machine ID on Windows** — The About window's Machine ID row and
+  `rav_entitlement_status` reported "Machine identity is unavailable on this
+  platform" on Windows, so activation could not be requested there. The id is
+  now derived from the installation's `MachineGuid` on Windows, from the
+  hardware UUID on macOS, and from `/etc/machine-id` elsewhere; existing
+  activation keys are unaffected.
+
 ## [2.5.7] - 2026-09-19
 
 ### Added

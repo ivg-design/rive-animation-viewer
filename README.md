@@ -6,8 +6,8 @@ For media export and recording, see [Media export and recording](Documentation/M
 
 ## Release
 
-- Prepared release candidate: `2.5.7` (native acceptance and publication pending).
-- Current public release: `2.5.6` ([GitHub release](https://github.com/ivg-design/rive-animation-viewer/releases/tag/v2.5.6)).
+- Prepared release candidate: `2.5.8` (native acceptance and publication pending).
+- Current public release: `2.5.7` ([GitHub release](https://github.com/ivg-design/rive-animation-viewer/releases/tag/v2.5.7)).
 - macOS downloads and updater apps are Developer ID signed, notarized, and stapled; updater payloads retain their separate update signatures.
 
 ## Regression Gates

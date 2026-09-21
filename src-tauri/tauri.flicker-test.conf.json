@@ -1,7 +1,7 @@
 {
-  "productName": "RAV 2.5.8 DEV",
-  "version": "2.5.8",
-  "mainBinaryName": "rav-2.5.8-dev",
+  "productName": "RAV 2.5.9 DEV",
+  "version": "2.5.9",
+  "mainBinaryName": "rav-2.5.9-dev",
   "identifier": "app.rive.animation.viewer.flicker-test",
   "build": {
     "beforeBuildCommand": "node scripts/build-dev-dist.mjs && npm run build:mcp",
@@ -14,7 +14,7 @@
       {
         "label": "main",
         "create": false,
-        "title": "RAV 2.5.8 DEV",
+        "title": "RAV 2.5.9 DEV",
         "width": 1250,
         "height": 900,
         "minWidth": 1090,
