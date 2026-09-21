@@ -17,13 +17,45 @@ fn platform_uuid() -> Option<String> {
         let value = line.split('=').nth(1)?.trim().trim_matches('"');
         (!value.is_empty()).then(|| value.to_owned())
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        // The per-installation GUID Windows writes at setup. Read through
+        // `reg query` so no registry crate is needed; the console window the
+        // child would otherwise flash is suppressed.
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let output = Command::new("reg")
+            .args([
+                "query",
+                r"HKLM\SOFTWARE\Microsoft\Cryptography",
+                "/v",
+                "MachineGuid",
+            ])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .ok()?;
+        parse_reg_query_value(&String::from_utf8_lossy(&output.stdout), "MachineGuid")
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         std::fs::read_to_string("/etc/machine-id")
             .ok()
             .map(|value| value.trim().to_owned())
             .filter(|value| !value.is_empty())
     }
+}
+
+/// Extracts a value from `reg query` output, whose data line has the shape
+/// `    <name>    REG_SZ    <value>`.
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+fn parse_reg_query_value(output: &str, name: &str) -> Option<String> {
+    output
+        .lines()
+        .map(str::trim)
+        .find(|line| line.starts_with(name))
+        .and_then(|line| line.split_whitespace().nth(2))
+        .map(str::to_owned)
+        .filter(|value| !value.is_empty())
 }
 
 fn account_name() -> String {
@@ -68,6 +100,26 @@ pub fn machine_binding_id() -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_machine_guid_from_reg_query_output() {
+        let output = "\r\nHKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Cryptography\r\n    MachineGuid    REG_SZ    3f2c9e5a-1b7d-4c1e-9a0b-8d6f2e4c1a55\r\n\r\n";
+        assert_eq!(
+            parse_reg_query_value(output, "MachineGuid").as_deref(),
+            Some("3f2c9e5a-1b7d-4c1e-9a0b-8d6f2e4c1a55")
+        );
+        assert_eq!(
+            parse_reg_query_value(
+                "ERROR: The system was unable to find the specified registry key or value.",
+                "MachineGuid"
+            ),
+            None
+        );
+        assert_eq!(
+            parse_reg_query_value("    MachineGuid    REG_SZ    ", "MachineGuid"),
+            None
+        );
+    }
 
     #[test]
     fn binding_is_stable_and_distinguishes_user_and_machine() {

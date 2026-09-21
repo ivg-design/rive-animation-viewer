@@ -420,12 +420,18 @@ async function main() {
     async function waitForPlayback(predicate, timeout = DEFAULT_POLL_TIMEOUT_MS) {
         const startedAt = performance.now();
         let latest = null;
+        const samples = [];
         while (elapsed(startedAt) <= timeout) {
             latest = await status();
-            if (predicate(latest?.playback || {})) return latest;
+            const playback = latest?.playback || {};
+            samples.push({ t: Math.round(elapsed(startedAt)), frame: playback.currentFrame, playing: playback.isPlaying, paused: playback.isPaused, name: playback.name, session: latest?.renderSurface?.sessionId, health: latest?.renderSurface?.health });
+            if (predicate(playback)) return latest;
             await sleep(Number(scenario.pollMs || DEFAULT_POLL_MS));
         }
-        throw new AssertionError('Playback state did not converge.', { latest: latest?.playback || null });
+        // Keep the first and last few samples so a failure explains what the
+        // canonical state did while the wait ran.
+        const trimmed = samples.length > 12 ? [...samples.slice(0, 4), ...samples.slice(-8)] : samples;
+        throw new AssertionError('Playback state did not converge.', { latest: latest?.playback || null, samples: trimmed });
     }
 
     async function readVm(path) {
@@ -585,6 +591,15 @@ async function main() {
             const config = scenario.timeline;
             await openFixtureForTest(config, 'timeline');
             if (config.artboard || config.playback) {
+                // The opened file autoplays its default target. A switch issued
+                // while that first activation is still settling can leave the
+                // canonical playback state without a completion sample for the
+                // new target, so let the opened surface report a live playback
+                // state before switching.
+                await waitForPlayback((playback) => playback.type === 'animation'
+                    || playback.type === 'stateMachine'
+                    || playback.isPlaying === true);
+                await sleep(Number(config.settleMs || 1500));
                 const switched = await client.tool('rav_switch_artboard', {
                     artboard: config.artboard,
                     ...(config.playback ? { playback: config.playback } : {}),
