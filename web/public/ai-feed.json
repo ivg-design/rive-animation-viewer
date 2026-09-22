@@ -1,13 +1,13 @@
 {
   "version": "1.1",
-  "generatedAt": "2026-09-19",
+  "generatedAt": "2026-09-21",
   "project": "RAV",
   "canonical": "https://forge.mograph.life/apps/rav/",
   "releaseStatus": {
-    "version": "2.5.7",
+    "version": "2.5.8",
     "status": "public",
     "public": true,
-    "note": "RAV 2.5.7 is the current public release. It adds a Machine ID row in the About window, the MCP rav_entitlement_status tool (56 tools total), and on-demand analysis reports (HTML, Markdown, PDF) on activated installations; it rebuilds file inspection on RF Parser 2.5.14 so large files inspect in about a second, and fixes the timeline scrubber (drag pauses and seeks exactly, authored speed and ping-pong direction are followed, frame-aligned ruler, stable readout width)."
+    "note": "RAV 2.5.8 is the current public release. It fixes the Machine ID on Windows (it was unavailable there in 2.5.7, which blocked activation on Windows installations); the Machine ID is now derived from the installation's machine identifier on Windows, the hardware UUID on macOS and the machine-id file elsewhere, and existing keys are unaffected. 2.5.7 added the Machine ID row in the About window, the MCP rav_entitlement_status tool (56 tools total), on-demand analysis reports (HTML, Markdown, PDF) on activated installations, file inspection rebuilt on RF Parser 2.5.14, and the timeline scrubber fixes."
   },
   "entities": [
     {
