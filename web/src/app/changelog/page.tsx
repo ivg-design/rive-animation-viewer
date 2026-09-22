@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, Sparkles, Bug, Wrench, ShieldCheck, Gauge } from "lucide-react";
+import { ChevronLeft, Sparkles, Bug, Wrench, ShieldCheck, Gauge, Trash2, BookOpen, AlertTriangle } from "lucide-react";
 import { asset } from "@/lib/config";
 import { parseChangelog } from "@/lib/changelog";
 import { getLatestRelease } from "@/lib/github";
@@ -129,7 +129,10 @@ export default async function ChangelogPage() {
                   || entry.fixed.length > 0
                   || entry.changed.length > 0
                   || entry.performance.length > 0
-                  || entry.validation.length > 0;
+                  || entry.validation.length > 0
+                  || entry.removed.length > 0
+                  || entry.documentation.length > 0
+                  || entry.knownLimits.length > 0;
                 return (
                   <div
                     key={entry.version}
@@ -176,6 +179,9 @@ export default async function ChangelogPage() {
                         <CategorySection icon={Gauge} title="Performance" items={entry.performance} color="text-violet-400" />
                         <CategorySection icon={Bug} title="Fixed" items={entry.fixed} color="text-blue-400" />
                         <CategorySection icon={ShieldCheck} title="Validation" items={entry.validation} color="text-cyan-400" />
+                        <CategorySection icon={Trash2} title="Removed" items={entry.removed} color="text-rose-400" />
+                        <CategorySection icon={BookOpen} title="Documentation" items={entry.documentation} color="text-sky-400" />
+                        <CategorySection icon={AlertTriangle} title="Known limits" items={entry.knownLimits} color="text-orange-400" />
                       </div>
                     )}
                   </div>
