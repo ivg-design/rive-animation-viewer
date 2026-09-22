@@ -28,12 +28,6 @@ All notable released changes to this project are documented in this file.
   set can change after activation; the server now declares
   `tools.listChanged` and sends `notifications/tools/list_changed`.
 
-- **Analysis reports** — On an active installation, RAV can generate a full
-  analysis report of the open file as HTML, Markdown or PDF into a folder you
-  choose, from the same tool set MCP clients already use. Reports cover
-  artboards, state machines, ViewModels, bindings, listeners, scripts and
-  assets, with prioritized findings and a health score.
-
 ### Fixed
 
 - **Large files took minutes to inspect** — The bundled file-inspection module

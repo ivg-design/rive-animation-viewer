@@ -163,9 +163,6 @@ key issued outside the app.
   after activation; the server declares `tools.listChanged` and sends
   `notifications/tools/list_changed`, and clients that cache `tools/list`
   should refresh on that notification.
-- **Analysis reports** — active installations can also generate a full analysis
-  report of the open file (HTML, Markdown, PDF) into a folder you choose; the
-  report tool appears in `tools/list` once active.
 - **Where the key lives** — `entitlement.key` in the desktop app's app-data
   directory, owner-only permissions on macOS and Linux. A stored key that no
   longer verifies is discarded and the `reason` is reported.

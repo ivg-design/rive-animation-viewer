@@ -7,7 +7,7 @@
     "version": "2.5.8",
     "status": "public",
     "public": true,
-    "note": "RAV 2.5.8 is the current public release. It fixes the Machine ID on Windows (it was unavailable there in 2.5.7, which blocked activation on Windows installations); the Machine ID is now derived from the installation's machine identifier on Windows, the hardware UUID on macOS and the machine-id file elsewhere, and existing keys are unaffected. 2.5.7 added the Machine ID row in the About window, the MCP rav_entitlement_status tool (56 tools total), on-demand analysis reports (HTML, Markdown, PDF) on activated installations, file inspection rebuilt on RF Parser 2.5.14, and the timeline scrubber fixes."
+    "note": "RAV 2.5.8 is the current public release. It fixes the Machine ID on Windows (it was unavailable there in 2.5.7, which blocked activation on Windows installations); the Machine ID is now derived from the installation's machine identifier on Windows, the hardware UUID on macOS and the machine-id file elsewhere, and existing keys are unaffected. 2.5.7 added the Machine ID row in the About window, the MCP rav_entitlement_status tool (56 tools total), file inspection rebuilt on RF Parser 2.5.14, and the timeline scrubber fixes."
   },
   "entities": [
     {
