@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 const topics = [
-  { icon: Download, title: "Getting Started", desc: "Installation and first launch", href: "/docs/getting-started" },
+  { icon: Download, title: "Open Your First .riv File", desc: "Install, preview and test ViewModel values", href: "/docs/getting-started" },
   { icon: Layers, title: "Opening Files", desc: "Load .riv files", href: "/docs/opening-files" },
   { icon: Monitor, title: "UI Layout", desc: "Toolbar, panels, and runtime strip", href: "/docs/ui-layout" },
   { icon: Gamepad2, title: "ViewModel Controls", desc: "Auto-discovered inputs", href: "/docs/viewmodel-controls" },

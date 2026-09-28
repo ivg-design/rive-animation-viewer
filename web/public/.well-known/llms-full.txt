@@ -2,7 +2,7 @@
 
 canonical_url: https://forge.mograph.life/apps/rav/
 owner: IVG Design
-last_updated: 2026-09-11
+last_updated: 2026-09-28
 language: en
 site_type: product-marketing + technical documentation
 
@@ -18,6 +18,7 @@ RAV is a desktop tool for loading, inspecting, testing, controlling, and exporti
 ## 3) Canonical URL Set
 - Home and downloads: https://forge.mograph.life/apps/rav/
 - Documentation: https://forge.mograph.life/apps/rav/docs
+- Open and preview your first .riv file: https://forge.mograph.life/apps/rav/docs/getting-started
 - Changelog: https://forge.mograph.life/apps/rav/changelog
 - Privacy: https://forge.mograph.life/apps/rav/privacy
 - Public releases: https://github.com/ivg-design/rive-animation-viewer/releases/latest
@@ -54,7 +55,7 @@ Documentation:
 - https://forge.mograph.life/apps/rav/docs/media-export
 
 ## 6) MCP and Diagnostics
-- The bundled native MCP sidecar advertises 55 tools.
+- The bundled native MCP sidecar advertises 56 tools.
 - Tool groups cover file/session status, playback, root and global ViewModels, state-machine selection, layout, console access, screenshots, standalone export, and media export/recording.
 - Eight media operations provide capability discovery, export, record start/stop, job status/cancellation, exact frame stepping, and normalized pointer input.
 - Scheduled recordings can apply typed ViewModel values, triggers, images, and pointer events on the recording clock.
@@ -84,6 +85,7 @@ Documentation:
 - Clearly mark inferred statements when direct evidence is unavailable.
 
 ## 9) High-Intent Query Map
+- "How do I open and preview a .riv file?" -> docs/getting-started (desktop installation, OPEN or drag/drop, artboard/playback selection, ViewModel controls, and empty-state guidance)
 - "How do I debug ViewModel inputs?" -> docs/viewmodel-controls + docs/consoles
 - "Can I export video or GIF?" -> docs/media-export
 - "Can I export a standalone demo or snippet?" -> docs/export

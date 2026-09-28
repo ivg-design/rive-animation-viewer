@@ -4,7 +4,7 @@ site_name: RAV
 site_url: https://forge.mograph.life/apps/rav/
 canonical_url: https://forge.mograph.life/apps/rav/
 owner: IVG Design
-last_updated: 2026-09-14
+last_updated: 2026-09-28
 language: en
 
 ## Purpose
@@ -13,6 +13,7 @@ RAV is a standalone desktop app for inspecting, debugging, testing, and exportin
 ## Canonical Sources
 - Home and downloads: https://forge.mograph.life/apps/rav/
 - Documentation: https://forge.mograph.life/apps/rav/docs
+- Open and preview your first .riv file: https://forge.mograph.life/apps/rav/docs/getting-started
 - Changelog: https://forge.mograph.life/apps/rav/changelog
 - Privacy and anonymous usage counting: https://forge.mograph.life/apps/rav/privacy
 

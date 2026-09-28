@@ -10,7 +10,7 @@ type DocsPage = { id: string; title: string; keywords?: string };
 
 export const docsGroups: { title: string; pages: DocsPage[] }[] = [
   { title: "Getting started", pages: [
-    { id: "getting-started", title: "Installation & First Launch" },
+    { id: "getting-started", title: "Open Your First .riv File", keywords: "install installation preview getting started" },
     { id: "opening-files", title: "Opening Files" },
     { id: "ui-layout", title: "UI Layout" },
   ] },
