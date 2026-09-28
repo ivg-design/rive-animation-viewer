@@ -1,6 +1,6 @@
 import { asset } from "@/lib/config";
 import { getLatestRelease, formatBytes } from "@/lib/github";
-import { Apple, Monitor } from "lucide-react";
+import { Apple, ArrowRight, Monitor } from "lucide-react";
 import InteractiveDemo from "./InteractiveDemo";
 
 export default async function HeroSection() {
@@ -73,6 +73,13 @@ export default async function HeroSection() {
         <p className="text-[11px] text-[var(--text-ghost)] font-mono">
           macOS 11+ &middot; Windows 10+ &middot; Free &amp; open source
         </p>
+        <a
+          href={asset("/docs/getting-started")}
+          className="inline-flex items-center gap-2 text-sm text-[var(--text-dim)] underline underline-offset-4 decoration-[var(--border-light)] hover:text-[var(--neon)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--neon)] transition-colors"
+        >
+          New to RAV? Open your first .riv file
+          <ArrowRight className="w-4 h-4 shrink-0" aria-hidden="true" />
+        </a>
       </div>
 
       {/* Interactive demo — the live app IS the hero */}
