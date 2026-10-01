@@ -28,8 +28,10 @@ All notable released changes to this project are documented in this file.
   remain. Checked controls determine the standalone control UI, restored
   current values, and active generated accessors.
 - **Security dependency updates** — The shipped TLS stack now resolves
-  `rustls` 0.23.45. The legacy Node MCP lockfile also resolves patched
-  `fast-uri` 3.1.8, `hono` 4.13.12, and `ip-address` 10.7.2.
+  `rustls` 0.23.45. The RFA 0.2.0 sidecars are rebuilt with
+  `quick-xml` 0.41.0, and the website uses Next.js 16.3.8. The legacy Node
+  MCP lockfile also resolves patched `fast-uri` 3.1.8, `hono` 4.13.12, and
+  `ip-address` 10.7.2.
 
 ### Fixed
 
