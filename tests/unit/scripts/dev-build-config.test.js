@@ -15,14 +15,14 @@ describe('isolated next-version DEV build', () => {
         const versionBump = read('scripts/bump-version.mjs');
         const versionCheck = read('scripts/check-release-version.mjs');
 
-        expect(pkg.version).toBe('2.5.8');
+        expect(pkg.version).toBe('2.5.9');
         expect(production.version).toBe(pkg.version);
         const productionParts = pkg.version.split('.').map(Number);
         const devParts = dev.version.split('.').map(Number);
-        expect(devParts.join('.')).toBe('2.5.9');
+        expect(devParts.join('.')).toBe('2.5.10');
         expect(devParts.some((part, index) => part !== productionParts[index])).toBe(true);
-        expect(dev.productName).toBe('RAV 2.5.9 DEV');
-        expect(dev.mainBinaryName).toBe('rav-2.5.9-dev');
+        expect(dev.productName).toBe('RAV 2.5.10 DEV');
+        expect(dev.mainBinaryName).toBe('rav-2.5.10-dev');
         expect(versionBump).toContain("bumpVersion(newVersion, 'patch')");
         expect(versionCheck).toContain('must be newer than production');
         expect(dev.identifier).toBe('app.rive.animation.viewer.flicker-test');
