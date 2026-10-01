@@ -49,10 +49,18 @@ describe('ui regression smoke', () => {
         expect(offenders).toEqual([]);
     });
 
-    it('keeps Changed Only out of the export controls and documentation', () => {
+    it('keeps Changed Only out of export controls, the native overlay, MCP, and documentation', () => {
         const dialogs = readFileSync(path.join(repoRoot, 'src', 'app', 'bootstrap', 'dom', 'dialogs.js'), 'utf8');
+        const overlay = readFileSync(path.join(repoRoot, 'overlay.html'), 'utf8');
+        const overlayEntry = readFileSync(path.join(repoRoot, 'src', 'app', 'ui', 'overlay', 'entry.js'), 'utf8');
+        const mcpTools = readFileSync(path.join(repoRoot, 'mcp-server', 'tools', 'editor-tools.js'), 'utf8');
         const documentation = readFileSync(path.join(repoRoot, 'web', 'src', 'app', 'docs', 'export', 'page.tsx'), 'utf8');
         expect(dialogs).not.toContain('CHANGED ONLY');
+        expect(overlay).not.toContain('CHANGED ONLY');
+        expect(overlay).not.toContain('data-overlay-export-preset="changed"');
+        expect(overlayEntry).toContain("if (preset !== 'all' && preset !== 'none') return;");
+        expect(mcpTools).not.toContain("'changed'");
+        expect(mcpTools).not.toContain('CHANGED ONLY');
         expect(dialogs).toContain('id="instantiation-preset-all-btn"');
         expect(dialogs).toContain('id="instantiation-preset-none-btn"');
         expect(documentation).not.toContain('CHANGED ONLY');

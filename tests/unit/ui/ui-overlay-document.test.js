@@ -91,6 +91,15 @@ describe('native UI overlay document', () => {
         expect(`${entry}\n${settingsRenderer}\n${actionClient}`).not.toContain('events.emitTo');
     });
 
+    it('exposes only all/clear presets and rejects unknown export presets', () => {
+        const html = read('overlay.html');
+        const entry = read('src/app/ui/overlay/entry.js');
+        expect(html).toContain('data-overlay-export-preset="all"');
+        expect(html).toContain('data-overlay-export-preset="none"');
+        expect(html).not.toContain('data-overlay-export-preset="changed"');
+        expect(entry).toContain("if (preset !== 'all' && preset !== 'none') return;");
+    });
+
     it('keeps Default .riv App compact and preserves Anonymous Usage directly above About', () => {
         const fallback = read('index.html');
         const native = read('overlay.html');

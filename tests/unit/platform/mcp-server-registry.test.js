@@ -92,4 +92,14 @@ describe('legacy MCP server registry', () => {
         });
         expect(nativeRegistry).toContain('"target": { "type": "string", "enum": ["auto", "host", "playback"]');
     });
+
+    it('limits visual export selection presets to all and clear while preserving explicit keys', () => {
+        const exportTool = TOOLS.find((tool) => tool.name === 'rav_export_demo_visual');
+        const selection = exportTool.inputSchema.properties.selection;
+        expect(selection.oneOf[0]).toEqual({ type: 'string', enum: ['all', 'none'] });
+        expect(selection.oneOf[1]).toMatchObject({ type: 'array', items: { type: 'string' } });
+        expect(selection.description).toContain("'all' clicks SELECT ALL");
+        expect(selection.description).toContain("'none' clicks CLEAR");
+        expect(selection.description).not.toMatch(/changed only|changed/i);
+    });
 });

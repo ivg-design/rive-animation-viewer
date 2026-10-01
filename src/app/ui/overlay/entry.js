@@ -202,7 +202,11 @@ if (purpose === 'export') {
     if (exportPanel) exportPanel.hidden = false;
     exportPanel?.querySelector('[data-overlay-close]')?.addEventListener('click', () => void emitAction('close'));
     exportPanel?.querySelectorAll('[data-overlay-export-preset]').forEach((button) => {
-        button.addEventListener('click', () => void emitAction('selection-preset', button.dataset.overlayExportPreset));
+        button.addEventListener('click', () => {
+            const preset = button.dataset.overlayExportPreset;
+            if (preset !== 'all' && preset !== 'none') return;
+            void emitAction('selection-preset', preset);
+        });
     });
     exportPanel?.querySelector('[data-overlay-export-package]')?.addEventListener('change', (event) => {
         void emitAction('package-source', event.target.value);

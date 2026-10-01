@@ -70,11 +70,11 @@ export const EDITOR_TOOLS = [
         },
         selection: {
           oneOf: [
-            { type: 'string', enum: ['all', 'changed', 'none'] },
+            { type: 'string', enum: ['all', 'none'] },
             { type: 'array', items: { type: 'string' }, description: 'Explicit list of control snapshot keys to enable.' },
           ],
           description:
-            "How to populate the dialog's control selection. 'all' clicks SELECT ALL, 'changed' clicks CHANGED ONLY, 'none' clicks CLEAR, or pass an explicit array of control keys.",
+            "How to populate the dialog's control selection. 'all' clicks SELECT ALL, 'none' clicks CLEAR, or pass an explicit array of control keys.",
         },
         package_source: {
           type: 'string',

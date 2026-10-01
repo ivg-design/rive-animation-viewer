@@ -388,7 +388,7 @@ decoded-artifact, timing, interaction, regression, and distribution evidence.
 - **MCP `rav_console_set_filter`** — Drive the existing on-screen filter toggles from any MCP client. JS mode supports `level` (`all`/`info`/`warning`/`error`); Event mode supports `sources` (subset of `native`/`riveUser`/`ui`/`mcp`); both modes support `search`. Auto-targets the active mode when `mode` is omitted.
 - **MCP `rav_console_clear`** — Clear the visible transcript of the active mode (or a specified mode) without closing the panel.
 - **Extended MCP `rav_console_open`** — Optional `mode`, `level`, `sources`, and `search` apply pre-configured filter state in the same call. Backwards compatible with no-argument invocations.
-- **MCP `rav_export_demo_visual`** — Orchestrates the Snippet & Export Controls dialog visually (open → selection → package/mode → click Export → save) for screen recordings or non-default control selections. Accepts `selection: "all" | "changed" | "none" | string[]`. The explicit-array form keys off a new `data-control-key` attribute on each tree checkbox.
+- **MCP `rav_export_demo_visual`** — Orchestrates the Snippet & Export Controls dialog visually (open → selection → package/mode → click Export → save) for screen recordings or non-default control selections. Accepts `selection: "all" | "none" | string[]`. The explicit-array form keys off a new `data-control-key` attribute on each tree checkbox.
 
 ### Changed
 

@@ -345,12 +345,11 @@
                         ? JSON.parse(JSON.stringify(VM_HIERARCHY))
                         : null);
                 var vmHierarchy = filterHierarchyNode(liveVmHierarchy);
-                var globalVmHierarchies = getGlobalViewModelNames().map(function (name) {
+                var liveGlobalVmHierarchies = getGlobalViewModelNames().map(function (name) {
                     var instance = resolveGlobalVmRootInstance(name);
-                    return instance ? filterHierarchyNode(
-                        buildVmHierarchyFromInspection(instance, name) || buildVmHierarchy(instance, name)
-                    ) : null;
+                    return instance ? (buildVmHierarchyFromInspection(instance, name) || buildVmHierarchy(instance, name)) : null;
                 }).filter(Boolean);
+                var globalVmHierarchies = liveGlobalVmHierarchies.map(filterHierarchyNode).filter(Boolean);
                 var globalVmGroup = globalVmHierarchies.length ? {
                     children: globalVmHierarchies,
                     inputs: [],
@@ -364,7 +363,7 @@
                 countEl.textContent = String(totalControls);
                 if (!totalControls && !globalVmGroup) {
                     emptyEl.hidden = false;
-                    emptyEl.textContent = describeEmptyVmControls(liveVmHierarchy);
+                    emptyEl.textContent = describeEmptyVmControls(liveVmHierarchy, liveGlobalVmHierarchies);
                     if (vmListTopologySignature === null && !pendingControlSnapshot.size) stopVmControlSync();
                     else startVmControlSync();
                     return;

@@ -4288,8 +4288,12 @@ describe('exported demo ViewModel snapshot runtime', () => {
         const exportedHierarchy = createExportHierarchy(2);
         const selected = createDemoVmHarness(null, { controlSelectionKeys: [], vmHierarchy: exportedHierarchy });
         expect(selected.describeEmptyVmControls(stripHierarchyDescriptors(exportedHierarchy)))
-            .toBe('The ViewModel is bound, but none of its 7 controls were selected for this export.');
+            .toBe('There are 7 bound ViewModel controls, but none were selected for this export.');
         expect(selected.describeEmptyVmControls(null)).toBe('No writable ViewModel properties were found.');
+
+        const globalOnly = selected.describeEmptyVmControls(null, [stripHierarchyDescriptors(exportedHierarchy)]);
+        expect(globalOnly).toBe('There are 7 bound ViewModel controls, but none were selected for this export.');
+        expect(riveLoaderSource).toContain('describeEmptyVmControls(liveVmHierarchy, liveGlobalVmHierarchies)');
 
         const unscoped = createDemoVmHarness(null, { controlSelectionKeys: null, vmHierarchy: exportedHierarchy });
         expect(unscoped.describeEmptyVmControls({ inputs: [], children: [] }))
