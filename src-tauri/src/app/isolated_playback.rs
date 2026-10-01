@@ -98,6 +98,7 @@ mod tests {
             layout_state: None,
             runtime_name: "webgl2".into(),
             runtime_script: "console.log('runtime');".into(),
+            runtime_wasm_base64: None,
             runtime_version: Some("2.39.2".into()),
             state_machines: vec!["Main".into()],
             view_model_instance_name: None,

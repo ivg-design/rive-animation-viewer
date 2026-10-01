@@ -14,6 +14,8 @@ pub struct DemoBundlePayload {
     pub runtime_name: String,
     pub runtime_version: Option<String>,
     pub runtime_script: String,
+    #[serde(default)]
+    pub runtime_wasm_base64: Option<String>,
     pub autoplay: bool,
     #[serde(default)]
     pub enable_gpu_canvas: bool,

@@ -36,6 +36,7 @@ fn demo_html_escapes_instantiation_snippets_before_embedding_config() {
         layout_state: Some("{}".into()),
         runtime_name: "webgl2".into(),
         runtime_script: "console.log('</ScRiPt>');".into(),
+        runtime_wasm_base64: Some("AGFzbQEAAAA=".into()),
         runtime_version: Some("2.36.0".into()),
         state_machines: vec!["main-sm".into()],
         view_model_instance_name: Some("Preview".into()),
@@ -49,6 +50,10 @@ fn demo_html_escapes_instantiation_snippets_before_embedding_config() {
     assert!(html.contains("const CONFIG = JSON.parse('"));
     assert!(html.contains("const VM_HIERARCHY = JSON.parse('"));
     assert!(html.contains("defaultInstantiationPackageSource"));
+    assert!(html.contains("\"runtimeWasmBase64\":\"AGFzbQEAAAA=\""));
+    assert!(html.contains("configureEmbeddedRiveRuntime(window.rive"));
+    assert!(!html.contains("fonts.googleapis.com"));
+    assert!(!html.contains("fonts.gstatic.com"));
     assert!(html.contains("instantiationSnippets"));
     assert!(html.contains("controlSelectionKeys"));
     assert!(html.contains("controlSnapshot"));
@@ -87,6 +92,7 @@ fn demo_html_includes_canvas_background_helper_and_copy_button() {
         layout_state: Some("{}".into()),
         runtime_name: "webgl2".into(),
         runtime_script: "console.log('runtime');".into(),
+        runtime_wasm_base64: None,
         runtime_version: Some("2.37.0".into()),
         state_machines: vec!["main-sm".into()],
         view_model_instance_name: None,

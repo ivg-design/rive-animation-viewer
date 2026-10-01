@@ -26,6 +26,8 @@ const DEMO_TEMPLATE_STYLES: &str = concat!(
 const DEMO_TEMPLATE_APP_JS: &str = concat!(
     include_str!("../demo-template/js/core/preamble.js"),
     "\n",
+    include_str!("../demo-template/js/core/load/embedded-runtime.js"),
+    "\n",
     include_str!("../../../src/app/snippets/source/rive-runtime-compatibility.js"),
     "\n",
     include_str!("../demo-template/js/core/color-utils.js"),
@@ -154,6 +156,7 @@ pub fn build_demo_html(payload: &DemoBundlePayload) -> Result<String, serde_json
       "fileName": payload.file_name,
       "runtimeName": payload.runtime_name,
       "runtimeVersion": payload.runtime_version,
+      "runtimeWasmBase64": payload.runtime_wasm_base64,
       "animationBase64": payload.animation_base64,
       "autoplay": payload.autoplay,
       "enableGPUCanvas": payload.enable_gpu_canvas,

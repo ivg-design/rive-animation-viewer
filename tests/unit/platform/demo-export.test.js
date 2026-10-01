@@ -2,9 +2,14 @@ import { createRenderSourceIdentityResolver } from '../../../src/app/platform/ex
 import {
     arrayBufferToBase64,
     buildDemoBundlePayload,
-    createDemoExportController,
+    createDemoExportController as createController,
     resolveExportStateMachines,
 } from '../../../src/app/platform/export/demo-export.js';
+
+const createDemoExportController = (options) => createController({
+    prepareRuntimeWasm: async () => 'AGFzbQEAAAA=',
+    ...options,
+});
 
 describe('platform/demo-export', () => {
     it('builds export payloads and resolves state-machine fallbacks', () => {

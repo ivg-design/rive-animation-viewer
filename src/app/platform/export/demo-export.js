@@ -1,4 +1,5 @@
 import { buildDemoBundlePayload } from './demo-payload.js';
+import { prepareRuntimeWasm as prepareEmbeddedRuntimeWasm } from './runtime-wasm.js';
 export { arrayBufferToBase64, resolveExportStateMachines, buildDemoBundlePayload } from './demo-payload.js';
 import { createSourceScope, sourceScopesMatch } from '../../rive/inspection/source-scope.js';
 import {
@@ -35,6 +36,7 @@ export function createDemoExportController({
     getLayoutStateSnapshot = () => ({}),
     getRiveInstance = () => null,
     getRuntimeAsset = () => null,
+    prepareRuntimeWasm = prepareEmbeddedRuntimeWasm,
     getRuntimeVersionToken = () => 'latest',
     getSelectedControlKeys = () => null,
     getCanvasBackgroundStateSnapshot = () => ({}),
@@ -143,7 +145,7 @@ export function createDemoExportController({
         };
     }
 
-    async function buildExportContext({ enableGPUCanvas, packageSource = 'cdn', selectedControlKeys, snippetMode = 'compact' } = {}) {
+    async function buildExportContext({ enableGPUCanvas, packageSource = 'cdn', selectedControlKeys, snippetMode = 'compact', embedRuntime = true } = {}) {
         const currentFileBuffer = getCurrentFileBuffer();
         const currentFileName = getCurrentFileName();
         if (!currentFileBuffer || !currentFileName) {
@@ -170,6 +172,9 @@ export function createDemoExportController({
         if (!runtimeAsset?.text) {
             throw new Error(`Runtime data for ${runtimeName} is not ready yet. Please wait for it to finish loading.`);
         }
+
+        const runtimeWasmBase64 = embedRuntime ? await prepareRuntimeWasm(runtimeName, runtimeAsset) : null;
+        assertCurrent();
 
         const selectedRuntimeSemver = runtimeAsset.version || getEffectiveRuntimeVersionToken(getRuntimeVersionToken());
         const selection = getArtboardStateSnapshot();
@@ -240,6 +245,7 @@ export function createDemoExportController({
             layoutState: getLayoutStateSnapshot(),
             runtimeName,
             runtimeScript: runtimeAsset.text,
+            runtimeWasmBase64,
             runtimeVersion: selectedRuntimeSemver,
             stateMachines: descriptor.stateMachines,
             canvasBackgroundState: getCanvasBackgroundStateSnapshot(),
@@ -266,6 +272,7 @@ export function createDemoExportController({
 
     async function buildRenderSurfaceContext() {
         const context = await buildExportContext({
+            embedRuntime: false,
             packageSource: 'cdn',
             selectedControlKeys: [],
             snippetMode: 'compact',
@@ -298,7 +305,7 @@ export function createDemoExportController({
         const runtimeName = getCurrentRuntime();
         let context;
         try {
-            context = await buildExportContext(exportOptions);
+            context = await buildExportContext({ ...exportOptions, embedRuntime: true });
         } catch (error) {
             const message = String(error?.message || error || 'Failed to create demo bundle.');
             showError(message);
@@ -345,7 +352,7 @@ export function createDemoExportController({
             throw new Error('Export requires the Tauri desktop app');
         }
 
-        const context = await buildExportContext(options);
+        const context = await buildExportContext({ ...options, embedRuntime: true });
         logEvent('mcp', 'export', `Exporting demo to ${outputPath}`);
         const result = await invoke('make_demo_bundle_to_path', { payload: context.payload, outputPath });
         logEvent('mcp', 'export-complete', `Demo saved: ${result}`);
@@ -358,7 +365,7 @@ export function createDemoExportController({
             throw new Error('Isolated playback requires the Tauri desktop app');
         }
 
-        const context = await buildExportContext(options);
+        const context = await buildExportContext({ ...options, embedRuntime: true });
         logEvent(
             'ui',
             'isolated-playback-open',
