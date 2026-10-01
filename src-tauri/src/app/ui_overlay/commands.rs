@@ -1,5 +1,5 @@
 use std::time::Duration;
-use tauri::{webview::WebviewBuilder, AppHandle, Emitter, Manager, State, WebviewUrl};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::{sync::oneshot, time::timeout};
 
 use super::{
@@ -12,7 +12,6 @@ use super::{
 };
 
 const MAIN_WINDOW_LABEL: &str = "main";
-const UI_OVERLAY_DOCUMENT: &str = "overlay.html";
 const UI_OVERLAY_READY_TIMEOUT: Duration = Duration::from_secs(6);
 
 fn emit_overlay_failure(
@@ -77,10 +76,7 @@ fn start_overlay(
             return Err(format!("Failed to serialize UI overlay bootstrap: {error}"));
         }
     };
-    let init_script = format!("window.__RAV_UI_OVERLAY_BOOTSTRAP__ = Object.freeze({bootstrap});");
-    let builder = WebviewBuilder::new(&resource.label, WebviewUrl::App(UI_OVERLAY_DOCUMENT.into()))
-        .focused(false)
-        .initialization_script(init_script);
+    let builder = support::overlay_webview_builder(&resource.label, &bootstrap);
     let main_window = app
         .get_window(MAIN_WINDOW_LABEL)
         .ok_or_else(|| "Main native window is not available".to_string())?;

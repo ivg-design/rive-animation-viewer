@@ -36,6 +36,7 @@
         "titleBarStyle": "Visible",
         "trafficLightPosition": null,
         "hiddenTitle": false,
+        "backgroundThrottling": "disabled",
         "fullscreen": false
       }
     ]

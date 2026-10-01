@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use tauri::{webview::WebviewBuilder, AppHandle, Emitter, Manager, WebviewUrl};
 
+use crate::app::constants::WEBVIEW_BACKGROUND_THROTTLING;
 use crate::app::operational_trace::record;
 
 use super::super::{
@@ -125,7 +126,9 @@ async fn recover_once(app: AppHandle, ticket: ActivationWatchdogTicket, webview_
         return;
     };
     let staged_bounds = retry.replacement.target_bounds.staged();
-    let builder = WebviewBuilder::new(&retry.replacement.label, webview_url).focused(false);
+    let builder = WebviewBuilder::new(&retry.replacement.label, webview_url)
+        .focused(false)
+        .background_throttling(WEBVIEW_BACKGROUND_THROTTLING);
     let webview =
         match main_window.add_child(builder, staged_bounds.position(), staged_bounds.size()) {
             Ok(webview) => webview,

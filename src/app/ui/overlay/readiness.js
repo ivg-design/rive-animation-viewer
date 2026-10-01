@@ -1,11 +1,26 @@
-function nextFrame(windowRef) {
+// requestAnimationFrame stops while the RAV window is hidden or occluded. The
+// timer only completes the wait for a hidden document; a visible one must paint.
+const FRAME_FALLBACK_MS = 250;
+
+function nextFrame(windowRef, documentRef) {
     return new Promise((resolve) => {
         const requestFrame = windowRef?.requestAnimationFrame;
-        if (typeof requestFrame === 'function') {
-            requestFrame.call(windowRef, () => resolve());
+        if (typeof requestFrame !== 'function') {
+            windowRef?.setTimeout?.(resolve, 0) ?? resolve();
             return;
         }
-        windowRef?.setTimeout?.(resolve, 0) ?? resolve();
+        let timer = null;
+        const finish = () => {
+            if (timer !== null) windowRef.clearTimeout?.(timer);
+            timer = null;
+            resolve();
+        };
+        const checkHidden = () => {
+            if (documentRef?.visibilityState === 'hidden') finish();
+            else timer = windowRef.setTimeout?.(checkHidden, FRAME_FALLBACK_MS) ?? null;
+        };
+        timer = windowRef.setTimeout?.(checkHidden, FRAME_FALLBACK_MS) ?? null;
+        requestFrame.call(windowRef, finish);
     });
 }
 
@@ -35,6 +50,6 @@ export async function waitForOverlayVisualReadiness({
     const visibleImages = Array.from(documentRef?.querySelectorAll?.('img') || [])
         .filter(isVisibleImage);
     await Promise.all(visibleImages.map(waitForImage));
-    await nextFrame(windowRef);
-    await nextFrame(windowRef);
+    await nextFrame(windowRef, documentRef);
+    await nextFrame(windowRef, documentRef);
 }

@@ -37,6 +37,7 @@
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
         "theme": "Dark",
+        "backgroundThrottling": "disabled",
         "fullscreen": false
       }
     ]

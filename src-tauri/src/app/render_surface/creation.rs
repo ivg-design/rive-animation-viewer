@@ -1,5 +1,6 @@
 use tauri::{webview::WebviewBuilder, AppHandle, Manager, State};
 
+use crate::app::constants::WEBVIEW_BACKGROUND_THROTTLING;
 use crate::app::operational_trace::record;
 
 use super::{
@@ -80,7 +81,9 @@ pub(super) async fn create_render_surface(
     // explicit `transparent(false)` builder method is unavailable on macOS
     // without the private-API feature, which this project intentionally avoids.
     let watchdog_url = webview_url.clone();
-    let builder = WebviewBuilder::new(&surface_label, webview_url).focused(false);
+    let builder = WebviewBuilder::new(&surface_label, webview_url)
+        .focused(false)
+        .background_throttling(WEBVIEW_BACKGROUND_THROTTLING);
 
     // Stage offscreen rather than hidden: the native view stays compositor
     // visible so Rive and requestAnimationFrame can paint, while clipping

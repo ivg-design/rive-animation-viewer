@@ -1,11 +1,22 @@
 #[cfg(target_os = "linux")]
 use tauri::Manager;
-use tauri::{AppHandle, Webview};
+use tauri::{webview::WebviewBuilder, AppHandle, Webview, WebviewUrl};
+
+use crate::app::constants::WEBVIEW_BACKGROUND_THROTTLING;
 
 #[cfg(target_os = "macos")]
 use objc2_app_kit::NSView;
 
 pub(super) const UI_OVERLAY_CORNER_RADIUS: f64 = 8.0;
+const UI_OVERLAY_DOCUMENT: &str = "overlay.html";
+
+pub(super) fn overlay_webview_builder(label: &str, bootstrap: &str) -> WebviewBuilder<tauri::Wry> {
+    let init_script = format!("window.__RAV_UI_OVERLAY_BOOTSTRAP__ = Object.freeze({bootstrap});");
+    WebviewBuilder::new(label, WebviewUrl::App(UI_OVERLAY_DOCUMENT.into()))
+        .focused(false)
+        .background_throttling(WEBVIEW_BACKGROUND_THROTTLING)
+        .initialization_script(init_script)
+}
 
 #[cfg(target_os = "linux")]
 const MAIN_WINDOW_LABEL: &str = "main";

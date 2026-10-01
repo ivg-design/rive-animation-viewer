@@ -7,6 +7,14 @@ pub const ABOUT_MENU_ID: &str = "rav-about";
 pub const RAV_DOCS_URL: &str = "https://forge.mograph.life/apps/rav/docs";
 pub const MCP_CLIENT_LAUNCHER_NAME: &str = "rav-mcp-rav";
 
+/// MCP commands, exports and recordings must keep answering while the RAV
+/// window is hidden or occluded. WebKit (macOS 14+) otherwise suspends an
+/// inactive web view's content process. requestAnimationFrame still stops
+/// for a hidden document, so frame waits keep their own timer fallbacks. The
+/// main window sets the same policy through `backgroundThrottling` in its config.
+pub const WEBVIEW_BACKGROUND_THROTTLING: tauri::utils::config::BackgroundThrottlingPolicy =
+    tauri::utils::config::BackgroundThrottlingPolicy::Disabled;
+
 pub fn is_official_app_identifier(identifier: &str) -> bool {
     identifier == OFFICIAL_APP_IDENTIFIER
 }
