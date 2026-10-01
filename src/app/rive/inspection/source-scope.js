@@ -12,6 +12,12 @@ export function sourceScopesMatch(left, right, { requireSession = false } = {}) 
         && (!requireSession || Boolean(left.sessionId && left.sessionId === right.sessionId));
 }
 
+export function controlSelectionScopesMatch(left, right) {
+    if (!left?.sourceIdentity || !right?.sourceIdentity) return false;
+    return ['sourceIdentity', 'artboardKey', 'vmInstanceKey']
+        .every((key) => normalize(left[key]) === normalize(right[key]));
+}
+
 export function scopedControlSnapshot(snapshot, sourceScope) {
     return { sourceScope: createSourceScope(sourceScope), snapshot: Array.isArray(snapshot) ? snapshot : [] };
 }

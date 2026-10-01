@@ -323,6 +323,103 @@ describe('ui/instantiation-controls-dialog', () => {
         });
     });
 
+    it('preserves explicit subset and Clear selections across renderer and runtime-version changes', async () => {
+        const elements = buildElements();
+        const hierarchy = {
+            children: [{
+                children: [],
+                inputs: ['x', 'y'].map((path) => ({
+                    descriptor: { kind: 'number', name: path, path },
+                    kind: 'number', name: path, path,
+                })),
+                kind: 'vm', label: 'Root VM', path: '',
+            }],
+            inputs: [], kind: 'controls', label: 'Controls', path: '__controls__',
+        };
+        let selectionScope = {
+            artboardKey: 'Main',
+            runtimeKey: 'webgl2@2.44.0',
+            sourceIdentity: 'same-source',
+            vmInstanceKey: 'Primary',
+        };
+        const controller = createInstantiationControlsDialogController({
+            callbacks: {
+                getCurrentFileName: () => 'same-source.riv',
+                getCurrentSelectionScope: () => selectionScope,
+                getTauriInvoker: () => vi.fn(),
+            },
+            elements,
+            serializeControlHierarchy: () => hierarchy,
+        });
+
+        await controller.openDialog();
+        controller.configureForMcp({ selection: ['vm:x:number'] });
+        await controller.toggleDialog('close');
+
+        selectionScope = { ...selectionScope, runtimeKey: 'canvas@2.44.0' };
+        await controller.openDialog();
+        expect(controller.getSelectedControlKeys()).toEqual(['vm:x:number']);
+        await controller.toggleDialog('close');
+
+        selectionScope = { ...selectionScope, runtimeKey: 'canvas@2.45.0' };
+        await controller.openDialog();
+        expect(controller.getSelectedControlKeys()).toEqual(['vm:x:number']);
+
+        controller.configureForMcp({ selection: 'none' });
+        await controller.toggleDialog('close');
+        selectionScope = { ...selectionScope, runtimeKey: 'webgl2@2.45.0' };
+        await controller.openDialog();
+        expect(controller.getSelectedControlKeys()).toEqual([]);
+        await controller.toggleDialog('close');
+
+        selectionScope = { ...selectionScope, runtimeKey: 'webgl2@2.46.0' };
+        await controller.openDialog();
+        expect(controller.getSelectedControlKeys()).toEqual([]);
+    });
+
+    it.each([
+        ['source file', { sourceIdentity: 'other-source' }],
+        ['artboard', { artboardKey: 'Secondary' }],
+        ['ViewModel instance', { vmInstanceKey: 'Alternate' }],
+    ])('resets an explicit selection after a %s change', async (_label, changedScope) => {
+        const elements = buildElements();
+        const hierarchy = {
+            children: [{
+                children: [],
+                inputs: ['x', 'y'].map((path) => ({
+                    descriptor: { kind: 'number', name: path, path },
+                    kind: 'number', name: path, path,
+                })),
+                kind: 'vm', label: 'Root VM', path: '',
+            }],
+            inputs: [], kind: 'controls', label: 'Controls', path: '__controls__',
+        };
+        let selectionScope = {
+            artboardKey: 'Main',
+            runtimeKey: 'webgl2@2.44.0',
+            sourceIdentity: 'same-source',
+            vmInstanceKey: 'Primary',
+        };
+        const controller = createInstantiationControlsDialogController({
+            callbacks: {
+                getCurrentFileName: () => 'scoped.riv',
+                getCurrentSelectionScope: () => selectionScope,
+                getTauriInvoker: () => vi.fn(),
+            },
+            elements,
+            serializeControlHierarchy: () => hierarchy,
+        });
+
+        await controller.openDialog();
+        controller.configureForMcp({ selection: ['vm:x:number'] });
+        await controller.toggleDialog('close');
+        selectionScope = { ...selectionScope, ...changedScope };
+
+        await controller.openDialog();
+        expect(controller.getSelectedControlKeys()).toEqual(['vm:x:number', 'vm:y:number']);
+        expect(controller.getExportControlSelection()).toBeNull();
+    });
+
     it('initializes the export override from the toolbar and applies dialog changes to both output paths', async () => {
         const elements = buildElements();
         const createDemoBundle = vi.fn().mockResolvedValue('/tmp/gpu-demo.html');

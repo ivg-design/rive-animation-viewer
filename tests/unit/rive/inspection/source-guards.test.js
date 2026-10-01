@@ -1,4 +1,9 @@
-import { createSourceScope, sourceScopesMatch, scopedControlSnapshot } from '../../../../src/app/rive/inspection/source-scope.js';
+import {
+    controlSelectionScopesMatch,
+    createSourceScope,
+    sourceScopesMatch,
+    scopedControlSnapshot,
+} from '../../../../src/app/rive/inspection/source-scope.js';
 import { createVmControlAccessorResolver } from '../../../../src/app/rive/view-model/controller/accessor-resolver.js';
 import { createRemoteControlsAdapter } from '../../../../src/app/rive/view-model/remote/controls.js';
 import { createVmSnapshotController } from '../../../../src/app/rive/view-model/snapshot.js';
@@ -13,6 +18,18 @@ const nextState = (sessionId, value) => ({ sessionId, stateRevision: 1, topology
     vmInstance: { key: 'VM' }, controlsHierarchy: { inputs: [{ descriptor, kind: 'string', value }], children: [] } });
 
 describe('source and session guards', () => {
+    it('matches control selections across runtime changes but not source, artboard, or ViewModel changes', () => {
+        const current = scope();
+        expect(controlSelectionScopesMatch(current, scope({ runtimeKey: 'canvas@2.42.0' }))).toBe(true);
+        expect(controlSelectionScopesMatch(current, scope({ runtimeKey: 'webgl2@2.45.0' }))).toBe(true);
+        expect(controlSelectionScopesMatch(current, scope({ sourceIdentity: 'file-B' }))).toBe(false);
+        expect(controlSelectionScopesMatch(current, scope({ artboardKey: 'Second' }))).toBe(false);
+        expect(controlSelectionScopesMatch(current, scope({ vmInstanceKey: 'Other' }))).toBe(false);
+        expect(controlSelectionScopesMatch(current, scope({ sourceIdentity: null }))).toBe(false);
+        expect(controlSelectionScopesMatch(null, current)).toBe(false);
+        expect(sourceScopesMatch(current, scope({ runtimeKey: 'canvas@2.42.0' }))).toBe(false);
+    });
+
     it.each([{ sourceIdentity: 'file-B' }, { runtimeKey: 'canvas@2.42.0' }, { artboardKey: 'Second' }, { vmInstanceKey: 'Other' }])
     ('does not replay controls across %j', async (changed) => {
         const sendCommand = vi.fn(async () => ({ applied: true }));

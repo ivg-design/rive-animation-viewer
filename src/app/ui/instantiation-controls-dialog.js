@@ -1,4 +1,4 @@
-import { createSourceScope, sourceScopesMatch } from '../rive/inspection/source-scope.js';
+import { controlSelectionScopesMatch, createSourceScope } from '../rive/inspection/source-scope.js';
 import {
     collectNodeInputKeys,
     collectTreeNodeInputKeys,
@@ -146,7 +146,7 @@ export function createInstantiationControlsDialogController({
         }
 
         const nextSelectionScope = captureSelectionScope();
-        if (!sourceScopesMatch(selectionScope, nextSelectionScope)) {
+        if (!controlSelectionScopesMatch(selectionScope, nextSelectionScope)) {
             selectedControlKeys = null;
             selectionTouched = false;
             selectionScope = nextSelectionScope;

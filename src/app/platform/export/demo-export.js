@@ -1,7 +1,7 @@
 import { buildDemoBundlePayload } from './demo-payload.js';
 import { prepareRuntimeWasm as prepareEmbeddedRuntimeWasm } from './runtime-wasm.js';
 export { arrayBufferToBase64, resolveExportStateMachines, buildDemoBundlePayload } from './demo-payload.js';
-import { createSourceScope, sourceScopesMatch } from '../../rive/inspection/source-scope.js';
+import { controlSelectionScopesMatch, createSourceScope, sourceScopesMatch } from '../../rive/inspection/source-scope.js';
 import {
     controlSelectionKeyForDescriptor,
     isControlDescriptorSelected,
@@ -58,7 +58,7 @@ export function createDemoExportController({
             : Array.isArray(storedSelection)
                 ? storedSelection
                 : (Array.isArray(storedSelection?.keys)
-                    && sourceScopesMatch(storedSelection.scope, sourceScope))
+                    && controlSelectionScopesMatch(storedSelection.scope, sourceScope))
                     ? storedSelection.keys
                     : null;
         const availableKeys = new Set(availableSnapshot.map((entry) => (

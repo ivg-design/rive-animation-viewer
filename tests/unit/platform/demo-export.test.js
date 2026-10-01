@@ -276,15 +276,18 @@ describe('platform/demo-export', () => {
         expect(JSON.parse(staleContext.payload.control_snapshot)).toEqual([]);
     });
 
-    it('applies remembered selections only to their exact export scope and sanitizes current keys', async () => {
+    it('keeps remembered selections across runtime changes but rejects source, artboard, and ViewModel changes', async () => {
         const buffer = Uint8Array.from([9, 8, 7]).buffer;
         const sourceIdentity = await createRenderSourceIdentityResolver()(buffer);
-        const sourceScope = {
+        const rememberedScope = {
             artboardKey: 'Main',
             runtimeKey: 'webgl2@2.44.0',
             sourceIdentity,
             vmInstanceKey: 'Primary',
         };
+        let currentScope = rememberedScope;
+        let runtimeName = 'webgl2';
+        let runtimeVersion = '2.44.0';
         const fullSnapshot = [
             { descriptor: { kind: 'number', name: 'x', path: 'x' }, kind: 'number', value: 12 },
             { descriptor: { kind: 'boolean', name: 'active', path: 'active' }, kind: 'boolean', value: true },
@@ -292,26 +295,40 @@ describe('platform/demo-export', () => {
         let rememberedSelection = null;
         const controller = createDemoExportController({
             getArtboardStateSnapshot: () => ({
-                currentArtboard: 'Main',
-                currentVmInstanceName: 'Primary',
+                currentArtboard: currentScope.artboardKey,
+                currentVmInstanceName: currentScope.vmInstanceKey,
             }),
-            getControlSnapshotScope: () => sourceScope,
+            getControlSnapshotScope: () => currentScope,
             getInspectionMetadata: () => ({ sourceIdentity }),
             captureVmControlSnapshot: () => fullSnapshot,
             getCurrentFileBuffer: () => buffer,
             getCurrentFileName: () => 'scoped-selection.riv',
-            getCurrentRuntime: () => 'webgl2',
-            getRuntimeAsset: () => ({ text: 'runtime();', version: '2.44.0' }),
+            getCurrentRuntime: () => runtimeName,
+            getRuntimeAsset: () => ({ text: 'runtime();', version: runtimeVersion }),
             getSelectedControlKeys: () => rememberedSelection,
         });
 
-        rememberedSelection = { keys: [], scope: sourceScope };
+        rememberedSelection = { keys: [], scope: rememberedScope };
         const clearedContext = await controller.buildExportContext();
         expect(JSON.parse(clearedContext.payload.control_selection_keys)).toEqual([]);
 
+        runtimeName = 'canvas';
+        currentScope = { ...currentScope, runtimeKey: 'canvas@2.44.0' };
+        const rendererChangedClearContext = await controller.buildExportContext();
+        expect(JSON.parse(rendererChangedClearContext.payload.control_selection_keys)).toEqual([]);
+
+        runtimeVersion = '2.45.0';
+        currentScope = { ...currentScope, runtimeKey: 'canvas@2.45.0' };
+        const versionChangedClearContext = await controller.buildExportContext();
+        expect(JSON.parse(versionChangedClearContext.payload.control_selection_keys)).toEqual([]);
+
+        rememberedSelection = { keys: ['vm:x:number'], scope: rememberedScope };
+        const runtimeChangedSubsetContext = await controller.buildExportContext();
+        expect(JSON.parse(runtimeChangedSubsetContext.payload.control_selection_keys)).toEqual(['vm:x:number']);
+
         rememberedSelection = {
             keys: [],
-            scope: { ...sourceScope, sourceIdentity: 'old-source' },
+            scope: { ...rememberedScope, sourceIdentity: 'old-source' },
         };
         const staleClearContext = await controller.buildExportContext();
         expect(JSON.parse(staleClearContext.payload.control_selection_keys)).toEqual([
@@ -321,14 +338,24 @@ describe('platform/demo-export', () => {
 
         rememberedSelection = {
             keys: ['vm:x:number', 'vm:removed:number'],
-            scope: sourceScope,
+            scope: rememberedScope,
         };
         const sanitizedContext = await controller.buildExportContext();
         expect(JSON.parse(sanitizedContext.payload.control_selection_keys)).toEqual(['vm:x:number']);
 
         rememberedSelection = {
             keys: ['vm:x:number'],
-            scope: { ...sourceScope, vmInstanceKey: 'Other' },
+            scope: { ...rememberedScope, artboardKey: 'Other' },
+        };
+        const staleArtboardContext = await controller.buildExportContext();
+        expect(JSON.parse(staleArtboardContext.payload.control_selection_keys)).toEqual([
+            'vm:x:number',
+            'vm:active:boolean',
+        ]);
+
+        rememberedSelection = {
+            keys: ['vm:x:number'],
+            scope: { ...rememberedScope, vmInstanceKey: 'Other' },
         };
         const staleSubsetContext = await controller.buildExportContext();
         expect(JSON.parse(staleSubsetContext.payload.control_selection_keys)).toEqual([
