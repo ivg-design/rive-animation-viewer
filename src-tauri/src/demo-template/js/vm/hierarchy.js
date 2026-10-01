@@ -27,8 +27,11 @@
                 available += countHierarchyInputs(hierarchy);
             });
             if (available > 0 && Array.isArray(CONTROL_SELECTION_KEYS)) {
+                if (available === 1) {
+                    return 'There is 1 bound ViewModel control, but none was selected for this export.';
+                }
                 return 'There are ' + available + ' bound ViewModel control'
-                    + (available === 1 ? '' : 's') + ', but none were selected for this export.';
+                    + 's, but none were selected for this export.';
             }
             return 'No writable ViewModel properties were found.';
         }
