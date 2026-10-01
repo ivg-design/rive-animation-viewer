@@ -2,6 +2,56 @@
 
 All notable released changes to this project are documented in this file.
 
+## [2.5.9] - 2026-10-01
+
+### Added
+
+- **Offline runtime in saved standalone demos** — Newly saved standalone HTML
+  embeds the validated WASM matching the selected concrete Canvas or WebGL2
+  runtime and disables CDN WASM fallback. After a successful export, the saved
+  file can play without network access and uses local font fallbacks.
+
+### Changed
+
+- **Standalone control selection** — A fresh source defaults to all currently
+  available exportable controls selected. The unreliable **Changed Only**
+  preset is removed; branch and leaf checkboxes, **Select All**, and **Clear**
+  remain. Checked controls determine the standalone control UI, restored
+  current values, and active generated accessors.
+- **Security dependency updates** — The shipped TLS stack now resolves
+  `rustls` 0.23.45. The legacy Node MCP lockfile also resolves patched
+  `fast-uri` 3.1.8, `hono` 4.13.12, and `ip-address` 10.7.2.
+
+### Fixed
+
+- **Scoped standalone selections** — Explicit subset and Clear selections
+  remain applicable across renderer or runtime-version changes for the same
+  source, artboard, and ViewModel. A file, artboard, or ViewModel change safely
+  defaults to all controls in the new authoritative hierarchy, so dialog-free
+  exports cannot serialize stale keys.
+- **Minimized-window MCP responsiveness on macOS** — Command-serving WebViews
+  no longer enter WKWebView inactivity suspension after extended minimization.
+  Status, file open, direct standalone export, export-dialog opening, and
+  renderer switching remain responsive while hidden; a visible export overlay
+  still waits for a real paint.
+- **Playback evaluation queue recovery** — A playback-targeted `rav_eval`
+  whose returned Promise remains unsettled is rejected after two seconds,
+  before the normal child acknowledgement deadline, allowing later ordered
+  renderer commands to proceed.
+
+### Known limits
+
+- **Live recording under capture lag** — Complex lossless or alpha captures
+  can run materially below the requested frame rate. The fixed-step animation
+  remains frame-complete, but unscheduled live input—observed with pointer
+  movement—can become time-compressed and bursty in the output. Use
+  recording-clock scheduled interactions for timing-critical takes. A final
+  2.5.9 disposition remains tracked in Issue #33.
+- **Standalone export bootstrap** — Creating a new export may require the
+  matching runtime WASM from cache or network. Existing HTML files must be
+  re-exported, and externally referenced Rive assets are not automatically
+  embedded.
+
 ## [2.5.8] - 2026-09-21
 
 ### Fixed

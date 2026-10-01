@@ -41,6 +41,12 @@ export default function Export() {
         <li>Canvas sizing mode (auto or fixed pixel dimensions)</li>
         <li>Complete styling for standalone viewing</li>
       </ul>
+      <p>
+        Newly saved standalone HTML embeds the matching Canvas or WebGL2 runtime WASM and can
+        play without network access. Creating the export may still require those runtime bytes
+        from cache or network. Existing demos must be re-exported, and externally referenced
+        assets remain external.
+      </p>
 
       <h2>Snippet &amp; Export Controls</h2>
 

@@ -6,8 +6,8 @@ For media export and recording, see [Media export and recording](Documentation/M
 
 ## Release
 
-- Prepared release candidate: `2.5.8` (native acceptance and publication pending).
-- Current public release: `2.5.7` ([GitHub release](https://github.com/ivg-design/rive-animation-viewer/releases/tag/v2.5.7)).
+- Prepared release candidate: `2.5.9` (native acceptance and publication pending).
+- Current public release: `2.5.8` ([GitHub release](https://github.com/ivg-design/rive-animation-viewer/releases/tag/v2.5.8)).
 - macOS downloads and updater apps are Developer ID signed, notarized, and stapled; updater payloads retain their separate update signatures.
 
 ## Regression Gates
@@ -211,7 +211,7 @@ Open the RAV desktop app and enable the MCP bridge. The **MCP** chip is muted an
 - Compact snippets expose only checked ViewModel/state-machine accessors on `window.riveProperties`; scaffold snippets list all accessors with unchecked lines commented out. They do not replay captured values.
 - Fixed-size snippets and exported demos preserve explicit `width × height` sizing instead of collapsing back to host-driven layout.
 - The **Snippet & Export Controls** dialog chooses which accessors appear in snippets and which current values a standalone HTML export restores. Branch checkboxes select nested properties; individual rows affect one property only.
-- If you never open the dialog, RAV defaults to the controls that differ from the load-time baseline.
+- If no explicit selection is made, RAV exports all controls in the current authoritative hierarchy. An explicit subset or Clear remains tied to its source, artboard, and ViewModel, survives renderer/runtime changes within that scope, and resets safely when that scope changes.
 - Exported demos mirror the active live source, keep fit/alignment in the main toolbar, and include a **Copy Instantiation Code** button in the demo toolbar.
 
 #### Event Console
@@ -228,7 +228,7 @@ All MCP commands, responses, and connection events appear in the event console w
 - **Native App**: Runs as a desktop application on macOS/Windows/Linux
 - **Demo Bundle Export**: Create self-contained HTML files with embedded animations and copyable instantiation snippets
 - **Canvas Background Parity**: Exported demos preserve the selected solid or transparent canvas background
-- **Offline Support**: Caches runtime scripts for offline use
+- **Offline standalone playback**: Newly exported standalone demos embed the matching Canvas or WebGL2 runtime WASM, so the saved HTML runs without network access. Creating the export may require the matching runtime bytes from cache or network; existing demos must be re-exported, and externally referenced assets remain external.
 - **Dev Tools Access**: Programmatic DevTools opening via inject button to access console
 - **Background App Updates**: Check, authenticate with the Tauri updater signature, install, and relaunch updates from GitHub Releases
 - **Safe Updater Bridge Shutdown**: Desktop installs stop the app-owned MCP bridge before updater installation starts, preventing Windows file-lock stalls
