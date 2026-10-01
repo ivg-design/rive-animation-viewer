@@ -211,6 +211,43 @@ describe('render surface eval authority', () => {
         expect(bounded.result.values.at(-1)).toBe('... 8 more');
     });
 
+    it('rejects an unsettled eval promise before the host ACK timeout so it cannot wedge the command chain', async () => {
+        // tests/setup.js installs fake timers for every test.
+        const helpers = new Function(`
+            let riveInstance = null;
+            let commandChain = Promise.resolve();
+            ${renderSurfaceEvalSource}
+            function enqueue(run) {
+                const next = commandChain.then(run);
+                commandChain = next.catch(() => {});
+                return next;
+            }
+            return { enqueue, evaluateRenderSurfaceExpression };
+        `)();
+
+        const wedged = helpers.enqueue(() => helpers.evaluateRenderSurfaceExpression({
+            expression: 'new Promise(() => {})',
+        }));
+        const wedgedOutcome = expect(wedged).rejects.toThrow(/did not settle within 2000 ms/);
+        const following = helpers.enqueue(() => 'play-applied');
+
+        await vi.advanceTimersByTimeAsync(2000);
+        await wedgedOutcome;
+        await expect(following).resolves.toBe('play-applied');
+    });
+
+    it('still returns promptly settled async results', async () => {
+        const helpers = new Function(`
+            let riveInstance = null;
+            ${renderSurfaceEvalSource}
+            return { evaluateRenderSurfaceExpression };
+        `)();
+        await expect(helpers.evaluateRenderSurfaceExpression({ expression: 'Promise.resolve(42)' }))
+            .resolves.toEqual({ result: 42 });
+        await expect(helpers.evaluateRenderSurfaceExpression({ expression: 'Promise.reject(new Error("nope"))' }))
+            .rejects.toThrow('Eval error: nope');
+    });
+
     it('bundles the child helper before the command router', () => {
         const helperInclude = 'include_str!("../demo-template/js/core/bridge/eval.js")';
         const bootstrapInclude = 'include_str!("../demo-template/js/core/bootstrap.js")';

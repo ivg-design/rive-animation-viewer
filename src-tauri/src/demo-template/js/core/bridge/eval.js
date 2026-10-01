@@ -117,6 +117,24 @@
             }
         }
 
+        // Eval runs inside the child's revision-ordered command chain, so an
+        // unsettled promise would block every later command for the session.
+        // Settle well inside the host's 3 s ACK timeout. requestAnimationFrame
+        // stops while the RAV window is hidden or occluded.
+        var RENDER_SURFACE_EVAL_SETTLE_LIMIT_MS = 2000;
+
+        function settleRenderSurfaceEvalValue(value) {
+            if (!value || typeof value.then !== 'function') return value;
+            var timer = null;
+            var limit = new Promise(function (_resolve, reject) {
+                timer = setTimeout(function () {
+                    reject(new Error('Result did not settle within ' + RENDER_SURFACE_EVAL_SETTLE_LIMIT_MS
+                        + ' ms (requestAnimationFrame stops while the RAV window is hidden or occluded).'));
+                }, RENDER_SURFACE_EVAL_SETTLE_LIMIT_MS);
+            });
+            return Promise.race([value, limit]).finally(function () { clearTimeout(timer); });
+        }
+
         async function evaluateRenderSurfaceExpression(payload) {
             var expression = payload && payload.expression;
             if (typeof expression !== 'string' || !expression.trim()) throw new Error('expression is required');
@@ -124,7 +142,7 @@
                 // Direct eval intentionally exposes this authoritative child scope,
                 // including riveInstance, only after the host Script Access gate.
                 // eslint-disable-next-line no-eval
-                var value = await eval(expression);
+                var value = await settleRenderSurfaceEvalValue(eval(expression));
                 if (typeof value === 'undefined') return { result: 'undefined' };
                 if (value === null) return { result: 'null' };
                 return { result: createRenderSurfaceEvalPreview(value) };
