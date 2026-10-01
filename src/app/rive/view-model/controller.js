@@ -159,6 +159,7 @@ export function createVmControlsController({
     const snapshotController = createVmSnapshotController({
         buildGlobalVmHierarchies,
         getBindings: () => vmControlBindings,
+        getRemoteHierarchy: () => (isAuthoritativeChildMode ? remoteControls.getHierarchy() : null),
         getRiveInstance,
         getCurrentSourceScope,
         resolveControlAccessor,
@@ -286,8 +287,7 @@ export function createVmControlsController({
     }
     function renderRemoteTopology() {
         renderVmInputControls();
-        // Adopt controls when the authoritative child's complete hierarchy is
-        // first rendered; asset preparation does not create a parent VM.
+        // Adopt the authoritative child's hierarchy; asset preparation creates no parent VM.
         snapshotController.reconcileVmControlBaselineSnapshot();
     }
     const remoteInteractionGate = createRemoteInteractionGate({

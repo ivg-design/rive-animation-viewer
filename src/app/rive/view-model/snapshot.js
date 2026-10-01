@@ -77,6 +77,7 @@ function serializeHierarchyNode(node, resolveControlAccessor) {
 export function createVmSnapshotController({
     buildGlobalVmHierarchies = () => [],
     getBindings,
+    getRemoteHierarchy = () => null,
     getRiveInstance,
     getCurrentSourceScope = null,
     resolveControlAccessor,
@@ -330,6 +331,11 @@ export function createVmSnapshotController({
     }
 
     function serializeControlHierarchy() {
+        const remoteHierarchy = getRemoteHierarchy();
+        if (remoteHierarchy) {
+            return serializeHierarchyNode(remoteHierarchy, resolveControlAccessor);
+        }
+
         const rootVm = resolveVmRootInstance(getRiveInstance());
         const vmHierarchy = rootVm
             ? stripNestedRootVmInputs(buildVmHierarchy(rootVm, getRiveInstance()))

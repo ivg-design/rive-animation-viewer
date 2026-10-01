@@ -153,6 +153,32 @@ describe('ui/instantiation-controls-dialog', () => {
         });
     });
 
+    it('defaults all thirteen authoritative controls selected in the untouched export dialog', async () => {
+        const elements = buildElements();
+        const inputs = Array.from({ length: 13 }, (_, index) => ({
+            descriptor: { kind: 'number', name: `control${index}`, path: `control${index}` },
+            kind: 'number',
+            name: `control${index}`,
+            path: `control${index}`,
+        }));
+        const controller = createInstantiationControlsDialogController({
+            callbacks: {
+                getCurrentFileName: () => 'authoritative-13.riv',
+                getTauriInvoker: () => vi.fn(),
+            },
+            elements,
+            serializeControlHierarchy: () => ({
+                children: [{ children: [], inputs, kind: 'vm', label: 'MainVM', path: '<root>' }],
+                inputs: [], kind: 'controls', label: 'Controls', path: '<controls>',
+            }),
+        });
+
+        controller.setup();
+        await expect(controller.openDialog()).resolves.toMatchObject({ open: true, selectionCount: 13 });
+        expect(controller.getSelectedControlKeys()).toHaveLength(13);
+        expect(elements.instantiationControlsTree.querySelectorAll('[data-control-key]:checked')).toHaveLength(13);
+    });
+
     it('defaults to all controls when the first authoritative hierarchy arrives, while preserving an explicit clear', async () => {
         const elements = buildElements();
         let hierarchy = { children: [], inputs: [], kind: 'controls', label: 'Controls', path: '__controls__' };

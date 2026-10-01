@@ -53,6 +53,56 @@ function canonicalState({
 }
 
 describe('child-authoritative ViewModel controls', () => {
+    it('serializes the authoritative child hierarchy into export descriptors with current values', () => {
+        const elements = createElements();
+        const inputs = Array.from({ length: 13 }, (_, index) => ({
+            descriptor: {
+                kind: 'number',
+                name: `control${index}`,
+                path: `control${index}`,
+                source: 'view-model',
+            },
+            kind: 'number',
+            value: index,
+        }));
+        let state = {
+            revision: 1,
+            sessionId: 'export-session',
+            stateRevision: 1,
+            topologyRevision: 1,
+            controlsHierarchy: {
+                children: [{ children: [], inputs, kind: 'vm', label: 'MainVM', path: '<root>' }],
+                inputs: [],
+                kind: 'controls',
+                label: 'Controls',
+                path: '<controls>',
+            },
+        };
+        const controller = createVmControlsController({
+            documentRef: document,
+            elements,
+            getRenderSurfaceCanonicalState: () => state,
+            isAuthoritativeChildMode: true,
+        });
+
+        const serialized = controller.serializeControlHierarchy();
+        expect(serialized.children[0].inputs).toHaveLength(13);
+        expect(serialized.children[0].inputs[0]).toMatchObject({
+            descriptor: { kind: 'number', name: 'control0', path: 'control0', source: 'view-model' },
+            kind: 'number',
+            value: 0,
+        });
+
+        state = {
+            ...state,
+            controlChanges: [{ key: 'vm:control0:number', kind: 'number', value: 42 }],
+            revision: 2,
+            stateRevision: 2,
+        };
+        expect(controller.serializeControlHierarchy().children[0].inputs[0].value).toBe(42);
+        controller.stopVmControlSync();
+    });
+
     it('adopts the first complete child hierarchy as the cold-load baseline', () => {
         const elements = createElements();
         let state = null;
