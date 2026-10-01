@@ -240,6 +240,36 @@ describe('platform/demo-export', () => {
         expect(context.instantiationSnippets.cdn.code).not.toContain('"focusIndex"');
     });
 
+    it('defaults direct standalone exports to every available control but preserves an explicit empty selection', async () => {
+        const fullSnapshot = [
+            { descriptor: { kind: 'number', name: 'x', path: 'x' }, kind: 'number', value: 12 },
+            { descriptor: { kind: 'boolean', name: 'active', path: 'active' }, kind: 'boolean', value: true },
+        ];
+        const sourceIdentity = await createRenderSourceIdentityResolver()(Uint8Array.from([3, 4]).buffer);
+        const controller = createDemoExportController({
+            getControlSnapshotScope: () => ({ sourceIdentity, runtimeKey: 'webgl2@2.42.0' }),
+            getInspectionMetadata: () => ({ sourceIdentity }),
+            captureVmControlSnapshot: () => fullSnapshot,
+            getCurrentFileBuffer: (() => { const buffer = Uint8Array.from([3, 4]).buffer; return () => buffer; })(),
+            getCurrentFileName: () => 'all-controls.riv',
+            getRuntimeAsset: () => ({ text: 'runtime();', version: '2.42.0' }),
+        });
+
+        const defaultContext = await controller.buildExportContext();
+        expect(JSON.parse(defaultContext.payload.control_selection_keys)).toEqual([
+            'vm:x:number',
+            'vm:active:boolean',
+        ]);
+        expect(JSON.parse(defaultContext.payload.control_snapshot)).toEqual(fullSnapshot);
+        expect(defaultContext.instantiationSnippets.cdn.code).toContain('"viewModel/x"');
+        expect(defaultContext.instantiationSnippets.cdn.code).toContain('"viewModel/active"');
+
+        const clearedContext = await controller.buildExportContext({ selectedControlKeys: [] });
+        expect(JSON.parse(clearedContext.payload.control_selection_keys)).toEqual([]);
+        expect(JSON.parse(clearedContext.payload.control_snapshot)).toEqual([]);
+        expect(clearedContext.instantiationSnippets.cdn.code).not.toContain('"viewModel/x"');
+    });
+
     it('reports validation and runtime preparation failures without invoking Tauri', async () => {
         const showError = vi.fn();
         const logEvent = vi.fn();

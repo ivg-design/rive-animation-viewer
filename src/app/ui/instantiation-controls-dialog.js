@@ -1,4 +1,3 @@
-import { controlSelectionKeyForDescriptor } from '../rive/vm-controls.js';
 import {
     collectNodeInputKeys,
     collectTreeNodeInputKeys,
@@ -19,8 +18,6 @@ export function createInstantiationControlsDialogController({
     callbacks = {},
     documentRef = globalThis.document,
     elements,
-    captureVmControlSnapshot = () => [],
-    getChangedVmControlSnapshot = () => [],
     serializeControlHierarchy = () => null,
     windowRef = globalThis.window,
 } = {}) {
@@ -43,6 +40,7 @@ export function createInstantiationControlsDialogController({
     let currentHierarchy = null;
     let currentAvailableKeys = new Set();
     let selectedControlKeys = null;
+    let selectionTouched = false;
     let expandedBranchKeys = new Set();
     let hierarchyRevision = 0;
     let hierarchySignature = '';
@@ -69,14 +67,6 @@ export function createInstantiationControlsDialogController({
 
     function getSelectedControlKeys() {
         return selectedControlKeys instanceof Set ? Array.from(selectedControlKeys) : null;
-    }
-
-    function getChangedControlKeySet() {
-        return new Set(
-            getChangedVmControlSnapshot()
-                .map((entry) => controlSelectionKeyForDescriptor(entry?.descriptor))
-                .filter(Boolean),
-        );
     }
 
     function getSnippetMode() {
@@ -111,6 +101,7 @@ export function createInstantiationControlsDialogController({
 
     function setSelection(nextSelection) {
         selectedControlKeys = sanitizeSelection(nextSelection, currentAvailableKeys);
+        selectionTouched = true;
         clearPreview();
         if (!overlayOpen) renderTree();
         updateSelectionSummary();
@@ -119,7 +110,7 @@ export function createInstantiationControlsDialogController({
     function configureForMcp(options) {
         return configureInstantiationControls(options, {
             clearPreview, currentAvailableKeys, documentRef, elements, ensureDialogState,
-            getChangedControlKeySet, getSelectedControlKeys, getSnippetMode,
+            getSelectedControlKeys, getSnippetMode,
             getExportGpuCanvasEnabled,
             isOverlayOpen: () => overlayOpen, setExportGpuCanvasEnabled, setSelection,
         });
@@ -135,6 +126,7 @@ export function createInstantiationControlsDialogController({
         if (fileName !== currentFileName) {
             currentFileName = fileName;
             selectedControlKeys = null;
+            selectionTouched = false;
             expandedBranchKeys = new Set();
             clearPreview();
         }
@@ -146,8 +138,8 @@ export function createInstantiationControlsDialogController({
             hierarchySignature = nextSignature;
             hierarchyRevision += 1;
         }
-        if (selectedControlKeys === null) {
-            selectedControlKeys = sanitizeSelection(getChangedControlKeySet(), currentAvailableKeys);
+        if (!selectionTouched) {
+            selectedControlKeys = new Set(currentAvailableKeys);
         } else {
             selectedControlKeys = sanitizeSelection(selectedControlKeys, currentAvailableKeys);
         }
@@ -273,7 +265,6 @@ export function createInstantiationControlsDialogController({
             });
             setSelection(nextSelection);
         } else if (action === 'selection-preset') {
-            if (value === 'changed') setSelection(getChangedControlKeySet());
             if (value === 'all') setSelection(new Set(currentAvailableKeys));
             if (value === 'none') setSelection(new Set());
         } else if (action === 'branch-expanded' && value?.key) {
@@ -376,12 +367,6 @@ export function createInstantiationControlsDialogController({
         });
         elements.instantiationControlsCloseButton?.addEventListener('click', () => {
             closeDialog();
-        });
-        elements.instantiationPresetChangedButton?.addEventListener('click', () => {
-            if (!ensureDialogState()) {
-                return;
-            }
-            setSelection(getChangedControlKeySet());
         });
         elements.instantiationPresetAllButton?.addEventListener('click', () => {
             if (!ensureDialogState()) {

@@ -49,6 +49,15 @@ describe('ui regression smoke', () => {
         expect(offenders).toEqual([]);
     });
 
+    it('keeps Changed Only out of the export controls and documentation', () => {
+        const dialogs = readFileSync(path.join(repoRoot, 'src', 'app', 'bootstrap', 'dom', 'dialogs.js'), 'utf8');
+        const documentation = readFileSync(path.join(repoRoot, 'web', 'src', 'app', 'docs', 'export', 'page.tsx'), 'utf8');
+        expect(dialogs).not.toContain('CHANGED ONLY');
+        expect(dialogs).toContain('id="instantiation-preset-all-btn"');
+        expect(dialogs).toContain('id="instantiation-preset-none-btn"');
+        expect(documentation).not.toContain('CHANGED ONLY');
+    });
+
     it('does not mix standardized scrollbar properties with WebKit scrollbar skinning on app/demo surfaces', () => {
         const scrollbarOwners = [
             path.join(repoRoot, 'styles', '00-base.css'),

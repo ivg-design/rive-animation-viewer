@@ -364,7 +364,7 @@
                 countEl.textContent = String(totalControls);
                 if (!totalControls && !globalVmGroup) {
                     emptyEl.hidden = false;
-                    emptyEl.textContent = 'No writable ViewModel properties were found.';
+                    emptyEl.textContent = describeEmptyVmControls(liveVmHierarchy);
                     if (vmListTopologySignature === null && !pendingControlSnapshot.size) stopVmControlSync();
                     else startVmControlSync();
                     return;

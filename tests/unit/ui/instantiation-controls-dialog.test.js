@@ -6,7 +6,6 @@ function buildElements() {
         <button id="instantiation-controls-close-btn"></button>
         <div id="instantiation-controls-tree"></div>
         <span id="instantiation-selection-summary"></span>
-        <button id="instantiation-preset-changed-btn"></button>
         <button id="instantiation-preset-all-btn"></button>
         <button id="instantiation-preset-none-btn"></button>
         <select id="instantiation-package-source-select">
@@ -38,7 +37,6 @@ function buildElements() {
         instantiationControlsCloseButton: document.getElementById('instantiation-controls-close-btn'),
         instantiationControlsTree: document.getElementById('instantiation-controls-tree'),
         instantiationSelectionSummary: document.getElementById('instantiation-selection-summary'),
-        instantiationPresetChangedButton: document.getElementById('instantiation-preset-changed-btn'),
         instantiationPresetAllButton: document.getElementById('instantiation-preset-all-btn'),
         instantiationPresetNoneButton: document.getElementById('instantiation-preset-none-btn'),
         instantiationPackageSourceSelect: document.getElementById('instantiation-package-source-select'),
@@ -53,7 +51,7 @@ function buildElements() {
 }
 
 describe('ui/instantiation-controls-dialog', () => {
-    it('defaults to changed controls, keeps select-all safe for values, and forwards the selected keys into snippet generation', async () => {
+    it('defaults to all controls, keeps explicit selection, and forwards selected keys into snippet generation', async () => {
         const elements = buildElements();
         const createDemoBundle = vi.fn().mockResolvedValue('/tmp/demo.html');
         const generateWebInstantiationCode = vi.fn().mockResolvedValue({ code: '<script>demo</script>' });
@@ -69,15 +67,6 @@ describe('ui/instantiation-controls-dialog', () => {
                 updateInfo: vi.fn(),
             },
             elements,
-            getChangedVmControlSnapshot: () => [{
-                descriptor: {
-                    kind: 'number',
-                    name: 'progress',
-                    path: 'card/progress',
-                },
-                kind: 'number',
-                value: 10,
-            }],
             serializeControlHierarchy: () => ({
                 children: [{
                     children: [],
@@ -115,9 +104,16 @@ describe('ui/instantiation-controls-dialog', () => {
         });
 
         controller.setup();
-        await expect(controller.openDialog()).resolves.toEqual({ open: true, selectionCount: 1 });
-        expect(controller.getSelectedControlKeys()).toEqual(['vm:card/progress:number']);
-        expect(elements.instantiationSelectionSummary.textContent).toContain('1 of 2');
+        await expect(controller.openDialog()).resolves.toEqual({ open: true, selectionCount: 2 });
+        expect(controller.getSelectedControlKeys()).toEqual([
+            'vm:card/progress:number',
+            'vm:card/reset:trigger',
+        ]);
+        expect(elements.instantiationSelectionSummary.textContent).toContain('2 of 2');
+
+        elements.instantiationPresetNoneButton.click();
+        expect(controller.getSelectedControlKeys()).toEqual([]);
+        expect(elements.instantiationSelectionSummary.textContent).toContain('0 of 2');
 
         elements.instantiationPresetAllButton.click();
         expect(controller.getSelectedControlKeys()).toEqual([
@@ -155,6 +151,37 @@ describe('ui/instantiation-controls-dialog', () => {
             ],
             snippetMode: 'scaffold',
         });
+    });
+
+    it('defaults to all controls when the first authoritative hierarchy arrives, while preserving an explicit clear', async () => {
+        const elements = buildElements();
+        let hierarchy = { children: [], inputs: [], kind: 'controls', label: 'Controls', path: '__controls__' };
+        const controller = createInstantiationControlsDialogController({
+            callbacks: {
+                getCurrentFileName: () => 'late-hierarchy.riv',
+                getTauriInvoker: () => vi.fn(),
+            },
+            elements,
+            serializeControlHierarchy: () => hierarchy,
+        });
+        controller.setup();
+        await controller.openDialog();
+        expect(controller.getSelectedControlKeys()).toEqual([]);
+
+        hierarchy = {
+            children: [{ children: [], inputs: [{
+                descriptor: { kind: 'number', name: 'x', path: 'x' },
+                kind: 'number', name: 'x', path: 'x',
+            }], kind: 'vm', label: 'Root VM', path: '' }],
+            inputs: [], kind: 'controls', label: 'Controls', path: '__controls__',
+        };
+        document.dispatchEvent(new CustomEvent('rav:vm-topology-changed'));
+        expect(controller.getSelectedControlKeys()).toEqual(['vm:x:number']);
+
+        elements.instantiationPresetNoneButton.click();
+        expect(controller.getSelectedControlKeys()).toEqual([]);
+        document.dispatchEvent(new CustomEvent('rav:vm-topology-changed'));
+        expect(controller.getSelectedControlKeys()).toEqual([]);
     });
 
     it('initializes the export override from the toolbar and applies dialog changes to both output paths', async () => {
@@ -210,10 +237,6 @@ describe('ui/instantiation-controls-dialog', () => {
                 initLucideIcons: vi.fn(),
             },
             elements,
-            getChangedVmControlSnapshot: () => [{
-                ...listInput(0),
-                value: 0,
-            }],
             serializeControlHierarchy: () => ({
                 children: [{
                     children: [
@@ -348,7 +371,9 @@ describe('ui/instantiation-controls-dialog', () => {
         document.dispatchEvent(new CustomEvent('rav:vm-topology-changed'));
 
         expect(elements.instantiationControlsTree.textContent).toContain('playerName (string)');
-        expect(elements.instantiationSelectionSummary.textContent).toContain('0 of 2');
+        expect(elements.instantiationSelectionSummary.textContent).toContain('2 of 2');
+        expect(Array.from(elements.instantiationControlsTree.querySelectorAll('[data-control-key]'))
+            .every((checkbox) => checkbox.checked)).toBe(true);
     });
 
     it('resends same-size reordered list topology until the overlay confirms delivery', async () => {
@@ -397,7 +422,7 @@ describe('ui/instantiation-controls-dialog', () => {
         await expect(controller.openDialog()).resolves.toEqual({
             open: true,
             overlay: true,
-            selectionCount: 0,
+            selectionCount: 1,
         });
         const initial = overlayDefinition.getState();
         overlayDefinition.onStateSynced(initial);
@@ -499,7 +524,7 @@ describe('ui/instantiation-controls-dialog', () => {
         await expect(controller.openDialog()).resolves.toEqual({
             open: true,
             overlay: true,
-            selectionCount: 0,
+            selectionCount: 2,
         });
         expect(elements.instantiationControlsTree.querySelectorAll('[data-control-key]')).toHaveLength(0);
 

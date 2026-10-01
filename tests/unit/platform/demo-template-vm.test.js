@@ -460,6 +460,7 @@ function createDemoVmHarness(riveInstance, {
             bindViewModelInstanceByKey,
             buildVmHierarchy,
             buildVmHierarchyFromInspection,
+            describeEmptyVmControls,
             captureRenderSurfacePlayback,
             captureRenderSurfaceCommandCanonicalDelta,
             captureChangedRenderSurfaceControls,
@@ -4281,6 +4282,18 @@ describe('exported demo ViewModel snapshot runtime', () => {
         });
 
         expect(harness.filterHierarchyNode(stripHierarchyDescriptors(exportedHierarchy))).toBeNull();
+    });
+
+    it('explains that a bound ViewModel has controls when the export selection is empty', () => {
+        const exportedHierarchy = createExportHierarchy(2);
+        const selected = createDemoVmHarness(null, { controlSelectionKeys: [], vmHierarchy: exportedHierarchy });
+        expect(selected.describeEmptyVmControls(stripHierarchyDescriptors(exportedHierarchy)))
+            .toBe('The ViewModel is bound, but none of its 7 controls were selected for this export.');
+        expect(selected.describeEmptyVmControls(null)).toBe('No writable ViewModel properties were found.');
+
+        const unscoped = createDemoVmHarness(null, { controlSelectionKeys: null, vmHierarchy: exportedHierarchy });
+        expect(unscoped.describeEmptyVmControls({ inputs: [], children: [] }))
+            .toBe('No writable ViewModel properties were found.');
     });
 });
 

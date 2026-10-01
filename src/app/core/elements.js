@@ -117,7 +117,6 @@ export function getElements(documentRef = document) {
         instantiationControlsCloseButton: documentRef.getElementById('instantiation-controls-close-btn'),
         instantiationControlsTree: documentRef.getElementById('instantiation-controls-tree'),
         instantiationSelectionSummary: documentRef.getElementById('instantiation-selection-summary'),
-        instantiationPresetChangedButton: documentRef.getElementById('instantiation-preset-changed-btn'),
         instantiationPresetAllButton: documentRef.getElementById('instantiation-preset-all-btn'),
         instantiationPresetNoneButton: documentRef.getElementById('instantiation-preset-none-btn'),
         instantiationPackageSourceSelect: documentRef.getElementById('instantiation-package-source-select'),

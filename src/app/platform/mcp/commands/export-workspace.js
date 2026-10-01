@@ -79,8 +79,6 @@ export function createExportWorkspaceCommands({
                 } else {
                     if (selection === 'all') {
                         documentRef.getElementById('instantiation-preset-all-btn')?.click();
-                    } else if (selection === 'changed') {
-                        documentRef.getElementById('instantiation-preset-changed-btn')?.click();
                     } else if (selection === 'none') {
                         documentRef.getElementById('instantiation-preset-none-btn')?.click();
                     } else if (Array.isArray(selection)) {
@@ -108,6 +106,8 @@ export function createExportWorkspaceCommands({
                             )).find((candidate) => candidate.getAttribute('data-control-key') === key);
                             if (checkbox && !checkbox.checked) checkbox.click();
                         }
+                    } else if (selection !== undefined) {
+                        throw new Error("selection must be 'all', 'none', or an array of control keys");
                     }
                     if (selection !== undefined) await sleep(step_delay_ms);
 

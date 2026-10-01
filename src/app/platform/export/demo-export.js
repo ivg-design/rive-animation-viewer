@@ -40,7 +40,6 @@ export function createDemoExportController({
     getRuntimeVersionToken = () => 'latest',
     getSelectedControlKeys = () => null,
     getCanvasBackgroundStateSnapshot = () => ({}),
-    getChangedVmControlSnapshot = () => [],
     serializeVmHierarchy = () => null,
 } = {}) {
     const {
@@ -52,13 +51,13 @@ export function createDemoExportController({
     } = callbacks;
     const resolveRenderSourceIdentity = createRenderSourceIdentityResolver();
 
-    function resolveSelectedControlKeys(selectedControlKeys) {
+    function resolveSelectedControlKeys(selectedControlKeys, availableSnapshot = captureVmControlSnapshot()) {
         const explicitKeys = Array.isArray(selectedControlKeys)
             ? selectedControlKeys
             : getSelectedControlKeys();
         const sourceKeys = Array.isArray(explicitKeys)
             ? explicitKeys
-            : getChangedVmControlSnapshot()
+            : availableSnapshot
                 .map((entry) => controlSelectionKeyForDescriptor(entry?.descriptor))
                 .filter(Boolean);
         return Array.from(new Set(
@@ -69,15 +68,15 @@ export function createDemoExportController({
         ));
     }
 
-    function resolveSelectedControlSnapshot(selectedControlKeys) {
-        const resolvedKeys = resolveSelectedControlKeys(selectedControlKeys);
+    function resolveSelectedControlSnapshot(selectedControlKeys, snapshot = captureVmControlSnapshot()) {
+        const resolvedKeys = resolveSelectedControlKeys(selectedControlKeys, snapshot);
         if (!resolvedKeys.length) {
             return [];
         }
 
         const allowedKeys = new Set(resolvedKeys);
 
-        return captureVmControlSnapshot().filter((entry) =>
+        return snapshot.filter((entry) =>
             isControlDescriptorSelected(entry?.descriptor, allowedKeys));
     }
 
@@ -111,10 +110,11 @@ export function createDemoExportController({
             artboardKey: selection.currentArtboard, vmInstanceKey: selection.currentVmInstanceName,
         }));
         const liveConfigState = getLiveConfigState();
-        const controlSelectionKeys = resolveSelectedControlKeys(selectedControlKeys);
+        const availableControlSnapshot = captureVmControlSnapshot();
+        const controlSelectionKeys = resolveSelectedControlKeys(selectedControlKeys, availableControlSnapshot);
         const controlSnapshot = !canCapture ? [] : snippetMode === 'scaffold'
-            ? resolveAllControlSnapshot()
-            : resolveSelectedControlSnapshot(controlSelectionKeys);
+            ? availableControlSnapshot
+            : resolveSelectedControlSnapshot(controlSelectionKeys, availableControlSnapshot);
         const descriptor = buildEffectiveInstantiationDescriptor({
             artboardState: getArtboardStateSnapshot(),
             currentFileName,
@@ -183,8 +183,11 @@ export function createDemoExportController({
             artboardKey: selection.currentArtboard, vmInstanceKey: selection.currentVmInstanceName });
         const canCapture = sourceScopesMatch(getControlSnapshotScope(), sourceScope);
         const defaultPackageSource = packageSource === 'local' ? 'local' : 'cdn';
-        const controlSelectionKeys = resolveSelectedControlKeys(selectedControlKeys);
-        const controlSnapshot = canCapture ? resolveSelectedControlSnapshot(controlSelectionKeys) : [];
+        const availableControlSnapshot = captureVmControlSnapshot();
+        const controlSelectionKeys = resolveSelectedControlKeys(selectedControlKeys, availableControlSnapshot);
+        const controlSnapshot = canCapture
+            ? resolveSelectedControlSnapshot(controlSelectionKeys, availableControlSnapshot)
+            : [];
         const descriptor = buildEffectiveInstantiationDescriptor({
             artboardState: getArtboardStateSnapshot(),
             currentFileName,
@@ -204,13 +207,13 @@ export function createDemoExportController({
         });
         const instantiationSnippets = {
             cdn: buildWebInstantiationResult(descriptor, {
-                controlSnapshot: snippetMode === 'scaffold' && canCapture ? resolveAllControlSnapshot() : controlSnapshot,
+                controlSnapshot: snippetMode === 'scaffold' && canCapture ? availableControlSnapshot : controlSnapshot,
                 packageSource: 'cdn',
                 selectedControlKeys: controlSelectionKeys,
                 snippetMode,
             }),
             local: buildWebInstantiationResult(descriptor, {
-                controlSnapshot: snippetMode === 'scaffold' && canCapture ? resolveAllControlSnapshot() : controlSnapshot,
+                controlSnapshot: snippetMode === 'scaffold' && canCapture ? availableControlSnapshot : controlSnapshot,
                 packageSource: 'local',
                 selectedControlKeys: controlSelectionKeys,
                 snippetMode,

@@ -34,7 +34,7 @@ export default function Export() {
         <li>The selected runtime (Canvas or WebGL2) bundled inline</li>
         <li>The selected runtime semver baked in</li>
         <li>The current artboard, playback target, and active live source mode</li>
-        <li>Only the checked or changed ViewModel / state-machine values</li>
+        <li>Only the checked ViewModel / state-machine controls and their selected current values</li>
         <li>The embedded raster catalog used by each image property&apos;s single source select</li>
         <li>The raw applied editor config and lifecycle callbacks when Editor mode is active</li>
         <li>The generated canonical instantiation snippet (CDN and local variants)</li>
@@ -57,7 +57,7 @@ export default function Export() {
       </p>
       <ul>
         <li><strong>Tree checkboxes</strong> &mdash; branch checkboxes select entire nested sections, leaf checkboxes select individual controls</li>
-        <li><strong>Presets</strong> &mdash; CHANGED ONLY (default), SELECT ALL, CLEAR</li>
+        <li><strong>Selection</strong> &mdash; all controls are selected by default; use SELECT ALL, CLEAR, or the tree checkboxes to choose what appears in the standalone demo and snippet</li>
         <li><strong>Package source</strong> &mdash; CDN vs LOCAL (see below)</li>
         <li><strong>Snippet mode</strong> &mdash; COMPACT vs SCAFFOLD (see below)</li>
         <li><strong>GPU CANVAS</strong> &mdash; WebGL2 only (see below)</li>
@@ -98,11 +98,10 @@ export default function Export() {
           the smallest ready-to-paste form for wiring the properties your page actually uses.
         </li>
         <li>
-          <strong>SCAFFOLD</strong> &mdash; emits every available control on the loaded animation,
-          but comments out the unselected accessor lines. Use it as a starter map when you
-          expect to expose more controls later: uncomment the lines you need
-          without re-opening RAV. Pairs well with SELECT ALL or CHANGED ONLY presets when
-          you want a documented map of the full control surface.
+          <strong>SCAFFOLD</strong> &mdash; lists every available control on the loaded animation,
+          but emits active accessors only for checked controls and comments out the rest. Use it as
+          a starter map when you expect to select more controls later. SELECT ALL enables the full
+          control surface.
         </li>
       </ul>
 

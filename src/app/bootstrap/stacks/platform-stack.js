@@ -251,9 +251,7 @@ export function createPlatformStack({
             showError,
             updateInfo,
         },
-        captureVmControlSnapshot,
         elements,
-        getChangedVmControlSnapshot,
         serializeControlHierarchy,
     });
 

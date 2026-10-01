@@ -225,7 +225,7 @@ impl UiOverlayActionRequest {
             ("export", "branch-selection") => {
                 is_key_boolean_object(&self.value, "branchKey", "selected")
             }
-            ("export", "selection-preset") => is_one_of(&self.value, &["changed", "all", "none"]),
+            ("export", "selection-preset") => is_one_of(&self.value, &["all", "none"]),
             ("export", "package-source") => is_one_of(&self.value, &["cdn", "local"]),
             ("export", "snippet-mode") => is_one_of(&self.value, &["compact", "scaffold"]),
             ("export", "gpu-canvas") => self.value.is_boolean(),

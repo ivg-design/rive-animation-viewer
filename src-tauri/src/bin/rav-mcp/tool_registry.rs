@@ -201,17 +201,17 @@ pub fn tools_list() -> Value {
         },
         {
             "name": "rav_export_demo_visual",
-            "description": "Orchestrate the Snippet & Export Controls dialog visually: open the dialog, apply the control selection, set package source and snippet mode, click Export, and write the demo to `output_path`. Use this when the export needs to be visible (e.g. screen recording) or when a non-default control selection is required. For pure programmatic export, use `rav_export_demo`.",
+            "description": "Orchestrate the Snippet & Export Controls dialog visually: open the dialog, apply the control selection, set package source and snippet mode, click Export, and write the demo to `output_path`. Use this when the export needs to be visible (e.g. screen recording) or when a non-default control selection is required. All controls are selected by default. For pure programmatic export, use `rav_export_demo`.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "output_path": { "type": "string", "description": "Absolute path where the exported HTML demo will be saved." },
                     "selection": {
                         "oneOf": [
-                            { "type": "string", "enum": ["all", "changed", "none"] },
+                            { "type": "string", "enum": ["all", "none"] },
                             { "type": "array", "items": { "type": "string" }, "description": "Explicit list of control snapshot keys to enable." }
                         ],
-                        "description": "How to populate the dialog's control selection. 'all' clicks SELECT ALL, 'changed' clicks CHANGED ONLY, 'none' clicks CLEAR, or pass an explicit array of control keys."
+                        "description": "How to populate the dialog's control selection. 'all' clicks SELECT ALL, 'none' clicks CLEAR, or pass an explicit array of control keys."
                     },
                     "package_source": { "type": "string", "enum": ["cdn", "local"], "description": "Optional. Sets the package source select. Default: leave as-is." },
                     "snippet_mode": { "type": "string", "enum": ["compact", "scaffold"], "description": "Optional. Sets the snippet mode select. Default: leave as-is." },

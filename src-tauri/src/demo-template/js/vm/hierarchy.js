@@ -19,6 +19,17 @@
             return Boolean(selectionKey) && ALLOWED_CONTROL_KEYS.has(selectionKey);
         }
 
+        // Export selection can intentionally hide every input. Explain that
+        // state instead of claiming the bound ViewModel has no properties.
+        function describeEmptyVmControls(liveHierarchy) {
+            var available = liveHierarchy ? countHierarchyInputs(liveHierarchy) : 0;
+            if (available > 0 && Array.isArray(CONTROL_SELECTION_KEYS)) {
+                return 'The ViewModel is bound, but none of its ' + available
+                    + (available === 1 ? ' control was' : ' controls were') + ' selected for this export.';
+            }
+            return 'No writable ViewModel properties were found.';
+        }
+
         function filterHierarchyNode(node) {
             if (!node || typeof node !== 'object') return null;
             var inputs = (node.inputs || []).filter(function (input) {

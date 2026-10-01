@@ -36,7 +36,6 @@ export function configureInstantiationControls({ enableGPUCanvas, selection, pac
     documentRef,
     elements,
     ensureDialogState,
-    getChangedControlKeySet,
     getExportGpuCanvasEnabled,
     getSelectedControlKeys,
     getSnippetMode,
@@ -46,8 +45,7 @@ export function configureInstantiationControls({ enableGPUCanvas, selection, pac
 }) {
     if (!ensureDialogState()) throw new Error('Instantiation controls are not available');
 
-    if (selection === 'changed') setSelection(getChangedControlKeySet());
-    else if (selection === 'all') setSelection(new Set(currentAvailableKeys));
+    if (selection === 'all') setSelection(new Set(currentAvailableKeys));
     else if (selection === 'none') setSelection(new Set());
     else if (Array.isArray(selection)) {
         const normalizedKeys = selection.map((key) => ({
@@ -63,6 +61,8 @@ export function configureInstantiationControls({ enableGPUCanvas, selection, pac
                 .join(', ')}`);
         }
         setSelection(new Set(normalizedKeys.map(({ normalized }) => normalized)));
+    } else if (selection !== undefined) {
+        throw new Error("selection must be 'all', 'none', or an array of control keys");
     }
 
     if (packageSource !== undefined) {

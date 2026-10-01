@@ -112,7 +112,7 @@ const APP_DIALOGS_HTML = `
     <div class="instantiation-controls-header">
       <div>
         <h2>Snippet &amp; Export Controls</h2>
-        <p>Choose which bound properties become copy-paste accessors in snippets and which current values a standalone HTML export restores.</p>
+        <p>Select which bound properties appear as controls in the standalone HTML export, become copy-paste accessors in snippets, and have their current values restored.</p>
       </div>
       <button type="button" id="instantiation-controls-close-btn" class="icon-btn icon-btn-ghost rav-modal-close" aria-label="Close dialog">
         <i data-lucide="x" class="lucide-18"></i>
@@ -122,7 +122,6 @@ const APP_DIALOGS_HTML = `
       <div class="instantiation-controls-toolbar">
         <span id="instantiation-selection-summary" class="instantiation-selection-summary">Loading controls…</span>
         <div class="instantiation-controls-toolbar-actions">
-          <button type="button" id="instantiation-preset-changed-btn" class="btn-compact">CHANGED ONLY</button>
           <button type="button" id="instantiation-preset-all-btn" class="btn-compact">SELECT ALL</button>
           <button type="button" id="instantiation-preset-none-btn" class="btn-compact">CLEAR</button>
           <label class="instantiation-option-toggle" title="Enable Rive GPU Canvas in generated snippets and standalone HTML">
@@ -141,7 +140,7 @@ const APP_DIALOGS_HTML = `
       </div>
       <div class="instantiation-controls-grid">
         <section class="instantiation-controls-panel">
-          <p class="instantiation-controls-note">Branch checkboxes select every nested property. Each checked leaf adds one snippet accessor and one value to standalone export restoration.</p>
+          <p class="instantiation-controls-note">Branch checkboxes select every nested property. Checked controls appear in the standalone demo, add snippet accessors, and restore their current values.</p>
           <div id="instantiation-controls-tree" class="instantiation-controls-tree"></div>
         </section>
         <section class="instantiation-preview-panel">

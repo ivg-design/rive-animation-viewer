@@ -135,6 +135,30 @@ fn action_contract_is_allowlisted_and_bounded() {
 }
 
 #[test]
+fn export_selection_presets_allow_all_and_clear_only() {
+    let action = UiOverlayActionRequest {
+        epoch: 4,
+        action_id: "export-selection-preset-1".into(),
+        purpose: "export".into(),
+        action: "selection-preset".into(),
+        value: serde_json::json!("all"),
+    };
+    assert!(action.validate().is_ok());
+    assert!(UiOverlayActionRequest {
+        value: serde_json::json!("none"),
+        ..action.clone()
+    }
+    .validate()
+    .is_ok());
+    assert!(UiOverlayActionRequest {
+        value: serde_json::json!("other"),
+        ..action
+    }
+    .validate()
+    .is_err());
+}
+
+#[test]
 fn rejects_wrong_typed_or_whole_selection_overlay_actions() {
     let wrong_type = UiOverlayActionRequest {
         epoch: 4,
