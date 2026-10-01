@@ -268,6 +268,73 @@ describe('platform/demo-export', () => {
         expect(JSON.parse(clearedContext.payload.control_selection_keys)).toEqual([]);
         expect(JSON.parse(clearedContext.payload.control_snapshot)).toEqual([]);
         expect(clearedContext.instantiationSnippets.cdn.code).not.toContain('"viewModel/x"');
+
+        const staleContext = await controller.buildExportContext({
+            selectedControlKeys: ['vm:old-source:number'],
+        });
+        expect(JSON.parse(staleContext.payload.control_selection_keys)).toEqual([]);
+        expect(JSON.parse(staleContext.payload.control_snapshot)).toEqual([]);
+    });
+
+    it('applies remembered selections only to their exact export scope and sanitizes current keys', async () => {
+        const buffer = Uint8Array.from([9, 8, 7]).buffer;
+        const sourceIdentity = await createRenderSourceIdentityResolver()(buffer);
+        const sourceScope = {
+            artboardKey: 'Main',
+            runtimeKey: 'webgl2@2.44.0',
+            sourceIdentity,
+            vmInstanceKey: 'Primary',
+        };
+        const fullSnapshot = [
+            { descriptor: { kind: 'number', name: 'x', path: 'x' }, kind: 'number', value: 12 },
+            { descriptor: { kind: 'boolean', name: 'active', path: 'active' }, kind: 'boolean', value: true },
+        ];
+        let rememberedSelection = null;
+        const controller = createDemoExportController({
+            getArtboardStateSnapshot: () => ({
+                currentArtboard: 'Main',
+                currentVmInstanceName: 'Primary',
+            }),
+            getControlSnapshotScope: () => sourceScope,
+            getInspectionMetadata: () => ({ sourceIdentity }),
+            captureVmControlSnapshot: () => fullSnapshot,
+            getCurrentFileBuffer: () => buffer,
+            getCurrentFileName: () => 'scoped-selection.riv',
+            getCurrentRuntime: () => 'webgl2',
+            getRuntimeAsset: () => ({ text: 'runtime();', version: '2.44.0' }),
+            getSelectedControlKeys: () => rememberedSelection,
+        });
+
+        rememberedSelection = { keys: [], scope: sourceScope };
+        const clearedContext = await controller.buildExportContext();
+        expect(JSON.parse(clearedContext.payload.control_selection_keys)).toEqual([]);
+
+        rememberedSelection = {
+            keys: [],
+            scope: { ...sourceScope, sourceIdentity: 'old-source' },
+        };
+        const staleClearContext = await controller.buildExportContext();
+        expect(JSON.parse(staleClearContext.payload.control_selection_keys)).toEqual([
+            'vm:x:number',
+            'vm:active:boolean',
+        ]);
+
+        rememberedSelection = {
+            keys: ['vm:x:number', 'vm:removed:number'],
+            scope: sourceScope,
+        };
+        const sanitizedContext = await controller.buildExportContext();
+        expect(JSON.parse(sanitizedContext.payload.control_selection_keys)).toEqual(['vm:x:number']);
+
+        rememberedSelection = {
+            keys: ['vm:x:number'],
+            scope: { ...sourceScope, vmInstanceKey: 'Other' },
+        };
+        const staleSubsetContext = await controller.buildExportContext();
+        expect(JSON.parse(staleSubsetContext.payload.control_selection_keys)).toEqual([
+            'vm:x:number',
+            'vm:active:boolean',
+        ]);
     });
 
     it('reports validation and runtime preparation failures without invoking Tauri', async () => {

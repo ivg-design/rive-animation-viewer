@@ -51,20 +51,27 @@ export function createDemoExportController({
     } = callbacks;
     const resolveRenderSourceIdentity = createRenderSourceIdentityResolver();
 
-    function resolveSelectedControlKeys(selectedControlKeys, availableSnapshot = captureVmControlSnapshot()) {
+    function resolveSelectedControlKeys(selectedControlKeys, availableSnapshot = captureVmControlSnapshot(), sourceScope = null) {
+        const storedSelection = Array.isArray(selectedControlKeys) ? null : getSelectedControlKeys();
         const explicitKeys = Array.isArray(selectedControlKeys)
             ? selectedControlKeys
-            : getSelectedControlKeys();
+            : Array.isArray(storedSelection)
+                ? storedSelection
+                : (Array.isArray(storedSelection?.keys)
+                    && sourceScopesMatch(storedSelection.scope, sourceScope))
+                    ? storedSelection.keys
+                    : null;
+        const availableKeys = new Set(availableSnapshot.map((entry) => (
+            controlSelectionKeyForDescriptor(entry?.descriptor))).filter(Boolean));
         const sourceKeys = Array.isArray(explicitKeys)
             ? explicitKeys
-            : availableSnapshot
-                .map((entry) => controlSelectionKeyForDescriptor(entry?.descriptor))
-                .filter(Boolean);
+            : Array.from(availableKeys);
         return Array.from(new Set(
             sourceKeys
                 .filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
                 .map((entry) => normalizeControlSelectionKey(entry))
-                .filter(Boolean),
+                .filter(Boolean)
+                .filter((entry) => availableKeys.has(entry)),
         ));
     }
 
@@ -105,13 +112,15 @@ export function createDemoExportController({
         const runtimeAsset = getRuntimeAsset(runtimeName);
         const selectedRuntimeSemver = runtimeAsset?.version || getEffectiveRuntimeVersionToken(getRuntimeVersionToken());
         const metadata = getInspectionMetadata();
-        const canCapture = sourceScopesMatch(getControlSnapshotScope(), createSourceScope({
+        const sourceScope = createSourceScope({
             sourceIdentity: metadata?.sourceIdentity, runtimeKey: `${runtimeName}@${selectedRuntimeSemver}`,
             artboardKey: selection.currentArtboard, vmInstanceKey: selection.currentVmInstanceName,
-        }));
+        });
+        const canCapture = sourceScopesMatch(getControlSnapshotScope(), sourceScope);
         const liveConfigState = getLiveConfigState();
         const availableControlSnapshot = captureVmControlSnapshot();
-        const controlSelectionKeys = resolveSelectedControlKeys(selectedControlKeys, availableControlSnapshot);
+        const controlSelectionKeys = resolveSelectedControlKeys(
+            selectedControlKeys, availableControlSnapshot, sourceScope);
         const controlSnapshot = !canCapture ? [] : snippetMode === 'scaffold'
             ? availableControlSnapshot
             : resolveSelectedControlSnapshot(controlSelectionKeys, availableControlSnapshot);
@@ -184,7 +193,8 @@ export function createDemoExportController({
         const canCapture = sourceScopesMatch(getControlSnapshotScope(), sourceScope);
         const defaultPackageSource = packageSource === 'local' ? 'local' : 'cdn';
         const availableControlSnapshot = captureVmControlSnapshot();
-        const controlSelectionKeys = resolveSelectedControlKeys(selectedControlKeys, availableControlSnapshot);
+        const controlSelectionKeys = resolveSelectedControlKeys(
+            selectedControlKeys, availableControlSnapshot, sourceScope);
         const controlSnapshot = canCapture
             ? resolveSelectedControlSnapshot(controlSelectionKeys, availableControlSnapshot)
             : [];

@@ -210,6 +210,119 @@ describe('ui/instantiation-controls-dialog', () => {
         expect(controller.getSelectedControlKeys()).toEqual([]);
     });
 
+    it('leaves untouched background exports unscoped after the source changes without reopening the dialog', async () => {
+        const elements = buildElements();
+        const hierarchyFor = (path) => ({
+            children: [{
+                children: [],
+                inputs: [{
+                    descriptor: { kind: 'number', name: path, path },
+                    kind: 'number', name: path, path,
+                }],
+                kind: 'vm', label: 'Root VM', path: '',
+            }],
+            inputs: [], kind: 'controls', label: 'Controls', path: '__controls__',
+        });
+        let fileName = 'capybara.riv';
+        let selectionScope = {
+            artboardKey: 'Capybara',
+            runtimeKey: 'webgl2@2.44.0',
+            sourceIdentity: 'capybara-source',
+            vmInstanceKey: 'Clara',
+        };
+        let hierarchy = hierarchyFor('look-x');
+        const controller = createInstantiationControlsDialogController({
+            callbacks: {
+                getCurrentFileName: () => fileName,
+                getCurrentSelectionScope: () => selectionScope,
+                getTauriInvoker: () => vi.fn(),
+            },
+            elements,
+            serializeControlHierarchy: () => hierarchy,
+        });
+
+        await controller.openDialog();
+        expect(controller.getSelectedControlKeys()).toEqual(['vm:look-x:number']);
+        expect(controller.getExportControlSelection()).toBeNull();
+
+        fileName = 'teachers-pet.riv';
+        selectionScope = {
+            artboardKey: 'SCENE',
+            runtimeKey: 'webgl2@2.44.0',
+            sourceIdentity: 'teachers-pet-source',
+            vmInstanceKey: 'Teachers Pet',
+        };
+        hierarchy = hierarchyFor('cursor_boolean');
+
+        expect(controller.getExportControlSelection()).toBeNull();
+        await controller.toggleDialog('close');
+        await controller.openDialog();
+        expect(controller.getSelectedControlKeys()).toEqual(['vm:cursor_boolean:number']);
+    });
+
+    it('applies an explicit selection only within its source, artboard, and ViewModel scope', async () => {
+        const elements = buildElements();
+        const hierarchyFor = (...paths) => ({
+            children: [{
+                children: [],
+                inputs: paths.map((path) => ({
+                    descriptor: { kind: 'number', name: path, path },
+                    kind: 'number', name: path, path,
+                })),
+                kind: 'vm', label: 'Root VM', path: '',
+            }],
+            inputs: [], kind: 'controls', label: 'Controls', path: '__controls__',
+        });
+        let selectionScope = {
+            artboardKey: 'Main',
+            runtimeKey: 'canvas@2.44.0',
+            sourceIdentity: 'scoped-source',
+            vmInstanceKey: 'Primary',
+        };
+        let hierarchy = hierarchyFor('x', 'y');
+        const controller = createInstantiationControlsDialogController({
+            callbacks: {
+                getCurrentFileName: () => 'scoped.riv',
+                getCurrentSelectionScope: () => selectionScope,
+                getTauriInvoker: () => vi.fn(),
+            },
+            elements,
+            serializeControlHierarchy: () => hierarchy,
+        });
+
+        await controller.openDialog();
+        controller.configureForMcp({ selection: ['vm:x:number'] });
+        expect(controller.getExportControlSelection()).toEqual({
+            keys: ['vm:x:number'],
+            scope: expect.objectContaining(selectionScope),
+        });
+
+        hierarchy = hierarchyFor('y');
+        expect(controller.getExportControlSelection()).toEqual({
+            keys: ['vm:x:number'],
+            scope: expect.objectContaining(selectionScope),
+        });
+
+        selectionScope = { ...selectionScope, artboardKey: 'Secondary' };
+        hierarchy = hierarchyFor('z');
+        expect(controller.getExportControlSelection()).toEqual({
+            keys: ['vm:x:number'],
+            scope: expect.objectContaining({ artboardKey: 'Main' }),
+        });
+
+        controller.configureForMcp({ selection: ['vm:z:number'] });
+        expect(controller.getExportControlSelection()).toEqual({
+            keys: ['vm:z:number'],
+            scope: expect.objectContaining(selectionScope),
+        });
+
+        selectionScope = { ...selectionScope, vmInstanceKey: 'Alternate' };
+        expect(controller.getExportControlSelection()).toEqual({
+            keys: ['vm:z:number'],
+            scope: expect.objectContaining({ vmInstanceKey: 'Primary' }),
+        });
+    });
+
     it('initializes the export override from the toolbar and applies dialog changes to both output paths', async () => {
         const elements = buildElements();
         const createDemoBundle = vi.fn().mockResolvedValue('/tmp/gpu-demo.html');

@@ -32,11 +32,11 @@ export function requestExportOverlayStateSync(documentRef) {
 
 export function configureInstantiationControls({ enableGPUCanvas, selection, packageSource, snippetMode } = {}, {
     clearPreview,
-    currentAvailableKeys,
     documentRef,
     elements,
     ensureDialogState,
     getExportGpuCanvasEnabled,
+    getCurrentAvailableKeys,
     getSelectedControlKeys,
     getSnippetMode,
     isOverlayOpen,
@@ -44,6 +44,7 @@ export function configureInstantiationControls({ enableGPUCanvas, selection, pac
     setSelection,
 }) {
     if (!ensureDialogState()) throw new Error('Instantiation controls are not available');
+    const currentAvailableKeys = getCurrentAvailableKeys();
 
     if (selection === 'all') setSelection(new Set(currentAvailableKeys));
     else if (selection === 'none') setSelection(new Set());

@@ -115,11 +115,13 @@ describe('bootstrap/controller-stack', () => {
         const loadCurrentAnimation = vi.fn(async () => true);
         const canonicalScope = { sourceIdentity: 'new-file', runtimeKey: 'webgl2@2.42.0', sessionId: 'new-session' };
         const getCanonicalSourceScope = vi.fn(() => canonicalScope);
+        const exportControlSelection = { keys: ['vm:x:number'], scope: canonicalScope };
+        const getExportControlSelection = vi.fn(() => exportControlSelection);
         createPlatformStack.mockReturnValue({
             demoExportController: {},
             fileSessionController: {},
             globalBindingsController: {},
-            instantiationControlsDialogController: {},
+            instantiationControlsDialogController: { getExportControlSelection },
             renderSurfaceController: { loadCurrentAnimation, getCanonicalSourceScope },
             shellController: {},
         });
@@ -177,6 +179,8 @@ describe('bootstrap/controller-stack', () => {
         expect(uiStackArgs?.callbacks?.setCurrentCanvasSizing).toBe(setCurrentCanvasSizing);
         const platformStackArgs = createPlatformStack.mock.calls[0]?.[0];
         expect(platformStackArgs?.callbacks?.getCurrentFilePreferenceId).toBe(getCurrentFilePreferenceId);
+        expect(platformStackArgs?.callbacks?.getSelectedControlKeys()).toBe(exportControlSelection);
+        expect(getExportControlSelection).toHaveBeenCalledOnce();
         const riveStackArgs = createRiveStack.mock.calls[0]?.[0];
         expect(riveStackArgs?.callbacks?.getCanonicalSourceScope()).toBe(canonicalScope);
         expect(riveStackArgs?.callbacks?.getCurrentRuntimeVersion).toBe(

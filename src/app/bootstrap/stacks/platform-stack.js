@@ -241,8 +241,12 @@ export function createPlatformStack({
             closeUiOverlay: (options) => shellController.uiOverlayController.close(options),
             createDemoBundle: (options) => demoExportController.createDemoBundle(options),
             generateWebInstantiationCode: (options) => demoExportController.generateWebInstantiationCode(options),
+            getArtboardStateSnapshot,
             getCurrentFileName,
+            getCurrentFilePreferenceId,
             getCurrentRuntime,
+            getCurrentSelectionScope: () => isTauriEnvironment()
+                ? renderSurfaceController.getSourceScope() : getCurrentSourceScope?.(),
             getGpuCanvasEnabled,
             getTauriInvoker,
             initLucideIcons,

@@ -232,7 +232,9 @@ export function createControllerStack({
             getRuntimeSourceText,
             getRuntimeVersion,
             getRuntimeVersionToken,
-            getSelectedControlKeys: () => platformStack.instantiationControlsDialogController?.getSelectedControlKeys() ?? null,
+            getSelectedControlKeys: () => (
+                platformStack.instantiationControlsDialogController?.getExportControlSelection() ?? null
+            ),
             getSidebarVisibility: () => platformStack.shellController?.getSidebarVisibility?.() ?? { left: false, right: true },
             getTauriEventListener,
             getTauriInvoker,

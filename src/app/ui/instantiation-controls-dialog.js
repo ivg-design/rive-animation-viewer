@@ -1,3 +1,4 @@
+import { createSourceScope, sourceScopesMatch } from '../rive/inspection/source-scope.js';
 import {
     collectNodeInputKeys,
     collectTreeNodeInputKeys,
@@ -25,8 +26,11 @@ export function createInstantiationControlsDialogController({
         createDemoBundle = async () => null,
         closeUiOverlay = async () => false,
         generateWebInstantiationCode = async () => ({ code: '' }),
+        getArtboardStateSnapshot = () => ({}),
         getCurrentFileName = () => null,
+        getCurrentFilePreferenceId = () => null,
         getCurrentRuntime = () => 'webgl2',
+        getCurrentSelectionScope = () => null,
         getGpuCanvasEnabled = () => false,
         getTauriInvoker = () => null,
         initLucideIcons = () => {},
@@ -36,11 +40,11 @@ export function createInstantiationControlsDialogController({
         updateInfo = () => {},
     } = callbacks;
 
-    let currentFileName = null;
     let currentHierarchy = null;
     let currentAvailableKeys = new Set();
     let selectedControlKeys = null;
     let selectionTouched = false;
+    let selectionScope = null;
     let expandedBranchKeys = new Set();
     let hierarchyRevision = 0;
     let hierarchySignature = '';
@@ -67,6 +71,22 @@ export function createInstantiationControlsDialogController({
 
     function getSelectedControlKeys() {
         return selectedControlKeys instanceof Set ? Array.from(selectedControlKeys) : null;
+    }
+
+    function captureSelectionScope() {
+        const canonicalScope = getCurrentSelectionScope();
+        if (canonicalScope?.sourceIdentity && canonicalScope?.runtimeKey) {
+            return createSourceScope(canonicalScope);
+        }
+        const playbackState = getArtboardStateSnapshot() || {};
+        return createSourceScope({ artboardKey: playbackState.currentArtboard,
+            runtimeKey: getCurrentRuntime(), sourceIdentity: getCurrentFilePreferenceId() || getCurrentFileName(),
+            vmInstanceKey: playbackState.currentVmInstanceName });
+    }
+
+    function getExportControlSelection() {
+        if (!selectionTouched) return null;
+        return Object.freeze({ keys: Object.freeze(getSelectedControlKeys() || []), scope: selectionScope });
     }
 
     function getSnippetMode() {
@@ -102,6 +122,7 @@ export function createInstantiationControlsDialogController({
     function setSelection(nextSelection) {
         selectedControlKeys = sanitizeSelection(nextSelection, currentAvailableKeys);
         selectionTouched = true;
+        selectionScope = captureSelectionScope();
         clearPreview();
         if (!overlayOpen) renderTree();
         updateSelectionSummary();
@@ -109,7 +130,8 @@ export function createInstantiationControlsDialogController({
 
     function configureForMcp(options) {
         return configureInstantiationControls(options, {
-            clearPreview, currentAvailableKeys, documentRef, elements, ensureDialogState,
+            clearPreview, documentRef, elements, ensureDialogState,
+            getCurrentAvailableKeys: () => currentAvailableKeys,
             getSelectedControlKeys, getSnippetMode,
             getExportGpuCanvasEnabled,
             isOverlayOpen: () => overlayOpen, setExportGpuCanvasEnabled, setSelection,
@@ -123,14 +145,14 @@ export function createInstantiationControlsDialogController({
             return false;
         }
 
-        if (fileName !== currentFileName) {
-            currentFileName = fileName;
+        const nextSelectionScope = captureSelectionScope();
+        if (!sourceScopesMatch(selectionScope, nextSelectionScope)) {
             selectedControlKeys = null;
             selectionTouched = false;
+            selectionScope = nextSelectionScope;
             expandedBranchKeys = new Set();
             clearPreview();
         }
-
         currentHierarchy = serializeControlHierarchy();
         currentAvailableKeys = collectNodeInputKeys(currentHierarchy);
         const nextSignature = buildControlHierarchyTopologySignature(currentHierarchy);
@@ -408,6 +430,7 @@ export function createInstantiationControlsDialogController({
 
     return {
         configureForMcp,
+        getExportControlSelection,
         getExportGpuCanvasEnabled,
         getSelectedControlKeys,
         openDialog,
