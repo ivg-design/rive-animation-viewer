@@ -13,6 +13,15 @@ All notable released changes to this project are documented in this file.
 
 ### Changed
 
+- **Bundled file inspection** — Updated to RF Parser 2.5.15 on
+  `runtime-v0.1.384` with file-format 7.4 support. Full inspections retain
+  authored Range Map ranges, flags, and interpolation metadata, independent
+  binding contexts, corrected state/transition identities and enum names,
+  nested listener scopes, and image-asset ViewModel properties.
+- **Analysis reports** — Updated all bundled platform analyzers to RFA 0.2.0.
+  HTML, Markdown, and PDF reports include an API reference, binding map,
+  semantic rule IDs with legacy aliases, and **Checks in this report** coverage
+  showing which checks ran or were skipped.
 - **Standalone control selection** — A fresh source defaults to all currently
   available exportable controls selected. The unreliable **Changed Only**
   preset is removed; branch and leaf checkboxes, **Select All**, and **Clear**
