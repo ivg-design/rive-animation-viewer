@@ -133,13 +133,16 @@ and drains all accepted input with the remaining frames. Input in the final
 partial interval retains its next boundary frame; this can add one frame to
 the otherwise rounded output duration. Captured frames are never rewritten. Cancel/failure
 and source/session/VM replacement discard pending input and restore ordinary
-mouse handling. A missing replay target fails the take. An input arriving after its frame has already passed by more than one frame
-fails the take explicitly instead of silently changing its timing. The queue
+mouse handling. A missing replay target fails the take. Live capture keeps a
+100 ms input-delivery window so normal DOM/IPC delays can reach their mapped
+frame. Unusually late input applies on the next uncaptured frame, remains
+usable, and reports `late_inputs` and `max_late_ms` rather than aborting. The queue
 is bounded at 16,384 pending events; overflow stops explicitly rather than dropping input.
 
 `resolved_settings.live_input` reports accepted/applied/pending counts and the
 last 512 timing receipts (`index`, `type`, pointer `event`, `at_seconds`,
-`frame_index`, `applied_seconds`), with `receipts_truncated` for older entries.
+`frame_index`, `applied_seconds`, `late`, `lateness_ms`), with
+`receipts_truncated` for older entries and `input_latency_window_ms:100`.
 It excludes VM values and image bytes. Live image changes require a prepared
 interaction schedule so decoding cannot enter the synchronous frame path.
 Offline recording keeps its existing scripted timing contract; unscheduled
