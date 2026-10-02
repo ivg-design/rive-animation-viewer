@@ -172,3 +172,38 @@ it.each(['down', 'up', 'exit'])('never interpolates over the %s barrier or inven
     h.frame(150); h.frame(180); expect(h.seen).toHaveLength(2);
     expect(h.recording.liveInput.status()).toMatchObject({ accepted: 3, applied: 2, interpolated_moves: 0 });
 });
+
+it('preserves same-frame moves and never extrapolates beyond the final real sample', () => {
+    const h = harness(); h.time(3005); h.send({ type: 'move', x: .2, y: .5 });
+    h.time(3010); h.send({ type: 'move', x: .4, y: .5 }); h.frame(121);
+    expect(h.seen).toHaveLength(2); expect(h.state.cursor.x).toBe(.4);
+    h.frame(180); expect(h.seen).toHaveLength(2);
+    expect(h.recording.liveInput.status()).toMatchObject({ accepted: 2, applied: 2, interpolated_moves: 0 });
+});
+
+it.each(['buttons', 'identical', 'vm', 'trigger'])('never synthesizes motion over a %s boundary', boundary => {
+    const h = harness(); h.time(3000); h.send({ type: 'move', x: .2, y: .5 });
+    if (boundary === 'vm' || boundary === 'trigger') {
+        h.accessors.set('speed', boundary === 'vm' ? { value: 0 } : { trigger: vi.fn() }); h.time(3500);
+        h.vm(boundary === 'vm' ? 'vm-set' : 'vm-fire', { path: 'speed', kind: boundary === 'vm' ? 'number' : 'trigger', value: 1 });
+    }
+    h.time(5000); h.send({ type: 'move', x: boundary === 'identical' ? .2 : .8, y: .5,
+        ...(boundary === 'buttons' ? { buttons: 1 } : {}) });
+    h.frame(120); h.frame(140);
+    expect(h.seen).toHaveLength(1); expect(h.recording.liveInput.status().interpolated_moves).toBe(0);
+    if (boundary === 'vm' || boundary === 'trigger') { h.frame(150); h.frame(180); expect(h.seen).toHaveLength(1); }
+});
+
+it('interpolates accepted Stop tail samples, then clears pending samples on disposal', () => {
+    const h = harness(); h.time(3000); h.send({ type: 'move', x: 0, y: .5 });
+    h.time(5000); h.send({ type: 'move', x: 1, y: .5 }); expect(h.recording.liveInput.seal(241)).toBe(241);
+    h.frame(120); h.frame(180); expect(h.state.cursor.x).toBe(.5);
+    h.recording.liveInput.dispose(); h.frame(200); expect(h.seen).toHaveLength(2);
+});
+
+it('rejects a different pointer identity before it enters interpolation or real input receipts', () => {
+    const h = harness(); h.time(3000); h.send({ type: 'move', x: .2, y: .5 }); h.time(5000);
+    expect(() => h.send({ type: 'move', x: .8, y: .5, id: 1 })).toThrow('pointer id 0');
+    h.frame(120); h.frame(180); expect(h.seen).toHaveLength(1);
+    expect(h.recording.liveInput.status()).toMatchObject({ accepted: 1, applied: 1, interpolated_moves: 0 });
+});

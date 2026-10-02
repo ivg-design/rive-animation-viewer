@@ -64,6 +64,7 @@ function createRenderSurfaceLiveInput(recording) {
             try {
                 if (op.type === 'pointer') { dispatchRenderSurfacePointer(op.payload, true); previousPointer = entry; }
                 else {
+                    previousPointer = null;
                     // Resolve by path at application time: list descendants may
                     // have changed since acceptance. Never retain a WASM handle.
                     var descriptor = op.descriptor, accessor = resolveControlAccessor(descriptor);
@@ -86,11 +87,12 @@ function createRenderSurfaceLiveInput(recording) {
         }
         // Sample the continuous path at each video frame. Never interpolate
         // across a down/up/exit boundary or before the first accepted move.
-        var nextPointer = pending.find(function (item) { return item.operation.type === 'pointer'; });
+        var nextPointer = pending[0] && pending[0].operation.type === 'pointer' ? pending[0] : null;
         var previous = previousPointer && previousPointer.operation.payload;
         var next = nextPointer && nextPointer.operation.payload;
         var seconds = frame / fps;
         if (!disposed && previous && next && previous.type === 'move' && next.type === 'move'
+            && (previous.x !== next.x || previous.y !== next.y)
             && (previous.buttons || 0) === (next.buttons || 0) && (previous.id || 0) === (next.id || 0)
             && seconds > previousPointer.seconds && seconds < nextPointer.seconds) {
             var fraction = (seconds - previousPointer.seconds) / (nextPointer.seconds - previousPointer.seconds);
