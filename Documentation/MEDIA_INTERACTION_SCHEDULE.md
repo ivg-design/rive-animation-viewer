@@ -108,10 +108,43 @@ to the actual live VM; they remain until another edit or reset changes them.
 `frame_index`. It does not echo values or image bytes. Inspect those receipts,
 the capture clock and the decoded artifact; none alone proves visual correctness.
 
-Manual mouse and VM edits still operate on the live state. Scheduled operations
-provide exact frame-boundary timing; sustained capture lag can affect the
-relationship between unscheduled live input and wall time and must be reported,
-not hidden behind a constant-FPS output label.
+## Live input timing
+
+During a desktop `clock:"live"` recording, physical mouse input and host/MCP
+pointer commands, scalar VM edits and VM triggers are timestamped relative to
+the recording start. They wait for the first recording frame boundary at or
+following that time, before Rive advances. Input is ordered by frame, then acceptance order for ties; clicks and triggers are not coalesced. Scripted interactions run before
+live input on a shared boundary. Cursor composition uses the replayed position.
+The host preserves its acceptance timestamp across IPC; physical mouse events
+use the child document's monotonic event timestamp.
+
+Slow capture still delays the visible preview response. The status strip and
+media dialog show sustained lag (at least 500 ms for one second), with guidance
+to reduce size/FPS. `resolved_settings.capture_clock` includes `lag_ms`,
+`max_lag_ms`, `sustained_lag` and `input_timing:"timestamped"`. This repair does
+not increase capture throughput or reduce finalization work.
+
+Input acknowledgements return `queued:true`, an input index and frame/time;
+they acknowledge acceptance, not an immediate VM mutation. MCP VM results
+use `accepted:true`, `queued:true`, `applied:null` and `status:"queued"`
+while retaining the last canonical value until replay. Canonical VM values
+and trigger receipts update when replay applies them. Stop seals acceptance
+and drains all accepted input with the remaining frames. Input in the final
+partial interval retains its next boundary frame; this can add one frame to
+the otherwise rounded output duration. Captured frames are never rewritten. Cancel/failure
+and source/session/VM replacement discard pending input and restore ordinary
+mouse handling. A missing replay target fails the take. An input arriving after its frame has already passed by more than one frame
+fails the take explicitly instead of silently changing its timing. The queue
+is bounded at 16,384 pending events; overflow stops explicitly rather than dropping input.
+
+`resolved_settings.live_input` reports accepted/applied/pending counts and the
+last 512 timing receipts (`index`, `type`, pointer `event`, `at_seconds`,
+`frame_index`, `applied_seconds`), with `receipts_truncated` for older entries.
+It excludes VM values and image bytes. Live image changes require a prepared
+interaction schedule so decoding cannot enter the synchronous frame path.
+Offline recording keeps its existing scripted timing contract; unscheduled
+input there has no defined wall-time mapping. Inspect decoded output as well
+as receipts before claiming visual acceptance.
 
 ## Validation rules
 
