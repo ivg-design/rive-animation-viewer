@@ -207,3 +207,12 @@ it('rejects a different pointer identity before it enters interpolation or real 
     h.frame(120); h.frame(180); expect(h.seen).toHaveLength(1);
     expect(h.recording.liveInput.status()).toMatchObject({ accepted: 1, applied: 1, interpolated_moves: 0 });
 });
+
+it.each(['down', 'up', 'exit'])('external scheduled %s replay fences the preceding live-move segment', type => {
+    const h = harness(); h.time(3000); h.send({ type: 'move', x: 0, y: .5 });
+    h.time(5000); h.send({ type: 'move', x: 1, y: .5 }); h.frame(120);
+    h.send({ type, x: .2, y: .5 }, true); h.frame(180);
+    expect(h.seen.map(e => e.type)).toEqual(['mousemove', { down: 'mousedown', up: 'mouseup', exit: 'mouseout' }[type]]);
+    expect(h.state.cursor).toMatchObject({ x: .2, inside: type !== 'exit' });
+    expect(h.recording.liveInput.status()).toMatchObject({ accepted: 2, applied: 1, interpolated_moves: 0 });
+});

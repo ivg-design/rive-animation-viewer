@@ -148,3 +148,12 @@ it('holds live frame zero for input delivery and sleeps through the latency wind
     await h.advanceTo(116); await h.fireRaf(); expect(h.frames).toEqual([0]);
     await h.advanceTo(117); await h.fireRaf(); expect(h.frames).toEqual([0, 1]);
 });
+
+it('fences live interpolation after scripted VM/trigger operations before the live frame runs', async () => {
+    const h = harness({ duration: .1 }); const order = [];
+    h.recording.liveInput = { run: () => order.push('live'), minimumFrameCount: () => 0,
+        invalidateInterpolation: () => order.push('fence') };
+    h.recording.schedule = { run: () => { order.push('script'); return [{ type: 'vm-trigger' }]; } };
+    h.loop.run(); await h.settle(); await h.advanceTo(100); await h.fireRaf();
+    expect(order.slice(0, 3)).toEqual(['script', 'fence', 'live']);
+});

@@ -136,7 +136,8 @@ function createRenderSurfaceLiveInput(recording) {
     return { enqueue: enqueue, run: run, seal: seal, status: status,
         minimumFrameCount: function () { return lastAcceptedFrame + 1; },
         isReplaying: function () { return replaying; },
-        replay: function (apply) { var previous = replaying; replaying = true;
+        invalidateInterpolation: function () { previousPointer = null; },
+        replay: function (apply) { previousPointer = null; var previous = replaying; replaying = true;
             try { return apply(); } finally { replaying = previous; } },
         dispose: function () {
             if (disposed) return;

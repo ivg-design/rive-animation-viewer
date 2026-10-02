@@ -91,7 +91,8 @@
             }
             function renderFrame(index) {
                 var fps = fpsOf();
-                if (recording.schedule) recording.schedule.run(index / fps, index);
+                var scripted = recording.schedule ? recording.schedule.run(index / fps, index) : null;
+                if (scripted && scripted.length && recording.liveInput) recording.liveInput.invalidateInterpolation();
                 if (recording.liveInput) recording.liveInput.run(index);
                 renderSurfaceAdvanceFrame(riveInstance, index > 0 && riveInstance.isPlaying ? 1 / fps : 0);
                 recordRenderSurfaceMediaFrame(index);
