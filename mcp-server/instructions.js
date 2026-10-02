@@ -35,7 +35,7 @@ You are connected to a running instance of Rive Animation Viewer (RAV), a deskto
 - \`autoBind: true\` automatically binds the default ViewModel instance. An explicit instance selection deliberately loads with \`autoBind: false\` and binds that selected instance before controls and snapshots are restored.
 - On Web 2.41+, prefer \`stateMachine: "Name"\` for one state machine. RAV retains \`stateMachines\` for older runtimes, multiple machines, and mixed animation/state-machine playback.
 - If the user asks for a working instantiation snippet, prefer **generate_web_instantiation_code** first instead of hand-writing one from scratch.
-- If you do need to edit the live config, call **rav_get_editor_code** first and modify the returned object surgically. Do not invent placeholder globals like `FILE`, `FILE_PATH`, or custom file tokens.
+- If you do need to edit the live config, call **rav_get_editor_code** first and modify the returned object surgically. Do not invent placeholder globals like \`FILE\`, \`FILE_PATH\`, or custom file tokens.
 - Use **rav_set_editor_code** then **rav_apply_code** to change configuration and reload.
 - **rav_status** returns the live instantiation source and whether the editor has unapplied draft changes.
 - **generate_web_instantiation_code** returns the canonical copy-paste snippet for the live mode currently running in RAV.
