@@ -18,7 +18,7 @@ All notable released changes to this project are documented in this file.
   retain authored Range Map ranges, flags, and interpolation metadata,
   independent binding contexts, corrected state/transition identities and enum names,
   nested listener scopes, and image-asset ViewModel properties.
-- **Analysis reports** — Updated all bundled platform analyzers to RFA 0.2.0.
+- **Analysis reports** — Updated all bundled cross-platform analysis sidecars.
   HTML, Markdown, and PDF reports include an API reference, binding map,
   semantic rule IDs with legacy aliases, and **Checks in this report** coverage
   showing which checks ran or were skipped.
@@ -28,7 +28,7 @@ All notable released changes to this project are documented in this file.
   remain. Checked controls determine the standalone control UI, restored
   current values, and active generated accessors.
 - **Security dependency updates** — The shipped TLS stack now resolves
-  `rustls` 0.23.45. The RFA 0.2.0 sidecars are rebuilt with
+  `rustls` 0.23.45. The bundled analysis sidecars are rebuilt with
   `quick-xml` 0.41.0, and the website uses Next.js 16.3.8. The legacy Node
   MCP lockfile also resolves patched `fast-uri` 3.1.8, `hono` 4.13.12, and
   `ip-address` 10.7.2.
@@ -92,8 +92,9 @@ All notable released changes to this project are documented in this file.
 ### Fixed
 
 - **Large files took minutes to inspect** — The bundled file-inspection module
-  is rebuilt on RF Parser 2.5.14, which removes a quadratic object lookup
-  introduced in parser 2.5.11. A 13 MB production file that previously ran
+  is rebuilt with an updated object lookup implementation, removing a
+  quadratic path introduced by an earlier inspection build. A 13 MB production
+  file that previously ran
   past the inspection deadline now inspects in about a second, and the
   exported timeline data lists only data-bound keyframes again.
 - **Timeline scrubber jitter** — During linear-animation playback the current-time
@@ -204,7 +205,7 @@ staged work and the recording frame-rate investigation.
 - **Open-file handling** — RAV relies on the native open-file event listener; the 900 ms polling loop is removed. If the listener cannot be registered, queued files are reconciled on the next start and a warning is logged.
 - **Export overlay resizing** — Native overlay bounds follow the export panel's measured height with a 200 ms eased transition (`set_ui_overlay_bounds`), and the bounds resync on window focus.
 - **Isolated DEV build** — `bump-version` keeps the DEV configuration one patch ahead of production, and the release check enforces it. The isolated instance (never the official identifier) honours `RAV_DEV_SCRIPT_ACCESS=1` at launch so acceptance harnesses can use `rav_eval` without the MCP Setup dialog.
-- **Runtime target verified: Web 2.42.1 (`runtime-v0.1.384`)** — Live-validated the published `@rive-app/webgl2` and `@rive-app/canvas` 2.42.1 packages against the current RF Parser regression fixture set, in both renderers, with the runtime version explicitly pinned (not `Latest (auto)`). Fitted-text-size layout reporting, the manifest watermark pre-roll, ViewModel list-item value binding, and the interrupted-layout-transition fix all play correctly with no RAV source change required; `enableGPUCanvas` continues to match the published runtime parameter surface unchanged since 2.41.1.
+- **Runtime target verified: Web 2.42.1 (`runtime-v0.1.384`)** — Live-validated the published `@rive-app/webgl2` and `@rive-app/canvas` 2.42.1 packages against the current file-inspection regression fixture set, in both renderers, with the runtime version explicitly pinned (not `Latest (auto)`). Fitted-text-size layout reporting, the manifest watermark pre-roll, ViewModel list-item value binding, and the interrupted-layout-transition fix all play correctly with no RAV source change required; `enableGPUCanvas` continues to match the published runtime parameter surface unchanged since 2.41.1.
 
 ### Fixed
 
@@ -216,8 +217,8 @@ staged work and the recording frame-rate investigation.
 - **Stale overlay actions** — Actions from a closed or superseded overlay are ignored instead of reported as errors.
 - **Selection UI without a host player** — Artboard, playback, and VM instance selectors populate from inspection metadata and canonical state, so the desktop selection summary and instance list no longer depend on a host Rive instance.
 - **Reset stopped forwarding pointer/mouse input** — Clicking toolbar Reset (also Properties `DEFAULT`, and the `rav_reset`/`rav_reset_artboard` MCP tools) restarted playback and ViewModel inputs correctly, but the artboard silently stopped responding to mouse movement and clicks until Play was pressed again. The runtime's `Rive.reset()` tears down its own canvas pointer/touch listeners as part of its in-place cleanup but, unlike `play()`, never re-registers them; RAV now calls `riveInstance.setupRiveListeners()` immediately after every in-place reset (the desktop render surface, the host fallback path, and the standalone exported demo template) so pointer tracking resumes without recreating the render-surface session.
-- **Bundled file-inspection module rebuilt on RF Parser 2.5.14** — The private-staged inspection module (`vendor/inspection/parser.wasm`) that every file open reads once, before the Rive runtime is ever reached, was rebuilt against RF Parser `2.5.14` (`runtime-v0.1.384`, Rive file format `7.4`), replacing the prior `2.5.6` build. Files exercising very recent runtime features — ViewModel list-item value binding, the Semantics accessibility subsystem — now open correctly; two confirmed regression cases (`instance_value_binds.riv`, `semantic/zero_area_semantics.riv`) previously failed with `"Error initializing runtime instance"` (a WASM `call_indirect` fault) because RAV's own older bundled module's core-object type registry could not deserialize them, before the actual `@rive-app` runtime was ever reached — the published `@rive-app/webgl2`/`@rive-app/canvas` 2.42.1 packages were never the cause. Confirmed by re-running the full 7-fixture live validation matrix with the rebuilt module: all 7 fixtures now load and play cleanly on both renderers.
-- **Nested ViewModel image properties dropped by the RF Parser 2.5.14 re-vendor** — The RF Parser `2.5.14` file-inspection module reports image/asset ViewModel properties with the raw kind string `asset_image` (RF Parser `2.5.6` used `asset`); the private inspection normalizer's kind-alias table only recognized `asset`/`assetimage`, so every `asset_image` property was silently dropped from the normalized ViewModel map, and any nested ViewModel instance whose *only* properties were images was then pruned from the hierarchy entirely (its node carried zero surviving inputs). Caught by the isolated-DEV MCP acceptance harness (`rav_vm_set_image: Image property "sub_1_im" not found or not writable` on `data_binding_images_test.riv`). Fixed by adding the `asset_image` alias; the parser module itself is unchanged and stays pinned to `2.5.14`.
+- **Bundled file-inspection module rebuilt for `runtime-v0.1.384`** — The private-staged inspection module (`vendor/inspection/parser.wasm`) that every file open reads once, before the Rive runtime is ever reached, was rebuilt for `runtime-v0.1.384` and Rive file format `7.4`, replacing the earlier bundled build. Files exercising very recent runtime features — ViewModel list-item value binding, the Semantics accessibility subsystem — now open correctly; two confirmed regression cases (`instance_value_binds.riv`, `semantic/zero_area_semantics.riv`) previously failed with `"Error initializing runtime instance"` (a WASM `call_indirect` fault) because RAV's own older bundled module's core-object type registry could not deserialize them, before the actual `@rive-app` runtime was ever reached — the published `@rive-app/webgl2`/`@rive-app/canvas` 2.42.1 packages were never the cause. Confirmed by re-running the full 7-fixture live validation matrix with the rebuilt module: all 7 fixtures now load and play cleanly on both renderers.
+- **Nested ViewModel image properties dropped by the file-inspection re-vendor** — The updated file-inspection module reports image/asset ViewModel properties with the raw kind string `asset_image` (the earlier bundled module used `asset`); the private inspection normalizer's kind-alias table only recognized `asset`/`assetimage`, so every `asset_image` property was silently dropped from the normalized ViewModel map, and any nested ViewModel instance whose *only* properties were images was then pruned from the hierarchy entirely (its node carried zero surviving inputs). Caught by the isolated-DEV MCP acceptance harness (`rav_vm_set_image: Image property "sub_1_im" not found or not writable` on `data_binding_images_test.riv`). Fixed by adding the `asset_image` alias; the bundled inspection module is otherwise unchanged.
 
 ### Known limits
 
