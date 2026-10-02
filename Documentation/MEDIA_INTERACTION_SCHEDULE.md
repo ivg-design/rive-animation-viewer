@@ -119,7 +119,8 @@ The host preserves its acceptance timestamp across IPC; physical mouse events
 use the child document's monotonic event timestamp. Between adjacent move
 samples, the frame loop interpolates position to keep 60 FPS output continuous
 even when input arrives less frequently. It never interpolates across mouse
-down, up or exit boundaries; cursor composition uses the same sampled position.
+down, up, exit, button or VM/trigger boundaries; cursor composition uses the
+same sampled position. It never extrapolates beyond the next real move.
 
 Live input adds a 100 ms delivery window to preview response; lag metrics
 include that window. Slow capture further delays the visible preview response. The status strip and
