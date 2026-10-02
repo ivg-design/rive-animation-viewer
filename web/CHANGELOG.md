@@ -49,6 +49,14 @@ All notable released changes to this project are documented in this file.
   whose returned Promise remains unsettled is rejected after two seconds,
   before the normal child acknowledgement deadline, allowing later ordered
   renderer commands to proceed.
+- **Live recording input timing** — During a live recording, mouse movement,
+  clicks, ViewModel edits and triggers (physical or MCP) are timestamped and
+  applied at their matching video frame, so input stays in real time even when
+  capture runs behind. Pointer movement is interpolated between mouse samples
+  for smooth 60 FPS output, never across clicks, exits or ViewModel changes.
+  Input that arrives unusually late lands on the next frame and is counted in
+  the receipt instead of stopping the take, and Stop no longer adds an extra
+  frame when converting the take length.
 - **Standalone Node MCP startup** — The separately runnable Node MCP server
   starts again. A syntax error in its built-in instructions had stopped it at
   launch since 2.5.4; startup parsing and the base tool handshake are now
@@ -57,11 +65,10 @@ All notable released changes to this project are documented in this file.
 ### Known limits
 
 - **Live recording under capture lag** — Complex lossless or alpha captures
-  can run materially below the requested frame rate. The fixed-step animation
-  remains frame-complete, but unscheduled live input—observed with pointer
-  movement—can become time-compressed and bursty in the output. Use
-  recording-clock scheduled interactions for timing-critical takes. A final
-  2.5.9 disposition remains tracked in Issue #33.
+  can still run below the requested frame rate, so finalizing takes longer.
+  While a live take records, the preview responds to the mouse at least 100 ms
+  late, and the reported lag includes that 100 ms input window. Mouse events
+  handled after Stop are not recorded.
 - **Standalone export bootstrap** — Creating a new export may require the
   matching runtime WASM from cache or network. Existing HTML files must be
   re-exported, and externally referenced Rive assets are not automatically

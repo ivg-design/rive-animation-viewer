@@ -85,6 +85,15 @@ export default function MediaExport() {
         <code>offline</code> when a duration and scheduled interactions are both supplied,
         otherwise <code>live</code>.
       </p>
+      <p>
+        During a live take, mouse movement, clicks, ViewModel edits and triggers (from the canvas or
+        MCP) are timestamped and applied at their matching video frame, so a heavy file that records
+        slower than real time still plays your input back at real speed. Pointer movement is
+        smoothed between mouse samples, but never across clicks, exits or ViewModel changes. The
+        preview responds to the mouse at least 100 ms late while recording, and reported lag includes
+        that window. Input that arrives unusually late lands on the next frame and is counted in the
+        receipt rather than stopping the take.
+      </p>
 
       <DocsFigure
         src={asset("/docs/2.5.6/interaction-recording-settings.webp?v=curated-2.5.6")}

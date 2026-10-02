@@ -72,6 +72,7 @@ export default function Troubleshooting() {
       <ul>
         <li>The recorded output is complete and exact regardless of how the live preview looks while capturing</li>
         <li>Live recordings (the default clock) track wall time and can report capture lag on demanding files; check the frame count and lag in the status bar</li>
+        <li>Mouse and ViewModel input during a live take is applied at its recorded time, so lag does not speed up or bunch your interaction in the output; the preview itself responds at least 100 ms late while recording</li>
         <li>Offline recordings render every simulation frame exactly and never consult wall time, so they are unaffected by preview slowdown</li>
       </ul>
 
