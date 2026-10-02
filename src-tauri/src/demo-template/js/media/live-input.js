@@ -6,6 +6,7 @@ function createRenderSurfaceLiveInput(recording) {
     var target = JSON.stringify(window.__ravRenderSurfaceTarget || {});
     var session = typeof renderSurfaceSessionId === 'undefined' ? null : renderSurfaceSessionId;
     var pending = [], accepted = 0, applied = 0, sealed = false, disposed = false, replaying = false;
+    var lateInputs = 0, maxLateMs = 0;
     var receipts = [], lastFrame = -1, lastAcceptedFrame = -1, listeners = [], error = null;
     var fps = recording.options.fps.numerator / recording.options.fps.denominator;
     function current() {
@@ -18,18 +19,22 @@ function createRenderSurfaceLiveInput(recording) {
     function status() {
         return { mode: 'timestamped', accepted: accepted, applied: applied, pending: pending.length,
             sealed: sealed, cancelled: disposed, error: error, receipts: receipts.slice(),
+            late_inputs: lateInputs, max_late_ms: maxLateMs, input_latency_window_ms: 100,
             receipts_truncated: Math.max(0, applied - receipts.length) };
     }
-    function enqueue(operation, timestamp) {
-        current();
-        if (disposed || replaying) return null;
-        if (sealed || recording.stopped || !recording.ready) throw new Error('Live recording input is closed.');
+    function inputSeconds(timestamp) {
         var now = performance.now();
         // DOM event.timeStamp uses this document's performance origin. Epoch
         // timestamps from older WebKit are normalized to that origin.
         if (timestamp > 1e12 && Number.isFinite(performance.timeOrigin)) timestamp -= performance.timeOrigin;
         if (!Number.isFinite(timestamp) || timestamp < recording.start || timestamp > now) timestamp = now;
-        var seconds = Math.max(0, (timestamp - recording.start) / 1000);
+        return Math.max(0, (timestamp - recording.start) / 1000);
+    }
+    function enqueue(operation, timestamp) {
+        current();
+        if (disposed || replaying) return null;
+        if (sealed || recording.stopped || !recording.ready) throw new Error('Live recording input is closed.');
+        var seconds = inputSeconds(timestamp);
         if (recording.options.duration_seconds != null && seconds >= recording.options.duration_seconds) {
             throw new Error('Live recording input is past the recording duration.');
         }
@@ -40,18 +45,16 @@ function createRenderSurfaceLiveInput(recording) {
             window.__ravRenderSurfaceEmit('render-surface:media-ended', { capture_id: recording.id });
             throw recording.error;
         }
-        var frame = Math.max(lastFrame + 1, Math.ceil(seconds * fps - 1e-7));
-        if (frame / fps - seconds > 1 / fps + 1e-7) {
-            error = 'Live input arrived after its recording frame; the take stopped instead of changing its timing.';
-            recording.error = new Error(error); recording.stopped = true;
-            settleRenderSurfaceRecordingDrain(recording, recording.error);
-            window.__ravRenderSurfaceEmit('render-surface:media-ended', { capture_id: recording.id });
-            throw recording.error;
-        }
-        var entry = { operation: operation, index: accepted++, frame: frame, seconds: seconds };
+        var requestedFrame = Math.ceil(seconds * fps - 1e-7);
+        var frame = Math.max(lastFrame + 1, requestedFrame), late = frame > requestedFrame;
+        var latenessMs = late ? Math.max(0, frame / fps - seconds) * 1000 : 0;
+        // Normal IPC/DOM delivery has a bounded capture latency window. Input
+        // beyond it remains usable; never abort a take merely for a late move.
+        if (late) { lateInputs++; maxLateMs = Math.max(maxLateMs, latenessMs); }
+        var entry = { operation: operation, index: accepted++, frame: frame, seconds: seconds, late: late, latenessMs: latenessMs };
         pending.push(entry); pending.sort(function (a, b) { return a.frame - b.frame || a.index - b.index; });
         lastAcceptedFrame = Math.max(lastAcceptedFrame, frame);
-        return { queued: true, dispatched: false, input_index: entry.index, frame_index: frame, at_seconds: seconds };
+        return { queued: true, dispatched: false, input_index: entry.index, frame_index: frame, at_seconds: seconds, late: late, lateness_ms: latenessMs };
     }
     function run(frame) {
         current(); lastFrame = frame;
@@ -75,7 +78,8 @@ function createRenderSurfaceLiveInput(recording) {
                 }
                 applied++;
                 receipts.push({ index: entry.index, type: op.type, event: op.payload && op.payload.type,
-                    at_seconds: entry.seconds, frame_index: frame, applied_seconds: frame / fps });
+                    at_seconds: entry.seconds, frame_index: frame, applied_seconds: frame / fps,
+                    late: entry.late, lateness_ms: entry.latenessMs });
                 if (receipts.length > 512) receipts.shift();
             } catch (failure) { error = String(failure.message || failure); throw failure; }
             finally { replaying = false; }
@@ -91,7 +95,7 @@ function createRenderSurfaceLiveInput(recording) {
         if (replaying || disposed) return;
         event.stopImmediatePropagation(); event.preventDefault();
         if (sealed || recording.stopped || !recording.ready
-            || (recording.options.duration_seconds != null && (performance.now() - recording.start) / 1000 >= recording.options.duration_seconds)) return;
+            || (recording.options.duration_seconds != null && inputSeconds(event.timeStamp) >= recording.options.duration_seconds)) return;
         var rect = els.canvas.getBoundingClientRect();
         var type = { mousedown: 'down', mousemove: 'move', mouseup: 'up', mouseout: 'exit' }[event.type];
         try {

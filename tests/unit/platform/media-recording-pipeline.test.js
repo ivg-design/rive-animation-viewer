@@ -82,14 +82,14 @@ describe('recording pipeline lifecycle', () => {
         const h = harness(); await h.start({ ...options, native_job_id: 'native' });
         const recording = h.state.recording, pipe = h.pipe();
         expect(recording.loop).toBeTruthy();
-        await h.settle();
+        await h.settle(); h.time(100); h.pump(); await h.settle();
         expect(pipe.captured.map((entry) => entry.index)).toEqual([0]);
-        h.time(100);
+        h.time(200);
         const stopping = h.stop();
-        for (let step = 0; step < 30 && h.state.recording; step += 1) { h.time(100 + step); h.rafs.splice(0).forEach((fn) => fn()); await h.settle(); }
-        await expect(stopping).resolves.toMatchObject({ frame_count: 6, recording: false, clock: { mode: 'fixed-step' } });
-        expect(pipe.captured.map((entry) => entry.index)).toEqual([0, 1, 2, 3, 4, 5]);
-        expect(pipe.finish).toHaveBeenCalledWith(6);
+        for (let step = 0; step < 30 && h.state.recording; step += 1) { h.time(200 + step); h.rafs.splice(0).forEach((fn) => fn()); await h.settle(); }
+        await expect(stopping).resolves.toMatchObject({ frame_count: 12, recording: false, clock: { mode: 'fixed-step' } });
+        expect(pipe.captured.map((entry) => entry.index)).toEqual(Array.from({ length: 12 }, (_, i) => i));
+        expect(pipe.finish).toHaveBeenCalledWith(12);
     });
     it('reports the offline clock from rendered frames rather than wall time', async () => {
         const h = harness(); await h.start({ ...options, native_job_id: 'native', clock: 'offline', duration_seconds: 0.1 });
@@ -143,7 +143,7 @@ it('cancel interrupts pending image preparation and a late result cannot start t
     h.command('media-record-abort', { capture_id: 'next' });
 });
 
-it('drains a click accepted after frame zero onto its own boundary frame at an early manual Stop', async () => {
+it('drains a click accepted during the first partial interval onto its own boundary frame at an early manual Stop', async () => {
     const h = harness(); await h.start({ capture_id: 'click', width: 64, height: 64,
         fps: { numerator: 60, denominator: 1 }, native_job_id: 'native' });
     await h.settle(); h.time(10);
@@ -152,13 +152,24 @@ it('drains a click accepted after frame zero onto its own boundary frame at an e
     // real loop/start/Stop contract without requiring a browser mouse listener.
     const applied = [];
     const queue = rec.liveInput;
-    queue.enqueue({ type: 'pointer', payload: { type: 'down', x: .5, y: .5 } });
+    queue.enqueue({ type: 'pointer', payload: { type: 'down', x: .5, y: .5 } }, 10);
     const run = queue.run;
     // Retain real queue receipt and seal logic; dispatch is supplied by the harness canvas.
     rec.liveInput.run = index => { applied.push(index); run(index); };
     const stopping = h.stop();
-    for (let i = 0; i < 30 && h.state.recording; i++) { h.time(20 + i); h.rafs.splice(0).forEach(fn => fn()); await h.settle(); }
+    for (let i = 0; i < 30 && h.state.recording; i++) { h.time(120 + i); h.rafs.splice(0).forEach(fn => fn()); await h.settle(); }
     await expect(stopping).resolves.toMatchObject({ frame_count: 2,
         live_input: { accepted: 1, applied: 1, pending: 0, receipts: [{ frame_index: 1 }] } });
-    expect(applied).toEqual([1]); expect(h.pipe().captured.map(e => e.index)).toEqual([0, 1]);
+    expect(applied).toEqual([0, 1]); expect(h.pipe().captured.map(e => e.index)).toEqual([0, 1]);
+});
+
+it.each([{ numerator: 60, denominator: 1 }, { numerator: 30000, denominator: 1001 }])('retains the integer sealed Stop count at 510 ms for $numerator/$denominator', async (fps) => {
+    const h = harness(); await h.start({ capture_id: 'sealed', width: 64, height: 64, fps, native_job_id: 'native' });
+    await h.settle(); h.time(510);
+    const stopping = h.stop();
+    for (let i = 0; i < 50 && h.state.recording; i++) { h.time(510 + i); h.rafs.splice(0).forEach(fn => fn()); await h.settle(); }
+    const count = Math.ceil(.510 * fps.numerator / fps.denominator);
+    await expect(stopping).resolves.toMatchObject({ frame_count: count });
+    expect(h.pipe().finish).toHaveBeenCalledWith(count);
+    expect(h.pipe().captured.map(e => e.index)).toEqual(Array.from({ length: count }, (_, i) => i));
 });

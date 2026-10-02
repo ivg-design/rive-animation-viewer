@@ -200,9 +200,8 @@
             // before flushing, including manual stop between native wake-ups.
             if (recording.ownsClock && !recording.error) {
                 recording.stopAt = elapsed;
-                if (recording.liveInput) recording.stopAt = Math.max(elapsed,
-                    recording.liveInput.seal(Math.max(1, Math.ceil(elapsed * recording.options.fps.numerator / recording.options.fps.denominator)))
-                        * recording.options.fps.denominator / recording.options.fps.numerator);
+                var sealedCount = Math.max(1, Math.ceil(elapsed * recording.options.fps.numerator / recording.options.fps.denominator));
+                recording.stopFrameCount = recording.liveInput ? recording.liveInput.seal(sealedCount) : sealedCount;
                 recording.stopped = false;
                 recording.stopDrain = {};
                 recording.stopDrain.promise = new Promise(function (resolve, reject) {

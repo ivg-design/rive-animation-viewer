@@ -125,9 +125,30 @@ it('reorders delayed DOM delivery by recording frame while preserving same-frame
     h.frame(180); expect(h.seen.map(e => e.type)).toEqual(['mousedown', 'mouseup', 'mouseout']);
 });
 
-it('fails an input that missed its captured frame instead of accepting a wrong-time click', () => {
+it('retains an unusually late click on the next frame and reports its lateness without aborting', () => {
     const h = harness(); h.frame(180); h.time(5000);
-    expect(() => h.send({ type: 'down', x: .5, y: .5 }, false, 2000)).toThrow('after its recording frame');
-    expect(h.recording.liveInput.status()).toMatchObject({ accepted: 0, applied: 0 });
-    expect(h.recording.stopped).toBe(true); expect(h.seen).toEqual([]);
+    expect(h.send({ type: 'down', x: .5, y: .5 }, false, 2000)).toMatchObject({ queued: true, frame_index: 181, late: true });
+    expect(h.recording.stopped).not.toBe(true); h.frame(181);
+    expect(h.recording.liveInput.status()).toMatchObject({ accepted: 1, applied: 1, late_inputs: 1, max_late_ms: 2016.6666666666665 });
+    expect(h.seen.map(e => e.type)).toEqual(['mousedown']);
+});
+
+it.each(['physical', 'vm'])('keeps normal %s delivery delay inside the input-latency window', (kind) => {
+    const h = harness(); h.frame(1); // At wall 118 ms, the 100 ms window permits only frame one.
+    if (kind === 'physical') { h.time(1118); h.physical('mousedown', 1116); }
+    else { h.accessors.set('speed', { value: 0 }); h.time(1140); h.vm('vm-set', { path: 'speed', kind: 'number', value: 42 }, 1120); }
+    const expected = kind === 'physical' ? 7 : 8;
+    h.frame(expected - 1); expect(h.recording.liveInput.status().applied).toBe(0);
+    h.frame(expected); expect(h.recording.liveInput.status()).toMatchObject({ accepted: 1, applied: 1, late_inputs: 0 });
+    expect(h.recording.stopped).not.toBe(true);
+});
+
+it('retains a finite-tail DOM event by its original timestamp despite delayed delivery, like MCP', () => {
+    const h = harness({ duration: .1 }); h.time(1101); h.physical('mousedown', 1099);
+    expect(h.recording.liveInput.status()).toMatchObject({ accepted: 1, pending: 1 });
+    expect(h.send({ type: 'up', x: .5, y: .5 }, false, 1099)).toMatchObject({ queued: true, frame_index: 6 });
+    h.physical('mousemove', 1101); expect(h.recording.liveInput.status().accepted).toBe(2);
+    expect(h.recording.error).toBeUndefined(); h.frame(6);
+    expect(h.seen.map(e => e.type)).toEqual(['mousedown', 'mouseup']);
+    expect(h.recording.liveInput.status().receipts.map(r => r.frame_index)).toEqual([6, 6]);
 });

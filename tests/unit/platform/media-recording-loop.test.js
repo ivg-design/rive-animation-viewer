@@ -127,16 +127,24 @@ describe('self-scheduled recording loop', () => {
     });
 });
 
-it('waits for finite live input through the final interval and advances its last boundary frame before completing', async () => {
-    const h = harness({ duration: .1 }); const order = [];
-    let inputCount = 0;
+it('keeps the finite tail open through its delivery window and captures the accepted boundary frame', async () => {
+    const h = harness({ duration: .1 }); const order = []; let inputCount = 0;
     h.recording.liveInput = { run: index => order.push(index), minimumFrameCount: () => inputCount };
-    h.loop.run(); await h.settle(); await h.fireRaf();
-    await h.advanceTo(84); await h.fireRaf();
+    h.loop.run(); await h.settle();
+    await h.advanceTo(184); await h.fireRaf();
     expect(h.frames.at(-1)).toBe(5); expect(h.recording.stopped).toBe(false);
-    // Accepted at 99 ms, mapped to frame six at 100 ms; never rewrite frame five.
-    inputCount = 7;
-    await h.advanceTo(100); await h.fireRaf();
+    // Event timestamp 99 ms, handled at 199 ms, maps to frame six at 100 ms.
+    await h.advanceTo(199); expect(h.recording.stopped).toBe(false); inputCount = 7;
+    await h.advanceTo(200); await h.fireRaf();
     expect(h.frames).toEqual([0, 1, 2, 3, 4, 5, 6]); expect(order).toEqual(h.frames);
     expect(h.recording.stopped).toBe(true);
+});
+
+it('holds live frame zero for input delivery and sleeps through the latency window', async () => {
+    const h = harness(); h.recording.liveInput = { run() {}, minimumFrameCount: () => 0 };
+    h.loop.run(); await h.settle();
+    await h.advanceTo(99); await h.fireRaf(); expect(h.frames).toEqual([]);
+    await h.advanceTo(100); await h.fireRaf(); expect(h.frames).toEqual([0]);
+    await h.advanceTo(116); await h.fireRaf(); expect(h.frames).toEqual([0]);
+    await h.advanceTo(117); await h.fireRaf(); expect(h.frames).toEqual([0, 1]);
 });

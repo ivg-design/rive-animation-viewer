@@ -112,7 +112,7 @@ export function createRenderSurfaceActivationCoordinator({
     }
 
     function recordAppliedStageCommand(targetSessionId, type, payload, result) {
-        if (!result?.applied || !stage || targetSessionId !== getActiveSessionId?.() || !shouldReplay(type)) return;
+        if (!result?.applied || result.result?.queued === true || !stage || targetSessionId !== getActiveSessionId?.() || !shouldReplay(type)) return;
         // The stage may not have a source yet during preflight; stamp now and
         // validate again at flush, after the independent context is resolved.
         sourceScopes.stamp(payload, targetSessionId);

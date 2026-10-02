@@ -408,3 +408,19 @@ describe('platform/render-surface/activation/coordinator', () => {
         }));
     });
 });
+
+it('does not replay recording-queued acknowledgements as applied predecessor commands', async () => {
+    let active = 'active';
+    const requestCommand = vi.fn(async () => ({ applied: true, status: 'applied', result: { queued: true } }));
+    const coordinator = createRenderSurfaceActivationCoordinator({
+        getActiveSessionId: () => active, getStagedSessionId: () => 'staged',
+        isSessionAddressable: () => true, protocol: { requestCommand },
+    });
+    coordinator.beginStage('staged');
+    await coordinator.requestCommand('vm-set', { kind: 'number', path: 'speed', value: 42 });
+    await coordinator.relay.relay('vm-fire', { kind: 'trigger', path: 'bang' });
+    expect(coordinator.pendingStage()).toBe(0);
+    await expect(coordinator.beginBarrier('staged')).resolves.toBe(true);
+    active = 'staged'; await coordinator.flushStage('staged');
+    expect(requestCommand).toHaveBeenCalledTimes(2);
+});
