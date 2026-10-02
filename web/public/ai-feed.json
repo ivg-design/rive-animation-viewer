@@ -1,13 +1,13 @@
 {
   "version": "1.1",
-  "generatedAt": "2026-09-21",
+  "generatedAt": "2026-10-01",
   "project": "RAV",
   "canonical": "https://forge.mograph.life/apps/rav/",
   "releaseStatus": {
-    "version": "2.5.8",
+    "version": "2.5.9",
     "status": "public",
     "public": true,
-    "note": "RAV 2.5.8 is the current public release. It fixes the Machine ID on Windows (it was unavailable there in 2.5.7, which blocked activation on Windows installations); the Machine ID is now derived from the installation's machine identifier on Windows, the hardware UUID on macOS and the machine-id file elsewhere, and existing keys are unaffected. 2.5.7 added the Machine ID row in the About window, the MCP rav_entitlement_status tool (56 tools total), file inspection rebuilt on RF Parser 2.5.14, and the timeline scrubber fixes."
+    "note": "RAV 2.5.9 is the current public release. Saved standalone demos embed the matching runtime WASM and play without network access; every exportable ViewModel control is selected by default (Changed Only is removed), and an explicit subset or Clear is remembered per file, artboard and ViewModel across renderer switches. Live recordings apply mouse and ViewModel input at its recorded time, so interaction stays in real time and smooth even when capture lags. MCP commands keep responding while RAV is minimized on macOS, a never-settling playback rav_eval no longer blocks later commands, the standalone Node MCP server starts again, file inspection and analysis reports are updated, and TLS, analysis-sidecar and website dependencies carry security updates. 2.5.8 fixed the Machine ID on Windows."
   },
   "entities": [
     {
