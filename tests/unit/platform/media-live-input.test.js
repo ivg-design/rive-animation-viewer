@@ -152,3 +152,23 @@ it('retains a finite-tail DOM event by its original timestamp despite delayed de
     expect(h.seen.map(e => e.type)).toEqual(['mousedown', 'mouseup']);
     expect(h.recording.liveInput.status().receipts.map(r => r.frame_index)).toEqual([6, 6]);
 });
+
+it('samples adjacent move positions on each frame with matching cursor, without inventing accepted events', () => {
+    const h = harness(); h.time(3000); h.send({ type: 'move', x: 0, y: .5 });
+    h.time(5000); h.send({ type: 'move', x: 1, y: .5 });
+    h.frame(120); h.frame(180);
+    expect(h.state.cursor).toMatchObject({ x: .5, y: .5, inside: true });
+    expect(h.seen.at(-1).cursor.x).toBe(.5);
+    expect(h.recording.liveInput.status()).toMatchObject({ accepted: 2, applied: 1, pending: 1, interpolated_moves: 1 });
+    h.frame(240); expect(h.state.cursor.x).toBe(1);
+    expect(h.recording.liveInput.status()).toMatchObject({ accepted: 2, applied: 2, pending: 0 });
+});
+
+it.each(['down', 'up', 'exit'])('never interpolates over the %s barrier or invents clicks', type => {
+    const h = harness(); h.time(3000); h.send({ type: 'move', x: 0, y: .5 });
+    h.time(3500); h.send({ type, x: .2, y: .5 });
+    h.time(5000); h.send({ type: 'move', x: 1, y: .5 });
+    h.frame(120); h.frame(130); expect(h.seen).toHaveLength(1); expect(h.state.cursor.x).toBe(0);
+    h.frame(150); h.frame(180); expect(h.seen).toHaveLength(2);
+    expect(h.recording.liveInput.status()).toMatchObject({ accepted: 3, applied: 2, interpolated_moves: 0 });
+});

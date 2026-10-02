@@ -6,7 +6,7 @@ function createRenderSurfaceLiveInput(recording) {
     var target = JSON.stringify(window.__ravRenderSurfaceTarget || {});
     var session = typeof renderSurfaceSessionId === 'undefined' ? null : renderSurfaceSessionId;
     var pending = [], accepted = 0, applied = 0, sealed = false, disposed = false, replaying = false;
-    var lateInputs = 0, maxLateMs = 0;
+    var lateInputs = 0, maxLateMs = 0, previousPointer = null, interpolated = 0;
     var receipts = [], lastFrame = -1, lastAcceptedFrame = -1, listeners = [], error = null;
     var fps = recording.options.fps.numerator / recording.options.fps.denominator;
     function current() {
@@ -19,7 +19,7 @@ function createRenderSurfaceLiveInput(recording) {
     function status() {
         return { mode: 'timestamped', accepted: accepted, applied: applied, pending: pending.length,
             sealed: sealed, cancelled: disposed, error: error, receipts: receipts.slice(),
-            late_inputs: lateInputs, max_late_ms: maxLateMs, input_latency_window_ms: 100,
+            late_inputs: lateInputs, max_late_ms: maxLateMs, input_latency_window_ms: 100, interpolated_moves: interpolated,
             receipts_truncated: Math.max(0, applied - receipts.length) };
     }
     function inputSeconds(timestamp) {
@@ -62,7 +62,7 @@ function createRenderSurfaceLiveInput(recording) {
             var entry = pending.shift(), op = entry.operation;
             replaying = true;
             try {
-                if (op.type === 'pointer') dispatchRenderSurfacePointer(op.payload, true);
+                if (op.type === 'pointer') { dispatchRenderSurfacePointer(op.payload, true); previousPointer = entry; }
                 else {
                     // Resolve by path at application time: list descendants may
                     // have changed since acceptance. Never retain a WASM handle.
@@ -83,6 +83,24 @@ function createRenderSurfaceLiveInput(recording) {
                 if (receipts.length > 512) receipts.shift();
             } catch (failure) { error = String(failure.message || failure); throw failure; }
             finally { replaying = false; }
+        }
+        // Sample the continuous path at each video frame. Never interpolate
+        // across a down/up/exit boundary or before the first accepted move.
+        var nextPointer = pending.find(function (item) { return item.operation.type === 'pointer'; });
+        var previous = previousPointer && previousPointer.operation.payload;
+        var next = nextPointer && nextPointer.operation.payload;
+        var seconds = frame / fps;
+        if (!disposed && previous && next && previous.type === 'move' && next.type === 'move'
+            && (previous.buttons || 0) === (next.buttons || 0) && (previous.id || 0) === (next.id || 0)
+            && seconds > previousPointer.seconds && seconds < nextPointer.seconds) {
+            var fraction = (seconds - previousPointer.seconds) / (nextPointer.seconds - previousPointer.seconds);
+            replaying = true;
+            try {
+                dispatchRenderSurfacePointer({ ...previous,
+                    x: previous.x + (next.x - previous.x) * fraction,
+                    y: previous.y + (next.y - previous.y) * fraction }, true);
+                interpolated++;
+            } finally { replaying = false; }
         }
     }
     function seal(count) {
