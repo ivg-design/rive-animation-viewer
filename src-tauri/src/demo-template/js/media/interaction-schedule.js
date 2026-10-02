@@ -206,7 +206,7 @@ async function prepareRenderSurfaceInteractionSchedule(interactions, options, pr
         var schedule = RavMediaInteractions.create(normalized, {
             duration_seconds: options.duration_seconds, isCurrent: isCurrent,
             apply: function (op, index) {
-                if (op.type === 'pointer') return dispatchRenderSurfacePointer({ type: op.event, x: op.x, y: op.y, id: 0, buttons: op.buttons });
+                if (op.type === 'pointer') return dispatchRenderSurfacePointer({ type: op.event, x: op.x, y: op.y, id: 0, buttons: op.buttons }, true);
                 var descriptor = op.descriptor;
                 var accessor = resolveControlAccessor(descriptor) || preparedAccessors.get(index);
                 if (descriptor.kind === 'image') {

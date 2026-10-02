@@ -218,8 +218,8 @@
             if (type === 'media-record-status') {
                 var active = getRenderSurfaceMediaState().recording;
                 return { recording: Boolean(active), interaction_schedule: active && active.schedule ? active.schedule.status() : null,
-                    capture_clock: active && active.ownsClock ? { mode: 'fixed-step', max_lag_ms: active.maxLagMs || 0,
-                        lag_ms: Math.max(0, performance.now() - active.start - (active.lastIndex + 1) * 1000 * active.options.fps.denominator / active.options.fps.numerator) } : null };
+                    live_input: active && active.liveInput ? active.liveInput.status() : null,
+                    capture_clock: active && active.ownsClock ? renderSurfaceRecordingClock(active) : null };
             }
             if (type === 'media-record-stop') return stopRenderSurfaceRecording();
             if (type === 'media-record-abort') return abortRenderSurfaceRecording(payload.capture_id);

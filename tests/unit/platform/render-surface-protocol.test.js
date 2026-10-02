@@ -1,6 +1,7 @@
 import {
     createRenderSurfaceCommandBuffer,
     createRenderSurfaceCommandRelay,
+    recordingInputTimestamp,
 } from '../../../src/app/platform/render-surface/command-buffer.js';
 import {
     createRenderSurfaceProtocol,
@@ -857,4 +858,21 @@ it('extends stop only on advancing, session-matched progress; repeated heartbeat
     await vi.advanceTimersByTimeAsync(50000);progress(2);progress(3,'wrong');
     await vi.advanceTimersByTimeAsync(10001);
     expect(result).toHaveBeenCalledWith(expect.objectContaining({status:'timeout'}));
+});
+
+it('retains live input acceptance time across the ordered relay and the native command envelope', async () => {
+    let release; const gate = new Promise(resolve => { release = resolve; }), sent = [];
+    const relay = createRenderSurfaceCommandRelay({ canSend: () => true, getTargetSessionId: () => 'one',
+        send: async (type, payload, options) => { sent.push({ type, options }); if (type === 'pause') await gate; return { applied: true }; } });
+    const first = relay.relay('pause'); await Promise.resolve();
+    const acceptedAt = recordingInputTimestamp(); const pointer = relay.relay('pointer', { type: 'move', x: .5, y: .5 });
+    await vi.advanceTimersByTimeAsync(1200); release(); await first; await pointer;
+    expect(sent[1].options).toMatchObject({ targetSessionId: 'one', acceptedAtMs: acceptedAt });
+    const invoke = vi.fn(async () => true);
+    const protocol = createRenderSurfaceProtocol({ canSend: () => true, documentRef: document, invokeQuietly: invoke, windowRef: window });
+    protocol.beginSession('one', 2);
+    const request = protocol.requestCommand('pointer', { type: 'move', x: .5, y: .5 }, sent[1].options);
+    await Promise.resolve(); const envelope = invoke.mock.calls.at(-1)[1].payload;
+    expect(envelope.inputAtMs).toBe(acceptedAt);
+    protocol.handleAck({ payload: { sessionId: 'one', commandId: envelope.commandId, status: 'applied', applied: true } }); await request;
 });

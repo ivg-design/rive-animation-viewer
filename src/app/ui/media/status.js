@@ -12,7 +12,10 @@ function describeWarnings(job) {
     const quality = held > 0 || warnings.some(isFrameHold)
         ? `Capture quality: ${held ? `${held.toLocaleString()} of ${total.toLocaleString()} frames repeat earlier captures` : 'Some frames repeat earlier captures'}. Motion may be less smooth. Try a lower FPS or smaller dimensions.`
         : '';
-    return [quality, ...warnings.filter((warning) => !isFrameHold(warning))].filter(Boolean);
+    const clock = job.resolved_settings?.capture_clock;
+    const lag = clock?.sustained_lag && ['capturing', 'encoding'].includes(job.state)
+        ? `Recording is ${(clock.lag_ms / 1000).toFixed(1)}s behind. Live input keeps its recorded timing; preview responses are delayed. Try smaller dimensions or lower FPS.` : '';
+    return [quality, lag, ...warnings.filter((warning) => !isFrameHold(warning))].filter(Boolean);
 }
 
 export function describeJob(job) {
@@ -31,7 +34,8 @@ export function describeJob(job) {
     const capture = settings?.capture_transport === 'webcodecs-binary' ? `Video capture: ${String(settings.capture_codec).toUpperCase()} · hardware preferred` : '';
     const timing = Number.isFinite(settings?.encode_seconds) && Number.isFinite(settings?.verify_seconds)
         ? `Finalization ${settings.encode_seconds.toFixed(1)}s · verification ${settings.verify_seconds.toFixed(1)}s` : '';
-    const details = [dimensions, capture, timing, job.actual_bytes != null && `${Number(job.actual_bytes).toLocaleString()} bytes`, job.output_path, settings?.recovery_spool && `Recovery capture: ${settings.recovery_spool}`].filter(Boolean).join('\n');
+    const lag = settings?.capture_clock?.sustained_lag ? `Recording lag: ${(settings.capture_clock.lag_ms / 1000).toFixed(1)}s` : '';
+    const details = [dimensions, capture, lag, timing, job.actual_bytes != null && `${Number(job.actual_bytes).toLocaleString()} bytes`, job.output_path, settings?.recovery_spool && `Recovery capture: ${settings.recovery_spool}`].filter(Boolean).join('\n');
     return { text, progress, details, error: job.error || '', warnings: describeWarnings(job) };
 }
 
@@ -59,7 +63,8 @@ export function createMediaJobPresentation({ documentRef, anchor, statusAnchor, 
             // The normal playback status continues updating underneath and is
             // restored immediately at completion, failure or cancellation.
             strip?.classList.toggle('media-busy', busy);
-            const text = busy ? display.text : '';
+            const clock = job?.resolved_settings?.capture_clock;
+            const text = busy ? display.text + (clock?.sustained_lag ? ` · ${(clock.lag_ms / 1000).toFixed(1)}s behind` : '') : '';
             if (label.textContent !== text) label.textContent = text;
             if (display.progress == null) progress.removeAttribute('value');
             else progress.value = display.progress;

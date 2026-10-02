@@ -1,3 +1,4 @@
+import { recordingInputTimestamp } from './command-buffer.js';
 import {
     bufferTopologyDelta,
     materializeTopologyDelta,
@@ -285,7 +286,8 @@ export function createRenderSurfaceProtocol({
         }
         const sent = await invokeQuietly('send_render_surface_message', {
             event: CHILD_COMMAND_EVENT,
-            payload: { commandId, protocolVersion: RENDER_SURFACE_PROTOCOL_VERSION, revision, sessionId: targetSessionId, type, payload },
+            payload: { commandId, protocolVersion: RENDER_SURFACE_PROTOCOL_VERSION, revision, sessionId: targetSessionId, type, payload,
+                ...(['pointer', 'vm-set', 'vm-fire'].includes(type) ? { inputAtMs: options.acceptedAtMs ?? recordingInputTimestamp() } : {}) },
         });
         if (!sent) {
             const pending = pendingAcks.get(commandId);

@@ -288,3 +288,14 @@ describe('sequence destination confirmation renderer', () => {
         expect(get('[data-media-action="media-choose-path"]').getAttribute('aria-label')).toBe('Change output folder');
     });
 });
+
+it('shows sustained live recording lag and clears the warning when capture catches up or completes', () => {
+    const job = { recording: true, state: 'capturing', captured_frames: 60,
+        resolved_settings: { capture_clock: { lag_ms: 3200, sustained_lag: true, input_timing: 'timestamped' } } };
+    expect(describeJob(job).warnings.join(' ')).toContain('3.2s behind');
+    expect(describeJob(job).warnings.join(' ')).toContain('preview responses are delayed');
+    expect(describeJob(job).details).toContain('Recording lag: 3.2s');
+    expect(describeJob({ ...job, state: 'completed' }).warnings).toEqual([]);
+    job.resolved_settings.capture_clock.sustained_lag = false;
+    expect(describeJob(job).warnings).toEqual([]);
+});

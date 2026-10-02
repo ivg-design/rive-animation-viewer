@@ -4,6 +4,8 @@
             canvas.__ravMediaPointer = true;
             ['pointermove', 'pointerdown', 'pointerup', 'pointerleave'].forEach(function (type) {
                 canvas.addEventListener(type, function (event) {
+                    var active = getRenderSurfaceMediaState().recording;
+                    if (active && active.liveInput && !active.liveInput.isReplaying()) return;
                     var rect = canvas.getBoundingClientRect();
                     getRenderSurfaceMediaState().cursor = { x: (event.clientX - rect.left) / rect.width,
                         y: (event.clientY - rect.top) / rect.height, inside: type !== 'pointerleave' };
@@ -22,7 +24,7 @@
             window.__ravRenderSurfaceEmit('render-surface:media-shortcut', {});
         });
 
-        function dispatchRenderSurfacePointer(payload) {
+        function dispatchRenderSurfacePointer(payload, replay, timestamp) {
             // Rive Web attaches mouse/touch listeners, not DOM pointer listeners.
             // Synthetic PointerEvents do not synthesize compatibility MouseEvents.
             var types = { down: 'mousedown', move: 'mousemove', up: 'mouseup', exit: 'mouseout' };
@@ -30,11 +32,16 @@
             if (payload.id != null && payload.id !== 0) throw new Error('Mouse interaction uses pointer id 0; multi-touch injection is not supported.');
             if (!type || !Number.isFinite(payload.x) || !Number.isFinite(payload.y)
                 || payload.x < 0 || payload.x > 1 || payload.y < 0 || payload.y > 1) throw new Error('Pointer requires type and normalized x/y in 0–1.');
+            var active = getRenderSurfaceMediaState().recording;
+            if (!replay && active && active.liveInput) return active.liveInput.enqueue({ type: 'pointer', payload: Object.assign({}, payload) }, timestamp);
+            if (replay && active && active.liveInput && !active.liveInput.isReplaying()) {
+                return active.liveInput.replay(function () { return dispatchRenderSurfacePointer(payload, true); });
+            }
             var rect = els.canvas.getBoundingClientRect();
             getRenderSurfaceMediaState().cursor = { x: payload.x, y: payload.y, inside: payload.type !== 'exit' };
             els.canvas.dispatchEvent(new MouseEvent(type, { bubbles: true,
                 clientX: rect.left + payload.x * rect.width, clientY: rect.top + payload.y * rect.height,
-                button: 0, buttons: payload.buttons == null ? (payload.type === 'down' ? 1 : 0) : payload.buttons }));
+                button: payload.button == null ? 0 : payload.button, buttons: payload.buttons == null ? (payload.type === 'down' ? 1 : 0) : payload.buttons }));
             return { dispatched: true, type: payload.type, x: payload.x, y: payload.y, id: 0 };
         }
 
@@ -83,7 +90,10 @@
             if (options.clock === 'offline' && options.duration_seconds == null) throw new Error('Offline recording requires duration_seconds.');
             var reportProgress = function () {
                 var active = state.recording;
-                if (active && active.id === options.capture_id && active.stopProgress) active.stopProgress();
+                if (active && active.id === options.capture_id) {
+                    publishRenderSurfaceRecordingProgress(active);
+                    if (active.stopProgress) active.stopProgress();
+                }
             };
             var recording = { id: options.capture_id, options: options, start: performance.now(),
                 lastIndex: -1, dropped: 0, stopped: false, ready: false, ownsClock: Boolean(options.native_job_id), schedule: schedule,
@@ -110,6 +120,7 @@
             if (state.recording !== recording || recording.stopped) throw new Error('Recording preparation was cancelled.');
             recording.start = performance.now();
             recording.ready = true;
+            if (recording.ownsClock && options.clock !== 'offline') recording.liveInput = createRenderSurfaceLiveInput(recording);
             if (recording.ownsClock) {
                 recording.loop = createRenderSurfaceRecordingLoop(recording);
                 recording.loop.run();
@@ -135,7 +146,7 @@
                 return;
             }
             var index = explicitIndex == null ? (recording.lastIndex < 0 ? 0 : Math.floor(elapsed * options.fps.numerator / options.fps.denominator + 0.5)) : explicitIndex;
-            if (options.duration_seconds) index = Math.min(index, Math.ceil(options.duration_seconds * options.fps.numerator / options.fps.denominator) - 1);
+            if (options.duration_seconds && !recording.ownsClock) index = Math.min(index, Math.ceil(options.duration_seconds * options.fps.numerator / options.fps.denominator) - 1);
             if (index <= recording.lastIndex) return;
             // Presentation-clock captures skip frames the pipeline cannot take;
             // the receipt reports them as dropped. The recording loop never
@@ -167,6 +178,7 @@
             if (recording.loop) recording.loop.kick();
             if (recording.pipeline) recording.pipeline.dispose();
             if (recording.schedule) recording.schedule.dispose();
+            if (recording.liveInput) recording.liveInput.dispose();
             handleResize();
             renderSurfaceAdvanceFrame(riveInstance, 0);
             if (riveInstance.isPlaying) riveInstance.startRendering();
@@ -188,6 +200,9 @@
             // before flushing, including manual stop between native wake-ups.
             if (recording.ownsClock && !recording.error) {
                 recording.stopAt = elapsed;
+                if (recording.liveInput) recording.stopAt = Math.max(elapsed,
+                    recording.liveInput.seal(Math.max(1, Math.ceil(elapsed * recording.options.fps.numerator / recording.options.fps.denominator)))
+                        * recording.options.fps.denominator / recording.options.fps.numerator);
                 recording.stopped = false;
                 recording.stopDrain = {};
                 recording.stopDrain.promise = new Promise(function (resolve, reject) {
@@ -223,7 +238,9 @@
             catch (error) { if (!recording.error) recording.error = error; }
             finally { recording.pipeline.dispose(); }
             var interactionReceipt = recording.schedule ? recording.schedule.status() : null;
+            var liveInputReceipt = recording.liveInput ? recording.liveInput.status() : null;
             if (recording.schedule) recording.schedule.dispose();
+            if (recording.liveInput) recording.liveInput.dispose();
             var diskStop = recording.error && recording.error.code === 'disk_space' ? recording.error.receipt : null;
             if (diskStop) { count = diskStop.frame_count; recording.error = null; }
             state.recording = null;
@@ -232,9 +249,8 @@
             if (riveInstance.isPlaying) riveInstance.startRendering();
             if (recording.error) throw recording.error;
             return { recording: false, capture_id: recording.id, elapsed_seconds: elapsed,
-                dropped_frames: recording.dropped, video: videoReceipt, interactions: interactionReceipt,
-                clock: { mode: recording.ownsClock ? (recording.options.clock === 'offline' ? 'offline' : 'fixed-step') : 'presentation',
-                    max_lag_ms: recording.options.clock === 'offline' ? 0 : (recording.maxLagMs || 0) },
+                dropped_frames: recording.dropped, video: videoReceipt, interactions: interactionReceipt, live_input: liveInputReceipt,
+                clock: Object.assign(renderSurfaceRecordingClock(recording), { lag_ms: 0, sustained_lag: false }),
                 stop_reason: diskStop ? 'disk_space' : null,
                 frame_count: Math.max(1, count) };
         }

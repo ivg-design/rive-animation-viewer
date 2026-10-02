@@ -10,6 +10,7 @@ import {
     canonicalVmSnapshot,
     findCanonicalInput,
     requestAuthoritativeCommand,
+    queuedRecordingInput,
     requestAuthoritativeImageCommand,
 } from '../authoritative.js';
 
@@ -205,6 +206,7 @@ export function createViewModelCommands({
                     path: normalizedPath,
                     status: result.status,
                     value: canonicalInput.value,
+                    ...queuedRecordingInput(result),
                     ...(result.message ? { message: result.message } : {}),
                 };
             }
@@ -307,6 +309,7 @@ export function createViewModelCommands({
                     kind: 'trigger',
                     path: normalizedPath,
                     status: result.status,
+                    ...queuedRecordingInput(result),
                     ...(result.message ? { message: result.message } : {}),
                 };
             }

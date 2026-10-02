@@ -69,7 +69,8 @@
             function mode() { return recording.options.clock === 'offline' ? 'offline' : 'live'; }
             function finalCount() {
                 var end = recording.stopAt == null ? recording.options.duration_seconds : recording.stopAt;
-                return end == null ? Infinity : Math.max(1, Math.ceil(end * fpsOf()));
+                return end == null ? Infinity : Math.max(1, Math.ceil(end * fpsOf()),
+                    recording.liveInput ? recording.liveInput.minimumFrameCount() : 0);
             }
             function dueIndex(now) {
                 var final = finalCount();
@@ -90,19 +91,28 @@
             function renderFrame(index) {
                 var fps = fpsOf();
                 if (recording.schedule) recording.schedule.run(index / fps, index);
+                if (recording.liveInput) recording.liveInput.run(index);
                 renderSurfaceAdvanceFrame(riveInstance, index > 0 && riveInstance.isPlaying ? 1 / fps : 0);
                 recordRenderSurfaceMediaFrame(index);
                 if (mode() === 'live') {
                     recording.maxLagMs = Math.max(recording.maxLagMs || 0,
-                        Math.max(0, (performance.now() - recording.start) - index * 1000 / fps));
+                        Math.max(0, (recording.stopAt == null ? performance.now() - recording.start : recording.stopAt * 1000) - index * 1000 / fps));
                 }
+                if (typeof publishRenderSurfaceRecordingProgress === 'function') publishRenderSurfaceRecordingProgress(recording);
             }
             async function run() {
                 if (running) return;
                 running = true;
                 try {
                     while (isCurrent()) {
-                        if (recording.lastIndex + 1 >= finalCount()) { complete(); break; }
+                        if (recording.lastIndex + 1 >= finalCount()) {
+                            // Keep acceptance open through a finite take's final
+                            // interval, even when its last frame was captured early.
+                            var remaining = recording.liveInput && recording.stopAt == null
+                                ? recording.options.duration_seconds * 1000 - (performance.now() - recording.start) : 0;
+                            if (remaining > 0) { await wait(Math.min(250, Math.ceil(remaining))); continue; }
+                            complete(); break;
+                        }
                         var due = dueIndex(performance.now());
                         if (recording.lastIndex >= due) {
                             // Live mode: sleep until the next frame boundary, or a kick.
@@ -123,7 +133,7 @@
                             if (recording.stopDrain && recording.stopDrain.arm) recording.stopDrain.arm();
                             if (recording.stopProgress) recording.stopProgress();
                         }
-                        if (recording.lastIndex + 1 >= finalCount()) { complete(); break; }
+                        if (recording.lastIndex + 1 >= finalCount()) continue;
                         await yieldForPresentation();
                     }
                 } catch (error) {

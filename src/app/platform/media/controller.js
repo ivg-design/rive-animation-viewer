@@ -82,6 +82,14 @@ export function createMediaExportController({ getTauriInvoker, getTauriEventList
                     emit(job);
                 }).catch((error) => fail(job, error));
             });
+            await listen('render-surface:media-progress', ({ payload }) => {
+                const job = current;
+                if (!job?.recording || payload.sessionId !== job.source_session || payload.capture_id !== job.id
+                    || job.state !== 'capturing') return;
+                job.resolved_settings.capture_clock = payload.capture_clock;
+                job.resolved_settings.live_input = payload.live_input;
+                emit(job);
+            });
             await listen('render-surface:media-ended', ({ payload }) => {
                 if (current?.id === payload.capture_id && current.source_session === payload.sessionId) void stopRecording().catch(() => {});
             });
@@ -217,6 +225,7 @@ export function createMediaExportController({ getTauriInvoker, getTauriEventList
             // Native frame_count - received_frames is the single authoritative
             // quality count, including the final interval. Encoding happens later.
             if (receipt.interactions) job.interaction_schedule = receipt.interactions;
+            if (receipt.live_input) job.resolved_settings.live_input = receipt.live_input;
             if (receipt.clock) job.resolved_settings.capture_clock = receipt.clock;
             if (receipt.stop_reason) {
                 job.resolved_settings.stop_reason = receipt.stop_reason;
@@ -248,6 +257,7 @@ export function createMediaExportController({ getTauriInvoker, getTauriEventList
                 const recordingStatus = await command(job, 'media-record-status');
                 if (recordingStatus?.interaction_schedule) job.interaction_schedule = recordingStatus.interaction_schedule;
                 if (recordingStatus?.capture_clock) job.resolved_settings.capture_clock = recordingStatus.capture_clock;
+                if (recordingStatus?.live_input) job.resolved_settings.live_input = recordingStatus.live_input;
             }
             if (job.state !== 'capturing') job.state = job.native.state;
             else if (['failed', 'cancelled'].includes(job.native.state)) {

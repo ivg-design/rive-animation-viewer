@@ -269,6 +269,20 @@ mod tests {
     }
 
     #[test]
+    fn queued_recording_input_is_accepted_without_claiming_vm_application() {
+        let receipt = json!({"accepted": true, "queued": true, "applied": null,
+            "status": "queued", "frame_index": 120, "at_seconds": 2});
+        let result = format_tool_result("rav_vm_set", receipt.clone());
+        assert_eq!(result["isError"], false);
+        assert_eq!(result["structuredContent"], receipt);
+        let rejected = format_tool_result(
+            "rav_vm_set",
+            json!({"applied": false, "status": "rejected"}),
+        );
+        assert_eq!(rejected["isError"], true);
+    }
+
+    #[test]
     fn canvas_capture_requires_nonempty_png_content() {
         let valid = format_tool_result(
             "rav_capture_canvas",

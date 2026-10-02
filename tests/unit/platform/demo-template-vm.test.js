@@ -4361,3 +4361,11 @@ it('ignores a rendering-control command older than the newest one applied, so a 
     expect(run('quiesce-rendering', {})).toMatchObject({ quiesced: true });
     expect(run('resume-rendering', {})).toMatchObject({ resumed: true });
 });
+
+it('does not publish an accepted queued VM edit or trigger as an already applied canonical mutation', () => {
+    const h = createDemoVmHarness({ viewModelInstance: { properties: [] } }, { renderSurfaceMode: true });
+    for (const type of ['vm-set', 'vm-fire']) expect(h.captureRenderSurfaceCommandCanonicalDelta(
+        { type, payload: { descriptor: { path: 'speed', kind: 'number' } } },
+        { queued: true, input_index: 1, frame_index: 60, at_seconds: 1 },
+    )).toBeNull();
+});

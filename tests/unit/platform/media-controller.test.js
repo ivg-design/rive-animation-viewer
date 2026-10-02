@@ -194,3 +194,19 @@ it('defaults scheduled recordings with a duration to the offline clock and honou
     await h.controller.cancel();
     await expect(h.controller.startRecording({ format: 'webm', clock: 'offline' })).rejects.toThrow('duration_seconds');
 });
+
+it('pushes live-input lag only for the current capture/session, without adding a status poll', async () => {
+    const h = setup({ recording: true }); const job = await h.controller.startRecording({ format: 'webm' });
+    const progress = h.listeners['render-surface:media-progress'];
+    const payload = { sessionId: 'one', capture_id: job.job_id,
+        capture_clock: { mode: 'fixed-step', lag_ms: 1200, sustained_lag: true, input_timing: 'timestamped' },
+        live_input: { accepted: 4, applied: 1, pending: 3 } };
+    progress({ payload: { ...payload, sessionId: 'stale' } });
+    progress({ payload: { ...payload, capture_id: 'other' } });
+    expect(h.events.at(-1).detail.resolved_settings.capture_clock).toBeUndefined();
+    progress({ payload });
+    expect(h.events.at(-1).detail.resolved_settings).toMatchObject({ capture_clock: payload.capture_clock, live_input: payload.live_input });
+    expect(h.requests.filter(r => r.command === 'media_export_status')).toHaveLength(0);
+    await h.controller.cancel(job.job_id);
+    const events = h.events.length; progress({ payload }); expect(h.events).toHaveLength(events);
+});

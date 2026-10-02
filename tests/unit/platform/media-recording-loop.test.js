@@ -126,3 +126,17 @@ describe('self-scheduled recording loop', () => {
         expect(h.api.pumpRenderSurfaceRecording()).toBe(false);
     });
 });
+
+it('waits for finite live input through the final interval and advances its last boundary frame before completing', async () => {
+    const h = harness({ duration: .1 }); const order = [];
+    let inputCount = 0;
+    h.recording.liveInput = { run: index => order.push(index), minimumFrameCount: () => inputCount };
+    h.loop.run(); await h.settle(); await h.fireRaf();
+    await h.advanceTo(84); await h.fireRaf();
+    expect(h.frames.at(-1)).toBe(5); expect(h.recording.stopped).toBe(false);
+    // Accepted at 99 ms, mapped to frame six at 100 ms; never rewrite frame five.
+    inputCount = 7;
+    await h.advanceTo(100); await h.fireRaf();
+    expect(h.frames).toEqual([0, 1, 2, 3, 4, 5, 6]); expect(order).toEqual(h.frames);
+    expect(h.recording.stopped).toBe(true);
+});

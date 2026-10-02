@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 const source = readFileSync('src-tauri/src/demo-template/js/media/recording.js', 'utf8');
 const loop = readFileSync('src-tauri/src/demo-template/js/media/pipeline/recording-loop.js', 'utf8');
+const live = readFileSync('src-tauri/src/demo-template/js/media/live-input.js', 'utf8');
 const capture = readFileSync('src-tauri/src/demo-template/js/media/capture.js', 'utf8');
 
 function fakePipeline(options, hooks) {
@@ -21,14 +22,14 @@ function harness(prepare) {
     const api = new Function('window', 'document', 'isRenderSurfaceMode', 'els', 'performance',
         'handleResize', 'riveInstance', 'renderSurfaceAdvanceFrame', 'createMediaCapturePipeline',
         'requestAnimationFrame', 'cancelAnimationFrame', 'MessageChannel',
-        `${capture}\n${loop}\n${source}\n
+        `${capture}\n${loop}\n${live}\n${source}\n
         getRenderSurfaceMediaState = () => arguments[12];
         prepareRenderSurfaceInteractionSchedule = arguments[13];
         return { start:startRenderSurfaceRecording, frame:recordRenderSurfaceMediaFrame,
             stop:stopRenderSurfaceRecording, pump:pumpRenderSurfaceRecording,
             progress:withRenderSurfaceStopProgress, command:handleRenderSurfaceMediaCommand };`
     )({ __ravRenderSurfaceTarget: { type: 'stateMachine' }, __ravRenderSurfaceEmit: emit }, { hidden: false, createElement: () => ({}) },
-        false, { canvas: { id: 'canvas' } }, { now: () => now }, vi.fn(),
+        false, { canvas: { id: 'canvas', addEventListener() {}, removeEventListener() {}, dispatchEvent() {}, getBoundingClientRect() { return { left: 0, top: 0, width: 64, height: 64 }; } } }, { now: () => now }, vi.fn(),
         { isPlaying: true, startRendering: vi.fn() }, vi.fn(),
         (options, hooks) => { const pipe = fakePipeline(options, hooks); pipelines.push(pipe); return pipe; },
         (fn) => { rafs.push(fn); return rafs.length; }, vi.fn(),
@@ -45,7 +46,7 @@ describe('recording pipeline lifecycle', () => {
         const h = harness(); await h.start(options);
         const pipe = h.pipe();
         expect(pipe.configure).toHaveBeenCalledOnce();
-        expect(pipe.warmUp).toHaveBeenCalledWith({ id: 'canvas' });
+        expect(pipe.warmUp).toHaveBeenCalledWith(expect.objectContaining({ id: 'canvas' }));
         expect(pipe.captured.map((entry) => entry.index)).toEqual([0]);
         h.time(17); h.frame(); h.time(34); h.frame(); h.time(51); h.frame();
         expect(pipe.captured.map((entry) => entry.index)).toEqual([0, 1, 2, 3]);
@@ -140,4 +141,24 @@ it('cancel interrupts pending image preparation and a late result cannot start t
     release({ dispose: vi.fn() }); await h.settle();
     expect(h.state.recording.id).toBe('next');
     h.command('media-record-abort', { capture_id: 'next' });
+});
+
+it('drains a click accepted after frame zero onto its own boundary frame at an early manual Stop', async () => {
+    const h = harness(); await h.start({ capture_id: 'click', width: 64, height: 64,
+        fps: { numerator: 60, denominator: 1 }, native_job_id: 'native' });
+    await h.settle(); h.time(10);
+    const rec = h.state.recording;
+    // VM replacement is deferred independently of transport; this observes the
+    // real loop/start/Stop contract without requiring a browser mouse listener.
+    const applied = [];
+    const queue = rec.liveInput;
+    queue.enqueue({ type: 'pointer', payload: { type: 'down', x: .5, y: .5 } });
+    const run = queue.run;
+    // Retain real queue receipt and seal logic; dispatch is supplied by the harness canvas.
+    rec.liveInput.run = index => { applied.push(index); run(index); };
+    const stopping = h.stop();
+    for (let i = 0; i < 30 && h.state.recording; i++) { h.time(20 + i); h.rafs.splice(0).forEach(fn => fn()); await h.settle(); }
+    await expect(stopping).resolves.toMatchObject({ frame_count: 2,
+        live_input: { accepted: 1, applied: 1, pending: 0, receipts: [{ frame_index: 1 }] } });
+    expect(applied).toEqual([1]); expect(h.pipe().captured.map(e => e.index)).toEqual([0, 1]);
 });

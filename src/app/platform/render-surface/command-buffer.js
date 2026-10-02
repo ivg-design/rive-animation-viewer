@@ -1,5 +1,11 @@
 const MAX_PENDING_COMMANDS = 256;
 
+export function recordingInputTimestamp() {
+    const clock = globalThis.performance;
+    return Number.isFinite(clock?.timeOrigin) && typeof clock.now === 'function'
+        ? clock.timeOrigin + clock.now() : Date.now();
+}
+
 function coalesceKey(type, payload = {}) {
     if (type === 'play' || type === 'pause') return 'playback';
     if (type === 'presentation') return 'presentation';
@@ -76,7 +82,7 @@ export function createRenderSurfaceCommandRelay({
         return typeof getTargetSessionId === 'function' ? getTargetSessionId() : undefined;
     }
 
-    function deliver(type, payload = {}, { requeue = true, targetSessionId = captureTargetSessionId() } = {}) {
+    function deliver(type, payload = {}, { requeue = true, targetSessionId = captureTargetSessionId(), acceptedAtMs = recordingInputTimestamp() } = {}) {
         const delivery = deliveryTail.then(async () => {
             // A routed relay captures its session identity at the instant the
             // command is accepted. A later activation fence must drain that
@@ -87,7 +93,8 @@ export function createRenderSurfaceCommandRelay({
             }
             let result;
             try {
-                result = await send(type, payload, { targetSessionId });
+                result = await send(type, payload, { targetSessionId,
+                    ...(['pointer', 'vm-set', 'vm-fire'].includes(type) ? { acceptedAtMs } : {}) });
             } catch (error) {
                 notifyResult(type, payload, {
                     applied: false,

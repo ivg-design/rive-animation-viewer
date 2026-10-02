@@ -487,3 +487,21 @@ describe('platform/mcp authoritative render-surface contract', () => {
         expect(controller.requestCommand).not.toHaveBeenCalled();
     });
 });
+
+it('reports queued recording VM changes as accepted input rather than already mutated values', async () => {
+    const receipt = { queued: true, input_index: 3, frame_index: 120, at_seconds: 2 };
+    const h = makeHarness(vi.fn(async () => ({ applied: true, status: 'applied', result: receipt })));
+    const root = h.canonicalState.controlsHierarchy.children[0];
+    root.inputs.push({ kind: 'trigger', name: 'bang', path: 'bang', source: 'view-model' });
+    const global = { kind: 'global-view-models', inputs: [], children: [{ globalViewModelName: 'Global', inputs: [
+        { kind: 'number', name: 'value', path: 'value', source: 'global-view-model', globalViewModelName: 'Global', value: 8 },
+        { kind: 'trigger', name: 'bang', path: 'bang', source: 'global-view-model', globalViewModelName: 'Global' },
+    ], children: [] }] };
+    h.canonicalState.controlsHierarchy.children.unshift(global);
+    const vm = createViewModelCommands({ windowRef: h.windowRef }), gvm = createGlobalViewModelCommands({ windowRef: h.windowRef });
+    const expected = { applied: null, accepted: true, queued: true, status: 'queued', input_index: 3, frame_index: 120, at_seconds: 2 };
+    await expect(vm.rav_vm_set({ path: 'speed', value: 99 })).resolves.toMatchObject({ ...expected, value: 3 });
+    await expect(vm.rav_vm_fire({ path: 'bang' })).resolves.toMatchObject(expected);
+    await expect(gvm.rav_global_vm_set({ name: 'Global', path: 'value', value: 99 })).resolves.toMatchObject({ ...expected, value: 8 });
+    await expect(gvm.rav_global_vm_fire({ name: 'Global', path: 'bang' })).resolves.toMatchObject(expected);
+});

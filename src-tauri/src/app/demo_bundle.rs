@@ -51,6 +51,7 @@ const DEMO_TEMPLATE_APP_JS: &str = concat!(
     "\n",
     include_str!("../demo-template/js/media/pipeline/capture-pipeline.js"),
     include_str!("../demo-template/js/media/capture.js"),
+    include_str!("../demo-template/js/media/live-input.js"),
     include_str!("../demo-template/js/media/recording.js"),
     include_str!("../demo-template/js/core/bootstrap.js"),
     "\n",

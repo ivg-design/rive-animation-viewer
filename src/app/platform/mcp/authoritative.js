@@ -41,6 +41,12 @@ export function assertAuthoritativeRenderSurface(options = {}) {
     return null;
 }
 
+export function queuedRecordingInput(result) {
+    const input = result?.result;
+    return input?.queued === true ? { applied: null, accepted: true, queued: true, status: 'queued',
+        input_index: input.input_index, frame_index: input.frame_index, at_seconds: input.at_seconds } : {};
+}
+
 function normalizeAuthoritativeResult(adapter, result) {
     const canonicalState = result?.canonicalState
         || (typeof adapter.controller.getCanonicalState === 'function'

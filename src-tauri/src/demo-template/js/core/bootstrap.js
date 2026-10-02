@@ -161,7 +161,7 @@
             if (type === 'capture-canvas') return captureRenderSurfaceDiagnostic(payload, emitToMain);
             if (type.indexOf('media-') === 0) return handleRenderSurfaceMediaCommand(type, payload);
             if (type === 'step-frames') return stepRenderSurfaceFrames(payload);
-            if (type === 'pointer') return dispatchRenderSurfacePointer(payload);
+            if (type === 'pointer') return dispatchRenderSurfacePointer(payload, false, command.inputAtMs);
             if (type === 'snapshot') {
                 var snapshot = Array.isArray(payload.snapshot) ? payload.snapshot : (Array.isArray(command.snapshot) ? command.snapshot : []);
                 var applied = applyControlSnapshot(snapshot);
@@ -176,6 +176,10 @@
                 return setRenderSurfaceWatchedControls(getRenderSurfaceBridgeState(), watchKeys);
             }
             if (type === 'vm-set' || type === 'vm-fire') {
+                if (typeof queueRenderSurfaceLiveVmInput === 'function') {
+                    var queuedInput = queueRenderSurfaceLiveVmInput(type, payload, command.inputAtMs);
+                    if (queuedInput) return queuedInput;
+                }
                 var vmDescriptor = payload.descriptor && typeof payload.descriptor === 'object' ? payload.descriptor : payload;
                 var vmKind = type === 'vm-fire' ? 'trigger' : vmDescriptor.kind;
                 var vmAccessor = vmDescriptor.source === 'global-view-model'
@@ -190,6 +194,9 @@
                 };
             }
             if (type === 'vm-image-set') {
+                if (typeof getRenderSurfaceMediaState === 'function' && getRenderSurfaceMediaState().recording && getRenderSurfaceMediaState().recording.liveInput) {
+                    throw new Error('Use a prepared interaction schedule for image changes during recording.');
+                }
                 var imageDescriptor = renderSurfaceImageCommand(payload);
                 return applyRenderSurfaceImageCommand(imageDescriptor, true);
             }

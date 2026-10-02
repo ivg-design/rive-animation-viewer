@@ -42,6 +42,7 @@ export function formatResultSummary(command, result) {
     if (!result || typeof result !== 'object') {
         return String(result ?? 'ok');
     }
+    if (result.queued === true && Number.isInteger(result.frame_index)) return `Queued for recording frame ${result.frame_index} (${Number(result.at_seconds).toFixed(3)}s)`;
     if (result.applied === false && result.status) {
         const message = result.message ? `: ${result.message}` : '';
         return `${result.status}${message}`;

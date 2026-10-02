@@ -5,6 +5,7 @@ import {
     canonicalGlobalVmSnapshot,
     findCanonicalGlobalInput,
     requestAuthoritativeCommand,
+    queuedRecordingInput,
     requestAuthoritativeImageCommand,
 } from '../authoritative.js';
 import { buildGlobalViewModelSnapshot } from '../view-model-snapshot.js';
@@ -139,7 +140,7 @@ export function createGlobalViewModelCommands({
                     descriptor: descriptor(input, globalViewModelName), value: normalizeValue(value, input.kind),
                 });
                 const canonical = findCanonicalGlobalInput(result.canonicalState, globalViewModelName, normalizedPath) || input;
-                return { applied: result.applied, name: globalViewModelName, path: normalizedPath, kind: input.kind, status: result.status, value: canonical.value };
+                return { applied: result.applied, name: globalViewModelName, path: normalizedPath, kind: input.kind, status: result.status, value: canonical.value, ...queuedRecordingInput(result) };
             }
             const resolved = resolvePath(liveRoot(globalViewModelName), normalizedPath, VALUE_KINDS);
             if (!resolved) throw new Error(`Property "${normalizedPath}" not found or not writable in global ViewModel "${globalViewModelName}"`);
@@ -206,7 +207,7 @@ export function createGlobalViewModelCommands({
                 const input = findCanonicalGlobalInput(adapter.canonicalState, globalViewModelName, normalizedPath, (item) => item.kind === 'trigger');
                 if (!input) throw new Error(`Trigger "${normalizedPath}" not found in global ViewModel "${globalViewModelName}"`);
                 const result = await requestAuthoritativeCommand(adapter, 'vm-fire', { descriptor: descriptor(input, globalViewModelName, 'trigger') });
-                return { applied: result.applied, name: globalViewModelName, path: normalizedPath, kind: 'trigger', status: result.status };
+                return { applied: result.applied, name: globalViewModelName, path: normalizedPath, kind: 'trigger', status: result.status, ...queuedRecordingInput(result) };
             }
             const resolved = resolvePath(liveRoot(globalViewModelName), normalizedPath, new Set(['trigger']));
             if (!resolved) throw new Error(`Trigger "${normalizedPath}" not found in global ViewModel "${globalViewModelName}"`);

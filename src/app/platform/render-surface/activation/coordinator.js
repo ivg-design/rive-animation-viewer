@@ -1,6 +1,7 @@
 import {
     createRenderSurfaceCommandBuffer,
     createRenderSurfaceCommandRelay,
+    recordingInputTimestamp,
 } from '../command-buffer.js';
 import { createSessionSourceScopes } from './source-scopes.js';
 
@@ -119,18 +120,19 @@ export function createRenderSurfaceActivationCoordinator({
         if (!stage.commands.enqueue(type, payload)) onOverflow({ payload, status: 'overflow', type });
     }
 
-    async function sendToSession(sessionId, type, payload = {}) {
+    async function sendToSession(sessionId, type, payload = {}, acceptedAtMs) {
         if (!sessionId || !isSessionAddressable?.(sessionId)) {
             return { applied: false, status: 'unavailable' };
         }
         if (!sourceScopes.matchesCommand(payload, sessionId)) return { applied: false, status: 'stale-source' };
-        return protocol.requestCommand(type, payload, { targetSessionId: sessionId });
+        return protocol.requestCommand(type, payload, { targetSessionId: sessionId,
+            ...(acceptedAtMs == null ? {} : { acceptedAtMs }) });
     }
 
-    async function sendRouted(type, payload = {}, { targetSessionId: capturedTargetSessionId } = {}) {
+    async function sendRouted(type, payload = {}, { targetSessionId: capturedTargetSessionId, acceptedAtMs } = {}) {
         const targetSessionId = capturedTargetSessionId || routedSessionId();
         if (payload && typeof payload === 'object') relayTargets.set(payload, targetSessionId);
-        const result = await sendToSession(targetSessionId, type, payload);
+        const result = await sendToSession(targetSessionId, type, payload, acceptedAtMs);
         recordAppliedStageCommand(targetSessionId, type, payload, result);
         return result;
     }
@@ -277,6 +279,7 @@ export function createRenderSurfaceActivationCoordinator({
     }
 
     async function requestCommand(type, payload = {}, { targetSessionId: capturedTargetSessionId } = {}) {
+        const acceptedAtMs = recordingInputTimestamp();
         sourceScopes.stamp(payload, capturedTargetSessionId || getActiveSessionId?.() || stage?.sessionId || getStagedSessionId?.());
         const observedBarrier = barrier;
         if (observedBarrier?.phase === 'draining') {
@@ -297,7 +300,8 @@ export function createRenderSurfaceActivationCoordinator({
         // replacement while a successfully applied old-surface command is
         // still awaiting its acknowledgement and replay journal entry.
         const targetSessionId = capturedTargetSessionId || routedSessionId();
-        const delivery = sendToSession(targetSessionId, type, payload);
+        const delivery = sendToSession(targetSessionId, type, payload,
+            ['pointer', 'vm-set', 'vm-fire'].includes(type) ? acceptedAtMs : undefined);
         directInFlight.add(delivery);
         try {
             const result = await delivery;

@@ -75,7 +75,7 @@ describe('typed recording interaction contract', () => {
             {at_seconds:0,type:'vm-trigger',descriptor:{path:'go'}},{at_seconds:0,type:'pointer',event:'down',x:.25,y:.5,buttons:1}]);
         schedule.run(0,0);
         expect([h.rootValue.value,h.nestedValue.value,h.listValue.value,h.globalValue.value]).toEqual([4,'new',true,4294967295]);
-        expect(h.fire).toHaveBeenCalledTimes(1);expect(h.pointer).toHaveBeenCalledWith({type:'down',x:.25,y:.5,id:0,buttons:1});
+        expect(h.fire).toHaveBeenCalledTimes(1);expect(h.pointer).toHaveBeenCalledWith({type:'down',x:.25,y:.5,id:0,buttons:1},true);
         h.replace();expect(()=>schedule.run(1,1)).toThrow('source');schedule.dispose();
     });
     it('uses a prepared accessor when a same-session live lookup briefly misses', async () => {
