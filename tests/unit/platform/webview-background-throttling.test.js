@@ -16,7 +16,7 @@ function rustSources(directory) {
 describe('webview background throttling', () => {
     it('keeps every command-serving webview running while the RAV window is hidden', () => {
         const builders = rustSources(sourceRoot).flatMap((file) => {
-            const relative = path.relative(sourceRoot, file);
+            const relative = path.relative(sourceRoot, file).split(path.sep).join('/');
             const source = readFileSync(file, 'utf8');
             return [...source.matchAll(/Webview(?:Window)?Builder::new\(/g)]
                 .map((match) => ({ relative, chain: source.slice(match.index, source.indexOf(';', match.index)) }));
