@@ -116,9 +116,13 @@ the recording start. They wait for the first recording frame boundary at or
 following that time, before Rive advances. Input is ordered by frame, then acceptance order for ties; clicks and triggers are not coalesced. Scripted interactions run before
 live input on a shared boundary. Cursor composition uses the replayed position.
 The host preserves its acceptance timestamp across IPC; physical mouse events
-use the child document's monotonic event timestamp.
+use the child document's monotonic event timestamp. Between adjacent move
+samples, the frame loop interpolates position to keep 60 FPS output continuous
+even when input arrives less frequently. It never interpolates across mouse
+down, up or exit boundaries; cursor composition uses the same sampled position.
 
-Slow capture still delays the visible preview response. The status strip and
+Live input adds a 100 ms delivery window to preview response; lag metrics
+include that window. Slow capture further delays the visible preview response. The status strip and
 media dialog show sustained lag (at least 500 ms for one second), with guidance
 to reduce size/FPS. `resolved_settings.capture_clock` includes `lag_ms`,
 `max_lag_ms`, `sustained_lag` and `input_timing:"timestamped"`. This repair does
@@ -139,7 +143,8 @@ frame. Unusually late input applies on the next uncaptured frame, remains
 usable, and reports `late_inputs` and `max_late_ms` rather than aborting. The queue
 is bounded at 16,384 pending events; overflow stops explicitly rather than dropping input.
 
-`resolved_settings.live_input` reports accepted/applied/pending counts and the
+`resolved_settings.live_input` reports accepted/applied/pending counts,
+`interpolated_moves` (synthetic frame samples, separate from accepted input), and the
 last 512 timing receipts (`index`, `type`, pointer `event`, `at_seconds`,
 `frame_index`, `applied_seconds`, `late`, `lateness_ms`), with
 `receipts_truncated` for older entries and `input_latency_window_ms:100`.
