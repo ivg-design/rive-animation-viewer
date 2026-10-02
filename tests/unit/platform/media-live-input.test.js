@@ -22,7 +22,7 @@ function harness({ duration, sourceSession = 'one' } = {}) {
     )(win, { canvas }, () => state, { now: () => now, timeOrigin: 1700000000000 }, resolve, (a) => a.values || [], triggerReceipt, vi.fn(), player, session);
     recording.liveInput = api.create(recording);
     const frame = (index) => { recording.liveInput.run(index); recording.lastIndex = index; };
-    const physical = (type, ms, x = 60) => { now = Math.max(now, ms); const e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: 70 }); Object.defineProperty(e, 'timeStamp', { value: ms }); canvas.dispatchEvent(e); };
+    const physical = (type, ms, x = 60, deliveredAt = Math.max(now, ms)) => { now = deliveredAt; const e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: 70 }); Object.defineProperty(e, 'timeStamp', { value: ms }); canvas.dispatchEvent(e); return { timestamp: ms, deliveredAt: now }; };
     return { ...api, originalPlayer: player, state, recording, canvas, seen, accessors, resolve, triggerReceipt, emit, win, frame, physical, time(ms) { now = ms; } };
 }
 
@@ -135,7 +135,7 @@ it('retains an unusually late click on the next frame and reports its lateness w
 
 it.each(['physical', 'vm'])('keeps normal %s delivery delay inside the input-latency window', (kind) => {
     const h = harness(); h.frame(1); // At wall 118 ms, the 100 ms window permits only frame one.
-    if (kind === 'physical') { h.time(1118); h.physical('mousedown', 1116); }
+    if (kind === 'physical') { expect(h.physical('mousedown', 1116, 60, 1118)).toEqual({ timestamp: 1116, deliveredAt: 1118 }); }
     else { h.accessors.set('speed', { value: 0 }); h.time(1140); h.vm('vm-set', { path: 'speed', kind: 'number', value: 42 }, 1120); }
     const expected = kind === 'physical' ? 7 : 8;
     h.frame(expected - 1); expect(h.recording.liveInput.status().applied).toBe(0);
@@ -144,7 +144,7 @@ it.each(['physical', 'vm'])('keeps normal %s delivery delay inside the input-lat
 });
 
 it('retains a finite-tail DOM event by its original timestamp despite delayed delivery, like MCP', () => {
-    const h = harness({ duration: .1 }); h.time(1101); h.physical('mousedown', 1099);
+    const h = harness({ duration: .1 }); expect(h.physical('mousedown', 1099, 60, 1101)).toEqual({ timestamp: 1099, deliveredAt: 1101 });
     expect(h.recording.liveInput.status()).toMatchObject({ accepted: 1, pending: 1 });
     expect(h.send({ type: 'up', x: .5, y: .5 }, false, 1099)).toMatchObject({ queued: true, frame_index: 6 });
     h.physical('mousemove', 1101); expect(h.recording.liveInput.status().accepted).toBe(2);
