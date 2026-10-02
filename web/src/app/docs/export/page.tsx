@@ -64,6 +64,7 @@ export default function Export() {
       <ul>
         <li><strong>Tree checkboxes</strong> &mdash; branch checkboxes select entire nested sections, leaf checkboxes select individual controls</li>
         <li><strong>Selection</strong> &mdash; all controls are selected by default; use SELECT ALL, CLEAR, or the tree checkboxes to choose what appears in the standalone demo and snippet</li>
+        <li><strong>Remembered selection</strong> &mdash; a chosen subset or CLEAR is kept for the same file, artboard, and ViewModel instance, including after switching between Canvas and WebGL2 or changing the runtime version. Opening a different file, artboard, or ViewModel instance resets the selection to all controls. Exports made without the dialog, such as MCP <code>rav_export_demo</code>, follow the same rule</li>
         <li><strong>Package source</strong> &mdash; CDN vs LOCAL (see below)</li>
         <li><strong>Snippet mode</strong> &mdash; COMPACT vs SCAFFOLD (see below)</li>
         <li><strong>GPU CANVAS</strong> &mdash; WebGL2 only (see below)</li>

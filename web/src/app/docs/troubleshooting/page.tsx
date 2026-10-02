@@ -79,6 +79,7 @@ export default function Troubleshooting() {
       <ul>
         <li>Desktop playback runs on the window&apos;s own animation frames; a hidden or occluded window pauses rendering and resumes automatically once it is revealed</li>
         <li>Recording continues while the window is hidden or minimized &mdash; frames are still captured on schedule</li>
+        <li>On macOS, MCP clients keep working while RAV is hidden or minimized: status, opening files, standalone export, the export dialog, and renderer switching respond without bringing the window forward</li>
       </ul>
 
       <h2>Getting Help</h2>

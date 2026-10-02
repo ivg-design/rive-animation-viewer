@@ -166,6 +166,11 @@ export default function McpIntegration() {
         <strong> Script Access</strong> in the MCP Setup dialog to unlock <code>rav_eval</code>,
         <code>rav_console_exec</code>, and <code>rav_apply_code</code>.
       </p>
+      <p>
+        When <code>rav_eval</code> runs in the playback surface, a returned Promise that has not
+        settled after 2 seconds is rejected, so later playback commands are not held up. The
+        rejection does not cancel the work the expression started.
+      </p>
     </>
   );
 }
