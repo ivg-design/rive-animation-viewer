@@ -49,6 +49,10 @@ All notable released changes to this project are documented in this file.
   whose returned Promise remains unsettled is rejected after two seconds,
   before the normal child acknowledgement deadline, allowing later ordered
   renderer commands to proceed.
+- **Standalone Node MCP startup** — The separately runnable Node MCP server
+  starts again. A syntax error in its built-in instructions had stopped it at
+  launch since 2.5.4; startup parsing and the base tool handshake are now
+  covered by regression checks.
 
 ### Known limits
 
