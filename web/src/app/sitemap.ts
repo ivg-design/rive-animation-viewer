@@ -1,10 +1,7 @@
 import type { MetadataRoute } from "next";
 import { toCanonicalUrl } from "@/lib/seo";
 
-const RELEASE_MODIFIED = new Date("2026-09-01T00:00:00.000Z");
-const DOCS_MODIFIED = new Date("2026-09-14T00:00:00.000Z");
-const CHANGELOG_MODIFIED = new Date("2026-09-19T00:00:00.000Z");
-const PRIVACY_MODIFIED = new Date("2026-08-27T00:00:00.000Z");
+const HOME_MODIFIED = new Date("2026-10-20T00:00:00.000Z");
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const documentationRoutes = [
@@ -28,25 +25,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: toCanonicalUrl("/"),
-      lastModified: RELEASE_MODIFIED,
+      lastModified: HOME_MODIFIED,
       changeFrequency: "weekly",
       priority: 1,
     },
     ...documentationRoutes.map((route) => ({
       url: toCanonicalUrl(route),
-      lastModified: DOCS_MODIFIED,
       changeFrequency: "weekly" as const,
       priority: route === "/docs" ? 0.9 : 0.7,
     })),
     {
       url: toCanonicalUrl("/changelog"),
-      lastModified: CHANGELOG_MODIFIED,
       changeFrequency: "weekly",
       priority: 0.7,
     },
     {
       url: toCanonicalUrl("/privacy"),
-      lastModified: PRIVACY_MODIFIED,
       changeFrequency: "yearly",
       priority: 0.5,
     },
