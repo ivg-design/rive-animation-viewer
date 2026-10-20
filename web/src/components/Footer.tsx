@@ -37,7 +37,7 @@ export default function Footer() {
       links: [
         { label: "Forge Hub", href: "https://forge.mograph.life", external: true },
         { label: "Learn Rive scripting with LERP", href: "https://forge.mograph.life/apps/lerp/", external: true },
-        { label: "Services", href: "/services/", external: true },
+        { label: "Services", href: "https://services.mograph.life/", external: true },
         { label: "Work with me", href: "https://contra.com/ivg_design", external: true, action: "service_outbound" },
         { label: "RWPP", href: "https://forge.mograph.life/apps/rwpp/", external: true },
       ],
